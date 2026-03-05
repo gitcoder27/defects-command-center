@@ -35,10 +35,10 @@ export const FILTER_KEYS: FilterType[] = [
 ];
 
 export const CARD_CONFIGS = [
+  { key: 'total' as const, label: 'Total Defects', color: '#06B6D4', filter: 'all' as FilterType },
   { key: 'new' as const, label: 'New (24h)', color: '#8B5CF6', filter: 'new' as FilterType },
   { key: 'unassigned' as const, label: 'Unassigned', color: '#F59E0B', filter: 'unassigned' as FilterType },
   { key: 'dueToday' as const, label: 'Due Today', color: '#F97316', filter: 'dueToday' as FilterType },
   { key: 'overdue' as const, label: 'Overdue', color: '#EF4444', filter: 'overdue' as FilterType },
-  { key: 'blocked' as const, label: 'Blocked', color: '#E11D48', filter: 'blocked' as FilterType },
   { key: 'inProgress' as const, label: 'In Progress', color: '#10B981', filter: 'inProgress' as FilterType },
 ];

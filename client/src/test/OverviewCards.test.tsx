@@ -35,11 +35,11 @@ describe('OverviewCards', () => {
       </TestWrapper>
     );
 
+    expect(screen.getByText('Total Defects')).toBeInTheDocument();
     expect(screen.getByText('New (24h)')).toBeInTheDocument();
     expect(screen.getByText('Unassigned')).toBeInTheDocument();
     expect(screen.getByText('Due Today')).toBeInTheDocument();
     expect(screen.getByText('Overdue')).toBeInTheDocument();
-    expect(screen.getByText('Blocked')).toBeInTheDocument();
     expect(screen.getByText('In Progress')).toBeInTheDocument();
   });
 
