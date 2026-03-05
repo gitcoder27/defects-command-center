@@ -151,6 +151,21 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
     }
   });
 
+  router.delete("/developers/:accountId", validate(paramsSchema), async (req, res, next) => {
+    try {
+      const accountId = req.params.accountId as string;
+
+      await db
+        .update(developersTable)
+        .set({ isActive: 0 })
+        .where(eq(developersTable.accountId, accountId));
+
+      res.json({ success: true, accountId });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get("/:accountId/issues", validate(paramsSchema), async (req, res, next) => {
     try {
       const accountId = req.params.accountId as string;

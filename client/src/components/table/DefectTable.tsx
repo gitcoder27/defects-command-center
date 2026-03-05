@@ -206,6 +206,7 @@ export function DefectTable({
         header: 'Due Date',
         cell: (info) => {
           const issue = info.row.original;
+          const effectiveDueDate = issue.developmentDueDate ?? issue.dueDate;
           if (editingCell?.rowKey === issue.jiraKey && editingCell?.column === 'dueDate') {
             return (
               <InlineEditDueDate
@@ -217,7 +218,7 @@ export function DefectTable({
           }
           return (
             <span onClick={(e) => handleCellClick(issue.jiraKey, 'dueDate', e)}>
-              <DueDateCell date={info.getValue() ?? undefined} />
+              <DueDateCell date={effectiveDueDate ?? undefined} />
             </span>
           );
         },

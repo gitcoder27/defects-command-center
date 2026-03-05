@@ -16,12 +16,20 @@ export function formatRelativeTime(dateStr: string): string {
 
 export function isDueToday(dateStr?: string): boolean {
   if (!dateStr) return false;
-  return isToday(new Date(dateStr));
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+  return isToday(date);
 }
 
 export function isOverdue(dateStr?: string): boolean {
   if (!dateStr) return false;
-  return isBefore(new Date(dateStr), startOfDay(new Date()));
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+  return isBefore(date, startOfDay(new Date()));
 }
 
 export function isStale(updatedAt: string, thresholdHours = 48): boolean {
@@ -33,6 +41,9 @@ export function formatDate(dateStr?: string): string {
   if (!dateStr) return '—';
   try {
     const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) {
+      return '—';
+    }
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } catch {
     return dateStr;

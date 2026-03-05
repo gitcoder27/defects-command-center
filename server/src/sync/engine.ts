@@ -146,7 +146,8 @@ export class SyncEngine {
     const labels = item.fields.labels ?? [];
     const flagged = Array.isArray(item.fields.customfield_10021) && item.fields.customfield_10021.some((it) => it.id === "10019");
     const devDueDateField = devDueDateFieldOverride || config.JIRA_DEV_DUE_DATE_FIELD;
-    const devDueDate = this.toDbTextValue(item.fields[devDueDateField]);
+    const developmentDueDate = this.toDateValue(item.fields[devDueDateField]);
+    const dueDate = this.toDateValue(item.fields.duedate);
     return {
       jiraKey: item.key,
       summary: this.toDbTextValue(item.fields.summary) ?? "",
@@ -160,8 +161,8 @@ export class SyncEngine {
       reporterName: this.toDbTextValue(item.fields.reporter?.displayName),
       component: this.toDbTextValue(item.fields.components?.[0]?.name),
       labels: JSON.stringify(labels),
-      dueDate: this.toDbTextValue(item.fields.duedate),
-      developmentDueDate: devDueDate,
+      dueDate,
+      developmentDueDate,
       flagged: flagged ? 1 : 0,
       createdAt: item.fields.created ?? syncedAt,
       updatedAt: item.fields.updated ?? syncedAt,
@@ -205,6 +206,66 @@ export class SyncEngine {
       return JSON.stringify(value);
     }
     return String(value);
+  }
+
+  private toDateValue(value: unknown): string | null {
+    const normalized = this.toDbTextValue(value);
+    if (normalized === null) {
+      return null;
+    }
+
+    const trimmed = normalized.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const parseDate = (raw: string): string | null => {
+      const parsed = new Date(raw);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString().slice(0, 10);
+      }
+      return null;
+    };
+
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      const direct = parseDate(trimmed);
+      if (direct) {
+        return direct;
+      }
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === "string") {
+        return this.toDateValue(parsed) ?? null;
+      }
+      if (parsed && typeof parsed === "object") {
+        const valueLike = (parsed as { value?: unknown; date?: unknown; dueDate?: unknown; startDate?: unknown; endDate?: unknown }).value;
+        if (valueLike !== undefined) {
+          return this.toDateValue(valueLike);
+        }
+        const dateLike = (parsed as { value?: unknown; date?: unknown; dueDate?: unknown; startDate?: unknown; endDate?: unknown }).date;
+        if (dateLike !== undefined) {
+          return this.toDateValue(dateLike);
+        }
+        const dueDateLike = (parsed as { value?: unknown; date?: unknown; dueDate?: unknown; startDate?: unknown; endDate?: unknown }).dueDate;
+        if (dueDateLike !== undefined) {
+          return this.toDateValue(dueDateLike);
+        }
+        const startDateLike = (parsed as { value?: unknown; date?: unknown; dueDate?: unknown; startDate?: unknown; endDate?: unknown }).startDate;
+        if (startDateLike !== undefined) {
+          return this.toDateValue(startDateLike);
+        }
+        const endDateLike = (parsed as { value?: unknown; date?: unknown; dueDate?: unknown; startDate?: unknown; endDate?: unknown }).endDate;
+        if (endDateLike !== undefined) {
+          return this.toDateValue(endDateLike);
+        }
+      }
+    } catch {
+      // keep normalized string fallback
+    }
+
+    return parseDate(trimmed);
   }
 
   private async upsertIssue(row: typeof issues.$inferInsert): Promise<void> {

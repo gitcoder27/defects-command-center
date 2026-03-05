@@ -1,16 +1,24 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, RefreshCw, Search, AlertTriangle } from 'lucide-react';
+import { X, Save, RefreshCw, Search, AlertTriangle, Loader2, UserPlus, UserMinus, Users } from 'lucide-react';
 import { useConfig } from '@/hooks/useConfig';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/lib/api';
+import { useDevelopers } from '@/hooks/useDevelopers';
 
 interface JiraField {
   id: string;
   name: string;
   custom: boolean;
+}
+
+interface DiscoveredUser {
+  accountId: string;
+  displayName: string;
+  email?: string;
+  avatarUrl?: string;
 }
 
 interface SettingsPanelProps {
@@ -32,6 +40,45 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const [loadingFields, setLoadingFields] = useState(false);
   const [fieldSearch, setFieldSearch] = useState('');
   const [showFieldPicker, setShowFieldPicker] = useState(false);
+  const { data: developers = [], isLoading: loadingDevelopers } = useDevelopers();
+
+  const [teamSearch, setTeamSearch] = useState('');
+  const [discoveredUsers, setDiscoveredUsers] = useState<DiscoveredUser[]>([]);
+  const [discoveredSearch, setDiscoveredSearch] = useState('');
+  const [discoveringTeam, setDiscoveringTeam] = useState(false);
+  const [discoverTeamError, setDiscoverTeamError] = useState('');
+  const [selectedAddUsers, setSelectedAddUsers] = useState<Set<string>>(new Set());
+  const [savingTeam, setSavingTeam] = useState(false);
+  const [removingAccountId, setRemovingAccountId] = useState<string | null>(null);
+
+  const activeMemberIds = useMemo(() => new Set(developers.map((d) => d.accountId)), [developers]);
+
+  const filteredDevelopers = useMemo(
+    () =>
+      developers.filter(
+        (d) =>
+          d.displayName.toLowerCase().includes(teamSearch.toLowerCase()) ||
+          (d.email?.toLowerCase().includes(teamSearch.toLowerCase()) ?? false)
+      ),
+    [developers, teamSearch]
+  );
+
+  const filteredDiscoveredUsers = useMemo(
+    () =>
+      discoveredUsers.filter(
+        (u) =>
+          u.displayName.toLowerCase().includes(discoveredSearch.toLowerCase()) ||
+          (u.email?.toLowerCase().includes(discoveredSearch.toLowerCase()) ?? false)
+      ),
+    [discoveredUsers, discoveredSearch]
+  );
+
+  const teamActionLoading = savingTeam || Boolean(removingAccountId);
+  const addableSelectionCount = useMemo(
+    () =>
+      Array.from(selectedAddUsers).filter((accountId) => !activeMemberIds.has(accountId)).length,
+    [selectedAddUsers, activeMemberIds]
+  );
 
   useEffect(() => {
     if (config) {
@@ -127,6 +174,110 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const otherFields = filteredFields.filter(
     (f) => f.custom && !dueDateFields.includes(f)
   );
+
+  const invalidateTeamAndWorkload = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['developers'] }),
+      queryClient.invalidateQueries({ queryKey: ['workload'] }),
+      queryClient.invalidateQueries({ queryKey: ['overview'] }),
+      queryClient.invalidateQueries({ queryKey: ['alerts'] }),
+    ]);
+  };
+
+  const handleDiscoverTeamMembers = useCallback(async () => {
+    setDiscoveringTeam(true);
+    setDiscoverTeamError('');
+    try {
+      const res = await api.post<{ users: DiscoveredUser[] }>('/team/discover', {});
+      setDiscoveredUsers(res.users);
+      setDiscoveredSearch('');
+      setSelectedAddUsers(new Set());
+      if (res.users.length === 0) {
+        addToast({ type: 'warning', title: 'No team members found', message: 'No Jira users are currently assignable in this project.' });
+      }
+    } catch (error) {
+      setDiscoverTeamError(error instanceof Error ? error.message : 'Failed to discover Jira users');
+      addToast({ type: 'error', title: 'Failed to discover team members', message: error instanceof Error ? error.message : 'Request failed' });
+      setDiscoveredUsers([]);
+    } finally {
+      setDiscoveringTeam(false);
+    }
+  }, [addToast]);
+
+  const handleToggleAddUser = useCallback((accountId: string) => {
+    setSelectedAddUsers((prev) => {
+      const next = new Set(prev);
+      if (next.has(accountId)) {
+        next.delete(accountId);
+      } else {
+        next.add(accountId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectAllDiscovered = useCallback(() => {
+    setSelectedAddUsers(
+      new Set(filteredDiscoveredUsers.filter((user) => !activeMemberIds.has(user.accountId)).map((u) => u.accountId))
+    );
+  }, [activeMemberIds, filteredDiscoveredUsers]);
+
+  const handleClearAddSelection = useCallback(() => {
+    setSelectedAddUsers(new Set());
+  }, []);
+
+  const handleAddSelectedDevelopers = useCallback(async () => {
+    if (selectedAddUsers.size === 0) {
+      return;
+    }
+
+    setSavingTeam(true);
+    try {
+      const candidates = discoveredUsers.filter((u) => selectedAddUsers.has(u.accountId));
+      const newMembers = candidates.filter((u) => !activeMemberIds.has(u.accountId));
+      if (newMembers.length === 0) {
+        addToast({
+          type: 'info',
+          title: 'No new members',
+          message: 'Selected users are already on your team.',
+        });
+        setSelectedAddUsers(new Set());
+        return;
+      }
+
+      await api.post('/team/developers', { developers: newMembers });
+      setSelectedAddUsers(new Set());
+      await invalidateTeamAndWorkload();
+      addToast({
+        type: 'success',
+        title: 'Team updated',
+        message: `Added ${newMembers.length} team member${newMembers.length === 1 ? '' : 's'}.`,
+      });
+    } catch (err) {
+      addToast({ type: 'error', title: 'Failed to add team members', message: err instanceof Error ? err.message : 'Request failed' });
+    } finally {
+      setSavingTeam(false);
+    }
+  }, [activeMemberIds, discoveredUsers, selectedAddUsers, addToast]);
+
+  const handleRemoveMember = useCallback(async (accountId: string) => {
+    setRemovingAccountId(accountId);
+    try {
+      await api.delete(`/team/developers/${encodeURIComponent(accountId)}`);
+      await invalidateTeamAndWorkload();
+      addToast({
+        type: 'success',
+        title: 'Team updated',
+        message: 'Developer removed from tracked team.',
+      });
+    } catch (err) {
+      addToast({ type: 'error', title: 'Failed to remove developer', message: err instanceof Error ? err.message : 'Request failed' });
+    } finally {
+      setRemovingAccountId(null);
+    }
+  }, [addToast]);
+
+  const hasChanges = saving || triggerSync.isPending || resetting || teamActionLoading;
 
   return (
     <AnimatePresence>
@@ -353,6 +504,227 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                     </button>
                   </div>
                 )}
+                </div>
+
+              {/* Team members */}
+              <div>
+                <label
+                  className="text-[11px] font-semibold uppercase mb-2 block"
+                  style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}
+                >
+                  Team Members
+                </label>
+                <p className="text-[12px] mb-3" style={{ color: 'var(--text-secondary)' }}>
+                  Add or remove Jira users that should appear in workload calculations and assignments.
+                </p>
+
+                <div className="flex gap-2 mb-3">
+                  <div className="flex-1 relative">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                    <input
+                      type="text"
+                      value={teamSearch}
+                      onChange={(e) => setTeamSearch(e.target.value)}
+                      placeholder="Search current team…"
+                      className="w-full pl-8 pr-3 py-1.5 rounded-md text-[12px] focus:outline-none focus:ring-1"
+                      style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    />
+                  </div>
+                  <button
+                    onClick={handleDiscoverTeamMembers}
+                    disabled={teamActionLoading}
+                    className="px-3 py-2 rounded-md text-[12px] font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                    style={{
+                      background: 'var(--bg-tertiary)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    {discoveringTeam ? <Loader2 size={14} className="animate-spin" /> : <Users size={14} />}
+                    Discover
+                  </button>
+                </div>
+
+                <div
+                  className="rounded-md overflow-hidden"
+                  style={{ border: '1px solid var(--border)', background: 'var(--bg-tertiary)' }}
+                >
+                  {loadingDevelopers ? (
+                    <div className="px-3 py-3 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                      Loading team members…
+                    </div>
+                  ) : filteredDevelopers.length === 0 ? (
+                    <div className="px-3 py-3 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                      No tracked team members found.
+                    </div>
+                  ) : (
+                    filteredDevelopers.map((member, index) => {
+                      const isRemoving = removingAccountId === member.accountId;
+                      return (
+                        <div
+                          key={member.accountId}
+                          className="px-3 py-2 flex items-center gap-3"
+                          style={{
+                            borderBottom: index === filteredDevelopers.length - 1 ? 'none' : '1px solid var(--border)',
+                          }}
+                        >
+                          {member.avatarUrl ? (
+                            <img
+                              src={member.avatarUrl}
+                              alt={member.displayName}
+                              className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+                            />
+                          ) : (
+                            <div
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0"
+                              style={{ background: 'rgba(99,102,241,0.2)', color: 'var(--accent)' }}
+                            >
+                              {member.displayName[0]?.toUpperCase() ?? 'U'}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                              {member.displayName}
+                            </p>
+                            {member.email && (
+                              <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>
+                                {member.email}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleRemoveMember(member.accountId)}
+                            disabled={teamActionLoading}
+                            className="p-1.5 rounded-md transition-colors disabled:opacity-50"
+                            style={{ color: 'var(--text-muted)' }}
+                            title="Remove from team"
+                          >
+                            {isRemoving ? <Loader2 size={14} className="animate-spin" /> : <UserMinus size={14} />}
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="mt-5 rounded-md p-3 space-y-2" style={{ border: '1px solid var(--border)' }}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                      Add Team Members
+                    </p>
+                    <button
+                      onClick={handleDiscoverTeamMembers}
+                      disabled={discoveringTeam || teamActionLoading}
+                      className="text-[11px] font-medium transition-colors disabled:opacity-50"
+                      style={{ color: 'var(--accent)' }}
+                    >
+                      Refresh list
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                    <input
+                      type="text"
+                      value={discoveredSearch}
+                      onChange={(e) => setDiscoveredSearch(e.target.value)}
+                      placeholder="Search discoverable users…"
+                      className="w-full pl-8 pr-3 py-1.5 rounded-md text-[12px] focus:outline-none focus:ring-1"
+                      style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    />
+                  </div>
+
+                  {discoverTeamError && (
+                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                      {discoverTeamError}
+                    </p>
+                  )}
+
+                  {discoveringTeam ? (
+                    <div className="flex items-center gap-2 py-3">
+                      <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
+                      <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>Discovering users…</span>
+                    </div>
+                  ) : discoveredUsers.length === 0 ? (
+                    <div className="text-[12px] py-2" style={{ color: 'var(--text-muted)' }}>
+                      Discover users from Jira to add members to your team.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 text-[11px]">
+                        <button onClick={handleSelectAllDiscovered} className="font-semibold" style={{ color: 'var(--accent)' }}>
+                          Select all
+                        </button>
+                        <span style={{ color: 'var(--text-muted)' }}>•</span>
+                        <button onClick={handleClearAddSelection} className="font-semibold" style={{ color: 'var(--text-muted)' }}>
+                          Clear
+                        </button>
+                        <span className="ml-auto text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                          {filteredDiscoveredUsers.length} users
+                        </span>
+                      </div>
+                      <div className="max-h-52 overflow-y-auto">
+                        {filteredDiscoveredUsers.map((user) => {
+                          const isAlreadyMember = activeMemberIds.has(user.accountId);
+                          const isSelected = selectedAddUsers.has(user.accountId);
+                          return (
+                            <button
+                              key={user.accountId}
+                              type="button"
+                              onClick={() => !isAlreadyMember && handleToggleAddUser(user.accountId)}
+                              disabled={isAlreadyMember || teamActionLoading}
+                              className="w-full text-left px-2 py-2 flex items-center gap-2 hover:bg-[var(--bg-secondary)] transition-colors disabled:opacity-100"
+                            >
+                              <span
+                                className="w-4 h-4 rounded border flex items-center justify-center text-[10px]"
+                                style={{
+                                  borderColor: isAlreadyMember ? 'var(--accent)' : isSelected ? 'var(--accent)' : 'var(--border)',
+                                  background: isAlreadyMember || isSelected ? 'rgba(99,102,241,0.12)' : 'transparent',
+                                  color: isSelected ? 'var(--accent)' : 'var(--text-muted)',
+                                }}
+                              >
+                                {isAlreadyMember ? '✓' : isSelected ? '✓' : ''}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[12px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                                  {user.displayName}
+                                </p>
+                                {user.email && (
+                                  <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>
+                                    {user.email}
+                                  </p>
+                                )}
+                              </div>
+                              {isAlreadyMember && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(99,102,241,0.16)', color: 'var(--accent)' }}>
+                                  Added
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        onClick={handleAddSelectedDevelopers}
+                        disabled={addableSelectionCount === 0 || savingTeam}
+                        className="w-full px-3 py-2 rounded-md text-[12px] font-medium flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                        style={{ background: 'rgba(16,185,129,0.14)', color: '#34d399', border: '1px solid rgba(16,185,129,0.35)' }}
+                      >
+                        {savingTeam ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin" />
+                            Adding…
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus size={14} />
+                            Add selected
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Info */}
@@ -377,7 +749,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
             >
               <button
                 onClick={handleResetConfig}
-                disabled={saving || triggerSync.isPending || resetting}
+                disabled={hasChanges}
                 className="px-4 py-2 rounded-md text-[13px] font-medium transition-colors disabled:opacity-50"
                 style={{
                   background: 'rgba(239,68,68,0.14)',
@@ -397,7 +769,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={hasChanges}
                 className="px-4 py-2 rounded-md text-[13px] font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 style={{
                   background: 'var(--bg-tertiary)',
@@ -410,7 +782,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
               </button>
               <button
                 onClick={handleSaveAndSync}
-                disabled={saving || triggerSync.isPending}
+                disabled={hasChanges || triggerSync.isPending}
                 className="px-4 py-2 rounded-md text-[13px] font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 style={{ background: 'var(--accent)', color: '#fff' }}
               >
