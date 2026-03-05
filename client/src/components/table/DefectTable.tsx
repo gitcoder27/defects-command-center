@@ -69,6 +69,51 @@ export function DefectTable({
   } | null>(null);
 
   const tableRef = useRef<HTMLDivElement>(null);
+  const suppressNextRowSelectRef = useRef(false);
+  const [openTagEditors, setOpenTagEditors] = useState<Set<string>>(new Set());
+
+  const onTagEditorOpenChange = useCallback((issueKey: string, isOpen: boolean) => {
+    setOpenTagEditors((prev) => {
+      const alreadyOpen = prev.has(issueKey);
+      if ((isOpen && alreadyOpen) || (!isOpen && !alreadyOpen)) {
+        return prev;
+      }
+      const next = new Set(prev);
+      if (isOpen) next.add(issueKey);
+      else next.delete(issueKey);
+      return next;
+    });
+  }, []);
+
+  const handleTableMouseDownCapture = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (openTagEditors.size === 0) {
+        return;
+      }
+
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      if (target.closest('[data-tag-editor-root="true"]') || target.closest('[data-tag-editor-popover="true"]')) {
+        return;
+      }
+
+      suppressNextRowSelectRef.current = true;
+    },
+    [openTagEditors.size]
+  );
+
+  const handleTableClickCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!suppressNextRowSelectRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    suppressNextRowSelectRef.current = false;
+  }, []);
 
   // Expose issue keys for parent keyboard nav
   const rowCount = issues?.length ?? 0;
@@ -168,7 +213,13 @@ export function DefectTable({
         header: 'Tags',
         cell: (info) => {
           const issue = info.row.original;
-          return <InlineEditTags issueKey={issue.jiraKey} localTags={issue.localTags} />;
+          return (
+            <InlineEditTags
+              issueKey={issue.jiraKey}
+              localTags={issue.localTags}
+              onOpenChange={onTagEditorOpenChange}
+            />
+          );
         },
         size: 250,
         enableSorting: false,
@@ -247,7 +298,7 @@ export function DefectTable({
         enableSorting: false,
       }),
     ],
-    [editingCell, handleCellClick, closeInlineEdit, config]
+    [editingCell, handleCellClick, closeInlineEdit, config, onTagEditorOpenChange]
   );
 
   const table = useReactTable({
@@ -288,7 +339,12 @@ export function DefectTable({
   }
 
   return (
-    <div className="flex-1 overflow-auto" ref={tableRef}>
+    <div
+      className="flex-1 overflow-auto"
+      ref={tableRef}
+      onMouseDownCapture={handleTableMouseDownCapture}
+      onClickCapture={handleTableClickCapture}
+    >
       <table className="w-full border-collapse">
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -342,7 +398,13 @@ export function DefectTable({
                 initial={shouldAnimate ? { opacity: 0, y: 6 } : false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={shouldAnimate ? { duration: 0.2, delay: i * 0.03 + 0.4 } : undefined}
-                onClick={() => onSelectIssue(issue.jiraKey)}
+                onClick={() => {
+                  if (suppressNextRowSelectRef.current) {
+                    suppressNextRowSelectRef.current = false;
+                    return;
+                  }
+                  onSelectIssue(issue.jiraKey);
+                }}
                 className="cursor-pointer transition-colors duration-150"
                 style={{
                   background: isSelected

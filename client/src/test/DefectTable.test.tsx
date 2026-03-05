@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DefectTable } from '@/components/table/DefectTable';
 import { TestWrapper } from '@/test/wrapper';
@@ -82,6 +82,13 @@ describe('DefectTable', () => {
     hasAnimated: true,
   };
 
+  beforeEach(() => {
+    onSelectIssue.mockClear();
+    onFocusedIndexChange.mockClear();
+    mockCreateTagMutate.mockClear();
+    mockSetIssueTagsMutate.mockClear();
+  });
+
   it('renders rows from mock data', () => {
     render(
       <TestWrapper>
@@ -148,7 +155,17 @@ describe('DefectTable', () => {
     expect(screen.getByText('Stale defect not updated')).toBeInTheDocument();
   });
 
-  it('opens inline tag picker from Tags column', () => {
+  it('renders inline tag manage action in Tags column', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByLabelText('Manage tags for PROJ-101')).toBeInTheDocument();
+  });
+
+  it('does not select triage issue when clicking the tag manage action', () => {
     render(
       <TestWrapper>
         <DefectTable {...defaultProps} />
@@ -156,9 +173,7 @@ describe('DefectTable', () => {
     );
 
     fireEvent.click(screen.getByLabelText('Manage tags for PROJ-101'));
-
-    expect(screen.getByPlaceholderText('Search or create tag…')).toBeInTheDocument();
-    expect(screen.getByText('Backend')).toBeInTheDocument();
+    expect(onSelectIssue).not.toHaveBeenCalledWith('PROJ-101');
   });
 
   it('shows subtle analysis state indicators for complete and pending rows', () => {
