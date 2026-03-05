@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import type { FilterType, Issue as SharedIssue, IssueUpdate, LocalTag, OverviewCounts } from "shared/types";
 import { db } from "../db/connection";
-import { configTable, issues, issueTags, localTags, syncLog } from "../db/schema";
+import { configTable, developers, issues, issueTags, localTags, syncLog } from "../db/schema";
 import { JiraClient } from "../jira/client";
 import { config } from "../config";
 import { endOfWeekIsoDate, isOlderThanHours, todayIsoDate } from "../utils/date";
@@ -40,37 +40,42 @@ export class IssueService {
     }
 
     const effectiveDue = (issue: SharedIssue) => issue.developmentDueDate ?? issue.dueDate;
+    const activeTeamIssues = () => result.filter((issue) => this.isActiveTeamIssue(issue));
 
     switch (query.filter) {
       case "new":
-        result = result.filter((issue) => new Date(issue.createdAt).getTime() >= dayAgo.getTime());
+        result = activeTeamIssues().filter((issue) => new Date(issue.createdAt).getTime() >= dayAgo.getTime());
         break;
       case "inProgress":
-        result = result.filter((issue) => issue.statusCategory === "indeterminate");
+        result = activeTeamIssues().filter((issue) => issue.statusCategory === "indeterminate");
         break;
       case "unassigned":
-        result = result.filter((issue) => issue.assigneeId === leadId);
+        result = activeTeamIssues().filter((issue) => issue.assigneeId === leadId || issue.teamScopeState === "unassigned");
         break;
       case "dueToday":
-        result = result.filter((issue) => effectiveDue(issue) === today);
+        result = activeTeamIssues().filter((issue) => effectiveDue(issue) === today);
         break;
       case "dueThisWeek":
-        result = result.filter((issue) => { const d = effectiveDue(issue); return Boolean(d && d >= today && d <= weekEnd); });
+        result = activeTeamIssues().filter((issue) => { const d = effectiveDue(issue); return Boolean(d && d >= today && d <= weekEnd); });
         break;
       case "overdue":
-        result = result.filter((issue) => { const d = effectiveDue(issue); return Boolean(d && d < today && issue.statusCategory !== "done"); });
+        result = activeTeamIssues().filter((issue) => { const d = effectiveDue(issue); return Boolean(d && d < today); });
         break;
       case "blocked":
-        result = result.filter((issue) => issue.flagged);
+        result = activeTeamIssues().filter((issue) => issue.flagged);
         break;
       case "stale":
-        result = result.filter((issue) => issue.statusCategory !== "done" && isOlderThanHours(issue.updatedAt, 48, now));
+        result = activeTeamIssues().filter((issue) => isOlderThanHours(issue.updatedAt, 48, now));
         break;
       case "highPriority":
-        result = result.filter((issue) => issue.priorityName === "Highest" || issue.priorityName === "High");
+        result = activeTeamIssues().filter((issue) => issue.priorityName === "Highest" || issue.priorityName === "High");
+        break;
+      case "outOfTeam":
+        result = result.filter((issue) => this.isOutOfTeamIssue(issue));
         break;
       case "all":
       case undefined:
+        result = activeTeamIssues();
         break;
     }
 
@@ -90,6 +95,7 @@ export class IssueService {
     const jiraFields: Record<string, unknown> = {};
     const devDueDateFieldDb = await this.getConfigValue("jira_dev_due_date_field");
     const devDueDateField = devDueDateFieldDb || config.JIRA_DEV_DUE_DATE_FIELD;
+    const updatedAt = new Date().toISOString();
 
     if (payload.assigneeId !== undefined) {
       jiraFields.assignee = { accountId: payload.assigneeId };
@@ -117,6 +123,10 @@ export class IssueService {
     const localUpdate: Partial<typeof issues.$inferInsert> = {};
     if (payload.assigneeId !== undefined) {
       localUpdate.assigneeId = payload.assigneeId;
+      localUpdate.teamScopeState = await this.resolveTeamScopeState(payload.assigneeId);
+      localUpdate.syncScopeState = "active";
+      localUpdate.lastReconciledAt = updatedAt;
+      localUpdate.scopeChangedAt = updatedAt;
     }
     if (payload.priorityName !== undefined) {
       localUpdate.priorityName = payload.priorityName;
@@ -136,7 +146,7 @@ export class IssueService {
 
     await db
       .update(issues)
-      .set({ ...localUpdate, updatedAt: new Date().toISOString() })
+      .set({ ...localUpdate, updatedAt })
       .where(eq(issues.jiraKey, jiraKey));
 
     const updated = await this.getById(jiraKey);
@@ -151,10 +161,13 @@ export class IssueService {
   }
 
   async getOverviewCounts(): Promise<OverviewCounts> {
-    const all = await this.getAll({ filter: "all", sort: "created", order: "desc" });
+    const rows: Array<typeof issues.$inferSelect> = await db.select().from(issues);
+    const all = rows.map((row) => this.toSharedIssue(row));
     const leadId = await this.getLeadAccountId();
     const now = new Date();
     const today = todayIsoDate(now);
+    const activeTeamIssues = all.filter((issue) => this.isActiveTeamIssue(issue));
+    const outOfTeamIssues = all.filter((issue) => this.isOutOfTeamIssue(issue));
 
     const latest = await db.select().from(syncLog).orderBy(desc(syncLog.id)).limit(1);
     const effectiveDue = (issue: SharedIssue) => issue.developmentDueDate ?? issue.dueDate;
@@ -162,16 +175,17 @@ export class IssueService {
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
     return {
-      new: all.filter((issue) => new Date(issue.createdAt).getTime() >= dayAgo.getTime()).length,
-      unassigned: all.filter((issue) => issue.assigneeId === leadId).length,
-      dueToday: all.filter((issue) => effectiveDue(issue) === today).length,
-      dueThisWeek: all.filter((issue) => { const d = effectiveDue(issue); return Boolean(d && d >= today && d <= endOfWeekIsoDate(now)); }).length,
-      overdue: all.filter((issue) => { const d = effectiveDue(issue); return Boolean(d && d < today && issue.statusCategory !== "done"); }).length,
-      blocked: all.filter((issue) => issue.flagged).length,
-      stale: all.filter((issue) => issue.statusCategory !== "done" && isOlderThanHours(issue.updatedAt, 48, now)).length,
-      highPriority: all.filter((issue) => issue.priorityName === "Highest" || issue.priorityName === "High").length,
-      inProgress: all.filter((issue) => issue.statusCategory === "indeterminate").length,
-      total: all.length,
+      new: activeTeamIssues.filter((issue) => new Date(issue.createdAt).getTime() >= dayAgo.getTime()).length,
+      unassigned: activeTeamIssues.filter((issue) => issue.assigneeId === leadId || issue.teamScopeState === "unassigned").length,
+      dueToday: activeTeamIssues.filter((issue) => effectiveDue(issue) === today).length,
+      dueThisWeek: activeTeamIssues.filter((issue) => { const d = effectiveDue(issue); return Boolean(d && d >= today && d <= endOfWeekIsoDate(now)); }).length,
+      overdue: activeTeamIssues.filter((issue) => { const d = effectiveDue(issue); return Boolean(d && d < today); }).length,
+      blocked: activeTeamIssues.filter((issue) => issue.flagged).length,
+      stale: activeTeamIssues.filter((issue) => isOlderThanHours(issue.updatedAt, 48, now)).length,
+      highPriority: activeTeamIssues.filter((issue) => issue.priorityName === "Highest" || issue.priorityName === "High").length,
+      inProgress: activeTeamIssues.filter((issue) => issue.statusCategory === "indeterminate").length,
+      outOfTeam: outOfTeamIssues.length,
+      total: activeTeamIssues.length,
       lastSynced: latest[0]?.completedAt ?? undefined,
     };
   }
@@ -184,6 +198,16 @@ export class IssueService {
   private async getConfigValue(key: string): Promise<string | undefined> {
     const row = await db.select().from(configTable).where(eq(configTable.key, key)).limit(1);
     return row[0]?.value;
+  }
+
+  private async resolveTeamScopeState(assigneeId?: string): Promise<"in_team" | "out_of_team" | "unassigned"> {
+    if (!assigneeId) {
+      return "unassigned";
+    }
+
+    const rows = await db.select().from(developers).where(eq(developers.isActive, 1));
+    const activeTeamIds = new Set(rows.map((row) => row.accountId));
+    return activeTeamIds.has(assigneeId) ? "in_team" : "out_of_team";
   }
 
   private sortIssues(issuesList: SharedIssue[], sort: NonNullable<IssueQuery["sort"]>, order: NonNullable<IssueQuery["order"]>): SharedIssue[] {
@@ -227,9 +251,26 @@ export class IssueService {
       flagged: row.flagged === 1,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      teamScopeState: row.teamScopeState as SharedIssue["teamScopeState"],
+      syncScopeState: row.syncScopeState as SharedIssue["syncScopeState"],
+      lastSeenInScopedSyncAt: row.lastSeenInScopedSyncAt ?? undefined,
+      lastReconciledAt: row.lastReconciledAt ?? undefined,
+      scopeChangedAt: row.scopeChangedAt ?? undefined,
       localTags: tags,
       analysisNotes: row.analysisNotes ?? undefined,
     };
+  }
+
+  private isActiveTeamIssue(issue: SharedIssue): boolean {
+    return issue.statusCategory !== "done" &&
+      (issue.teamScopeState ?? "in_team") !== "out_of_team" &&
+      (issue.syncScopeState ?? "active") === "active";
+  }
+
+  private isOutOfTeamIssue(issue: SharedIssue): boolean {
+    return issue.statusCategory !== "done" &&
+      (issue.teamScopeState ?? "in_team") === "out_of_team" &&
+      (issue.syncScopeState ?? "active") === "active";
   }
 
   private async getTagsForIssue(jiraKey: string): Promise<LocalTag[]> {

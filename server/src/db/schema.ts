@@ -10,6 +10,8 @@ export const issues = sqliteTable("issues", {
   statusCategory: text("status_category").notNull(),
   assigneeId: text("assignee_id"),
   assigneeName: text("assignee_name"),
+  teamScopeState: text("team_scope_state").notNull().default("in_team"),
+  syncScopeState: text("sync_scope_state").notNull().default("active"),
   reporterName: text("reporter_name"),
   component: text("component"),
   labels: text("labels"),
@@ -19,6 +21,9 @@ export const issues = sqliteTable("issues", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
   syncedAt: text("synced_at").notNull(),
+  lastSeenInScopedSyncAt: text("last_seen_in_scoped_sync_at"),
+  lastReconciledAt: text("last_reconciled_at"),
+  scopeChangedAt: text("scope_changed_at"),
   analysisNotes: text("analysis_notes"),
 });
 
@@ -59,4 +64,19 @@ export const localTags = sqliteTable("local_tags", {
 export const issueTags = sqliteTable("issue_tags", {
   jiraKey: text("jira_key").notNull(),
   tagId: integer("tag_id").notNull(),
+});
+
+export const issueScopeHistory = sqliteTable("issue_scope_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  jiraKey: text("jira_key").notNull(),
+  observedAt: text("observed_at").notNull(),
+  changeType: text("change_type").notNull(),
+  fromAssigneeId: text("from_assignee_id"),
+  toAssigneeId: text("to_assignee_id"),
+  fromTeamScopeState: text("from_team_scope_state"),
+  toTeamScopeState: text("to_team_scope_state"),
+  fromSyncScopeState: text("from_sync_scope_state"),
+  toSyncScopeState: text("to_sync_scope_state"),
+  fromStatusCategory: text("from_status_category"),
+  toStatusCategory: text("to_status_category"),
 });

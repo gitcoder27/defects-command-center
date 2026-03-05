@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS issues (
   status_category TEXT NOT NULL,
   assignee_id     TEXT,
   assignee_name   TEXT,
+  team_scope_state TEXT NOT NULL DEFAULT 'in_team',
+  sync_scope_state TEXT NOT NULL DEFAULT 'active',
   reporter_name   TEXT,
   component       TEXT,
   labels          TEXT,
@@ -18,7 +20,10 @@ CREATE TABLE IF NOT EXISTS issues (
   flagged         INTEGER DEFAULT 0,
   created_at      TEXT NOT NULL,
   updated_at      TEXT NOT NULL,
-  synced_at       TEXT NOT NULL
+  synced_at       TEXT NOT NULL,
+  last_seen_in_scoped_sync_at TEXT,
+  last_reconciled_at TEXT,
+  scope_changed_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS developers (
@@ -71,11 +76,36 @@ CREATE TABLE IF NOT EXISTS issue_tags (
   FOREIGN KEY (jira_key) REFERENCES issues(jira_key),
   FOREIGN KEY (tag_id)   REFERENCES local_tags(id)
 );
+
+CREATE TABLE IF NOT EXISTS issue_scope_history (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  jira_key              TEXT NOT NULL,
+  observed_at           TEXT NOT NULL,
+  change_type           TEXT NOT NULL,
+  from_assignee_id      TEXT,
+  to_assignee_id        TEXT,
+  from_team_scope_state TEXT,
+  to_team_scope_state   TEXT,
+  from_sync_scope_state TEXT,
+  to_sync_scope_state   TEXT,
+  from_status_category  TEXT,
+  to_status_category    TEXT,
+  FOREIGN KEY (jira_key) REFERENCES issues(jira_key)
+);
 `;
 
 const alterStatements = [
   "ALTER TABLE issues ADD COLUMN development_due_date TEXT",
   "ALTER TABLE issues ADD COLUMN analysis_notes TEXT",
+  "ALTER TABLE issues ADD COLUMN team_scope_state TEXT NOT NULL DEFAULT 'in_team'",
+  "ALTER TABLE issues ADD COLUMN sync_scope_state TEXT NOT NULL DEFAULT 'active'",
+  "ALTER TABLE issues ADD COLUMN last_seen_in_scoped_sync_at TEXT",
+  "ALTER TABLE issues ADD COLUMN last_reconciled_at TEXT",
+  "ALTER TABLE issues ADD COLUMN scope_changed_at TEXT",
+  "CREATE INDEX IF NOT EXISTS idx_issues_team_scope ON issues(team_scope_state)",
+  "CREATE INDEX IF NOT EXISTS idx_issues_sync_scope ON issues(sync_scope_state)",
+  "CREATE INDEX IF NOT EXISTS idx_issues_workload_scope ON issues(team_scope_state, sync_scope_state, status_category, assignee_id)",
+  "CREATE INDEX IF NOT EXISTS idx_issue_scope_history_key_observed ON issue_scope_history(jira_key, observed_at DESC)",
 ];
 
 export function migrate(sqlite: BetterSqlite3.Database): void {

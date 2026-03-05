@@ -23,10 +23,17 @@ const mockedIssues = [
     component: "A",
     labels: JSON.stringify(["customer"]),
     dueDate: "2026-03-05",
+    developmentDueDate: null,
     flagged: 0,
     createdAt: "2026-03-05T08:00:00.000Z",
     updatedAt: "2026-03-05T08:00:00.000Z",
     syncedAt: "2026-03-05T08:00:00.000Z",
+    teamScopeState: "in_team",
+    syncScopeState: "active",
+    lastSeenInScopedSyncAt: "2026-03-05T08:00:00.000Z",
+    lastReconciledAt: "2026-03-05T08:00:00.000Z",
+    scopeChangedAt: null,
+    analysisNotes: null,
   },
   {
     jiraKey: "PROJ-2",
@@ -42,10 +49,17 @@ const mockedIssues = [
     component: "B",
     labels: JSON.stringify(["production"]),
     dueDate: "2026-03-01",
+    developmentDueDate: null,
     flagged: 1,
     createdAt: "2026-03-04T08:00:00.000Z",
     updatedAt: "2026-03-02T08:00:00.000Z",
     syncedAt: "2026-03-05T08:00:00.000Z",
+    teamScopeState: "in_team",
+    syncScopeState: "active",
+    lastSeenInScopedSyncAt: "2026-03-05T08:00:00.000Z",
+    lastReconciledAt: "2026-03-05T08:00:00.000Z",
+    scopeChangedAt: null,
+    analysisNotes: null,
   },
   {
     jiraKey: "PROJ-3",
@@ -61,10 +75,17 @@ const mockedIssues = [
     component: "C",
     labels: JSON.stringify([]),
     dueDate: "2026-03-01",
+    developmentDueDate: null,
     flagged: 0,
     createdAt: "2026-03-01T08:00:00.000Z",
     updatedAt: "2026-03-05T08:00:00.000Z",
     syncedAt: "2026-03-05T08:00:00.000Z",
+    teamScopeState: "in_team",
+    syncScopeState: "active",
+    lastSeenInScopedSyncAt: "2026-03-05T08:00:00.000Z",
+    lastReconciledAt: "2026-03-05T08:00:00.000Z",
+    scopeChangedAt: null,
+    analysisNotes: null,
   },
   {
     jiraKey: "PROJ-4",
@@ -80,11 +101,24 @@ const mockedIssues = [
     component: "B",
     labels: JSON.stringify([]),
     dueDate: "2026-03-07",
+    developmentDueDate: null,
     flagged: 0,
     createdAt: "2026-03-03T08:00:00.000Z",
     updatedAt: "2026-03-05T08:00:00.000Z",
     syncedAt: "2026-03-05T08:00:00.000Z",
+    teamScopeState: "in_team",
+    syncScopeState: "active",
+    lastSeenInScopedSyncAt: "2026-03-05T08:00:00.000Z",
+    lastReconciledAt: "2026-03-05T08:00:00.000Z",
+    scopeChangedAt: null,
+    analysisNotes: null,
   },
+];
+
+const mockedDevelopers = [
+  { accountId: "lead-1", displayName: "Lead", isActive: 1 },
+  { accountId: "dev-1", displayName: "Dev 1", isActive: 1 },
+  { accountId: "dev-2", displayName: "Dev 2", isActive: 1 },
 ];
 
 vi.mock("../src/db/connection", () => {
@@ -102,17 +136,30 @@ vi.mock("../src/db/connection", () => {
           };
         }
         if (table?.jiraKey) {
+          const query: any = Promise.resolve(mockedIssues);
+          query.orderBy = async () => mockedIssues;
+          query.where = () => ({ limit: async () => mockedIssues });
+          query.limit = async () => mockedIssues;
+          query.innerJoin = () => async () => [];
+          return query;
+        }
+        if (table?.accountId && table?.displayName) {
           return {
-            orderBy: async () => mockedIssues,
-            where: () => ({ limit: async () => mockedIssues }),
-            limit: async () => mockedIssues,
-            innerJoin: () => async () => [],
+            where: () => Promise.resolve(mockedDevelopers),
+            limit: async () => mockedDevelopers,
           };
         }
         if (table?.key) {
           return {
             where: () => ({ limit: async () => [{ key: "jira_lead_account_id", value: "lead-1" }] }),
             limit: async () => [{ key: "jira_lead_account_id", value: "lead-1" }],
+          };
+        }
+        if (table?.startedAt) {
+          return {
+            orderBy: () => ({ limit: async () => [{ completedAt: "2026-03-05T00:01:00.000Z" }] }),
+            where: () => ({ limit: async () => [{ completedAt: "2026-03-05T00:01:00.000Z" }] }),
+            limit: async () => [{ completedAt: "2026-03-05T00:01:00.000Z" }],
           };
         }
         return {
@@ -155,7 +202,7 @@ describe("IssueService", () => {
     expect(assigneeFiltered.map((i) => i.jiraKey)).toEqual(["PROJ-4", "PROJ-2"]);
 
     const statusFiltered = await service.getAll({ status: "Done" });
-    expect(statusFiltered).toHaveLength(1);
+    expect(statusFiltered).toHaveLength(0);
 
     const priorityFiltered = await service.getAll({ priority: "Medium" });
     expect(priorityFiltered).toHaveLength(1);
@@ -163,7 +210,7 @@ describe("IssueService", () => {
 
   it("computes overview counts", async () => {
     const overview = await service.getOverviewCounts();
-    expect(overview.total).toBe(4);
+    expect(overview.total).toBe(3);
     expect(overview.unassigned).toBe(1);
     expect(overview.dueToday).toBe(1);
     expect(overview.overdue).toBe(1);

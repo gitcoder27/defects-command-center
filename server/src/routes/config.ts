@@ -2,7 +2,7 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/connection";
-import { configTable, developers as developersTable, issues, syncLog, componentMap, issueTags, localTags } from "../db/schema";
+import { configTable, developers as developersTable, issues, syncLog, componentMap, issueScopeHistory, issueTags, localTags } from "../db/schema";
 import { validate } from "../middleware/validate";
 import { JiraClient } from "../jira/client";
 import { config } from "../config";
@@ -183,13 +183,14 @@ export function createConfigRouter(): Router {
 
   router.post("/reset", async (_req, res, next) => {
     try {
-      await db.delete(configTable);
-      await db.delete(issues);
-      await db.delete(developersTable);
-      await db.delete(componentMap);
-      await db.delete(syncLog);
+      await db.delete(issueScopeHistory);
       await db.delete(issueTags);
       await db.delete(localTags);
+      await db.delete(componentMap);
+      await db.delete(issues);
+      await db.delete(developersTable);
+      await db.delete(syncLog);
+      await db.delete(configTable);
 
       clearJiraApiToken();
       logger.info("Jira configuration reset via API");

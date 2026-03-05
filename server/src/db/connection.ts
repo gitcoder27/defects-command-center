@@ -12,9 +12,21 @@ function resolveWorkspaceRoot(): string {
 }
 
 const workspaceRoot = resolveWorkspaceRoot();
-const dataDir = path.resolve(workspaceRoot, "data");
-fs.mkdirSync(dataDir, { recursive: true });
-const dbPath = path.resolve(dataDir, "dashboard.db");
+function resolveDbPath(): string {
+  const configuredPath = process.env.DASHBOARD_DB_PATH?.trim();
+  if (configuredPath) {
+    return path.isAbsolute(configuredPath) ? configuredPath : path.resolve(workspaceRoot, configuredPath);
+  }
+
+  if (process.env.VITEST) {
+    return path.resolve(workspaceRoot, "data", "dashboard.test.db");
+  }
+
+  return path.resolve(workspaceRoot, "data", "dashboard.db");
+}
+
+const dbPath = resolveDbPath();
+fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 const sqlite = new Database(dbPath);
 sqlite.pragma("journal_mode = WAL");

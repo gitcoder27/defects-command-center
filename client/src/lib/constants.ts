@@ -21,11 +21,13 @@ export const FILTER_LABELS: Record<FilterType, string> = {
   blocked: 'Blocked',
   stale: 'Stale',
   highPriority: 'High Priority',
+  outOfTeam: 'Other Team',
 };
 
 export const FILTER_KEYS: FilterType[] = [
   'all',
   'unassigned',
+  'outOfTeam',
   'dueToday',
   'dueThisWeek',
   'overdue',

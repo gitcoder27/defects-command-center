@@ -1,7 +1,7 @@
 import cron from "node-cron";
-import { desc, eq, sql } from "drizzle-orm";
-import { db, rawDb } from "../db/connection";
-import { configTable, issues, issueTags, localTags, syncLog } from "../db/schema";
+import { desc, eq } from "drizzle-orm";
+import { db } from "../db/connection";
+import { configTable, developers, issues, issueScopeHistory, syncLog } from "../db/schema";
 import { JiraClient } from "../jira/client";
 import { JiraIssue } from "../jira/types";
 import { logger } from "../utils/logger";
@@ -15,6 +15,9 @@ export interface SyncResult {
   completedAt: string;
   errorMessage?: string;
 }
+
+type TeamScopeState = "in_team" | "out_of_team" | "unassigned";
+type SyncScopeState = "active" | "inaccessible";
 
 export class SyncEngine {
   private task?: { stop: () => void };
@@ -61,12 +64,13 @@ export class SyncEngine {
         throw new Error("Missing jira_project_key in config");
       }
 
-      const last = await this.getLastSuccessfulSyncTime();
       const dbJql = await this.getConfigValue("jira_sync_jql");
-      const jql = this.buildJql(project, last, dbJql);
+      const jql = this.buildJql(project, dbJql);
       const dbDevField = await this.getConfigValue("jira_dev_due_date_field");
       const devDueDateField = dbDevField || config.JIRA_DEV_DUE_DATE_FIELD;
       const jiraClient = await this.getJiraClient();
+      const teamAccountIds = await this.getActiveTeamAccountIds();
+      const locallyTrackedKeys = await this.getLocallyTrackedActiveKeys();
       const jiraIssues = await jiraClient.searchIssues(jql, [
         "summary",
         "description",
@@ -85,23 +89,25 @@ export class SyncEngine {
 
       const now = new Date().toISOString();
       for (const item of jiraIssues) {
-        const row = this.toIssueRow(item, now, devDueDateField);
+        const row = this.toIssueRow(item, now, devDueDateField, teamAccountIds, true);
         await this.upsertIssue(row);
       }
 
-      await this.markMissingAsDone(jiraIssues.map((it) => it.key));
+      const returnedKeys = new Set(jiraIssues.map((it) => it.key));
+      const missingKeys = locallyTrackedKeys.filter((key) => !returnedKeys.has(key));
+      const reconciledCount = await this.reconcileMissingIssues(missingKeys, jiraClient, teamAccountIds, now, devDueDateField);
 
       const completedAt = new Date().toISOString();
       if (logId !== undefined) {
         await db
           .update(syncLog)
-          .set({ status: "success", issuesSynced: jiraIssues.length, completedAt })
+          .set({ status: "success", issuesSynced: jiraIssues.length + reconciledCount, completedAt })
           .where(eq(syncLog.id, logId));
       }
 
       this.lastStatus = "idle";
       this.lastError = undefined;
-      return { status: "success", issuesSynced: jiraIssues.length, startedAt, completedAt };
+      return { status: "success", issuesSynced: jiraIssues.length + reconciledCount, startedAt, completedAt };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown sync error";
       logger.error({ err: error }, "Sync failed");
@@ -117,24 +123,11 @@ export class SyncEngine {
     }
   }
 
-  private buildJql(projectKey: string, lastSync?: string, dbJql?: string): string {
+  private buildJql(projectKey: string, dbJql?: string): string {
     const configured = (dbJql ?? config.JIRA_SYNC_JQL ?? "").trim();
-    const base = configured
+    return configured
       ? configured.replaceAll("{PROJECT_KEY}", projectKey)
       : `project = ${projectKey} AND issuetype = Bug AND statusCategory != Done`;
-    if (!lastSync) {
-      return base;
-    }
-    if (/\border\s+by\b/i.test(base)) {
-      // Avoid invalid JQL by not appending incremental condition after ORDER BY.
-      return base;
-    }
-    return `${base} AND updated >= \"${lastSync}\"`;
-  }
-
-  private async getLastSuccessfulSyncTime(): Promise<string | undefined> {
-    const row = await db.select().from(syncLog).where(eq(syncLog.status, "success")).orderBy(desc(syncLog.id)).limit(1);
-    return row[0]?.completedAt ?? undefined;
   }
 
   private async getConfigValue(key: string): Promise<string | undefined> {
@@ -142,13 +135,20 @@ export class SyncEngine {
     return rows[0]?.value;
   }
 
-  private toIssueRow(item: JiraIssue, syncedAt: string, devDueDateFieldOverride?: string): typeof issues.$inferInsert {
+  private toIssueRow(
+    item: JiraIssue,
+    syncedAt: string,
+    devDueDateFieldOverride: string | undefined,
+    teamAccountIds: Set<string>,
+    fromScopedSync: boolean
+  ): typeof issues.$inferInsert {
     const labels = item.fields.labels ?? [];
     const flagged = Array.isArray(item.fields.customfield_10021) && item.fields.customfield_10021.some((it) => it.id === "10019");
     const devDueDateField = devDueDateFieldOverride || config.JIRA_DEV_DUE_DATE_FIELD;
     const developmentDueDate = this.toDateValue(item.fields[devDueDateField]);
     const dueDate = this.toDateValue(item.fields.duedate);
-    return {
+    const assigneeId = this.toDbTextValue(item.fields.assignee?.accountId);
+    const row: typeof issues.$inferInsert = {
       jiraKey: item.key,
       summary: this.toDbTextValue(item.fields.summary) ?? "",
       description: JSON.stringify(item.fields.description ?? ""),
@@ -156,8 +156,10 @@ export class SyncEngine {
       priorityId: this.toDbTextValue(item.fields.priority?.id) ?? "",
       statusName: this.toDbTextValue(item.fields.status?.name) ?? "",
       statusCategory: item.fields.status?.statusCategory?.key ?? "new",
-      assigneeId: this.toDbTextValue(item.fields.assignee?.accountId),
+      assigneeId,
       assigneeName: this.toDbTextValue(item.fields.assignee?.displayName),
+      teamScopeState: this.resolveTeamScopeState(assigneeId, teamAccountIds),
+      syncScopeState: "active",
       reporterName: this.toDbTextValue(item.fields.reporter?.displayName),
       component: this.toDbTextValue(item.fields.components?.[0]?.name),
       labels: JSON.stringify(labels),
@@ -167,7 +169,12 @@ export class SyncEngine {
       createdAt: item.fields.created ?? syncedAt,
       updatedAt: item.fields.updated ?? syncedAt,
       syncedAt,
+      lastReconciledAt: syncedAt,
     };
+    if (fromScopedSync) {
+      row.lastSeenInScopedSyncAt = syncedAt;
+    }
+    return row;
   }
 
   private toDbTextValue(value: unknown): string | null {
@@ -270,29 +277,191 @@ export class SyncEngine {
 
   private async upsertIssue(row: typeof issues.$inferInsert): Promise<void> {
     const existing = await db
-      .select({ jiraKey: issues.jiraKey })
+      .select()
       .from(issues)
       .where(eq(issues.jiraKey, row.jiraKey))
       .limit(1);
 
     if (existing.length === 0) {
-      await db.insert(issues).values(row);
+      await db.insert(issues).values(this.compactRow(row));
       return;
     }
 
+    const existingRow = existing[0];
+    if (!existingRow) {
+      return;
+    }
     const { jiraKey, ...updateRow } = row;
-    await db.update(issues).set(updateRow).where(eq(issues.jiraKey, jiraKey));
+    const compactedUpdate = this.compactRow(updateRow);
+    const nextRow = { ...existingRow, ...compactedUpdate } as typeof issues.$inferSelect;
+    const changed = this.hasTrackedChange(existingRow, nextRow);
+    if (changed) {
+      compactedUpdate.scopeChangedAt = row.lastReconciledAt ?? row.syncedAt ?? new Date().toISOString();
+    }
+
+    await db.update(issues).set(compactedUpdate).where(eq(issues.jiraKey, jiraKey));
+
+    if (changed) {
+      await this.recordScopeHistory(existingRow, nextRow, compactedUpdate.scopeChangedAt as string);
+    }
   }
 
-  private async markMissingAsDone(activeKeys: string[]): Promise<void> {
-    if (activeKeys.length === 0) {
-      await db.update(issues).set({ statusCategory: "done" }).where(sql`1 = 1`);
-      return;
+  private async reconcileMissingIssues(
+    missingKeys: string[],
+    jiraClient: JiraClient,
+    teamAccountIds: Set<string>,
+    reconciledAt: string,
+    devDueDateFieldOverride?: string
+  ): Promise<number> {
+    if (missingKeys.length === 0) {
+      return 0;
     }
 
-    const placeholders = activeKeys.map(() => "?").join(", ");
-    const statement = rawDb.prepare(`UPDATE issues SET status_category = 'done' WHERE jira_key NOT IN (${placeholders})`);
-    statement.run(...activeKeys);
+    let reconciledCount = 0;
+    const batchSize = 50;
+
+    for (let index = 0; index < missingKeys.length; index += batchSize) {
+      const batch = missingKeys.slice(index, index + batchSize);
+      const batchJql = `issuekey in (${batch.map((key) => `"${key}"`).join(", ")})`;
+      const issuesFromJira = await jiraClient.searchIssues(batchJql, [
+        "summary",
+        "description",
+        "priority",
+        "status",
+        "assignee",
+        "reporter",
+        "components",
+        "labels",
+        "duedate",
+        "created",
+        "updated",
+        "customfield_10021",
+        devDueDateFieldOverride || config.JIRA_DEV_DUE_DATE_FIELD,
+      ]);
+
+      const foundKeys = new Set(issuesFromJira.map((item) => item.key));
+      for (const item of issuesFromJira) {
+        const row = this.toIssueRow(item, reconciledAt, devDueDateFieldOverride, teamAccountIds, false);
+        await this.upsertIssue(row);
+        reconciledCount += 1;
+      }
+
+      const unresolvedKeys = batch.filter((key) => !foundKeys.has(key));
+      await this.markIssuesInaccessible(unresolvedKeys, reconciledAt);
+    }
+
+    return reconciledCount;
+  }
+
+  private async markIssuesInaccessible(issueKeys: string[], reconciledAt: string): Promise<void> {
+    for (const jiraKey of issueKeys) {
+      const rows = await db.select().from(issues).where(eq(issues.jiraKey, jiraKey)).limit(1);
+      const existing = rows[0];
+      if (!existing) {
+        continue;
+      }
+
+      const changed = existing.syncScopeState !== "inaccessible";
+      const updateRow: Partial<typeof issues.$inferInsert> = {
+        syncScopeState: "inaccessible",
+        lastReconciledAt: reconciledAt,
+      };
+
+      if (changed) {
+        updateRow.scopeChangedAt = reconciledAt;
+      }
+
+      await db.update(issues).set(updateRow).where(eq(issues.jiraKey, jiraKey));
+
+      if (changed) {
+        await this.recordScopeHistory(existing, { ...existing, ...updateRow }, reconciledAt);
+      }
+    }
+  }
+
+  private async getActiveTeamAccountIds(): Promise<Set<string>> {
+    const rows = await db.select().from(developers).where(eq(developers.isActive, 1));
+    return new Set(rows.map((row) => row.accountId));
+  }
+
+  private async getLocallyTrackedActiveKeys(): Promise<string[]> {
+    const rows = await db
+      .select({
+        jiraKey: issues.jiraKey,
+        statusCategory: issues.statusCategory,
+        syncScopeState: issues.syncScopeState,
+      })
+      .from(issues);
+
+    return rows
+      .filter((row) => row.statusCategory !== "done" && row.syncScopeState === "active")
+      .map((row) => row.jiraKey);
+  }
+
+  private resolveTeamScopeState(assigneeId: string | null, teamAccountIds: Set<string>): TeamScopeState {
+    if (!assigneeId) {
+      return "unassigned";
+    }
+    return teamAccountIds.has(assigneeId) ? "in_team" : "out_of_team";
+  }
+
+  private compactRow<T extends Record<string, unknown>>(row: T): T {
+    return Object.fromEntries(Object.entries(row).filter(([, value]) => value !== undefined)) as T;
+  }
+
+  private hasTrackedChange(
+    previous: typeof issues.$inferSelect,
+    next: Partial<typeof issues.$inferInsert> & typeof issues.$inferSelect
+  ): boolean {
+    return previous.assigneeId !== next.assigneeId ||
+      previous.teamScopeState !== next.teamScopeState ||
+      previous.syncScopeState !== next.syncScopeState ||
+      previous.statusCategory !== next.statusCategory;
+  }
+
+  private async recordScopeHistory(
+    previous: typeof issues.$inferSelect,
+    next: Partial<typeof issues.$inferInsert> & typeof issues.$inferSelect,
+    observedAt: string
+  ): Promise<void> {
+    await db.insert(issueScopeHistory).values({
+      jiraKey: previous.jiraKey,
+      observedAt,
+      changeType: this.getChangeType(previous, next),
+      fromAssigneeId: previous.assigneeId,
+      toAssigneeId: next.assigneeId ?? null,
+      fromTeamScopeState: previous.teamScopeState,
+      toTeamScopeState: next.teamScopeState ?? previous.teamScopeState,
+      fromSyncScopeState: previous.syncScopeState,
+      toSyncScopeState: next.syncScopeState ?? previous.syncScopeState,
+      fromStatusCategory: previous.statusCategory,
+      toStatusCategory: next.statusCategory ?? previous.statusCategory,
+    });
+  }
+
+  private getChangeType(
+    previous: typeof issues.$inferSelect,
+    next: Partial<typeof issues.$inferInsert> & typeof issues.$inferSelect
+  ): string {
+    if (previous.statusCategory !== next.statusCategory && next.statusCategory === "done") {
+      return "resolved";
+    }
+    if (previous.teamScopeState !== next.teamScopeState) {
+      if (next.teamScopeState === "out_of_team") {
+        return "left_team_scope";
+      }
+      if (next.teamScopeState === "in_team") {
+        return "returned_to_team_scope";
+      }
+      return "team_scope_changed";
+    }
+    if (previous.syncScopeState !== next.syncScopeState) {
+      return next.syncScopeState === "inaccessible" ? "issue_unreachable" : "sync_scope_restored";
+    }
+    if (previous.assigneeId !== next.assigneeId) {
+      return "reassigned";
+    }
+    return "issue_updated";
   }
 
   private async getJiraClient(): Promise<JiraClient> {

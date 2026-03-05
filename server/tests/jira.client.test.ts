@@ -34,8 +34,8 @@ describe("JiraClient.searchIssues", () => {
       isLast: true,
     };
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
-      .mockResolvedValue(makeJsonResponse(first) as unknown as Response)
-      .mockResolvedValue(makeJsonResponse(second) as unknown as Response);
+      .mockResolvedValueOnce(makeJsonResponse(first) as unknown as Response)
+      .mockResolvedValueOnce(makeJsonResponse(second) as unknown as Response);
     globalFetch.fetch = fetchMock as unknown as typeof fetch;
 
     const client = new JiraClient("https://tenant.atlassian.net", "ops@example.com", "token");
@@ -66,8 +66,8 @@ describe("JiraClient.searchIssues", () => {
       issues: [{ id: "2", key: "AM-2", fields: { summary: "Second bug" } }],
     };
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
-      .mockResolvedValue(makeJsonResponse(first) as unknown as Response)
-      .mockResolvedValue(makeJsonResponse(second) as unknown as Response);
+      .mockResolvedValueOnce(makeJsonResponse(first) as unknown as Response)
+      .mockResolvedValueOnce(makeJsonResponse(second) as unknown as Response);
     globalFetch.fetch = fetchMock as unknown as typeof fetch;
 
     const client = new JiraClient("https://tenant.atlassian.net", "ops@example.com", "token");

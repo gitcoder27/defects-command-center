@@ -1,4 +1,6 @@
 export type WorkloadLevel = "light" | "medium" | "heavy";
+export type TeamScopeState = "in_team" | "out_of_team" | "unassigned";
+export type SyncScopeState = "active" | "inaccessible";
 
 export type FilterType =
   | "all"
@@ -10,7 +12,8 @@ export type FilterType =
   | "overdue"
   | "blocked"
   | "stale"
-  | "highPriority";
+  | "highPriority"
+  | "outOfTeam";
 
 export interface LocalTag {
   id: number;
@@ -36,6 +39,11 @@ export interface Issue {
   flagged: boolean;
   createdAt: string;
   updatedAt: string;
+  teamScopeState?: TeamScopeState;
+  syncScopeState?: SyncScopeState;
+  lastSeenInScopedSyncAt?: string;
+  lastReconciledAt?: string;
+  scopeChangedAt?: string;
   localTags: LocalTag[];
   analysisNotes?: string;
 }
@@ -67,6 +75,7 @@ export interface OverviewCounts {
   stale: number;
   highPriority: number;
   inProgress: number;
+  outOfTeam?: number;
   total: number;
   lastSynced?: string;
 }
