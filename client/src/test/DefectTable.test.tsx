@@ -8,6 +8,7 @@ const mockIssues: Issue[] = [
   {
     jiraKey: 'PROJ-101',
     summary: 'Login page crashes on submit',
+    aspenSeverity: '1 - Critical',
     priorityName: 'Highest',
     priorityId: '1',
     statusName: 'To Do',
@@ -24,6 +25,7 @@ const mockIssues: Issue[] = [
   {
     jiraKey: 'PROJ-102',
     summary: 'Cart total calculation error',
+    aspenSeverity: '2 - Major',
     priorityName: 'High',
     priorityId: '2',
     statusName: 'In Progress',
@@ -40,6 +42,7 @@ const mockIssues: Issue[] = [
   {
     jiraKey: 'PROJ-103',
     summary: 'Stale defect not updated',
+    aspenSeverity: '4 - Low',
     priorityName: 'Medium',
     priorityId: '3',
     statusName: 'To Do',
@@ -120,7 +123,7 @@ describe('DefectTable', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByText('Pri')).toBeInTheDocument();
+    expect(screen.getByText('Sev')).toBeInTheDocument();
     expect(screen.getByText('ID')).toBeInTheDocument();
     expect(screen.getByText('Title')).toBeInTheDocument();
     expect(screen.getByText('Tags')).toBeInTheDocument();
@@ -153,6 +156,18 @@ describe('DefectTable', () => {
     // PROJ-103 is stale (updatedAt is Feb 2026)
     expect(screen.getByText('PROJ-103')).toBeInTheDocument();
     expect(screen.getByText('Stale defect not updated')).toBeInTheDocument();
+  });
+
+  it('uses ASPEN Severity values for the first-column indicators', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByTitle('1 - Critical')).toBeInTheDocument();
+    expect(screen.getByTitle('2 - Major')).toBeInTheDocument();
+    expect(screen.getByTitle('4 - Low')).toBeInTheDocument();
   });
 
   it('renders inline tag manage action in Tags column', () => {

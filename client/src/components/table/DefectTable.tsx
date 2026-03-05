@@ -15,7 +15,6 @@ import { StatusBadge } from './StatusBadge';
 import { AssigneeCell } from './AssigneeCell';
 import { DueDateCell } from './DueDateCell';
 import { AnalysisStatusCell } from './AnalysisStatusCell';
-import { InlineEditPriority } from './InlineEditPriority';
 import { InlineEditAssignee } from './InlineEditAssignee';
 import { InlineEditDueDate } from './InlineEditDueDate';
 import { InlineEditTags } from './InlineEditTags';
@@ -24,12 +23,11 @@ import { useConfig } from '@/hooks/useConfig';
 import { formatRelativeTime, isOverdue, isDueToday, isStale } from '@/lib/utils';
 import type { Issue, FilterType } from '@/types';
 
-const PRIORITY_ORDER: Record<string, number> = {
-  Highest: 0,
-  High: 1,
-  Medium: 2,
-  Low: 3,
-  Lowest: 4,
+const ASPEN_SEVERITY_ORDER: Record<string, number> = {
+  '1 - Critical': 0,
+  '2 - Major': 1,
+  '3 - Minor': 2,
+  '4 - Low': 3,
 };
 
 const columnHelper = createColumnHelper<Issue>();
@@ -60,12 +58,12 @@ export function DefectTable({
   const { data: issues, isLoading } = useIssues(filter, assigneeFilter);
   const { data: config } = useConfig();
   const [sorting, setSorting] = useState<SortingState>([
-    { id: 'priorityName', desc: false },
+    { id: 'aspenSeverity', desc: false },
     { id: 'developmentDueDate', desc: false },
   ]);
   const [editingCell, setEditingCell] = useState<{
     rowKey: string;
-    column: 'priority' | 'assignee' | 'dueDate';
+    column: 'assignee' | 'dueDate';
   } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -137,7 +135,7 @@ export function DefectTable({
   }, [focusedIndex]);
 
   const handleCellClick = useCallback(
-    (issueKey: string, column: 'priority' | 'assignee' | 'dueDate', e: React.MouseEvent) => {
+    (issueKey: string, column: 'assignee' | 'dueDate', e: React.MouseEvent) => {
       e.stopPropagation();
       setEditingCell({ rowKey: issueKey, column });
     },
@@ -148,29 +146,14 @@ export function DefectTable({
 
   const columns = useMemo(
     () => [
-      columnHelper.accessor('priorityName', {
-        header: 'Pri',
-        cell: (info) => {
-          const issue = info.row.original;
-          if (editingCell?.rowKey === issue.jiraKey && editingCell?.column === 'priority') {
-            return (
-              <InlineEditPriority
-                issueKey={issue.jiraKey}
-                currentValue={info.getValue()}
-                onClose={closeInlineEdit}
-              />
-            );
-          }
-          return (
-            <span onClick={(e) => handleCellClick(issue.jiraKey, 'priority', e)}>
-              <PriorityCell priority={info.getValue()} />
-            </span>
-          );
-        },
+      columnHelper.accessor('aspenSeverity', {
+        id: 'aspenSeverity',
+        header: 'Sev',
+        cell: (info) => <PriorityCell severity={info.getValue()} />,
         size: 40,
         sortingFn: (a, b) =>
-          (PRIORITY_ORDER[a.original.priorityName] ?? 99) -
-          (PRIORITY_ORDER[b.original.priorityName] ?? 99),
+          (ASPEN_SEVERITY_ORDER[a.original.aspenSeverity ?? ''] ?? 99) -
+          (ASPEN_SEVERITY_ORDER[b.original.aspenSeverity ?? ''] ?? 99),
       }),
       columnHelper.accessor('jiraKey', {
         header: 'ID',

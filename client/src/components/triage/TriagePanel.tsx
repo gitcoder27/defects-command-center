@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink, Plus, Tag, FileText, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -13,11 +13,41 @@ import { SuggestionBar } from './SuggestionBar';
 import { CommentForm } from './CommentForm';
 import { PRIORITY_OPTIONS } from '@/lib/constants';
 import { formatIssueDescription } from '@/lib/issue-description';
+import { formatDate, priorityColor } from '@/lib/utils';
 import type { Developer } from '@/types';
 
 interface TriagePanelProps {
   issueKey?: string;
   onClose: () => void;
+}
+
+function PropertyCard({
+  label,
+  children,
+  accent,
+}: {
+  label: string;
+  children: ReactNode;
+  accent?: string;
+}) {
+  return (
+    <div
+      className="rounded-xl px-3 py-3"
+      style={{
+        background: 'var(--bg-tertiary)',
+        border: '1px solid var(--border)',
+        borderTop: accent ? `2px solid ${accent}` : undefined,
+      }}
+    >
+      <span
+        className="text-[11px] font-semibold uppercase block"
+        style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}
+      >
+        {label}
+      </span>
+      <div className="mt-2">{children}</div>
+    </div>
+  );
 }
 
 export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
@@ -202,112 +232,141 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
                 />
               </div>
 
-              {/* Editable fields */}
-              <div className="flex flex-col gap-2">
-                {/* Priority */}
-                <div className="flex items-center justify-between py-1.5">
-                  <span className="text-[12px] font-medium" style={{ color: 'var(--text-muted)' }}>Priority</span>
-                  {editingField === 'priority' ? (
-                    <select
-                      autoFocus
-                      value={issue.priorityName}
-                      onChange={(e) => {
-                        handleUpdate(issue.jiraKey, { priorityName: e.target.value });
-                        setEditingField(null);
-                      }}
-                      onBlur={() => setEditingField(null)}
-                      className="text-[13px] px-2 py-1 rounded"
-                      style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-active)' }}
-                    >
-                      {PRIORITY_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  ) : (
-                    <button
-                      onClick={() => setEditingField('priority')}
-                      className="text-[13px] font-medium px-2 py-0.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
-                      {issue.priorityName} ▼
-                    </button>
-                  )}
+              {/* Triage properties */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+                    Triage Properties
+                  </span>
+                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    Shortcuts: <span className="font-mono">P</span> priority, <span className="font-mono">A</span> assignee, <span className="font-mono">D</span> due date
+                  </span>
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <PropertyCard label="ASPEN Severity" accent="rgba(99,102,241,0.3)">
+                    {!config?.jiraAspenSeverityField ? (
+                      <span className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+                        Configure the Jira field in Settings
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-semibold"
+                        style={{
+                          background: issue.aspenSeverity ? 'rgba(99,102,241,0.16)' : 'var(--bg-secondary)',
+                          color: issue.aspenSeverity ? 'var(--accent)' : 'var(--text-muted)',
+                          border: '1px solid var(--border)',
+                        }}
+                      >
+                        {issue.aspenSeverity ?? 'Not set'}
+                      </span>
+                    )}
+                  </PropertyCard>
 
-                {/* Assignee */}
-                <div className="flex items-center justify-between py-1.5">
-                  <span className="text-[12px] font-medium" style={{ color: 'var(--text-muted)' }}>Assignee</span>
-                  {editingField === 'assignee' ? (
-                    <select
-                      autoFocus
-                      value={issue.assigneeId ?? ''}
-                      onChange={(e) => {
-                        handleUpdate(issue.jiraKey, { assigneeId: e.target.value || undefined });
-                        setEditingField(null);
-                      }}
-                      onBlur={() => setEditingField(null)}
-                      className="text-[13px] px-2 py-1 rounded"
-                      style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-active)' }}
-                    >
-                      <option value="">Unassigned</option>
-                      {developers?.map((d: Developer) => (
-                        <option key={d.accountId} value={d.accountId}>{d.displayName}</option>
-                      ))}
-                    </select>
-                  ) : (
+                  <PropertyCard label="Priority" accent={priorityColor(issue.priorityName)}>
+                    {editingField === 'priority' ? (
+                      <select
+                        autoFocus
+                        value={issue.priorityName}
+                        onChange={(e) => {
+                          handleUpdate(issue.jiraKey, { priorityName: e.target.value });
+                          setEditingField(null);
+                        }}
+                        onBlur={() => setEditingField(null)}
+                        className="w-full text-[13px] px-3 py-2 rounded-md"
+                        style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-active)' }}
+                      >
+                        {PRIORITY_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    ) : (
+                      <button
+                        onClick={() => setEditingField('priority')}
+                        className="w-full text-left rounded-md px-3 py-2 transition-colors"
+                        style={{ background: 'var(--bg-secondary)', color: priorityColor(issue.priorityName), border: '1px solid var(--border)' }}
+                      >
+                        <span className="text-[13px] font-semibold">{issue.priorityName}</span>
+                        <span className="text-[11px] ml-2" style={{ color: 'var(--text-muted)' }}>Edit</span>
+                      </button>
+                    )}
+                  </PropertyCard>
+
+                  <PropertyCard label="Assignee">
+                    {editingField === 'assignee' ? (
+                      <select
+                        autoFocus
+                        value={issue.assigneeId ?? ''}
+                        onChange={(e) => {
+                          handleUpdate(issue.jiraKey, { assigneeId: e.target.value || undefined });
+                          setEditingField(null);
+                        }}
+                        onBlur={() => setEditingField(null)}
+                        className="w-full text-[13px] px-3 py-2 rounded-md"
+                        style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-active)' }}
+                      >
+                        <option value="">Unassigned</option>
+                        {developers?.map((d: Developer) => (
+                          <option key={d.accountId} value={d.accountId}>{d.displayName}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <button
+                        onClick={() => setEditingField('assignee')}
+                        className="w-full text-left rounded-md px-3 py-2 transition-colors"
+                        style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      >
+                        <span className="text-[13px] font-medium">{issue.assigneeName ?? 'Unassigned'}</span>
+                        <span className="text-[11px] ml-2" style={{ color: 'var(--text-muted)' }}>Edit</span>
+                      </button>
+                    )}
+                  </PropertyCard>
+
+                  <PropertyCard label="Due Date">
+                    {editingField === 'dueDate' ? (
+                      <input
+                        type="date"
+                        autoFocus
+                        value={issue.developmentDueDate ?? issue.dueDate ?? ''}
+                        onChange={(e) => {
+                          handleUpdate(issue.jiraKey, { developmentDueDate: e.target.value });
+                          setEditingField(null);
+                        }}
+                        onBlur={() => setEditingField(null)}
+                        className="w-full text-[13px] px-3 py-2 rounded-md"
+                        style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-active)' }}
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditingField('dueDate')}
+                        className="w-full text-left rounded-md px-3 py-2 transition-colors"
+                        style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      >
+                        <span className="text-[13px] font-medium">{formatDate(issue.developmentDueDate ?? issue.dueDate ?? undefined)}</span>
+                        <span className="text-[11px] ml-2" style={{ color: 'var(--text-muted)' }}>Edit</span>
+                      </button>
+                    )}
+                  </PropertyCard>
+
+                  <PropertyCard label="Blocked" accent={issue.flagged ? 'rgba(239,68,68,0.4)' : undefined}>
                     <button
-                      onClick={() => setEditingField('assignee')}
-                      className="text-[13px] font-medium px-2 py-0.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
-                      {issue.assigneeName ?? 'Unassigned'} ▼
-                    </button>
-                  )}
-                </div>
-
-                {/* Due Date (Development Due Date) */}
-                <div className="flex items-center justify-between py-1.5">
-                  <span className="text-[12px] font-medium" style={{ color: 'var(--text-muted)' }}>Due Date</span>
-                  {editingField === 'dueDate' ? (
-                    <input
-                      type="date"
-                      autoFocus
-                      value={issue.developmentDueDate ?? issue.dueDate ?? ''}
-                      onChange={(e) => {
-                        handleUpdate(issue.jiraKey, { developmentDueDate: e.target.value });
-                        setEditingField(null);
+                      onClick={() => handleUpdate(issue.jiraKey, { flagged: !issue.flagged })}
+                      className="w-full text-left rounded-md px-3 py-2 transition-colors"
+                      style={{
+                        background: issue.flagged ? 'rgba(239,68,68,0.12)' : 'var(--bg-secondary)',
+                        color: issue.flagged ? 'var(--danger)' : 'var(--text-secondary)',
+                        border: '1px solid var(--border)',
                       }}
-                      onBlur={() => setEditingField(null)}
-                      className="text-[13px] px-2 py-1 rounded"
-                      style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-active)' }}
-                    />
-                  ) : (
-                    <button
-                      onClick={() => setEditingField('dueDate')}
-                      className="text-[13px] font-medium px-2 py-0.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors font-mono"
-                      style={{ color: 'var(--text-primary)' }}
                     >
-                      {issue.developmentDueDate ?? issue.dueDate ?? 'Set date'} 📅
+                      <span className="text-[13px] font-semibold">{issue.flagged ? 'Blocked' : 'Not Blocked'}</span>
+                      <span className="text-[11px] ml-2" style={{ color: 'var(--text-muted)' }}>
+                        {issue.flagged ? 'Click to clear' : 'Click to mark'}
+                      </span>
                     </button>
-                  )}
-                </div>
+                  </PropertyCard>
 
-                {/* Blocked toggle */}
-                <div className="flex items-center justify-between py-1.5">
-                  <span className="text-[12px] font-medium" style={{ color: 'var(--text-muted)' }}>Blocked</span>
-                  <button
-                    onClick={() => handleUpdate(issue.jiraKey, { flagged: !issue.flagged })}
-                    className="text-[13px] px-2 py-0.5 rounded transition-colors"
-                    style={{
-                      background: issue.flagged ? 'rgba(239,68,68,0.15)' : 'var(--bg-tertiary)',
-                      color: issue.flagged ? 'var(--danger)' : 'var(--text-secondary)',
-                    }}
-                  >
-                    {issue.flagged ? '🚫 Blocked' : 'Not Blocked'}
-                  </button>
+                  <div className="md:col-span-2">
+                    <IssueDetails issue={issue} />
+                  </div>
                 </div>
               </div>
-
-              {/* Read-only fields */}
-              <IssueDetails issue={issue} />
 
               {/* Tags */}
               <div>

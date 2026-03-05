@@ -5,6 +5,7 @@ import { JiraClient } from "../src/jira/client";
 vi.mock("../src/config", () => ({
   config: {
     JIRA_DEV_DUE_DATE_FIELD: "customfield_10128",
+    JIRA_ASPEN_SEVERITY_FIELD: "customfield_10129",
   },
 }));
 
@@ -13,6 +14,7 @@ const mockedIssues = [
     jiraKey: "PROJ-1",
     summary: "Unassigned today",
     description: null,
+    aspenSeverity: "2",
     priorityName: "High",
     priorityId: "1",
     statusName: "To Do",
@@ -39,6 +41,7 @@ const mockedIssues = [
     jiraKey: "PROJ-2",
     summary: "Overdue blocked",
     description: null,
+    aspenSeverity: "1",
     priorityName: "Highest",
     priorityId: "2",
     statusName: "In Progress",
@@ -65,6 +68,7 @@ const mockedIssues = [
     jiraKey: "PROJ-3",
     summary: "Done issue",
     description: null,
+    aspenSeverity: null,
     priorityName: "Low",
     priorityId: "3",
     statusName: "Done",
@@ -91,6 +95,7 @@ const mockedIssues = [
     jiraKey: "PROJ-4",
     summary: "In progress",
     description: null,
+    aspenSeverity: "3",
     priorityName: "Medium",
     priorityId: "4",
     statusName: "In Progress",

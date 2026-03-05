@@ -29,6 +29,8 @@ interface DiscoverUsersResponse {
   hasMore: boolean;
 }
 
+type FieldPickerTarget = 'dueDate' | 'aspenSeverity';
+
 interface SettingsPanelProps {
   open: boolean;
   onClose: () => void;
@@ -44,12 +46,13 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
 
   const [jql, setJql] = useState('');
   const [devDueDateField, setDevDueDateField] = useState('');
+  const [aspenSeverityField, setAspenSeverityField] = useState('');
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [fields, setFields] = useState<JiraField[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
   const [fieldSearch, setFieldSearch] = useState('');
-  const [showFieldPicker, setShowFieldPicker] = useState(false);
+  const [fieldPickerTarget, setFieldPickerTarget] = useState<FieldPickerTarget | null>(null);
   const { data: developers = [], isLoading: loadingDevelopers } = useDevelopers();
 
   const [teamSearch, setTeamSearch] = useState('');
@@ -89,6 +92,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
     if (config) {
       setJql(config.jiraSyncJql || '');
       setDevDueDateField(config.jiraDevDueDateField || 'customfield_10128');
+      setAspenSeverityField(config.jiraAspenSeverityField || '');
     }
   }, [config]);
 
@@ -99,13 +103,15 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
     return () => window.clearTimeout(timeout);
   }, [discoveredSearch]);
 
-  const handleDiscoverFields = useCallback(async () => {
+  const handleDiscoverFields = useCallback(async (target: FieldPickerTarget) => {
+    setFieldPickerTarget(target);
+    setFieldSearch('');
     setLoadingFields(true);
     try {
       const res = await api.get<{ fields: JiraField[] }>('/config/fields');
       setFields(res.fields);
-      setShowFieldPicker(true);
     } catch (err) {
+      setFieldPickerTarget(null);
       addToast({ type: 'error', title: 'Failed to fetch Jira fields', message: err instanceof Error ? err.message : 'Request failed' });
     } finally {
       setLoadingFields(false);
@@ -118,6 +124,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
       await api.put('/config/settings', {
         jiraSyncJql: jql,
         jiraDevDueDateField: devDueDateField,
+        jiraAspenSeverityField: aspenSeverityField,
       });
       await refetchConfig();
       addToast({ type: 'success', title: 'Settings saved', message: 'Your Jira sync settings have been saved.' });
@@ -175,17 +182,28 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
       f.id.toLowerCase().includes(fieldSearch.toLowerCase())
   );
 
-  const dueDateFields = filteredFields.filter(
+  const currentFieldValue = fieldPickerTarget === 'aspenSeverity' ? aspenSeverityField : devDueDateField;
+  const preferredKeywords = fieldPickerTarget === 'aspenSeverity' ? ['severity', 'aspen'] : ['due', 'date'];
+
+  const preferredFields = filteredFields.filter(
     (f) =>
       f.custom &&
-      (f.name.toLowerCase().includes('due') ||
-        f.name.toLowerCase().includes('date') ||
-        f.id === devDueDateField)
+      (preferredKeywords.some((keyword) => f.name.toLowerCase().includes(keyword)) ||
+        f.id === currentFieldValue)
   );
 
   const otherFields = filteredFields.filter(
-    (f) => f.custom && !dueDateFields.includes(f)
+    (f) => f.custom && !preferredFields.includes(f)
   );
+
+  const handleFieldSelection = useCallback((fieldId: string) => {
+    if (fieldPickerTarget === 'aspenSeverity') {
+      setAspenSeverityField(fieldId);
+    } else {
+      setDevDueDateField(fieldId);
+    }
+    setFieldPickerTarget(null);
+  }, [fieldPickerTarget]);
 
   const invalidateTeamAndWorkload = useCallback(async () => {
     await Promise.all([
@@ -400,7 +418,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                   Jira Sync Query (JQL)
                 </label>
                 <p className="text-[12px] mb-2" style={{ color: 'var(--text-secondary)' }}>
-                  The JQL query used to fetch defects from Jira. Changes take effect on the next sync.
+                  The base JQL query used to fetch defects from Jira. The assignee filter is managed automatically from your active team members and lead account on each sync.
                 </p>
                 <textarea
                   value={jql}
@@ -423,55 +441,119 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                 </p>
               </div>
 
-              {/* Dev Due Date Field */}
+              {/* Jira Field Mapping */}
               <div>
                 <label
                   className="text-[11px] font-semibold uppercase mb-2 block"
                   style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}
                 >
-                  Development Due Date Field
+                  Jira Field Mapping
                 </label>
-                <p className="text-[12px] mb-2" style={{ color: 'var(--text-secondary)' }}>
-                  The Jira custom field ID used for the development due date (e.g. <code className="text-[11px]" style={{ color: 'var(--accent)' }}>customfield_10128</code>).
+                <p className="text-[12px] mb-3" style={{ color: 'var(--text-secondary)' }}>
+                  Map custom Jira fields that should appear in the triage panel. These values refresh on the next sync.
                 </p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={devDueDateField}
-                    onChange={(e) => setDevDueDateField(e.target.value)}
-                    className="flex-1 px-3 py-2 rounded-md text-[13px] font-mono focus:outline-none focus:ring-1"
-                    style={{
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      border: '1px solid var(--border)',
-                      outlineColor: 'var(--accent)',
-                    }}
-                    placeholder="customfield_10128"
-                  />
-                  <button
-                    onClick={handleDiscoverFields}
-                    disabled={loadingFields}
-                    className="px-3 py-2 rounded-md text-[12px] font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50"
-                    style={{
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      border: '1px solid var(--border)',
-                    }}
-                    title="Discover custom fields from Jira"
+
+                <div className="grid gap-3">
+                  <div
+                    className="rounded-xl p-4"
+                    style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
                   >
-                    {loadingFields ? (
-                      <RefreshCw size={14} className="animate-spin" />
-                    ) : (
-                      <Search size={14} />
-                    )}
-                    Discover
-                  </button>
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                          Development Due Date
+                        </p>
+                        <p className="text-[12px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+                          Jira custom date field used for the triage due date, for example <code className="text-[11px]" style={{ color: 'var(--accent)' }}>customfield_10128</code>.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDiscoverFields('dueDate')}
+                        disabled={loadingFields}
+                        className="px-3 py-2 rounded-md text-[12px] font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                        style={{
+                          background: fieldPickerTarget === 'dueDate' ? 'rgba(99,102,241,0.12)' : 'var(--bg-secondary)',
+                          color: 'var(--text-primary)',
+                          border: '1px solid var(--border)',
+                        }}
+                        title="Discover custom fields from Jira"
+                      >
+                        {loadingFields && fieldPickerTarget === 'dueDate' ? (
+                          <RefreshCw size={14} className="animate-spin" />
+                        ) : (
+                          <Search size={14} />
+                        )}
+                        Discover
+                      </button>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={devDueDateField}
+                      onChange={(e) => setDevDueDateField(e.target.value)}
+                      className="w-full px-3 py-2 rounded-md text-[13px] font-mono focus:outline-none focus:ring-1"
+                      style={{
+                        background: 'var(--bg-secondary)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border)',
+                        outlineColor: 'var(--accent)',
+                      }}
+                      placeholder="customfield_10128"
+                    />
+                  </div>
+
+                  <div
+                    className="rounded-xl p-4"
+                    style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                          ASPEN Severity
+                        </p>
+                        <p className="text-[12px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+                          Jira custom field used to display ASPEN Severity at the top of triage properties.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDiscoverFields('aspenSeverity')}
+                        disabled={loadingFields}
+                        className="px-3 py-2 rounded-md text-[12px] font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                        style={{
+                          background: fieldPickerTarget === 'aspenSeverity' ? 'rgba(99,102,241,0.12)' : 'var(--bg-secondary)',
+                          color: 'var(--text-primary)',
+                          border: '1px solid var(--border)',
+                        }}
+                        title="Discover custom fields from Jira"
+                      >
+                        {loadingFields && fieldPickerTarget === 'aspenSeverity' ? (
+                          <RefreshCw size={14} className="animate-spin" />
+                        ) : (
+                          <Search size={14} />
+                        )}
+                        Discover
+                      </button>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={aspenSeverityField}
+                      onChange={(e) => setAspenSeverityField(e.target.value)}
+                      className="w-full px-3 py-2 rounded-md text-[13px] font-mono focus:outline-none focus:ring-1"
+                      style={{
+                        background: 'var(--bg-secondary)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border)',
+                        outlineColor: 'var(--accent)',
+                      }}
+                      placeholder="customfield_XXXXX"
+                    />
+                  </div>
                 </div>
 
-                {/* Field picker */}
-                {showFieldPicker && fields.length > 0 && (
+                {fieldPickerTarget && (
                   <div
-                    className="mt-3 rounded-md overflow-hidden"
+                    className="mt-3 rounded-xl overflow-hidden"
                     style={{ border: '1px solid var(--border)', background: 'var(--bg-tertiary)' }}
                   >
                     <div className="px-3 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
@@ -479,7 +561,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                         type="text"
                         value={fieldSearch}
                         onChange={(e) => setFieldSearch(e.target.value)}
-                        placeholder="Search fields..."
+                        placeholder={`Search ${fieldPickerTarget === 'aspenSeverity' ? 'ASPEN Severity' : 'due date'} fields...`}
                         className="w-full text-[12px] px-2 py-1.5 rounded focus:outline-none focus:ring-1"
                         style={{
                           background: 'var(--bg-secondary)',
@@ -490,26 +572,23 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                       />
                     </div>
 
-                    <div className="max-h-[240px] overflow-y-auto">
-                      {dueDateFields.length > 0 && (
+                    <div className="max-h-[260px] overflow-y-auto">
+                      {preferredFields.length > 0 && (
                         <>
                           <div
                             className="px-3 py-1.5 text-[10px] font-semibold uppercase"
                             style={{ color: 'var(--accent)', letterSpacing: '0.06em', background: 'var(--bg-secondary)' }}
                           >
-                            Date Fields (likely matches)
+                            Likely Matches
                           </div>
-                          {dueDateFields.map((f) => (
+                          {preferredFields.map((f) => (
                             <button
                               key={f.id}
-                              onClick={() => {
-                                setDevDueDateField(f.id);
-                                setShowFieldPicker(false);
-                              }}
+                              onClick={() => handleFieldSelection(f.id)}
                               className="w-full text-left px-3 py-2 flex items-center justify-between hover:bg-[var(--bg-secondary)] transition-colors"
                               style={{
                                 borderBottom: '1px solid var(--border)',
-                                background: f.id === devDueDateField ? 'rgba(99,102,241,0.1)' : undefined,
+                                background: f.id === currentFieldValue ? 'rgba(99,102,241,0.1)' : undefined,
                               }}
                             >
                               <div>
@@ -520,7 +599,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                                   {f.id}
                                 </span>
                               </div>
-                              {f.id === devDueDateField && (
+                              {f.id === currentFieldValue && (
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--accent)', color: '#fff' }}>
                                   Selected
                                 </span>
@@ -541,10 +620,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                           {otherFields.slice(0, 50).map((f) => (
                             <button
                               key={f.id}
-                              onClick={() => {
-                                setDevDueDateField(f.id);
-                                setShowFieldPicker(false);
-                              }}
+                              onClick={() => handleFieldSelection(f.id)}
                               className="w-full text-left px-3 py-2 flex items-center justify-between hover:bg-[var(--bg-secondary)] transition-colors"
                               style={{ borderBottom: '1px solid var(--border)' }}
                             >
@@ -565,10 +641,16 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                           )}
                         </>
                       )}
+
+                      {preferredFields.length === 0 && otherFields.length === 0 && (
+                        <div className="px-3 py-4 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                          No custom fields match this search.
+                        </div>
+                      )}
                     </div>
 
                     <button
-                      onClick={() => setShowFieldPicker(false)}
+                      onClick={() => setFieldPickerTarget(null)}
                       className="w-full text-center text-[11px] py-1.5 font-medium transition-colors hover:bg-[var(--bg-secondary)]"
                       style={{ borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}
                     >
@@ -576,7 +658,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                     </button>
                   </div>
                 )}
-                </div>
+              </div>
 
               {/* Team members */}
               <div>
@@ -844,8 +926,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                 }}
               >
                 <strong style={{ color: 'var(--text-primary)' }}>How it works:</strong> Saving updates
-                the dashboard configuration. Click <strong>"Save & Sync"</strong> to apply the new JQL
-                immediately and trigger a fresh sync from Jira.
+                the dashboard configuration. The saved JQL stays as the base query, and sync appends the current team member assignees automatically. Click <strong>"Save & Sync"</strong> to apply it immediately.
               </div>
             </div>
 

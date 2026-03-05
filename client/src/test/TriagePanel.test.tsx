@@ -8,6 +8,7 @@ const mockIssue: Issue = {
   jiraKey: 'PROJ-101',
   summary: 'Login page crashes on submit with special chars',
   description: 'Users report **crash** when special characters entered',
+  aspenSeverity: 'Critical',
   priorityName: 'Highest',
   priorityId: '1',
   statusName: 'To Do',
@@ -45,7 +46,7 @@ vi.mock('@/hooks/useDevelopers', () => ({
 }));
 
 vi.mock('@/hooks/useConfig', () => ({
-  useConfig: () => ({ data: { jiraBaseUrl: 'https://test.atlassian.net', isConfigured: true } }),
+  useConfig: () => ({ data: { jiraBaseUrl: 'https://test.atlassian.net', jiraAspenSeverityField: 'customfield_10129', isConfigured: true } }),
 }));
 
 vi.mock('@/hooks/useAddComment', () => ({
@@ -114,6 +115,21 @@ describe('TriagePanel', () => {
 
     expect(screen.getByText('backend')).toBeInTheDocument();
     expect(screen.getByText('critical')).toBeInTheDocument();
+  });
+
+  it('renders ASPEN Severity and does not duplicate editable property labels', () => {
+    render(
+      <TestWrapper>
+        <TriagePanel issueKey="PROJ-101" onClose={onClose} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText('ASPEN Severity')).toBeInTheDocument();
+    expect(screen.getByText('Critical')).toBeInTheDocument();
+    expect(screen.getAllByText('Priority')).toHaveLength(1);
+    expect(screen.getAllByText('Assignee')).toHaveLength(1);
+    expect(screen.getAllByText('Due Date')).toHaveLength(1);
+    expect(screen.getAllByText('Blocked')).toHaveLength(1);
   });
 
   it('renders description with markdown', () => {

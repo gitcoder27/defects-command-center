@@ -3,6 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "../db/connection";
 import { configTable, developers, issues, issueScopeHistory, syncLog } from "../db/schema";
 import { JiraClient } from "../jira/client";
+import { buildScopedJql } from "../jira/jql";
 import { JiraIssue } from "../jira/types";
 import { logger } from "../utils/logger";
 import { config } from "../config";
@@ -28,6 +29,7 @@ export class SyncEngine {
   constructor() {}
 
   start(): void {
+    this.stop();
     this.task = cron.schedule("*/5 * * * *", () => {
       void this.syncNow();
     });
@@ -35,6 +37,7 @@ export class SyncEngine {
 
   stop(): void {
     this.task?.stop();
+    this.task = undefined;
   }
 
   getRuntimeStatus(): { status: "idle" | "syncing" | "error"; errorMessage?: string } {
@@ -65,13 +68,15 @@ export class SyncEngine {
       }
 
       const dbJql = await this.getConfigValue("jira_sync_jql");
-      const jql = this.buildJql(project, dbJql);
+      const teamAccountIds = await this.getScopedTeamAccountIds();
+      const jql = buildScopedJql(project, dbJql ?? config.JIRA_SYNC_JQL, teamAccountIds);
       const dbDevField = await this.getConfigValue("jira_dev_due_date_field");
       const devDueDateField = dbDevField || config.JIRA_DEV_DUE_DATE_FIELD;
+      const dbAspenSeverityField = await this.getConfigValue("jira_aspen_severity_field");
+      const aspenSeverityField = dbAspenSeverityField || config.JIRA_ASPEN_SEVERITY_FIELD;
       const jiraClient = await this.getJiraClient();
-      const teamAccountIds = await this.getActiveTeamAccountIds();
       const locallyTrackedKeys = await this.getLocallyTrackedActiveKeys();
-      const jiraIssues = await jiraClient.searchIssues(jql, [
+      const fields = [
         "summary",
         "description",
         "priority",
@@ -85,17 +90,26 @@ export class SyncEngine {
         "updated",
         "customfield_10021",
         devDueDateField,
-      ]);
+        aspenSeverityField,
+      ].filter((field): field is string => Boolean(field));
+      const jiraIssues = await jiraClient.searchIssues(jql, fields);
 
       const now = new Date().toISOString();
       for (const item of jiraIssues) {
-        const row = this.toIssueRow(item, now, devDueDateField, teamAccountIds, true);
+        const row = this.toIssueRow(item, now, devDueDateField, aspenSeverityField, teamAccountIds, true);
         await this.upsertIssue(row);
       }
 
       const returnedKeys = new Set(jiraIssues.map((it) => it.key));
       const missingKeys = locallyTrackedKeys.filter((key) => !returnedKeys.has(key));
-      const reconciledCount = await this.reconcileMissingIssues(missingKeys, jiraClient, teamAccountIds, now, devDueDateField);
+      const reconciledCount = await this.reconcileMissingIssues(
+        missingKeys,
+        jiraClient,
+        teamAccountIds,
+        now,
+        devDueDateField,
+        aspenSeverityField
+      );
 
       const completedAt = new Date().toISOString();
       if (logId !== undefined) {
@@ -123,13 +137,6 @@ export class SyncEngine {
     }
   }
 
-  private buildJql(projectKey: string, dbJql?: string): string {
-    const configured = (dbJql ?? config.JIRA_SYNC_JQL ?? "").trim();
-    return configured
-      ? configured.replaceAll("{PROJECT_KEY}", projectKey)
-      : `project = ${projectKey} AND issuetype = Bug AND statusCategory != Done`;
-  }
-
   private async getConfigValue(key: string): Promise<string | undefined> {
     const rows = await db.select().from(configTable).where(eq(configTable.key, key)).limit(1);
     return rows[0]?.value;
@@ -139,19 +146,23 @@ export class SyncEngine {
     item: JiraIssue,
     syncedAt: string,
     devDueDateFieldOverride: string | undefined,
+    aspenSeverityFieldOverride: string | undefined,
     teamAccountIds: Set<string>,
     fromScopedSync: boolean
   ): typeof issues.$inferInsert {
     const labels = item.fields.labels ?? [];
     const flagged = Array.isArray(item.fields.customfield_10021) && item.fields.customfield_10021.some((it) => it.id === "10019");
     const devDueDateField = devDueDateFieldOverride || config.JIRA_DEV_DUE_DATE_FIELD;
+    const aspenSeverityField = aspenSeverityFieldOverride || config.JIRA_ASPEN_SEVERITY_FIELD;
     const developmentDueDate = this.toDateValue(item.fields[devDueDateField]);
+    const aspenSeverity = aspenSeverityField ? this.toDbTextValue(item.fields[aspenSeverityField]) : null;
     const dueDate = this.toDateValue(item.fields.duedate);
     const assigneeId = this.toDbTextValue(item.fields.assignee?.accountId);
     const row: typeof issues.$inferInsert = {
       jiraKey: item.key,
       summary: this.toDbTextValue(item.fields.summary) ?? "",
       description: JSON.stringify(item.fields.description ?? ""),
+      aspenSeverity,
       priorityName: this.toDbTextValue(item.fields.priority?.name) ?? "Medium",
       priorityId: this.toDbTextValue(item.fields.priority?.id) ?? "",
       statusName: this.toDbTextValue(item.fields.status?.name) ?? "",
@@ -311,7 +322,8 @@ export class SyncEngine {
     jiraClient: JiraClient,
     teamAccountIds: Set<string>,
     reconciledAt: string,
-    devDueDateFieldOverride?: string
+    devDueDateFieldOverride?: string,
+    aspenSeverityFieldOverride?: string
   ): Promise<number> {
     if (missingKeys.length === 0) {
       return 0;
@@ -323,7 +335,7 @@ export class SyncEngine {
     for (let index = 0; index < missingKeys.length; index += batchSize) {
       const batch = missingKeys.slice(index, index + batchSize);
       const batchJql = `issuekey in (${batch.map((key) => `"${key}"`).join(", ")})`;
-      const issuesFromJira = await jiraClient.searchIssues(batchJql, [
+      const fields = [
         "summary",
         "description",
         "priority",
@@ -337,11 +349,20 @@ export class SyncEngine {
         "updated",
         "customfield_10021",
         devDueDateFieldOverride || config.JIRA_DEV_DUE_DATE_FIELD,
-      ]);
+        aspenSeverityFieldOverride || config.JIRA_ASPEN_SEVERITY_FIELD,
+      ].filter((field): field is string => Boolean(field));
+      const issuesFromJira = await jiraClient.searchIssues(batchJql, fields);
 
       const foundKeys = new Set(issuesFromJira.map((item) => item.key));
       for (const item of issuesFromJira) {
-        const row = this.toIssueRow(item, reconciledAt, devDueDateFieldOverride, teamAccountIds, false);
+        const row = this.toIssueRow(
+          item,
+          reconciledAt,
+          devDueDateFieldOverride,
+          aspenSeverityFieldOverride,
+          teamAccountIds,
+          false
+        );
         await this.upsertIssue(row);
         reconciledCount += 1;
       }
@@ -382,6 +403,15 @@ export class SyncEngine {
   private async getActiveTeamAccountIds(): Promise<Set<string>> {
     const rows = await db.select().from(developers).where(eq(developers.isActive, 1));
     return new Set(rows.map((row) => row.accountId));
+  }
+
+  private async getScopedTeamAccountIds(): Promise<Set<string>> {
+    const teamAccountIds = await this.getActiveTeamAccountIds();
+    const leadAccountId = (await this.getConfigValue("jira_lead_account_id"))?.trim();
+    if (leadAccountId) {
+      teamAccountIds.add(leadAccountId);
+    }
+    return teamAccountIds;
   }
 
   private async getLocallyTrackedActiveKeys(): Promise<string[]> {

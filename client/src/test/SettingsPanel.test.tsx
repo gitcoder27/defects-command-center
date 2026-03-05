@@ -5,15 +5,23 @@ import { TestWrapper } from '@/test/wrapper';
 
 const mockPut = vi.fn();
 const mockMutateAsync = vi.fn();
+const mockRefetch = vi.fn(async () => ({ data: {} }));
+const mockAddToast = vi.fn();
+const mockConfig = {
+  jiraSyncJql: 'project = AM AND issuetype = Bug',
+  jiraDevDueDateField: 'customfield_10128',
+  jiraAspenSeverityField: 'customfield_10129',
+};
 
 vi.mock('@/hooks/useConfig', () => ({
   useConfig: () => ({
-    data: {
-      jiraSyncJql: 'project = AM AND issuetype = Bug',
-      jiraDevDueDateField: 'customfield_10128',
-    },
-    refetch: vi.fn(async () => ({ data: {} })),
+    data: mockConfig,
+    refetch: mockRefetch,
   }),
+}));
+
+vi.mock('@/hooks/useDevelopers', () => ({
+  useDevelopers: () => ({ data: [], isLoading: false }),
 }));
 
 vi.mock('@/hooks/useTriggerSync', () => ({
@@ -22,7 +30,7 @@ vi.mock('@/hooks/useTriggerSync', () => ({
 
 vi.mock('@/context/ToastContext', () => ({
   useToast: () => ({
-    addToast: vi.fn(),
+    addToast: mockAddToast,
   }),
 }));
 
@@ -40,6 +48,8 @@ describe('SettingsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     closePanel.mockClear();
+    mockAddToast.mockClear();
+    mockRefetch.mockClear();
   });
 
   it('does not close panel when saving settings fails', async () => {
@@ -93,6 +103,9 @@ describe('SettingsPanel', () => {
 
     await waitFor(() => {
       expect(mockPut).toHaveBeenCalledTimes(1);
+      expect(mockPut).toHaveBeenCalledWith('/config/settings', expect.objectContaining({
+        jiraAspenSeverityField: 'customfield_10129',
+      }));
       expect(mockMutateAsync).toHaveBeenCalledTimes(1);
       expect(closePanel).toHaveBeenCalledTimes(1);
     });

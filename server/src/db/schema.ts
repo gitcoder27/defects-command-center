@@ -4,6 +4,7 @@ export const issues = sqliteTable("issues", {
   jiraKey: text("jira_key").primaryKey(),
   summary: text("summary").notNull(),
   description: text("description"),
+  aspenSeverity: text("aspen_severity"),
   priorityName: text("priority_name").notNull(),
   priorityId: text("priority_id").notNull(),
   statusName: text("status_name").notNull(),

@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS issues (
   jira_key        TEXT PRIMARY KEY,
   summary         TEXT NOT NULL,
   description     TEXT,
+  aspen_severity  TEXT,
   priority_name   TEXT NOT NULL,
   priority_id     TEXT NOT NULL,
   status_name     TEXT NOT NULL,
@@ -95,6 +96,7 @@ CREATE TABLE IF NOT EXISTS issue_scope_history (
 `;
 
 const alterStatements = [
+  "ALTER TABLE issues ADD COLUMN aspen_severity TEXT",
   "ALTER TABLE issues ADD COLUMN development_due_date TEXT",
   "ALTER TABLE issues ADD COLUMN analysis_notes TEXT",
   "ALTER TABLE issues ADD COLUMN team_scope_state TEXT NOT NULL DEFAULT 'in_team'",

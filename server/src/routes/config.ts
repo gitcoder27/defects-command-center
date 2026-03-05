@@ -5,8 +5,10 @@ import { db } from "../db/connection";
 import { configTable, developers as developersTable, issues, syncLog, componentMap, issueScopeHistory, issueTags, localTags } from "../db/schema";
 import { validate } from "../middleware/validate";
 import { JiraClient } from "../jira/client";
+import { stripManagedAssigneeClause } from "../jira/jql";
 import { config } from "../config";
 import { clearJiraApiToken, getJiraApiToken, setJiraApiToken } from "../runtime-credentials";
+import { SyncEngine } from "../sync/engine";
 import { logger } from "../utils/logger";
 
 const configSchema = z.object({
@@ -20,6 +22,7 @@ const configSchema = z.object({
     staleThresholdHours: z.number().int().positive().default(48),
     jiraSyncJql: z.string().optional(),
     jiraDevDueDateField: z.string().optional(),
+    jiraAspenSeverityField: z.string().optional(),
   }),
   params: z.any().optional(),
   query: z.any().optional(),
@@ -48,7 +51,7 @@ async function getStoredJiraApiToken(): Promise<string | undefined> {
   return getConfigValue("jira_api_token");
 }
 
-export function createConfigRouter(): Router {
+export function createConfigRouter(syncEngine?: SyncEngine): Router {
   const router = Router();
 
   router.get("/", async (_req, res, next) => {
@@ -60,8 +63,9 @@ export function createConfigRouter(): Router {
       const jiraApiToken = (await getStoredJiraApiToken()) || getJiraApiToken() || config.JIRA_API_TOKEN || "";
       const syncIntervalMs = Number((await getConfigValue("sync_interval_ms")) ?? "300000");
       const staleThresholdHours = Number((await getConfigValue("stale_threshold_hours")) ?? "48");
-      const jiraSyncJql = (await getConfigValue("jira_sync_jql")) ?? config.JIRA_SYNC_JQL ?? "";
+      const jiraSyncJql = stripManagedAssigneeClause((await getConfigValue("jira_sync_jql")) ?? config.JIRA_SYNC_JQL ?? "");
       const jiraDevDueDateField = (await getConfigValue("jira_dev_due_date_field")) ?? config.JIRA_DEV_DUE_DATE_FIELD ?? "customfield_10128";
+      const jiraAspenSeverityField = (await getConfigValue("jira_aspen_severity_field")) ?? config.JIRA_ASPEN_SEVERITY_FIELD ?? "";
 
       res.json({
         jiraBaseUrl,
@@ -73,6 +77,7 @@ export function createConfigRouter(): Router {
         staleThresholdHours,
         jiraSyncJql,
         jiraDevDueDateField,
+        jiraAspenSeverityField,
         isConfigured: Boolean(jiraBaseUrl && jiraEmail && jiraProjectKey && jiraLeadAccountId && jiraApiToken),
       });
     } catch (error) {
@@ -114,11 +119,21 @@ export function createConfigRouter(): Router {
       await upsertConfig("sync_interval_ms", String(syncIntervalMs));
       await upsertConfig("stale_threshold_hours", String(staleThresholdHours));
       if (req.body.jiraSyncJql !== undefined) {
-        await upsertConfig("jira_sync_jql", req.body.jiraSyncJql);
+        await upsertConfig("jira_sync_jql", stripManagedAssigneeClause(req.body.jiraSyncJql));
       }
       if (req.body.jiraDevDueDateField !== undefined) {
         await upsertConfig("jira_dev_due_date_field", req.body.jiraDevDueDateField);
       }
+      if (req.body.jiraAspenSeverityField !== undefined) {
+        await upsertConfig("jira_aspen_severity_field", req.body.jiraAspenSeverityField);
+      }
+
+      const token = req.body.jiraApiToken ?? tokenForLookup;
+      if (syncEngine && req.body.jiraBaseUrl && req.body.jiraEmail && req.body.jiraProjectKey && token) {
+        syncEngine.start();
+        void syncEngine.syncNow();
+      }
+
       res.json({ success: true });
     } catch (error) {
       next(error);
@@ -162,6 +177,7 @@ export function createConfigRouter(): Router {
     body: z.object({
       jiraSyncJql: z.string().optional(),
       jiraDevDueDateField: z.string().optional(),
+      jiraAspenSeverityField: z.string().optional(),
     }),
     params: z.any().optional(),
     query: z.any().optional(),
@@ -170,10 +186,13 @@ export function createConfigRouter(): Router {
   router.put("/settings", validate(settingsSchema), async (req, res, next) => {
     try {
       if (req.body.jiraSyncJql !== undefined) {
-        await upsertConfig("jira_sync_jql", req.body.jiraSyncJql);
+        await upsertConfig("jira_sync_jql", stripManagedAssigneeClause(req.body.jiraSyncJql));
       }
       if (req.body.jiraDevDueDateField !== undefined) {
         await upsertConfig("jira_dev_due_date_field", req.body.jiraDevDueDateField);
+      }
+      if (req.body.jiraAspenSeverityField !== undefined) {
+        await upsertConfig("jira_aspen_severity_field", req.body.jiraAspenSeverityField);
       }
       res.json({ success: true });
     } catch (error) {
@@ -183,6 +202,7 @@ export function createConfigRouter(): Router {
 
   router.post("/reset", async (_req, res, next) => {
     try {
+      syncEngine?.stop();
       await db.delete(issueScopeHistory);
       await db.delete(issueTags);
       await db.delete(localTags);

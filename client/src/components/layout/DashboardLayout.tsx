@@ -188,11 +188,11 @@ export function DashboardLayout() {
         {/* Triage panel always overlays the table */}
         {selectedIssueKey && (
           <div
-            className="absolute inset-0 bg-black/30 z-10"
+            className="absolute inset-0 bg-black/30 z-40"
             onClick={handleClosePanel}
           />
         )}
-        <div className="absolute right-0 top-0 bottom-0 z-20 pointer-events-none">
+        <div className="absolute right-0 top-0 bottom-0 z-50 pointer-events-none">
           <div className="pointer-events-auto h-full">
             <TriagePanel issueKey={selectedIssueKey} onClose={handleClosePanel} />
           </div>

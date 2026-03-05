@@ -123,6 +123,31 @@ describe("config routes", () => {
     expect(res.body?.jiraApiToken).toBe("****");
   });
 
+  it("GET /api/config returns the base JQL without a manually managed assignee clause", async () => {
+    await db.insert(configTable).values([
+      { key: "jira_base_url", value: "https://tenant.atlassian.net" },
+      { key: "jira_email", value: "ops@example.com" },
+      { key: "jira_project_key", value: "AM" },
+      { key: "jira_lead_account_id", value: "lead-1" },
+      { key: "jira_api_token", value: "token-from-db" },
+      {
+        key: "jira_sync_jql",
+        value: `project = AM
+AND issuetype = Bug
+AND assignee IN ("lead-1", "dev-1")
+ORDER BY updated DESC`,
+      },
+    ]);
+
+    const app = createTestApp();
+    const res = await invoke(app, { method: "GET", url: "/api/config" });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.jiraSyncJql).toBe(`project = AM
+AND issuetype = Bug
+ORDER BY updated DESC`);
+  });
+
   it("PUT /api/config/settings stores partial settings and leaves unrelated config intact", async () => {
     await db.insert(configTable).values([
       { key: "jira_base_url", value: "https://tenant.atlassian.net" },
@@ -132,6 +157,7 @@ describe("config routes", () => {
       { key: "jira_api_token", value: "token-from-db" },
       { key: "jira_sync_jql", value: "project = OLD" },
       { key: "jira_dev_due_date_field", value: "customfield_10020" },
+      { key: "jira_aspen_severity_field", value: "customfield_10021" },
     ]);
 
     const app = createTestApp();
@@ -139,8 +165,9 @@ describe("config routes", () => {
       method: "PUT",
       url: "/api/config/settings",
       body: {
-        jiraSyncJql: "project = AM AND status != Done",
+        jiraSyncJql: 'project = AM AND status != Done AND assignee IN ("lead-1", "dev-1")',
         jiraDevDueDateField: "customfield_99999",
+        jiraAspenSeverityField: "customfield_11111",
       },
     });
 
@@ -152,6 +179,7 @@ describe("config routes", () => {
 
     expect(map["jira_sync_jql"]).toBe("project = AM AND status != Done");
     expect(map["jira_dev_due_date_field"]).toBe("customfield_99999");
+    expect(map["jira_aspen_severity_field"]).toBe("customfield_11111");
     expect(map["jira_base_url"]).toBe("https://tenant.atlassian.net");
     expect(map["jira_project_key"]).toBe("AM");
   });

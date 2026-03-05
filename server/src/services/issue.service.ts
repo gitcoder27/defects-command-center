@@ -237,6 +237,7 @@ export class IssueService {
       jiraKey: row.jiraKey,
       summary: row.summary,
       description: row.description ?? undefined,
+      aspenSeverity: row.aspenSeverity ?? undefined,
       priorityName: row.priorityName,
       priorityId: row.priorityId,
       statusName: row.statusName,

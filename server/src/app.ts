@@ -40,7 +40,7 @@ export function createApp(services: AppServices) {
   app.use("/api/alerts", createAlertsRouter(services.alertService));
   app.use("/api/suggestions", createSuggestionsRouter(services.automationService, services.issueService));
   app.use("/api/sync", createSyncRouter(services.syncEngine));
-  app.use("/api/config", createConfigRouter());
+  app.use("/api/config", createConfigRouter(services.syncEngine));
   app.use("/api/tags", createTagsRouter(services.tagService));
 
   if (process.env.NODE_ENV === "production") {

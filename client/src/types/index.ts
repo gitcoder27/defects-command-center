@@ -25,6 +25,7 @@ export interface Issue {
   jiraKey: string;
   summary: string;
   description?: string;
+  aspenSeverity?: string;
   priorityName: string;
   priorityId: string;
   statusName: string;
@@ -120,6 +121,7 @@ export interface DashboardConfig {
   staleThresholdHours: number;
   jiraSyncJql: string;
   jiraDevDueDateField: string;
+  jiraAspenSeverityField: string;
   isConfigured: boolean;
 }
 
