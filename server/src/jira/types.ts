@@ -1,9 +1,10 @@
 export interface JiraSearchResult {
-  startAt: number;
-  maxResults: number;
-  total: number;
-  issues: JiraIssue[];
+  isLast?: boolean;
   nextPageToken?: string;
+  startAt?: number;
+  maxResults?: number;
+  total?: number;
+  issues: JiraIssue[];
 }
 
 export interface JiraIssue {

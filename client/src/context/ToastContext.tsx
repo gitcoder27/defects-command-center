@@ -14,7 +14,10 @@ interface Toast {
 }
 
 interface ToastContextValue {
-  addToast: (toast: Omit<Toast, 'id'>) => void;
+  addToast: {
+    (toast: Omit<Toast, 'id'>): void;
+    (title: string, type?: ToastType, message?: string): void;
+  };
   removeToast: (id: string) => void;
 }
 
@@ -33,7 +36,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addToast = useCallback(
-    (toast: Omit<Toast, 'id'>) => {
+    (toastInput: Omit<Toast, 'id'> | string, type: ToastType = 'info', message?: string) => {
+      const toast = normalizeToast(toastInput, type, message);
       const id = `toast-${++toastCounter}`;
       setToasts((prev) => [...prev, { ...toast, id }]);
       const duration = toast.duration ?? 5000;
@@ -75,6 +79,26 @@ const colorMap = {
   info: { bg: 'rgba(6,182,212,0.12)', border: 'rgba(6,182,212,0.3)', icon: 'var(--accent)' },
   warning: { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)', icon: 'var(--warning)' },
 };
+
+function normalizeToast(
+  toastInput: Omit<Toast, 'id'> | string,
+  type: ToastType = 'info',
+  message?: string,
+): Omit<Toast, 'id'> {
+  if (typeof toastInput === 'string') {
+    return { type, title: toastInput, ...(message !== undefined ? { message } : {}) };
+  }
+
+  if (!toastInput || typeof toastInput !== 'object' || !('type' in toastInput) || typeof toastInput.type !== 'string') {
+    return { type: 'info', title: 'Notification' };
+  }
+
+  if (!(toastInput.type in colorMap)) {
+    return { ...toastInput, type: 'info' };
+  }
+
+  return toastInput;
+}
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
   const Icon = iconMap[toast.type];

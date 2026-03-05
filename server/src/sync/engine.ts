@@ -6,6 +6,7 @@ import { JiraClient } from "../jira/client";
 import { JiraIssue } from "../jira/types";
 import { logger } from "../utils/logger";
 import { config } from "../config";
+import { getJiraApiToken } from "../runtime-credentials";
 
 export interface SyncResult {
   status: "success" | "error";
@@ -21,7 +22,7 @@ export class SyncEngine {
   private lastStatus: "idle" | "syncing" | "error" = "idle";
   private lastError?: string;
 
-  constructor(private readonly jiraClient: JiraClient) {}
+  constructor() {}
 
   start(): void {
     this.task = cron.schedule("*/5 * * * *", () => {
@@ -65,7 +66,8 @@ export class SyncEngine {
       const jql = this.buildJql(project, last, dbJql);
       const dbDevField = await this.getConfigValue("jira_dev_due_date_field");
       const devDueDateField = dbDevField || config.JIRA_DEV_DUE_DATE_FIELD;
-      const jiraIssues = await this.jiraClient.searchIssues(jql, [
+      const jiraClient = await this.getJiraClient();
+      const jiraIssues = await jiraClient.searchIssues(jql, [
         "summary",
         "description",
         "priority",
@@ -83,13 +85,8 @@ export class SyncEngine {
 
       const now = new Date().toISOString();
       for (const item of jiraIssues) {
-        await db
-          .insert(issues)
-          .values(this.toIssueRow(item, now, devDueDateField))
-          .onConflictDoUpdate({
-            target: issues.jiraKey,
-            set: this.toIssueRow(item, now, devDueDateField),
-          });
+        const row = this.toIssueRow(item, now, devDueDateField);
+        await this.upsertIssue(row);
       }
 
       await this.markMissingAsDone(jiraIssues.map((it) => it.key));
@@ -149,27 +146,81 @@ export class SyncEngine {
     const labels = item.fields.labels ?? [];
     const flagged = Array.isArray(item.fields.customfield_10021) && item.fields.customfield_10021.some((it) => it.id === "10019");
     const devDueDateField = devDueDateFieldOverride || config.JIRA_DEV_DUE_DATE_FIELD;
-    const devDueDate = (item.fields[devDueDateField] as string | null | undefined) ?? null;
+    const devDueDate = this.toDbTextValue(item.fields[devDueDateField]);
     return {
       jiraKey: item.key,
-      summary: item.fields.summary ?? "",
+      summary: this.toDbTextValue(item.fields.summary) ?? "",
       description: JSON.stringify(item.fields.description ?? ""),
-      priorityName: item.fields.priority?.name ?? "Medium",
-      priorityId: item.fields.priority?.id ?? "",
-      statusName: item.fields.status?.name ?? "",
+      priorityName: this.toDbTextValue(item.fields.priority?.name) ?? "Medium",
+      priorityId: this.toDbTextValue(item.fields.priority?.id) ?? "",
+      statusName: this.toDbTextValue(item.fields.status?.name) ?? "",
       statusCategory: item.fields.status?.statusCategory?.key ?? "new",
-      assigneeId: item.fields.assignee?.accountId ?? null,
-      assigneeName: item.fields.assignee?.displayName ?? null,
-      reporterName: item.fields.reporter?.displayName ?? null,
-      component: item.fields.components?.[0]?.name ?? null,
+      assigneeId: this.toDbTextValue(item.fields.assignee?.accountId),
+      assigneeName: this.toDbTextValue(item.fields.assignee?.displayName),
+      reporterName: this.toDbTextValue(item.fields.reporter?.displayName),
+      component: this.toDbTextValue(item.fields.components?.[0]?.name),
       labels: JSON.stringify(labels),
-      dueDate: item.fields.duedate ?? null,
+      dueDate: this.toDbTextValue(item.fields.duedate),
       developmentDueDate: devDueDate,
       flagged: flagged ? 1 : 0,
       createdAt: item.fields.created ?? syncedAt,
       updatedAt: item.fields.updated ?? syncedAt,
       syncedAt,
     };
+  }
+
+  private toDbTextValue(value: unknown): string | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    if (typeof value === "string") {
+      return value;
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === "number" || typeof value === "boolean") {
+      return String(value);
+    }
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        return null;
+      }
+      for (const entry of value) {
+        const nested = this.toDbTextValue(entry);
+        if (nested !== null) {
+          return nested;
+        }
+      }
+      return null;
+    }
+    if (typeof value === "object") {
+      const objectValue = value as { value?: unknown; name?: unknown };
+      if (objectValue.value !== undefined && objectValue.value !== null) {
+        return this.toDbTextValue(objectValue.value);
+      }
+      if (objectValue.name !== undefined && objectValue.name !== null) {
+        return this.toDbTextValue(objectValue.name);
+      }
+      return JSON.stringify(value);
+    }
+    return String(value);
+  }
+
+  private async upsertIssue(row: typeof issues.$inferInsert): Promise<void> {
+    const existing = await db
+      .select({ jiraKey: issues.jiraKey })
+      .from(issues)
+      .where(eq(issues.jiraKey, row.jiraKey))
+      .limit(1);
+
+    if (existing.length === 0) {
+      await db.insert(issues).values(row);
+      return;
+    }
+
+    const { jiraKey, ...updateRow } = row;
+    await db.update(issues).set(updateRow).where(eq(issues.jiraKey, jiraKey));
   }
 
   private async markMissingAsDone(activeKeys: string[]): Promise<void> {
@@ -181,5 +232,22 @@ export class SyncEngine {
     const placeholders = activeKeys.map(() => "?").join(", ");
     const statement = rawDb.prepare(`UPDATE issues SET status_category = 'done' WHERE jira_key NOT IN (${placeholders})`);
     statement.run(...activeKeys);
+  }
+
+  private async getJiraClient(): Promise<JiraClient> {
+    const baseUrl = (await this.getConfigValue("jira_base_url")) ?? config.JIRA_BASE_URL;
+    const email = (await this.getConfigValue("jira_email")) ?? config.JIRA_EMAIL;
+    const token = await this.getJiraToken();
+
+    if (!baseUrl || !email || !token) {
+      throw new Error("Missing Jira credentials");
+    }
+
+    return new JiraClient(baseUrl, email, token);
+  }
+
+  private async getJiraToken(): Promise<string | undefined> {
+    const tokenFromDb = await this.getConfigValue("jira_api_token");
+    return tokenFromDb || getJiraApiToken() || config.JIRA_API_TOKEN;
   }
 }

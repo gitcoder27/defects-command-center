@@ -1,7 +1,8 @@
 import "dotenv/config";
+
 import { eq } from "drizzle-orm";
 import { createApp } from "./app";
-import { config, hasJiraCredentials } from "./config";
+import { config } from "./config";
 import { rawDb } from "./db/connection";
 import { configTable } from "./db/schema";
 import { migrate } from "./db/migrate";
@@ -14,6 +15,7 @@ import { TagService } from "./services/tag.service";
 import { SyncEngine } from "./sync/engine";
 import { logger } from "./utils/logger";
 import { db } from "./db/connection";
+import { clearJiraApiToken, getJiraApiToken, setJiraApiToken } from "./runtime-credentials";
 
 async function getConfig(key: string): Promise<string | undefined> {
   const rows = await db.select().from(configTable).where(eq(configTable.key, key)).limit(1);
@@ -32,21 +34,30 @@ async function bootstrap(): Promise<void> {
   if (config.JIRA_PROJECT_KEY) {
     await db.insert(configTable).values({ key: "jira_project_key", value: config.JIRA_PROJECT_KEY }).onConflictDoNothing();
   }
+  const persistedToken = await getConfig("jira_api_token");
+  if (persistedToken) {
+    setJiraApiToken(persistedToken);
+  } else if (config.JIRA_API_TOKEN) {
+    setJiraApiToken(config.JIRA_API_TOKEN);
+  } else {
+    clearJiraApiToken();
+  }
 
   const jiraBaseUrl = (await getConfig("jira_base_url")) ?? config.JIRA_BASE_URL;
   const jiraEmail = (await getConfig("jira_email")) ?? config.JIRA_EMAIL;
   const jiraProject = (await getConfig("jira_project_key")) ?? config.JIRA_PROJECT_KEY;
+  const startupToken = getJiraApiToken();
 
-  if (!jiraBaseUrl || !jiraEmail || !config.JIRA_API_TOKEN || !jiraProject) {
+  if (!jiraBaseUrl || !jiraEmail || !startupToken || !jiraProject) {
     logger.warn("Jira configuration is incomplete. Server will start without sync.");
   }
 
-  const jiraClient = new JiraClient(jiraBaseUrl ?? "", jiraEmail ?? "", config.JIRA_API_TOKEN ?? "");
+  const issueJiraClient = new JiraClient(jiraBaseUrl ?? "", jiraEmail ?? "", startupToken);
   const workloadService = new WorkloadService();
-  const issueService = new IssueService(jiraClient);
+  const issueService = new IssueService(issueJiraClient);
   const alertService = new AlertService(workloadService);
   const automationService = new AutomationService(workloadService);
-  const syncEngine = new SyncEngine(jiraClient);
+  const syncEngine = new SyncEngine();
   const tagService = new TagService();
 
   const app = createApp({
@@ -62,7 +73,7 @@ async function bootstrap(): Promise<void> {
     logger.info(`Server listening on http://localhost:${config.PORT}`);
   });
 
-  if (hasJiraCredentials()) {
+  if (Boolean(jiraBaseUrl && jiraEmail && jiraProject && startupToken)) {
     void syncEngine.syncNow();
     syncEngine.start();
   }

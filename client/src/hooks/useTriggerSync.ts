@@ -6,7 +6,13 @@ export function useTriggerSync() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => api.post<SyncStatus>('/sync'),
+    mutationFn: async () => {
+      const result = await api.post<SyncStatus>('/sync');
+      if (result.status === 'error') {
+        throw new Error(result.errorMessage || 'Sync failed');
+      }
+      return result;
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['syncStatus'] });
       queryClient.invalidateQueries({ queryKey: ['issues'] });

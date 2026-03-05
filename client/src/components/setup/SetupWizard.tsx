@@ -55,12 +55,19 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       await api.put('/config', { jiraBaseUrl: jiraUrl, jiraEmail: email, jiraApiToken: apiToken, jiraProjectKey: projectKey });
       setDiscovering(true);
       try {
-        const res = await api.get<{ users: DiscoveredUser[] }>('/team/discover');
+        const res = await api.post<{ users: DiscoveredUser[] }>('/team/discover', {
+          jiraApiToken: apiToken,
+        });
         setDiscoveredUsers(res.users);
         setSelectedUsers(new Set(res.users.map((u) => u.accountId)));
-      } catch {
+      } catch (error) {
         // Discovery may fail but config is saved, still allow proceeding
         setDiscoveredUsers([]);
+        setErrorMessage(
+          error instanceof Error
+            ? `Discover failed: ${error.message}`
+            : 'Could not discover teammates. Sync can continue, but team roster is empty.'
+        );
       }
       setDiscovering(false);
       setStep('team');
@@ -80,8 +87,14 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       }
       setStep('syncing');
       triggerSync.mutate(undefined, {
-        onSettled: () => {
+        onSuccess: () => {
+          setErrorMessage('');
           onComplete();
+        },
+        onError: (err) => {
+          setErrorMessage(err instanceof Error ? err.message : 'Failed to sync from Jira');
+          setStep('team');
+          setSavingTeam(false);
         },
       });
     } catch (err) {

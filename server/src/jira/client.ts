@@ -1,31 +1,75 @@
 import { logger } from "../utils/logger";
 import { JiraIssue, JiraSearchResult, JiraUser } from "./types";
 
+const JIRA_REQUEST_TIMEOUT_MS = 30_000;
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function normalizeBaseUrl(rawBaseUrl: string): string {
+  const trimmed = rawBaseUrl.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return withProtocol.replace(/\/+$/, "");
+}
+
 export class JiraClient {
   private readonly authHeader: string;
+  private readonly normalizedBaseUrl: string;
 
   constructor(
-    private readonly baseUrl: string,
+    baseUrl: string,
     private readonly email: string,
     private readonly apiToken: string,
   ) {
+    this.normalizedBaseUrl = normalizeBaseUrl(baseUrl);
     this.authHeader = `Basic ${Buffer.from(`${email}:${apiToken}`).toString("base64")}`;
   }
 
   private async request<T>(path: string, init?: RequestInit, allowRetry = true): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      ...init,
-      headers: {
-        Authorization: this.authHeader,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        ...(init?.headers ?? {}),
-      },
-    });
+    if (!this.normalizedBaseUrl) {
+      throw new Error("Jira base URL is not configured. Set a valid JIRA_BASE_URL or jiraBaseUrl in setup.");
+    }
+
+    let requestUrl: string;
+    try {
+      requestUrl = new URL(path, this.normalizedBaseUrl).toString();
+    } catch (error) {
+      throw new Error(`Invalid Jira request URL. baseUrl=${this.normalizedBaseUrl}, path=${path}`);
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort(new DOMException("Jira request timed out", "TimeoutError"));
+    }, JIRA_REQUEST_TIMEOUT_MS);
+
+    let response: Response;
+    try {
+      response = await fetch(requestUrl, {
+        ...init,
+        headers: {
+          Authorization: this.authHeader,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          ...(init?.headers ?? {}),
+        },
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "TimeoutError") {
+        throw new Error(`Jira request timed out after ${JIRA_REQUEST_TIMEOUT_MS}ms`);
+      }
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new Error(`Jira request was aborted`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (response.status === 429 && allowRetry) {
       const retryAfter = Number(response.headers.get("Retry-After") ?? "1");
@@ -58,22 +102,59 @@ export class JiraClient {
   async searchIssues(jql: string, fields: string[], maxResults = 100): Promise<JiraIssue[]> {
     const all: JiraIssue[] = [];
     let nextPageToken: string | undefined;
+    let nextPageStartAt = 0;
 
-    do {
-      const params: Record<string, string> = {
+    while (true) {
+      const payload: Record<string, unknown> = {
         jql,
-        fields: fields.join(","),
-        maxResults: String(maxResults),
+        fields,
+        maxResults,
       };
+
       if (nextPageToken) {
-        params.nextPageToken = nextPageToken;
+        payload.nextPageToken = nextPageToken;
+      } else if (nextPageStartAt > 0) {
+        payload.startAt = nextPageStartAt;
       }
-      const qs = new URLSearchParams(params);
-      const page = await this.request<JiraSearchResult>(`/rest/api/3/search/jql?${qs.toString()}`);
-      logger.info({ fetched: page.issues.length, total: page.total, hasMore: !!page.nextPageToken }, "Fetched Jira issue page");
+
+      const page = await this.request<JiraSearchResult>("/rest/api/3/search/jql", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      logger.info(
+        {
+          fetched: page.issues.length,
+          total: page.total ?? undefined,
+          isLast: page.isLast ?? undefined,
+          startAt: page.startAt ?? undefined,
+        },
+        "Fetched Jira issue page"
+      );
       all.push(...page.issues);
-      nextPageToken = page.nextPageToken;
-    } while (nextPageToken);
+
+      if (page.isLast === true) {
+        break;
+      }
+
+      if (page.nextPageToken) {
+        nextPageToken = page.nextPageToken;
+        continue;
+      }
+
+      if (typeof page.startAt === "number" && typeof page.total === "number") {
+        nextPageStartAt = page.startAt + page.issues.length;
+        if (nextPageStartAt >= page.total || page.issues.length === 0) {
+          break;
+        }
+        continue;
+      }
+
+      if (page.issues.length === 0) {
+        break;
+      }
+      break;
+    }
 
     return all;
   }

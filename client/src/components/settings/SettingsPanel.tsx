@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, RefreshCw, Search, ChevronDown } from 'lucide-react';
+import { X, Save, RefreshCw, Search, AlertTriangle } from 'lucide-react';
 import { useConfig } from '@/hooks/useConfig';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { useToast } from '@/context/ToastContext';
@@ -21,10 +22,12 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const { data: config, refetch: refetchConfig } = useConfig();
   const triggerSync = useTriggerSync();
   const { addToast } = useToast();
+  const queryClient = useQueryClient();
 
   const [jql, setJql] = useState('');
   const [devDueDateField, setDevDueDateField] = useState('');
   const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [fields, setFields] = useState<JiraField[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
   const [fieldSearch, setFieldSearch] = useState('');
@@ -44,13 +47,13 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
       setFields(res.fields);
       setShowFieldPicker(true);
     } catch (err) {
-      addToast('Failed to fetch Jira fields', 'error');
+      addToast({ type: 'error', title: 'Failed to fetch Jira fields', message: err instanceof Error ? err.message : 'Request failed' });
     } finally {
       setLoadingFields(false);
     }
   }, [addToast]);
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<boolean> => {
     setSaving(true);
     try {
       await api.put('/config/settings', {
@@ -58,19 +61,53 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
         jiraDevDueDateField: devDueDateField,
       });
       await refetchConfig();
-      addToast('Settings saved', 'success');
+      addToast({ type: 'success', title: 'Settings saved', message: 'Your Jira sync settings have been saved.' });
+      return true;
     } catch (err) {
-      addToast('Failed to save settings', 'error');
+      addToast({ type: 'error', title: 'Failed to save settings', message: err instanceof Error ? err.message : 'Unable to save settings' });
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
   const handleSaveAndSync = async () => {
-    await handleSave();
-    triggerSync.mutate();
-    addToast('Sync triggered with new settings', 'success');
-    onClose();
+    const saved = await handleSave();
+    if (!saved) {
+      return;
+    }
+
+    try {
+      await triggerSync.mutateAsync();
+      addToast({ type: 'success', title: 'Sync triggered with new settings', message: 'Issue sync has started.' });
+      onClose();
+    } catch (err) {
+      addToast({ type: 'error', title: err instanceof Error ? err.message : 'Sync failed', message: 'Could not sync with updated settings.' });
+    }
+  };
+
+  const handleResetConfig = async () => {
+    if (!window.confirm('This will clear Jira configuration and return you to onboarding. Continue?')) {
+      return;
+    }
+
+    setResetting(true);
+    try {
+      await api.post('/config/reset');
+      await queryClient.invalidateQueries({ queryKey: ['config'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['issues'] }),
+        queryClient.invalidateQueries({ queryKey: ['overview'] }),
+        queryClient.invalidateQueries({ queryKey: ['workload'] }),
+        queryClient.invalidateQueries({ queryKey: ['alerts'] }),
+      ]);
+      addToast({ type: 'success', title: 'Configuration reset', message: 'Re-run setup to configure a new Jira account.' });
+      onClose();
+    } catch (err) {
+      addToast({ type: 'error', title: 'Failed to reset configuration', message: err instanceof Error ? err.message : 'Please try again.' });
+    } finally {
+      setResetting(false);
+    }
   };
 
   const filteredFields = fields.filter(
@@ -338,6 +375,19 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
               className="flex items-center justify-end gap-3 px-6 py-4 border-t"
               style={{ borderColor: 'var(--border)' }}
             >
+              <button
+                onClick={handleResetConfig}
+                disabled={saving || triggerSync.isPending || resetting}
+                className="px-4 py-2 rounded-md text-[13px] font-medium transition-colors disabled:opacity-50"
+                style={{
+                  background: 'rgba(239,68,68,0.14)',
+                  color: '#fca5a5',
+                  border: '1px solid rgba(239,68,68,0.35)',
+                }}
+              >
+                <AlertTriangle size={14} className="inline mr-2" />
+                {resetting ? 'Resetting…' : 'Reset & Reconfigure'}
+              </button>
               <button
                 onClick={onClose}
                 className="px-4 py-2 rounded-md text-[13px] font-medium transition-colors"

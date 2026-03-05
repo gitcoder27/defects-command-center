@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getJiraApiToken, hasJiraApiToken } from "./runtime-credentials";
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -20,5 +21,6 @@ if (!parsed.success) {
 export const config = parsed.data;
 
 export function hasJiraCredentials(): boolean {
-  return Boolean(config.JIRA_BASE_URL && config.JIRA_EMAIL && config.JIRA_API_TOKEN && config.JIRA_PROJECT_KEY);
+  const hasToken = Boolean(config.JIRA_API_TOKEN || hasJiraApiToken());
+  return Boolean(config.JIRA_BASE_URL && config.JIRA_EMAIL && hasToken && config.JIRA_PROJECT_KEY);
 }

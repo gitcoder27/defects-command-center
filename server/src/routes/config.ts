@@ -2,10 +2,12 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/connection";
-import { configTable } from "../db/schema";
+import { configTable, developers as developersTable, issues, syncLog, componentMap, issueTags, localTags } from "../db/schema";
 import { validate } from "../middleware/validate";
 import { JiraClient } from "../jira/client";
 import { config } from "../config";
+import { clearJiraApiToken, getJiraApiToken, setJiraApiToken } from "../runtime-credentials";
+import { logger } from "../utils/logger";
 
 const configSchema = z.object({
   body: z.object({
@@ -42,6 +44,10 @@ async function getConfigValue(key: string): Promise<string | undefined> {
   return rows[0]?.value;
 }
 
+async function getStoredJiraApiToken(): Promise<string | undefined> {
+  return getConfigValue("jira_api_token");
+}
+
 export function createConfigRouter(): Router {
   const router = Router();
 
@@ -51,6 +57,7 @@ export function createConfigRouter(): Router {
       const jiraEmail = (await getConfigValue("jira_email")) ?? config.JIRA_EMAIL ?? "";
       const jiraProjectKey = (await getConfigValue("jira_project_key")) ?? config.JIRA_PROJECT_KEY ?? "";
       const jiraLeadAccountId = (await getConfigValue("jira_lead_account_id")) ?? "";
+      const jiraApiToken = (await getStoredJiraApiToken()) || getJiraApiToken() || config.JIRA_API_TOKEN || "";
       const syncIntervalMs = Number((await getConfigValue("sync_interval_ms")) ?? "300000");
       const staleThresholdHours = Number((await getConfigValue("stale_threshold_hours")) ?? "48");
       const jiraSyncJql = (await getConfigValue("jira_sync_jql")) ?? config.JIRA_SYNC_JQL ?? "";
@@ -61,12 +68,12 @@ export function createConfigRouter(): Router {
         jiraEmail,
         jiraProjectKey,
         jiraLeadAccountId,
-        jiraApiToken: "****",
+        jiraApiToken: jiraApiToken ? "****" : "",
         syncIntervalMs,
         staleThresholdHours,
         jiraSyncJql,
         jiraDevDueDateField,
-        isConfigured: Boolean(jiraBaseUrl && jiraEmail && jiraProjectKey && jiraLeadAccountId && config.JIRA_API_TOKEN),
+        isConfigured: Boolean(jiraBaseUrl && jiraEmail && jiraProjectKey && jiraLeadAccountId && jiraApiToken),
       });
     } catch (error) {
       next(error);
@@ -78,10 +85,10 @@ export function createConfigRouter(): Router {
       let jiraLeadAccountId = req.body.jiraLeadAccountId;
       const syncIntervalMs = req.body.syncIntervalMs ?? 300000;
       const staleThresholdHours = req.body.staleThresholdHours ?? 48;
+      const tokenForLookup = req.body.jiraApiToken ?? (await getStoredJiraApiToken()) ?? getJiraApiToken() ?? config.JIRA_API_TOKEN;
 
       // If lead account id is not provided by client, derive it from Jira /myself.
       if (!jiraLeadAccountId) {
-        const tokenForLookup = req.body.jiraApiToken ?? config.JIRA_API_TOKEN;
         if (!tokenForLookup) {
           res.status(400).json({
             error: "jiraLeadAccountId is required when jiraApiToken is not provided",
@@ -93,6 +100,11 @@ export function createConfigRouter(): Router {
         const client = new JiraClient(req.body.jiraBaseUrl, req.body.jiraEmail, tokenForLookup);
         const me = await client.getCurrentUser();
         jiraLeadAccountId = me.accountId;
+      }
+
+      if (req.body.jiraApiToken) {
+        await upsertConfig("jira_api_token", req.body.jiraApiToken);
+        setJiraApiToken(req.body.jiraApiToken);
       }
 
       await upsertConfig("jira_base_url", req.body.jiraBaseUrl);
@@ -132,7 +144,7 @@ export function createConfigRouter(): Router {
     try {
       const baseUrl = (await getConfigValue("jira_base_url")) ?? config.JIRA_BASE_URL;
       const email = (await getConfigValue("jira_email")) ?? config.JIRA_EMAIL;
-      const token = config.JIRA_API_TOKEN;
+      const token = (await getStoredJiraApiToken()) || getJiraApiToken() || config.JIRA_API_TOKEN;
       if (!baseUrl || !email || !token) {
         res.status(400).json({ error: "Jira credentials not configured", status: 400 });
         return;
@@ -164,6 +176,24 @@ export function createConfigRouter(): Router {
         await upsertConfig("jira_dev_due_date_field", req.body.jiraDevDueDateField);
       }
       res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/reset", async (_req, res, next) => {
+    try {
+      await db.delete(configTable);
+      await db.delete(issues);
+      await db.delete(developersTable);
+      await db.delete(componentMap);
+      await db.delete(syncLog);
+      await db.delete(issueTags);
+      await db.delete(localTags);
+
+      clearJiraApiToken();
+      logger.info("Jira configuration reset via API");
+      res.json({ success: true, message: "Configuration reset successfully" });
     } catch (error) {
       next(error);
     }

@@ -7,6 +7,7 @@ import { db } from "../db/connection";
 import { configTable, developers as developersTable } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { config } from "../config";
+import { getJiraApiToken } from "../runtime-credentials";
 
 const paramsSchema = z.object({
   params: z.object({ accountId: z.string().regex(/^[A-Za-z0-9:-]+$/, "Invalid account id format") }),
@@ -29,8 +30,23 @@ const saveDevelopersSchema = z.object({
   query: z.any().optional(),
 });
 
+const discoverSchema = z.object({
+  body: z
+    .object({
+      jiraApiToken: z.string().min(1).optional(),
+    })
+    .default({}),
+  params: z.any().optional(),
+  query: z.any().optional(),
+});
+
 async function getConfigValue(key: string): Promise<string | undefined> {
   const rows = await db.select().from(configTable).where(eq(configTable.key, key)).limit(1);
+  return rows[0]?.value;
+}
+
+async function getStoredJiraApiToken(): Promise<string | undefined> {
+  const rows = await db.select().from(configTable).where(eq(configTable.key, "jira_api_token")).limit(1);
   return rows[0]?.value;
 }
 
@@ -55,15 +71,32 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
     }
   });
 
-  router.get("/discover", async (_req, res, next) => {
+  router.post("/discover", validate(discoverSchema), async (req, res, next) => {
     try {
       const jiraBaseUrl = (await getConfigValue("jira_base_url")) ?? config.JIRA_BASE_URL ?? "";
       const jiraEmail = (await getConfigValue("jira_email")) ?? config.JIRA_EMAIL ?? "";
       const projectKey = (await getConfigValue("jira_project_key")) ?? config.JIRA_PROJECT_KEY ?? "";
-      const token = config.JIRA_API_TOKEN ?? "";
+      const token = req.body.jiraApiToken ?? (await getStoredJiraApiToken()) ?? getJiraApiToken() ?? config.JIRA_API_TOKEN ?? "";
+      const missing: string[] = [];
 
-      if (!jiraBaseUrl || !jiraEmail || !token || !projectKey) {
-        res.status(400).json({ error: "Jira not configured", status: 400 });
+      if (!jiraBaseUrl) {
+        missing.push("jira base url");
+      }
+      if (!jiraEmail) {
+        missing.push("jira email");
+      }
+      if (!projectKey) {
+        missing.push("jira project key");
+      }
+      if (!token) {
+        missing.push("jira api token");
+      }
+
+      if (missing.length > 0) {
+        res.status(400).json({
+          error: `Jira not configured: missing ${missing.join(", ")}`,
+          status: 400,
+        });
         return;
       }
 
