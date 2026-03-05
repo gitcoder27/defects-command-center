@@ -14,9 +14,11 @@ import { PriorityCell } from './PriorityCell';
 import { StatusBadge } from './StatusBadge';
 import { AssigneeCell } from './AssigneeCell';
 import { DueDateCell } from './DueDateCell';
+import { AnalysisStatusCell } from './AnalysisStatusCell';
 import { InlineEditPriority } from './InlineEditPriority';
 import { InlineEditAssignee } from './InlineEditAssignee';
 import { InlineEditDueDate } from './InlineEditDueDate';
+import { InlineEditTags } from './InlineEditTags';
 import { useIssues } from '@/hooks/useIssues';
 import { useConfig } from '@/hooks/useConfig';
 import { formatRelativeTime, isOverdue, isDueToday, isStale } from '@/lib/utils';
@@ -31,6 +33,10 @@ const PRIORITY_ORDER: Record<string, number> = {
 };
 
 const columnHelper = createColumnHelper<Issue>();
+
+function hasAnalysisNotes(issue: Issue): boolean {
+  return Boolean(issue.analysisNotes?.trim());
+}
 
 interface DefectTableProps {
   filter: FilterType;
@@ -146,40 +152,26 @@ export function DefectTable({
       }),
       columnHelper.accessor('summary', {
         header: 'Title',
+        cell: (info) => (
+          <span
+            className="text-[13px] truncate block max-w-[420px]"
+            title={info.getValue()}
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {info.getValue()}
+          </span>
+        ),
+        size: undefined, // flex
+      }),
+      columnHelper.display({
+        id: 'tags',
+        header: 'Tags',
         cell: (info) => {
           const issue = info.row.original;
-          return (
-            <div className="flex items-center gap-2 min-w-0">
-              <span
-                className="text-[13px] truncate block max-w-[400px]"
-                title={info.getValue()}
-                style={{ color: 'var(--text-primary)' }}
-              >
-                {info.getValue()}
-              </span>
-              {issue.localTags?.length > 0 && (
-                <div className="flex gap-1 shrink-0">
-                  {issue.localTags.slice(0, 3).map((tag) => (
-                    <span
-                      key={tag.id}
-                      className="text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-none whitespace-nowrap"
-                      style={{ background: `${tag.color}25`, color: tag.color, border: `1px solid ${tag.color}40` }}
-                      title={tag.name}
-                    >
-                      {tag.name}
-                    </span>
-                  ))}
-                  {issue.localTags.length > 3 && (
-                    <span className="text-[10px] px-1 py-0.5 rounded-full" style={{ color: 'var(--text-muted)' }}>
-                      +{issue.localTags.length - 3}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          );
+          return <InlineEditTags issueKey={issue.jiraKey} localTags={issue.localTags} />;
         },
-        size: undefined, // flex
+        size: 250,
+        enableSorting: false,
       }),
       columnHelper.accessor('assigneeName', {
         header: 'Assignee',
@@ -229,6 +221,13 @@ export function DefectTable({
         cell: (info) => <StatusBadge status={info.getValue()} />,
         size: 100,
       }),
+      columnHelper.accessor((row) => (hasAnalysisNotes(row) ? 1 : 0), {
+        id: 'analysisStatus',
+        header: 'Notes',
+        cell: (info) => <AnalysisStatusCell hasNotes={Boolean(info.getValue())} />,
+        sortDescFirst: false,
+        size: 60,
+      }),
       columnHelper.accessor('updatedAt', {
         header: 'Updated',
         cell: (info) => (
@@ -248,7 +247,7 @@ export function DefectTable({
         enableSorting: false,
       }),
     ],
-    [editingCell, handleCellClick, closeInlineEdit]
+    [editingCell, handleCellClick, closeInlineEdit, config]
   );
 
   const table = useReactTable({
@@ -298,11 +297,12 @@ export function DefectTable({
                 <th
                   key={header.id}
                   onClick={header.column.getToggleSortingHandler()}
-                  className="text-left text-[11px] font-semibold uppercase px-3 py-2 cursor-pointer select-none sticky top-0"
+                  className="text-left text-[11px] font-semibold uppercase px-3 py-2 cursor-pointer select-none sticky top-0 z-30"
                   style={{
                     letterSpacing: '0.06em',
                     color: 'var(--text-muted)',
                     background: 'var(--bg-primary)',
+                    boxShadow: '0 1px 0 var(--border)',
                     width: header.column.getSize() !== 150 ? header.column.getSize() : undefined,
                   }}
                 >
@@ -358,7 +358,7 @@ export function DefectTable({
                 whileHover={{ backgroundColor: 'var(--bg-tertiary)' }}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-3 py-2 text-[13px]">
+                  <td key={cell.id} className="px-3 py-2 text-[13px] relative z-0">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}

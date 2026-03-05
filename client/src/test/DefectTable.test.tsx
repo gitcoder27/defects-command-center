@@ -19,6 +19,7 @@ const mockIssues: Issue[] = [
     createdAt: '2026-03-04T09:00:00Z',
     updatedAt: '2026-03-05T09:00:00Z',
     localTags: [],
+    analysisNotes: 'Initial root-cause analysis completed.',
   },
   {
     jiraKey: 'PROJ-102',
@@ -53,12 +54,21 @@ const mockIssues: Issue[] = [
   },
 ];
 
+const mockCreateTagMutate = vi.fn();
+const mockSetIssueTagsMutate = vi.fn();
+
 vi.mock('@/hooks/useIssues', () => ({
   useIssues: () => ({ data: mockIssues, isLoading: false }),
 }));
 
 vi.mock('@/hooks/useConfig', () => ({
   useConfig: () => ({ data: { jiraBaseUrl: 'https://test.atlassian.net', isConfigured: true } }),
+}));
+
+vi.mock('@/hooks/useTags', () => ({
+  useTags: () => ({ data: [{ id: 1, name: 'Backend', color: '#6366f1' }] }),
+  useCreateTag: () => ({ mutate: mockCreateTagMutate, isPending: false }),
+  useSetIssueTags: () => ({ mutate: mockSetIssueTagsMutate, isPending: false }),
 }));
 
 describe('DefectTable', () => {
@@ -106,9 +116,11 @@ describe('DefectTable', () => {
     expect(screen.getByText('Pri')).toBeInTheDocument();
     expect(screen.getByText('ID')).toBeInTheDocument();
     expect(screen.getByText('Title')).toBeInTheDocument();
+    expect(screen.getByText('Tags')).toBeInTheDocument();
     expect(screen.getByText('Assignee')).toBeInTheDocument();
     expect(screen.getByText('Due Date')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText('Notes')).toBeInTheDocument();
   });
 
   it('renders Jira links for issue IDs when config available', () => {
@@ -134,5 +146,42 @@ describe('DefectTable', () => {
     // PROJ-103 is stale (updatedAt is Feb 2026)
     expect(screen.getByText('PROJ-103')).toBeInTheDocument();
     expect(screen.getByText('Stale defect not updated')).toBeInTheDocument();
+  });
+
+  it('opens inline tag picker from Tags column', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByLabelText('Manage tags for PROJ-101'));
+
+    expect(screen.getByPlaceholderText('Search or create tag…')).toBeInTheDocument();
+    expect(screen.getByText('Backend')).toBeInTheDocument();
+  });
+
+  it('shows subtle analysis state indicators for complete and pending rows', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByLabelText('Analysis complete')).toBeInTheDocument();
+    expect(screen.getAllByLabelText('Analysis pending').length).toBeGreaterThan(0);
+  });
+
+  it('sorts by Notes header', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByText('Notes'));
+
+    const rows = screen.getAllByRole('row');
+    expect(rows[1]).toHaveTextContent('PROJ-102');
   });
 });

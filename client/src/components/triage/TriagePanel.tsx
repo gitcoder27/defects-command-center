@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink, Plus, Tag, FileText, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -6,13 +6,14 @@ import { useIssueDetail } from '@/hooks/useIssueDetail';
 import { useUpdateIssue } from '@/hooks/useUpdateIssue';
 import { useDevelopers } from '@/hooks/useDevelopers';
 import { useConfig } from '@/hooks/useConfig';
-import { useTags, useCreateTag, useSetIssueTags } from '@/hooks/useTags';
+import { useIssueTagActions } from '@/hooks/useIssueTagActions';
 import { useToast } from '@/context/ToastContext';
 import { IssueDetails } from './IssueDetails';
 import { SuggestionBar } from './SuggestionBar';
 import { CommentForm } from './CommentForm';
 import { PRIORITY_OPTIONS } from '@/lib/constants';
-import type { Developer, LocalTag } from '@/types';
+import { formatIssueDescription } from '@/lib/issue-description';
+import type { Developer } from '@/types';
 
 interface TriagePanelProps {
   issueKey?: string;
@@ -23,9 +24,10 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
   const { data: issue, isLoading } = useIssueDetail(issueKey);
   const { data: developers } = useDevelopers();
   const { data: config } = useConfig();
-  const { data: allTags } = useTags();
-  const createTag = useCreateTag();
-  const setIssueTags = useSetIssueTags();
+  const { allTags, assignedTagIds, isPending: isTagMutationPending, toggleTag, createOrAssignTag } = useIssueTagActions({
+    issueKey: issue?.jiraKey,
+    localTags: issue?.localTags ?? [],
+  });
   const updateIssue = useUpdateIssue();
   const { addToast } = useToast();
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -34,6 +36,7 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
   const [notesValue, setNotesValue] = useState('');
   const [notesSaved, setNotesSaved] = useState(true);
   const notesTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const renderedDescription = useMemo(() => formatIssueDescription(issue?.description), [issue?.description]);
 
   // Sync local notes state with issue data
   useEffect(() => {
@@ -68,36 +71,6 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
     },
     [saveNotes]
   );
-
-  const handleToggleTag = useCallback(
-    (tagId: number) => {
-      if (!issue) return;
-      const currentIds = issue.localTags.map((t) => t.id);
-      const newIds = currentIds.includes(tagId)
-        ? currentIds.filter((id) => id !== tagId)
-        : [...currentIds, tagId];
-      setIssueTags.mutate({ key: issue.jiraKey, tagIds: newIds });
-    },
-    [issue, setIssueTags]
-  );
-
-  const handleCreateTag = useCallback(() => {
-    if (!newTagName.trim()) return;
-    const colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
-    const color = colors[Math.floor(Math.random() * colors.length)]!;
-    createTag.mutate(
-      { name: newTagName.trim(), color },
-      {
-        onSuccess: (tag) => {
-          setNewTagName('');
-          if (issue) {
-            const currentIds = issue.localTags.map((t) => t.id);
-            setIssueTags.mutate({ key: issue.jiraKey, tagIds: [...currentIds, tag.id] });
-          }
-        },
-      }
-    );
-  }, [newTagName, createTag, issue, setIssueTags]);
 
   useEffect(() => {
     if (!issueKey) return;
@@ -155,7 +128,7 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: '100%', opacity: 0 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="w-[400px] min-w-[400px] max-w-full h-full overflow-y-auto border-l flex flex-col"
+          className="w-full sm:w-[720px] sm:min-w-[720px] lg:w-[800px] lg:min-w-[800px] max-w-full h-full overflow-y-auto border-l flex flex-col"
           style={{
             background: 'var(--bg-secondary)',
             borderColor: 'var(--border)',
@@ -197,6 +170,36 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
                 <h2 className="text-[16px] font-semibold mt-1" style={{ color: 'var(--text-primary)' }}>
                   {issue.summary}
                 </h2>
+              </div>
+
+              {/* Analysis Notes */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold uppercase flex items-center gap-1.5" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+                    <FileText size={12} /> Analysis & Notes
+                  </span>
+                  {!notesSaved && (
+                    <span className="text-[10px] italic" style={{ color: 'var(--warning)' }}>Saving...</span>
+                  )}
+                  {notesSaved && notesValue && (
+                    <span className="text-[10px]" style={{ color: 'var(--success)' }}>Saved</span>
+                  )}
+                </div>
+                <textarea
+                  value={notesValue}
+                  onChange={(e) => handleNotesChange(e.target.value)}
+                  onBlur={() => { if (!notesSaved) saveNotes(notesValue); }}
+                  placeholder="Write your analysis, observations, root cause, action items..."
+                  rows={5}
+                  className="w-full px-3 py-2 rounded-md text-[13px] leading-relaxed resize-y focus:outline-none focus:ring-1"
+                  style={{
+                    background: 'var(--bg-tertiary)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
+                    outlineColor: 'var(--accent)',
+                    minHeight: '80px',
+                  }}
+                />
               </div>
 
               {/* Editable fields */}
@@ -324,7 +327,7 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
                   {issue.localTags.map((tag) => (
                     <button
                       key={tag.id}
-                      onClick={() => handleToggleTag(tag.id)}
+                      onClick={() => toggleTag(tag.id)}
                       className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 hover:opacity-80 transition-opacity"
                       style={{ background: `${tag.color}25`, color: tag.color, border: `1px solid ${tag.color}40` }}
                       title={`Remove "${tag.name}"`}
@@ -338,14 +341,14 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
                 </div>
                 {showTagPicker && (
                   <div className="rounded-md p-2 flex flex-col gap-2" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
-                    {allTags && allTags.length > 0 && (
+                    {allTags.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {allTags.map((tag) => {
-                          const isAssigned = issue.localTags.some((t) => t.id === tag.id);
+                          const isAssigned = assignedTagIds.has(tag.id);
                           return (
                             <button
                               key={tag.id}
-                              onClick={() => handleToggleTag(tag.id)}
+                              onClick={() => toggleTag(tag.id)}
                               className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 transition-opacity"
                               style={{
                                 background: isAssigned ? `${tag.color}40` : `${tag.color}15`,
@@ -366,14 +369,18 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
                         type="text"
                         value={newTagName}
                         onChange={(e) => setNewTagName(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTag(); }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            createOrAssignTag(newTagName, { onSuccess: () => setNewTagName('') });
+                          }
+                        }}
                         placeholder="New tag name..."
                         className="flex-1 text-[12px] px-2 py-1 rounded focus:outline-none focus:ring-1"
                         style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)', outlineColor: 'var(--accent)' }}
                       />
                       <button
-                        onClick={handleCreateTag}
-                        disabled={!newTagName.trim() || createTag.isPending}
+                        onClick={() => createOrAssignTag(newTagName, { onSuccess: () => setNewTagName('') })}
+                        disabled={!newTagName.trim() || isTagMutationPending}
                         className="text-[11px] px-2 py-1 rounded font-medium disabled:opacity-40 transition-colors"
                         style={{ background: 'var(--accent)', color: '#fff' }}
                       >
@@ -384,47 +391,17 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
                 )}
               </div>
 
-              {/* Analysis Notes */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-semibold uppercase flex items-center gap-1.5" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-                    <FileText size={12} /> Analysis & Notes
-                  </span>
-                  {!notesSaved && (
-                    <span className="text-[10px] italic" style={{ color: 'var(--warning)' }}>Saving...</span>
-                  )}
-                  {notesSaved && notesValue && (
-                    <span className="text-[10px]" style={{ color: 'var(--success)' }}>Saved</span>
-                  )}
-                </div>
-                <textarea
-                  value={notesValue}
-                  onChange={(e) => handleNotesChange(e.target.value)}
-                  onBlur={() => { if (!notesSaved) saveNotes(notesValue); }}
-                  placeholder="Write your analysis, observations, root cause, action items..."
-                  rows={5}
-                  className="w-full px-3 py-2 rounded-md text-[13px] leading-relaxed resize-y focus:outline-none focus:ring-1"
-                  style={{
-                    background: 'var(--bg-tertiary)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border)',
-                    outlineColor: 'var(--accent)',
-                    minHeight: '80px',
-                  }}
-                />
-              </div>
-
               {/* Suggestions */}
               <SuggestionBar issue={issue} />
 
               {/* Description */}
-              {issue.description && (
+              {renderedDescription && (
                 <div>
                   <span className="text-[11px] font-semibold uppercase mb-2 block" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
                     Description
                   </span>
                   <div className="text-[13px] leading-relaxed prose prose-invert prose-sm max-w-none" style={{ color: 'var(--text-secondary)' }}>
-                    <ReactMarkdown>{issue.description}</ReactMarkdown>
+                    <ReactMarkdown>{renderedDescription}</ReactMarkdown>
                   </div>
                 </div>
               )}
