@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IssueService } from "../src/services/issue.service";
 import { JiraClient } from "../src/jira/client";
 
@@ -190,6 +190,12 @@ describe("IssueService", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-05T12:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("applies all supported filters", async () => {
@@ -216,12 +222,25 @@ describe("IssueService", () => {
   it("computes overview counts", async () => {
     const overview = await service.getOverviewCounts();
     expect(overview.total).toBe(3);
+    expect(overview.new).toBe(1);
     expect(overview.unassigned).toBe(1);
     expect(overview.dueToday).toBe(1);
     expect(overview.overdue).toBe(1);
     expect(overview.blocked).toBe(1);
     expect(overview.inProgress).toBe(2);
     expect(overview.lastSynced).toBe("2026-03-05T00:01:00.000Z");
+  });
+
+  it("keeps overview counts aligned with the corresponding table filters", async () => {
+    const overview = await service.getOverviewCounts();
+
+    expect((await service.getAll({ filter: "all" })).length).toBe(overview.total);
+    expect((await service.getAll({ filter: "new" })).length).toBe(overview.new);
+    expect((await service.getAll({ filter: "unassigned" })).length).toBe(overview.unassigned);
+    expect((await service.getAll({ filter: "dueToday" })).length).toBe(overview.dueToday);
+    expect((await service.getAll({ filter: "overdue" })).length).toBe(overview.overdue);
+    expect((await service.getAll({ filter: "blocked" })).length).toBe(overview.blocked);
+    expect((await service.getAll({ filter: "inProgress" })).length).toBe(overview.inProgress);
   });
 
   it("updates issue fields and writes Jira payload", async () => {

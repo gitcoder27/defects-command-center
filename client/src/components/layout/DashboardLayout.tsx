@@ -46,6 +46,7 @@ export function DashboardLayout() {
 
   const handleFilterChange = useCallback((filter: FilterType) => {
     setActiveFilter(filter);
+    setActiveDeveloper(undefined);
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
   }, []);

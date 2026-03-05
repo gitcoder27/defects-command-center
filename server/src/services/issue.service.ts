@@ -28,56 +28,13 @@ export class IssueService {
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
     let result: SharedIssue[] = rows.map((row: typeof issues.$inferSelect) => this.toSharedIssue(row, tagMap.get(row.jiraKey) ?? []));
-
-    if (query.assignee) {
-      result = result.filter((issue) => issue.assigneeId === query.assignee);
-    }
-    if (query.priority) {
-      result = result.filter((issue) => issue.priorityName === query.priority);
-    }
-    if (query.status) {
-      result = result.filter((issue) => issue.statusName === query.status);
-    }
-
-    const effectiveDue = (issue: SharedIssue) => issue.developmentDueDate ?? issue.dueDate;
-    const activeTeamIssues = () => result.filter((issue) => this.isActiveTeamIssue(issue));
-
-    switch (query.filter) {
-      case "new":
-        result = activeTeamIssues().filter((issue) => new Date(issue.createdAt).getTime() >= dayAgo.getTime());
-        break;
-      case "inProgress":
-        result = activeTeamIssues().filter((issue) => issue.statusCategory === "indeterminate");
-        break;
-      case "unassigned":
-        result = activeTeamIssues().filter((issue) => issue.assigneeId === leadId || issue.teamScopeState === "unassigned");
-        break;
-      case "dueToday":
-        result = activeTeamIssues().filter((issue) => effectiveDue(issue) === today);
-        break;
-      case "dueThisWeek":
-        result = activeTeamIssues().filter((issue) => { const d = effectiveDue(issue); return Boolean(d && d >= today && d <= weekEnd); });
-        break;
-      case "overdue":
-        result = activeTeamIssues().filter((issue) => { const d = effectiveDue(issue); return Boolean(d && d < today); });
-        break;
-      case "blocked":
-        result = activeTeamIssues().filter((issue) => issue.flagged);
-        break;
-      case "stale":
-        result = activeTeamIssues().filter((issue) => isOlderThanHours(issue.updatedAt, 48, now));
-        break;
-      case "highPriority":
-        result = activeTeamIssues().filter((issue) => issue.priorityName === "Highest" || issue.priorityName === "High");
-        break;
-      case "outOfTeam":
-        result = result.filter((issue) => this.isOutOfTeamIssue(issue));
-        break;
-      case "all":
-      case undefined:
-        result = activeTeamIssues();
-        break;
-    }
+    result = this.applyIssueQuery(result, query, {
+      leadId,
+      now,
+      today,
+      weekEnd,
+      dayAgo,
+    });
 
     return this.sortIssues(result, query.sort ?? "priority", query.order ?? "desc");
   }
@@ -166,28 +123,85 @@ export class IssueService {
     const leadId = await this.getLeadAccountId();
     const now = new Date();
     const today = todayIsoDate(now);
-    const activeTeamIssues = all.filter((issue) => this.isActiveTeamIssue(issue));
-    const outOfTeamIssues = all.filter((issue) => this.isOutOfTeamIssue(issue));
-
-    const latest = await db.select().from(syncLog).orderBy(desc(syncLog.id)).limit(1);
-    const effectiveDue = (issue: SharedIssue) => issue.developmentDueDate ?? issue.dueDate;
-
+    const weekEnd = endOfWeekIsoDate(now);
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
+    const latest = await db.select().from(syncLog).orderBy(desc(syncLog.id)).limit(1);
+    const filterContext = { leadId, now, today, weekEnd, dayAgo };
+
     return {
-      new: activeTeamIssues.filter((issue) => new Date(issue.createdAt).getTime() >= dayAgo.getTime()).length,
-      unassigned: activeTeamIssues.filter((issue) => issue.assigneeId === leadId || issue.teamScopeState === "unassigned").length,
-      dueToday: activeTeamIssues.filter((issue) => effectiveDue(issue) === today).length,
-      dueThisWeek: activeTeamIssues.filter((issue) => { const d = effectiveDue(issue); return Boolean(d && d >= today && d <= endOfWeekIsoDate(now)); }).length,
-      overdue: activeTeamIssues.filter((issue) => { const d = effectiveDue(issue); return Boolean(d && d < today); }).length,
-      blocked: activeTeamIssues.filter((issue) => issue.flagged).length,
-      stale: activeTeamIssues.filter((issue) => isOlderThanHours(issue.updatedAt, 48, now)).length,
-      highPriority: activeTeamIssues.filter((issue) => issue.priorityName === "Highest" || issue.priorityName === "High").length,
-      inProgress: activeTeamIssues.filter((issue) => issue.statusCategory === "indeterminate").length,
-      outOfTeam: outOfTeamIssues.length,
-      total: activeTeamIssues.length,
+      new: this.applyIssueQuery(all, { filter: "new" }, filterContext).length,
+      unassigned: this.applyIssueQuery(all, { filter: "unassigned" }, filterContext).length,
+      dueToday: this.applyIssueQuery(all, { filter: "dueToday" }, filterContext).length,
+      dueThisWeek: this.applyIssueQuery(all, { filter: "dueThisWeek" }, filterContext).length,
+      overdue: this.applyIssueQuery(all, { filter: "overdue" }, filterContext).length,
+      blocked: this.applyIssueQuery(all, { filter: "blocked" }, filterContext).length,
+      stale: this.applyIssueQuery(all, { filter: "stale" }, filterContext).length,
+      highPriority: this.applyIssueQuery(all, { filter: "highPriority" }, filterContext).length,
+      inProgress: this.applyIssueQuery(all, { filter: "inProgress" }, filterContext).length,
+      outOfTeam: this.applyIssueQuery(all, { filter: "outOfTeam" }, filterContext).length,
+      total: this.applyIssueQuery(all, { filter: "all" }, filterContext).length,
       lastSynced: latest[0]?.completedAt ?? undefined,
     };
+  }
+
+  private applyIssueQuery(
+    issuesList: SharedIssue[],
+    query: Pick<IssueQuery, "filter" | "assignee" | "priority" | "status">,
+    context: {
+      leadId: string;
+      now: Date;
+      today: string;
+      weekEnd: string;
+      dayAgo: Date;
+    }
+  ): SharedIssue[] {
+    let result = [...issuesList];
+
+    if (query.assignee) {
+      result = result.filter((issue) => issue.assigneeId === query.assignee);
+    }
+    if (query.priority) {
+      result = result.filter((issue) => issue.priorityName === query.priority);
+    }
+    if (query.status) {
+      result = result.filter((issue) => issue.statusName === query.status);
+    }
+
+    const effectiveDue = (issue: SharedIssue) => issue.developmentDueDate ?? issue.dueDate;
+    const activeTeamIssues = () => result.filter((issue) => this.isActiveTeamIssue(issue));
+
+    switch (query.filter) {
+      case "new":
+        return activeTeamIssues().filter((issue) => new Date(issue.createdAt).getTime() >= context.dayAgo.getTime());
+      case "inProgress":
+        return activeTeamIssues().filter((issue) => issue.statusCategory === "indeterminate");
+      case "unassigned":
+        return activeTeamIssues().filter((issue) => issue.assigneeId === context.leadId || issue.teamScopeState === "unassigned");
+      case "dueToday":
+        return activeTeamIssues().filter((issue) => effectiveDue(issue) === context.today);
+      case "dueThisWeek":
+        return activeTeamIssues().filter((issue) => {
+          const dueDate = effectiveDue(issue);
+          return Boolean(dueDate && dueDate >= context.today && dueDate <= context.weekEnd);
+        });
+      case "overdue":
+        return activeTeamIssues().filter((issue) => {
+          const dueDate = effectiveDue(issue);
+          return Boolean(dueDate && dueDate < context.today);
+        });
+      case "blocked":
+        return activeTeamIssues().filter((issue) => issue.flagged);
+      case "stale":
+        return activeTeamIssues().filter((issue) => isOlderThanHours(issue.updatedAt, 48, context.now));
+      case "highPriority":
+        return activeTeamIssues().filter((issue) => issue.priorityName === "Highest" || issue.priorityName === "High");
+      case "outOfTeam":
+        return result.filter((issue) => this.isOutOfTeamIssue(issue));
+      case "all":
+      case undefined:
+        return activeTeamIssues();
+    }
   }
 
   private async getLeadAccountId(): Promise<string> {
