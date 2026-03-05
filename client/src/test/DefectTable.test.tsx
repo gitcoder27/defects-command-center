@@ -199,4 +199,64 @@ describe('DefectTable', () => {
     const rows = screen.getAllByRole('row');
     expect(rows[1]).toHaveTextContent('PROJ-102');
   });
+
+  it('filters visible defects by Jira ID from search', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByLabelText('Open defect search'));
+    fireEvent.change(screen.getByLabelText('Search defects by ID or title'), { target: { value: 'PROJ-102' } });
+
+    expect(screen.getByText('PROJ-102')).toBeInTheDocument();
+    expect(screen.queryByText('PROJ-101')).not.toBeInTheDocument();
+    expect(screen.queryByText('PROJ-103')).not.toBeInTheDocument();
+  });
+
+  it('filters visible defects by title from search', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByLabelText('Open defect search'));
+    fireEvent.change(screen.getByLabelText('Search defects by ID or title'), { target: { value: 'stale defect' } });
+
+    expect(screen.getByText('PROJ-103')).toBeInTheDocument();
+    expect(screen.queryByText('PROJ-101')).not.toBeInTheDocument();
+    expect(screen.queryByText('PROJ-102')).not.toBeInTheDocument();
+  });
+
+  it('auto-hides search on blur when query is empty', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByLabelText('Open defect search'));
+    const input = screen.getByLabelText('Search defects by ID or title');
+    fireEvent.blur(input);
+
+    expect(screen.queryByLabelText('Search defects by ID or title')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Open defect search')).toBeInTheDocument();
+  });
+
+  it('keeps search open on blur when query has text', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByLabelText('Open defect search'));
+    const input = screen.getByLabelText('Search defects by ID or title');
+    fireEvent.change(input, { target: { value: 'PROJ' } });
+    fireEvent.blur(input);
+
+    expect(screen.getByLabelText('Search defects by ID or title')).toBeInTheDocument();
+  });
 });

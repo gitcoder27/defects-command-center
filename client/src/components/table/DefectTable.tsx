@@ -9,7 +9,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { useState } from 'react';
-import { ArrowUpDown, Ban } from 'lucide-react';
+import { ArrowUpDown, Ban, Search, X } from 'lucide-react';
 import { PriorityCell } from './PriorityCell';
 import { StatusBadge } from './StatusBadge';
 import { AssigneeCell } from './AssigneeCell';
@@ -67,10 +67,20 @@ export function DefectTable({
     rowKey: string;
     column: 'priority' | 'assignee' | 'dueDate';
   } | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const tableRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const suppressNextRowSelectRef = useRef(false);
   const [openTagEditors, setOpenTagEditors] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (searchOpen) {
+      searchInputRef.current?.focus();
+    }
+  }, [searchOpen]);
 
   const onTagEditorOpenChange = useCallback((issueKey: string, isOpen: boolean) => {
     setOpenTagEditors((prev) => {
@@ -301,14 +311,56 @@ export function DefectTable({
     [editingCell, handleCellClick, closeInlineEdit, config, onTagEditorOpenChange]
   );
 
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const baseIssues = issues ?? [];
+  const filteredIssues = useMemo(() => {
+    if (!normalizedSearch) {
+      return baseIssues;
+    }
+
+    return baseIssues.filter((issue) => {
+      return issue.jiraKey.toLowerCase().includes(normalizedSearch) || issue.summary.toLowerCase().includes(normalizedSearch);
+    });
+  }, [baseIssues, normalizedSearch]);
+
   const table = useReactTable({
-    data: issues ?? [],
+    data: filteredIssues,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
+
+  const closeSearch = useCallback(() => {
+    setSearchQuery('');
+    setSearchOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!searchOpen) {
+      return;
+    }
+
+    const handleOutsideMouseDown = (event: MouseEvent) => {
+      if (searchQuery.trim()) {
+        return;
+      }
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (searchContainerRef.current?.contains(target)) {
+        return;
+      }
+      setSearchOpen(false);
+    };
+
+    window.addEventListener('mousedown', handleOutsideMouseDown);
+    return () => {
+      window.removeEventListener('mousedown', handleOutsideMouseDown);
+    };
+  }, [searchOpen, searchQuery]);
 
   if (isLoading) {
     return (
@@ -324,7 +376,7 @@ export function DefectTable({
     );
   }
 
-  if (!issues?.length) {
+  if (!baseIssues.length) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
@@ -339,42 +391,110 @@ export function DefectTable({
   }
 
   return (
-    <div
-      className="flex-1 overflow-auto"
-      ref={tableRef}
-      onMouseDownCapture={handleTableMouseDownCapture}
-      onClickCapture={handleTableClickCapture}
-    >
-      <table className="w-full border-collapse">
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id} style={{ borderBottom: '1px solid var(--border)' }}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  onClick={header.column.getToggleSortingHandler()}
-                  className="text-left text-[11px] font-semibold uppercase px-3 py-2 cursor-pointer select-none sticky top-0 z-30"
-                  style={{
-                    letterSpacing: '0.06em',
-                    color: 'var(--text-muted)',
-                    background: 'var(--bg-primary)',
-                    boxShadow: '0 1px 0 var(--border)',
-                    width: header.column.getSize() !== 150 ? header.column.getSize() : undefined,
-                  }}
-                >
-                  <span className="flex items-center gap-1">
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                    {header.column.getCanSort() && (
-                      <ArrowUpDown size={10} style={{ opacity: 0.4 }} />
-                    )}
-                  </span>
-                </th>
+    <div className="flex-1 min-h-0 flex flex-col">
+      <div
+        ref={searchContainerRef}
+        className="flex items-center justify-end px-3 py-2 border-b"
+        style={{ borderColor: 'var(--border)', background: 'var(--bg-primary)' }}
+      >
+        {!searchOpen ? (
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="h-8 w-8 rounded-md flex items-center justify-center transition-colors hover:bg-[var(--bg-tertiary)]"
+            style={{ color: 'var(--text-secondary)' }}
+            aria-label="Open defect search"
+            title="Search defects"
+          >
+            <Search size={15} />
+          </button>
+        ) : (
+          <div
+            className="h-8 w-[320px] max-w-full rounded-md border px-2 flex items-center gap-2"
+            style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)' }}
+          >
+            <Search size={14} style={{ color: 'var(--text-muted)' }} />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by ID or title..."
+              className="flex-1 text-[12px] bg-transparent outline-none"
+              style={{ color: 'var(--text-primary)' }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  closeSearch();
+                }
+              }}
+              onBlur={(e) => {
+                if (searchQuery.trim()) {
+                  return;
+                }
+                const nextFocused = e.relatedTarget;
+                if (nextFocused && searchContainerRef.current?.contains(nextFocused)) {
+                  return;
+                }
+                setSearchOpen(false);
+              }}
+              aria-label="Search defects by ID or title"
+            />
+            <button
+              type="button"
+              onClick={closeSearch}
+              className="h-6 w-6 rounded flex items-center justify-center transition-colors hover:bg-[var(--bg-tertiary)]"
+              style={{ color: 'var(--text-muted)' }}
+              aria-label="Clear defect search"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div
+        className="flex-1 overflow-auto"
+        ref={tableRef}
+        onMouseDownCapture={handleTableMouseDownCapture}
+        onClickCapture={handleTableClickCapture}
+      >
+        {filteredIssues.length === 0 ? (
+          <div className="h-full flex items-center justify-center px-6">
+            <p className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
+              No defects match this search.
+            </p>
+          </div>
+        ) : (
+          <table className="w-full border-collapse">
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  {headerGroup.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      onClick={header.column.getToggleSortingHandler()}
+                      className="text-left text-[11px] font-semibold uppercase px-3 py-2 cursor-pointer select-none sticky top-0 z-30"
+                      style={{
+                        letterSpacing: '0.06em',
+                        color: 'var(--text-muted)',
+                        background: 'var(--bg-primary)',
+                        boxShadow: '0 1px 0 var(--border)',
+                        width: header.column.getSize() !== 150 ? header.column.getSize() : undefined,
+                      }}
+                    >
+                      <span className="flex items-center gap-1">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getCanSort() && (
+                          <ArrowUpDown size={10} style={{ opacity: 0.4 }} />
+                        )}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
               ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map((row, i) => {
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.map((row, i) => {
             const issue = row.original;
             const isSelected = issue.jiraKey === selectedKey;
             const isFocused = i === focusedIndex;
@@ -392,43 +512,45 @@ export function DefectTable({
 
             const shouldAnimate = !hasAnimated && i < 10;
 
-            return (
-              <motion.tr
-                key={issue.jiraKey}
-                initial={shouldAnimate ? { opacity: 0, y: 6 } : false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={shouldAnimate ? { duration: 0.2, delay: i * 0.03 + 0.4 } : undefined}
-                onClick={() => {
-                  if (suppressNextRowSelectRef.current) {
-                    suppressNextRowSelectRef.current = false;
-                    return;
-                  }
-                  onSelectIssue(issue.jiraKey);
-                }}
-                className="cursor-pointer transition-colors duration-150"
-                style={{
-                  background: isSelected
-                    ? 'var(--bg-glow)'
-                    : isFocused
-                    ? 'var(--bg-tertiary)'
-                    : issue.flagged
-                    ? 'rgba(239,68,68,0.04)'
-                    : undefined,
-                  boxShadow: `inset 4px 0 0 ${leftBorder}`,
-                  borderBottom: '1px solid var(--border)',
-                }}
-                whileHover={{ backgroundColor: 'var(--bg-tertiary)' }}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-3 py-2 text-[13px] relative z-0">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </motion.tr>
-            );
-          })}
-        </tbody>
-      </table>
+                return (
+                  <motion.tr
+                    key={issue.jiraKey}
+                    initial={shouldAnimate ? { opacity: 0, y: 6 } : false}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={shouldAnimate ? { duration: 0.2, delay: i * 0.03 + 0.4 } : undefined}
+                    onClick={() => {
+                      if (suppressNextRowSelectRef.current) {
+                        suppressNextRowSelectRef.current = false;
+                        return;
+                      }
+                      onSelectIssue(issue.jiraKey);
+                    }}
+                    className="cursor-pointer transition-colors duration-150"
+                    style={{
+                      background: isSelected
+                        ? 'var(--bg-glow)'
+                        : isFocused
+                        ? 'var(--bg-tertiary)'
+                        : issue.flagged
+                        ? 'rgba(239,68,68,0.04)'
+                        : undefined,
+                      boxShadow: `inset 4px 0 0 ${leftBorder}`,
+                      borderBottom: '1px solid var(--border)',
+                    }}
+                    whileHover={{ backgroundColor: 'var(--bg-tertiary)' }}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-3 py-2 text-[13px] relative z-0">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </motion.tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
