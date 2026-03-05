@@ -1,0 +1,180 @@
+# Defect Management Command Dashboard
+
+Full-stack implementation for the Defect Management Command Dashboard. The backend provides Jira-synced defect data, workload scoring, alerting, and automation suggestions via REST APIs. The frontend provides the tactical command dashboard UI.
+
+## Implemented Scope
+
+- Monorepo workspace setup (`client`, `server`, `shared`)
+- Shared TypeScript contracts in `shared/types.ts`
+- Express + TypeScript backend in `server/`
+- React + TypeScript frontend in `client/`
+- SQLite + Drizzle schema and startup migration
+- Jira client with pagination and 429 retry handling
+- Sync engine with startup sync + scheduled 5-minute sync
+- Backend endpoints from design docs
+- Zod validation on write endpoints
+- Global JSON error handling (`{ error, status }`)
+- Service-layer unit tests for workload/alerts/automation/issues
+
+## Repository Layout
+
+```text
+defects-dashboard/
+├── client/                    # React frontend
+├── data/                      # SQLite DB location
+├── docs/                      # Product and technical documentation
+├── server/                    # Backend implementation
+│   ├── src/
+│   ├── tests/
+│   └── package.json
+├── shared/
+│   └── types.ts
+├── .env.example
+├── package.json
+└── tsconfig.base.json
+```
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and set:
+
+```env
+JIRA_BASE_URL=https://your-domain.atlassian.net
+JIRA_EMAIL=your-email@company.com
+JIRA_API_TOKEN=your-api-token
+JIRA_PROJECT_KEY=PROJ
+PORT=3001
+```
+
+Security note: `JIRA_API_TOKEN` is read only from environment variables and is never stored in the database.
+
+## Node 20 Script Runner (`run-node20.ps1`)
+
+This repository uses a helper script to always run commands with your portable Node 20 runtime:
+
+`run-node20.ps1`
+
+It expects Node 20 at:
+
+`%USERPROFILE%\tools\node20`
+
+### Available Modes
+
+- `all`: install deps, build backend, run backend tests
+- `install`: install all workspace dependencies
+- `build`: build backend (`server`)
+- `test`: run backend tests (`server`)
+- `dev`: start backend dev server (`server`)
+- `client-dev`: start frontend dev server (`client`)
+- `client-build`: build frontend (`client`)
+- `client-test`: run frontend tests (`client`)
+
+### Common Commands
+
+Run from repo root (`defects-dashboard/`):
+
+```powershell
+# One-time setup / verification
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\run-node20.ps1 -Mode install
+
+# Backend
+.\run-node20.ps1 -Mode build
+.\run-node20.ps1 -Mode test
+.\run-node20.ps1 -Mode dev
+
+# Frontend
+.\run-node20.ps1 -Mode client-build
+.\run-node20.ps1 -Mode client-test
+.\run-node20.ps1 -Mode client-dev
+
+# End-to-end quick prep (install + backend build + backend test)
+.\run-node20.ps1 -Mode all
+```
+
+### Start Full App (Backend + Frontend)
+
+Use two terminals in repo root:
+
+```powershell
+# Terminal 1
+.\run-node20.ps1 -Mode dev
+
+# Terminal 2
+.\run-node20.ps1 -Mode client-dev
+```
+
+Then open:
+
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:3001`
+
+If `5173` is in use, Vite will automatically use `5174` (or next available port).
+
+## Install and Run (npm alternative)
+
+```bash
+npm install
+npm run dev:server
+```
+
+Health endpoint:
+
+```bash
+GET http://localhost:3001/api/health
+```
+
+Expected response:
+
+```json
+{ "status": "ok" }
+```
+
+## Tests
+
+```bash
+npm run test
+npm run test:coverage
+```
+
+Frontend tests:
+
+```bash
+npm run test --workspace=client
+```
+
+Current tests target backend services:
+
+- `server/tests/workload.service.test.ts`
+- `server/tests/alert.service.test.ts`
+- `server/tests/automation.service.test.ts`
+- `server/tests/issue.service.test.ts`
+
+## Backend API
+
+Implemented base path: `/api`
+
+- `GET /api/health`
+- `GET /api/issues`
+- `GET /api/issues/:key`
+- `PATCH /api/issues/:key`
+- `POST /api/issues/:key/comments`
+- `GET /api/overview`
+- `GET /api/team/workload`
+- `GET /api/team/developers`
+- `GET /api/team/:accountId/issues`
+- `GET /api/alerts`
+- `GET /api/suggestions/assignee/:key`
+- `GET /api/suggestions/priority/:key`
+- `GET /api/suggestions/duedate/:priority`
+- `POST /api/sync`
+- `GET /api/sync/status`
+- `GET /api/config`
+- `PUT /api/config`
+- `POST /api/config/test`
+
+All errors return JSON in the form:
+
+```json
+{ "error": "message", "status": 400 }
+```

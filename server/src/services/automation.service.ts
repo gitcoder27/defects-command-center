@@ -1,0 +1,52 @@
+import type { DueDateSuggestion, PrioritySuggestion } from "shared/types";
+import { addDays, addHours } from "../utils/date";
+import { WorkloadService } from "./workload.service";
+
+export class AutomationService {
+  constructor(private readonly workloadService: WorkloadService) {}
+
+  suggestPriority(labels: string[]): PrioritySuggestion {
+    const normalized = labels.map((label) => label.toLowerCase());
+
+    if (normalized.includes("production") || normalized.includes("prod-bug")) {
+      return { suggested: "Highest", reason: "Production-impacting label detected." };
+    }
+    if (normalized.includes("customer") || normalized.includes("client")) {
+      return { suggested: "High", reason: "Customer-impacting label detected." };
+    }
+    return { suggested: "Medium", reason: "Default suggestion for general defects." };
+  }
+
+  suggestDueDate(priorityName: string, createdAt: string): DueDateSuggestion {
+    const created = new Date(createdAt);
+    let suggestedDate = created;
+    let reason = "";
+
+    switch (priorityName) {
+      case "Highest":
+        suggestedDate = addHours(created, 24);
+        reason = "Highest priority target is 24 hours from creation.";
+        break;
+      case "High":
+        suggestedDate = addDays(created, 3);
+        reason = "High priority target is 3 calendar days from creation.";
+        break;
+      case "Medium":
+        suggestedDate = addDays(created, 7);
+        reason = "Medium priority target is 7 calendar days from creation.";
+        break;
+      case "Low":
+      case "Lowest":
+      default:
+        suggestedDate = addDays(created, 14);
+        reason = "Low/Lowest priority target is 14 calendar days from creation.";
+        break;
+    }
+
+    return { suggested: suggestedDate.toISOString().slice(0, 10), reason };
+  }
+
+  async suggestAssignee() {
+    return this.workloadService.suggestAssignee();
+  }
+}
