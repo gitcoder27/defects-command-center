@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, RefreshCw, Search, AlertTriangle, Loader2, UserPlus, UserMinus, Users } from 'lucide-react';
@@ -21,12 +21,22 @@ interface DiscoveredUser {
   avatarUrl?: string;
 }
 
+interface DiscoverUsersResponse {
+  users: DiscoveredUser[];
+  startAt: number;
+  maxResults: number;
+  count: number;
+  hasMore: boolean;
+}
+
 interface SettingsPanelProps {
   open: boolean;
   onClose: () => void;
 }
 
 export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
+  const DISCOVER_PAGE_SIZE = 50;
+  const DISCOVER_SEARCH_DEBOUNCE_MS = 350;
   const { data: config, refetch: refetchConfig } = useConfig();
   const triggerSync = useTriggerSync();
   const { addToast } = useToast();
@@ -46,10 +56,15 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const [discoveredUsers, setDiscoveredUsers] = useState<DiscoveredUser[]>([]);
   const [discoveredSearch, setDiscoveredSearch] = useState('');
   const [discoveringTeam, setDiscoveringTeam] = useState(false);
+  const [loadingMoreTeam, setLoadingMoreTeam] = useState(false);
   const [discoverTeamError, setDiscoverTeamError] = useState('');
+  const [discoverHasMore, setDiscoverHasMore] = useState(false);
+  const [discoverNextStartAt, setDiscoverNextStartAt] = useState(0);
+  const [debouncedDiscoveredSearch, setDebouncedDiscoveredSearch] = useState('');
   const [selectedAddUsers, setSelectedAddUsers] = useState<Set<string>>(new Set());
   const [savingTeam, setSavingTeam] = useState(false);
   const [removingAccountId, setRemovingAccountId] = useState<string | null>(null);
+  const discoverRequestRef = useRef(0);
 
   const activeMemberIds = useMemo(() => new Set(developers.map((d) => d.accountId)), [developers]);
 
@@ -63,17 +78,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
     [developers, teamSearch]
   );
 
-  const filteredDiscoveredUsers = useMemo(
-    () =>
-      discoveredUsers.filter(
-        (u) =>
-          u.displayName.toLowerCase().includes(discoveredSearch.toLowerCase()) ||
-          (u.email?.toLowerCase().includes(discoveredSearch.toLowerCase()) ?? false)
-      ),
-    [discoveredUsers, discoveredSearch]
-  );
-
-  const teamActionLoading = savingTeam || Boolean(removingAccountId);
+  const teamActionLoading = savingTeam || Boolean(removingAccountId) || loadingMoreTeam;
   const addableSelectionCount = useMemo(
     () =>
       Array.from(selectedAddUsers).filter((accountId) => !activeMemberIds.has(accountId)).length,
@@ -86,6 +91,13 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
       setDevDueDateField(config.jiraDevDueDateField || 'customfield_10128');
     }
   }, [config]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedDiscoveredSearch(discoveredSearch.trim());
+    }, DISCOVER_SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timeout);
+  }, [discoveredSearch]);
 
   const handleDiscoverFields = useCallback(async () => {
     setLoadingFields(true);
@@ -175,34 +187,94 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
     (f) => f.custom && !dueDateFields.includes(f)
   );
 
-  const invalidateTeamAndWorkload = async () => {
+  const invalidateTeamAndWorkload = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['developers'] }),
       queryClient.invalidateQueries({ queryKey: ['workload'] }),
       queryClient.invalidateQueries({ queryKey: ['overview'] }),
       queryClient.invalidateQueries({ queryKey: ['alerts'] }),
     ]);
-  };
+  }, [queryClient]);
 
-  const handleDiscoverTeamMembers = useCallback(async () => {
-    setDiscoveringTeam(true);
-    setDiscoverTeamError('');
-    try {
-      const res = await api.post<{ users: DiscoveredUser[] }>('/team/discover', {});
-      setDiscoveredUsers(res.users);
-      setDiscoveredSearch('');
-      setSelectedAddUsers(new Set());
-      if (res.users.length === 0) {
-        addToast({ type: 'warning', title: 'No team members found', message: 'No Jira users are currently assignable in this project.' });
+  const handleDiscoverTeamMembers = useCallback(
+    async (options?: { query?: string; startAt?: number; append?: boolean; silentEmpty?: boolean }) => {
+      const query = options?.query ?? '';
+      const startAt = options?.startAt ?? 0;
+      const append = options?.append ?? false;
+      const requestId = ++discoverRequestRef.current;
+
+      if (append) {
+        setLoadingMoreTeam(true);
+      } else {
+        setDiscoveringTeam(true);
+        setDiscoverTeamError('');
       }
-    } catch (error) {
-      setDiscoverTeamError(error instanceof Error ? error.message : 'Failed to discover Jira users');
-      addToast({ type: 'error', title: 'Failed to discover team members', message: error instanceof Error ? error.message : 'Request failed' });
-      setDiscoveredUsers([]);
-    } finally {
-      setDiscoveringTeam(false);
+
+      try {
+        const res = await api.post<DiscoverUsersResponse>('/team/discover', {
+          query,
+          startAt,
+          maxResults: DISCOVER_PAGE_SIZE,
+        });
+
+        if (requestId !== discoverRequestRef.current) {
+          return;
+        }
+
+        setDiscoverHasMore(res.hasMore);
+        setDiscoverNextStartAt(startAt + res.users.length);
+        if (!append) {
+          setSelectedAddUsers(new Set());
+        }
+        setDiscoveredUsers((prev) => {
+          if (!append) {
+            return res.users;
+          }
+          const merged = new Map(prev.map((user) => [user.accountId, user]));
+          for (const user of res.users) {
+            merged.set(user.accountId, user);
+          }
+          return Array.from(merged.values());
+        });
+
+        if (!append && res.users.length === 0 && !options?.silentEmpty) {
+          addToast({ type: 'warning', title: 'No team members found', message: 'No Jira users matched this search.' });
+        }
+      } catch (error) {
+        if (requestId !== discoverRequestRef.current) {
+          return;
+        }
+        setDiscoverTeamError(error instanceof Error ? error.message : 'Failed to discover Jira users');
+        setDiscoverHasMore(false);
+        if (!append) {
+          setDiscoveredUsers([]);
+        }
+        addToast({ type: 'error', title: 'Failed to discover team members', message: error instanceof Error ? error.message : 'Request failed' });
+      } finally {
+        if (requestId !== discoverRequestRef.current) {
+          return;
+        }
+        if (append) {
+          setLoadingMoreTeam(false);
+        } else {
+          setDiscoveringTeam(false);
+        }
+      }
+    },
+    [addToast]
+  );
+
+  useEffect(() => {
+    if (!open) {
+      return;
     }
-  }, [addToast]);
+    void handleDiscoverTeamMembers({
+      query: debouncedDiscoveredSearch,
+      startAt: 0,
+      append: false,
+      silentEmpty: debouncedDiscoveredSearch.length === 0,
+    });
+  }, [open, debouncedDiscoveredSearch, handleDiscoverTeamMembers]);
 
   const handleToggleAddUser = useCallback((accountId: string) => {
     setSelectedAddUsers((prev) => {
@@ -218,9 +290,9 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
 
   const handleSelectAllDiscovered = useCallback(() => {
     setSelectedAddUsers(
-      new Set(filteredDiscoveredUsers.filter((user) => !activeMemberIds.has(user.accountId)).map((u) => u.accountId))
+      new Set(discoveredUsers.filter((user) => !activeMemberIds.has(user.accountId)).map((u) => u.accountId))
     );
-  }, [activeMemberIds, filteredDiscoveredUsers]);
+  }, [activeMemberIds, discoveredUsers]);
 
   const handleClearAddSelection = useCallback(() => {
     setSelectedAddUsers(new Set());
@@ -258,7 +330,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
     } finally {
       setSavingTeam(false);
     }
-  }, [activeMemberIds, discoveredUsers, selectedAddUsers, addToast]);
+  }, [activeMemberIds, discoveredUsers, selectedAddUsers, addToast, invalidateTeamAndWorkload]);
 
   const handleRemoveMember = useCallback(async (accountId: string) => {
     setRemovingAccountId(accountId);
@@ -275,7 +347,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
     } finally {
       setRemovingAccountId(null);
     }
-  }, [addToast]);
+  }, [addToast, invalidateTeamAndWorkload]);
 
   const hasChanges = saving || triggerSync.isPending || resetting || teamActionLoading;
 
@@ -531,8 +603,15 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                     />
                   </div>
                   <button
-                    onClick={handleDiscoverTeamMembers}
-                    disabled={teamActionLoading}
+                    onClick={() =>
+                      handleDiscoverTeamMembers({
+                        query: discoveredSearch.trim(),
+                        startAt: 0,
+                        append: false,
+                        silentEmpty: false,
+                      })
+                    }
+                    disabled={teamActionLoading || discoveringTeam}
                     className="px-3 py-2 rounded-md text-[12px] font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50"
                     style={{
                       background: 'var(--bg-tertiary)',
@@ -613,7 +692,14 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                       Add Team Members
                     </p>
                     <button
-                      onClick={handleDiscoverTeamMembers}
+                      onClick={() =>
+                        handleDiscoverTeamMembers({
+                          query: discoveredSearch.trim(),
+                          startAt: 0,
+                          append: false,
+                          silentEmpty: false,
+                        })
+                      }
                       disabled={discoveringTeam || teamActionLoading}
                       className="text-[11px] font-medium transition-colors disabled:opacity-50"
                       style={{ color: 'var(--accent)' }}
@@ -660,11 +746,11 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                           Clear
                         </button>
                         <span className="ml-auto text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                          {filteredDiscoveredUsers.length} users
+                          {discoveredUsers.length} users
                         </span>
                       </div>
                       <div className="max-h-52 overflow-y-auto">
-                        {filteredDiscoveredUsers.map((user) => {
+                        {discoveredUsers.map((user) => {
                           const isAlreadyMember = activeMemberIds.has(user.accountId);
                           const isSelected = selectedAddUsers.has(user.accountId);
                           return (
@@ -704,6 +790,27 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                           );
                         })}
                       </div>
+                      {discoverHasMore && (
+                        <button
+                          onClick={() =>
+                            handleDiscoverTeamMembers({
+                              query: discoveredSearch.trim(),
+                              startAt: discoverNextStartAt,
+                              append: true,
+                              silentEmpty: true,
+                            })
+                          }
+                          disabled={loadingMoreTeam || discoveringTeam}
+                          className="w-full px-3 py-2 rounded-md text-[12px] font-medium transition-colors disabled:opacity-50"
+                          style={{
+                            background: 'var(--bg-secondary)',
+                            color: 'var(--text-primary)',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          {loadingMoreTeam ? 'Loading more…' : 'Load more users'}
+                        </button>
+                      )}
                       <button
                         onClick={handleAddSelectedDevelopers}
                         disabled={addableSelectionCount === 0 || savingTeam}

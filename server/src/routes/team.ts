@@ -34,6 +34,9 @@ const discoverSchema = z.object({
   body: z
     .object({
       jiraApiToken: z.string().min(1).optional(),
+      query: z.string().optional(),
+      startAt: z.number().int().min(0).optional(),
+      maxResults: z.number().int().min(1).max(200).optional(),
     })
     .default({}),
   params: z.any().optional(),
@@ -77,6 +80,9 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
       const jiraEmail = (await getConfigValue("jira_email")) ?? config.JIRA_EMAIL ?? "";
       const projectKey = (await getConfigValue("jira_project_key")) ?? config.JIRA_PROJECT_KEY ?? "";
       const token = req.body.jiraApiToken ?? (await getStoredJiraApiToken()) ?? getJiraApiToken() ?? config.JIRA_API_TOKEN ?? "";
+      const query = (req.body.query as string | undefined)?.trim() || undefined;
+      const startAt = (req.body.startAt as number | undefined) ?? 0;
+      const maxResults = (req.body.maxResults as number | undefined) ?? 50;
       const missing: string[] = [];
 
       if (!jiraBaseUrl) {
@@ -101,7 +107,11 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
       }
 
       const client = new JiraClient(jiraBaseUrl, jiraEmail, token);
-      const users = await client.getAssignableUsers(projectKey);
+      const users = await client.getAssignableUsers(projectKey, {
+        query,
+        startAt,
+        maxResults,
+      });
       res.json({
         users: users.map((u) => ({
           accountId: u.accountId,
@@ -109,6 +119,10 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
           email: u.emailAddress,
           avatarUrl: u.avatarUrls?.["48x48"],
         })),
+        startAt,
+        maxResults,
+        count: users.length,
+        hasMore: users.length === maxResults,
       });
     } catch (error) {
       next(error);

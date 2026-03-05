@@ -188,8 +188,20 @@ export class JiraClient {
     });
   }
 
-  async getAssignableUsers(projectKey: string): Promise<JiraUser[]> {
+  async getAssignableUsers(
+    projectKey: string,
+    options?: { query?: string; startAt?: number; maxResults?: number }
+  ): Promise<JiraUser[]> {
     const qs = new URLSearchParams({ project: projectKey });
+    if (options?.query?.trim()) {
+      qs.set("query", options.query.trim());
+    }
+    if (typeof options?.startAt === "number") {
+      qs.set("startAt", String(options.startAt));
+    }
+    if (typeof options?.maxResults === "number") {
+      qs.set("maxResults", String(options.maxResults));
+    }
     return this.request<JiraUser[]>(`/rest/api/3/user/assignable/search?${qs.toString()}`);
   }
 
