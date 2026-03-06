@@ -73,12 +73,24 @@ export function DefectTable({
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const suppressNextRowSelectRef = useRef(false);
   const [openTagEditors, setOpenTagEditors] = useState<Set<string>>(new Set());
+  const [lastVisitedKey, setLastVisitedKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (searchOpen) {
       searchInputRef.current?.focus();
     }
   }, [searchOpen]);
+
+  // Clear visited-link highlight on any interaction outside the Jira link
+  useEffect(() => {
+    if (!lastVisitedKey) return;
+    const handleInteraction = (e: MouseEvent) => {
+      if ((e.target as HTMLElement).closest('[data-jira-link]')) return;
+      setLastVisitedKey(null);
+    };
+    document.addEventListener('mousedown', handleInteraction);
+    return () => document.removeEventListener('mousedown', handleInteraction);
+  }, [lastVisitedKey]);
 
   const onTagEditorOpenChange = useCallback((issueKey: string, isOpen: boolean) => {
     setOpenTagEditors((prev) => {
@@ -159,6 +171,7 @@ export function DefectTable({
         header: 'ID',
         cell: (info) => {
           const jiraKey = info.getValue();
+          const isVisited = lastVisitedKey === jiraKey;
           const href = config?.jiraBaseUrl
             ? `${config.jiraBaseUrl}/browse/${jiraKey}`
             : undefined;
@@ -167,19 +180,31 @@ export function DefectTable({
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-mono text-[13px] font-medium relative group/id cursor-pointer"
-              style={{ color: 'var(--accent)' }}
-              onClick={(e) => e.stopPropagation()}
+              data-jira-link
+              className="font-mono text-[13px] font-medium relative group/id cursor-pointer whitespace-nowrap"
+              style={{
+                color: isVisited ? 'var(--info)' : 'var(--accent)',
+                textDecoration: isVisited ? 'underline' : 'none',
+                textDecorationColor: 'var(--info)',
+                textUnderlineOffset: '3px',
+                textDecorationThickness: '1.5px',
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setLastVisitedKey(jiraKey);
+              }}
             >
               {jiraKey}
-              <span
-                className="absolute bottom-0 left-0 w-0 h-px group-hover/id:w-full transition-all duration-200"
-                style={{ background: 'var(--accent)' }}
-              />
+              {!isVisited && (
+                <span
+                  className="absolute bottom-0 left-0 w-0 h-px group-hover/id:w-full transition-all duration-200"
+                  style={{ background: 'var(--accent)' }}
+                />
+              )}
             </a>
           ) : (
             <span
-              className="font-mono text-[13px] font-medium"
+              className="font-mono text-[13px] font-medium whitespace-nowrap"
               style={{ color: 'var(--accent)' }}
             >
               {jiraKey}
@@ -291,7 +316,7 @@ export function DefectTable({
         enableSorting: false,
       }),
     ],
-    [editingCell, handleCellClick, closeInlineEdit, config, onTagEditorOpenChange]
+    [editingCell, handleCellClick, closeInlineEdit, config, onTagEditorOpenChange, lastVisitedKey]
   );
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -374,11 +399,11 @@ export function DefectTable({
   }
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col">
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
       <div
         ref={searchContainerRef}
-        className="flex items-center justify-end px-3 py-2 border-b"
-        style={{ borderColor: 'var(--border)', background: 'var(--bg-primary)' }}
+        className="flex items-center justify-end px-3 py-1.5 border-b"
+        style={{ borderColor: 'var(--border)', background: 'var(--bg-primary)', minHeight: 36, flexShrink: 0 }}
       >
         {!searchOpen ? (
           <button
@@ -484,10 +509,12 @@ export function DefectTable({
             const overdue = isOverdue(issue.dueDate ?? undefined);
             const dueToday = isDueToday(issue.dueDate ?? undefined);
             const stale = issue.statusCategory !== 'done' && isStale(issue.updatedAt);
+            const isLastVisited = lastVisitedKey === issue.jiraKey;
 
             let leftBorder = 'transparent';
             if (isSelected) leftBorder = 'var(--accent)';
             else if (isFocused) leftBorder = 'var(--accent)';
+            else if (isLastVisited) leftBorder = 'var(--info)';
             else if (overdue) leftBorder = 'var(--danger)';
             else if (dueToday) leftBorder = 'var(--warning)';
             else if (issue.flagged) leftBorder = 'var(--danger-muted)';
@@ -514,6 +541,8 @@ export function DefectTable({
                         ? 'var(--bg-glow)'
                         : isFocused
                         ? 'var(--bg-tertiary)'
+                        : isLastVisited
+                        ? 'rgba(139,92,246,0.04)'
                         : issue.flagged
                         ? 'rgba(239,68,68,0.04)'
                         : undefined,

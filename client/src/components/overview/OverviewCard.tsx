@@ -37,32 +37,34 @@ function AnimatedCounter({ value, duration = 600 }: { value: number; duration?: 
 export function OverviewCard({ label, count, color, isActive, onClick, delay = 0 }: OverviewCardProps) {
   return (
     <motion.button
-      initial={{ opacity: 0, y: 12, scale: 0.97 }}
+      initial={{ opacity: 0, y: 8, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.4, delay: 0.08 + delay * 0.06, ease: 'easeOut' }}
+      transition={{ duration: 0.35, delay: 0.06 + delay * 0.05, ease: 'easeOut' }}
       onClick={onClick}
-      className="flex flex-col items-start gap-1 rounded-lg px-4 py-3 w-full cursor-pointer transition-all duration-200"
+      className="flex flex-col items-start gap-0.5 rounded-md px-3 py-2 w-full cursor-pointer transition-all duration-200"
       style={{
         background: 'var(--bg-secondary)',
         border: `1px solid ${isActive ? color : 'var(--border)'}`,
         boxShadow: isActive
-          ? `0 0 20px ${color}26, 0 1px 3px rgba(0,0,0,0.3)`
-          : '0 1px 3px rgba(0,0,0,0.3), 0 0 1px rgba(6,182,212,0.05)',
+          ? `0 0 16px ${color}20, 0 1px 2px rgba(0,0,0,0.25)`
+          : '0 1px 2px rgba(0,0,0,0.2), 0 0 1px rgba(6,182,212,0.04)',
       }}
     >
-      <span
-        className="text-[11px] font-medium uppercase"
-        style={{ letterSpacing: '0.08em', color: 'var(--text-secondary)' }}
-      >
-        {label}
+      <span className="flex items-center gap-1.5">
+        <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+        <span
+          className="text-[10px] font-medium uppercase"
+          style={{ letterSpacing: '0.06em', color: 'var(--text-secondary)' }}
+        >
+          {label}
+        </span>
       </span>
       <span
-        className="text-[32px] font-bold tabular-nums leading-none"
+        className="text-[24px] font-bold tabular-nums leading-tight"
         style={{ color: count === 0 ? 'var(--text-muted)' : 'var(--text-primary)' }}
       >
         <AnimatedCounter value={count} />
       </span>
-      <span className="w-2 h-2 rounded-full" style={{ background: color }} />
     </motion.button>
   );
 }

@@ -97,3 +97,7 @@ body::after {
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* Hide scrollbar but keep scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

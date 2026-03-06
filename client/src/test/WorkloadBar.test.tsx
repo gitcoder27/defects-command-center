@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { WorkloadBar } from '@/components/workload/WorkloadBar';
 import { TestWrapper } from '@/test/wrapper';
 import type { DeveloperWorkload } from '@/types';
@@ -41,12 +41,16 @@ describe('WorkloadBar', () => {
     expect(screen.getByText('Eve')).toBeInTheDocument();
   });
 
-  it('shows idle badge for score=0', () => {
+  it('shows idle badge for score=0', async () => {
     render(
       <TestWrapper>
         <WorkloadBar onDeveloperClick={onDeveloperClick} />
       </TestWrapper>
     );
+
+    // Expand the workload panel to reveal full DeveloperCards with ⚠ badges
+    const toggle = screen.getByText('Workload').closest('button')!;
+    fireEvent.click(toggle);
 
     // Eve has 0 active defects, should show warning
     const warnings = screen.getAllByText('⚠');
