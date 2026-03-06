@@ -49,7 +49,7 @@ export function FilterSidebar({
   const { data: tags } = useTags();
   const { data: tagCounts } = useTagCounts(activeFilter, activeDeveloper);
 
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [developersOpen, setDevelopersOpen] = useState(true);
 

@@ -6,6 +6,7 @@ export type FilterType =
   | 'all'
   | 'new'
   | 'inProgress'
+  | 'reopened'
   | 'unassigned'
   | 'dueToday'
   | 'dueThisWeek'
@@ -76,6 +77,7 @@ export interface OverviewCounts {
   stale: number;
   highPriority: number;
   inProgress: number;
+  reopened: number;
   outOfTeam?: number;
   total: number;
   lastSynced?: string;

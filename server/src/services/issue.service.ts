@@ -142,6 +142,7 @@ export class IssueService {
       stale: this.applyIssueQuery(all, { filter: "stale" }, filterContext).length,
       highPriority: this.applyIssueQuery(all, { filter: "highPriority" }, filterContext).length,
       inProgress: this.applyIssueQuery(all, { filter: "inProgress" }, filterContext).length,
+      reopened: this.applyIssueQuery(all, { filter: "reopened" }, filterContext).length,
       outOfTeam: this.applyIssueQuery(all, { filter: "outOfTeam" }, filterContext).length,
       total: this.applyIssueQuery(all, { filter: "all" }, filterContext).length,
       lastSynced: latest[0]?.completedAt ?? undefined,
@@ -209,7 +210,9 @@ export class IssueService {
       case "new":
         return activeTeamIssues().filter((issue) => new Date(issue.createdAt).getTime() >= context.dayAgo.getTime());
       case "inProgress":
-        return activeTeamIssues().filter((issue) => issue.statusCategory === "indeterminate");
+        return activeTeamIssues().filter((issue) => this.hasAnyStatusName(issue, ["In Progress", "Work in Progress"]));
+      case "reopened":
+        return activeTeamIssues().filter((issue) => this.hasStatusName(issue, "Reopened"));
       case "unassigned":
         return activeTeamIssues().filter((issue) => issue.assigneeId === context.leadId || issue.teamScopeState === "unassigned");
       case "dueToday":
@@ -320,6 +323,15 @@ export class IssueService {
     return issue.statusCategory !== "done" &&
       (issue.teamScopeState ?? "in_team") === "out_of_team" &&
       (issue.syncScopeState ?? "active") === "active";
+  }
+
+  private hasStatusName(issue: SharedIssue, statusName: string): boolean {
+    return issue.statusName.trim().toLowerCase() === statusName.trim().toLowerCase();
+  }
+
+  private hasAnyStatusName(issue: SharedIssue, statusNames: string[]): boolean {
+    const normalizedStatus = issue.statusName.trim().toLowerCase();
+    return statusNames.some((statusName) => normalizedStatus === statusName.trim().toLowerCase());
   }
 
   private async getTagsForIssue(jiraKey: string): Promise<LocalTag[]> {
