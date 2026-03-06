@@ -44,6 +44,8 @@ interface DefectTableProps {
   onFocusedIndexChange: (index: number) => void;
   onSelectIssue: (key: string) => void;
   hasAnimated: boolean;
+  tagId?: number;
+  noTags?: boolean;
 }
 
 export function DefectTable({
@@ -54,8 +56,10 @@ export function DefectTable({
   onFocusedIndexChange,
   onSelectIssue,
   hasAnimated,
+  tagId,
+  noTags,
 }: DefectTableProps) {
-  const { data: issues, isLoading } = useIssues(filter, assigneeFilter);
+  const { data: issues, isLoading } = useIssues(filter, assigneeFilter, tagId, noTags);
   const { data: config } = useConfig();
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'aspenSeverity', desc: false },
@@ -568,7 +572,7 @@ export function DefectTable({
 }
 
 /** Returns the issue keys in the current table sort order */
-export function useTableIssueKeys(filter: FilterType, assigneeFilter?: string) {
-  const { data: issues } = useIssues(filter, assigneeFilter);
+export function useTableIssueKeys(filter: FilterType, assigneeFilter?: string, tagId?: number, noTags?: boolean) {
+  const { data: issues } = useIssues(filter, assigneeFilter, tagId, noTags);
   return issues ?? [];
 }

@@ -39,6 +39,12 @@ export function createIssuesRouter(issueService: IssueService): Router {
 
   router.get("/", async (req, res, next) => {
     try {
+      const tagsParam = typeof req.query.tags === 'string' ? req.query.tags : undefined;
+      const tagIds = tagsParam
+        ? tagsParam.split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0)
+        : undefined;
+      const noTags = req.query.noTags === 'true';
+
       const issues = await issueService.getAll({
         filter: req.query.filter as any,
         assignee: req.query.assignee as string | undefined,
@@ -46,6 +52,8 @@ export function createIssuesRouter(issueService: IssueService): Router {
         status: req.query.status as string | undefined,
         sort: req.query.sort as any,
         order: req.query.order as any,
+        tagIds,
+        noTags,
       });
       res.json({ issues });
     } catch (error) {

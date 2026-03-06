@@ -26,8 +26,24 @@ const setIssueTagsSchema = z.object({
   query: z.any().optional(),
 });
 
-export function createTagsRouter(tagService: TagService): Router {
+export function createTagsRouter(tagService: TagService, issueService?: import('../services/issue.service').IssueService): Router {
   const router = Router();
+
+  router.get("/counts", async (req, res, next) => {
+    try {
+      if (!issueService) {
+        res.json({ counts: [], untaggedCount: 0 });
+        return;
+      }
+      const result = await issueService.getTagCounts({
+        filter: req.query.filter as any,
+        assignee: req.query.assignee as string | undefined,
+      });
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
 
   router.get("/", async (_req, res, next) => {
     try {

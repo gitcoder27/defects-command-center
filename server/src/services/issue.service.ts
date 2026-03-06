@@ -13,6 +13,8 @@ export interface IssueQuery {
   status?: string;
   sort?: "priority" | "dueDate" | "updated" | "created";
   order?: "asc" | "desc";
+  tagIds?: number[];
+  noTags?: boolean;
 }
 
 export class IssueService {
@@ -35,6 +37,7 @@ export class IssueService {
       weekEnd,
       dayAgo,
     });
+
 
     return this.sortIssues(result, query.sort ?? "priority", query.order ?? "desc");
   }
@@ -145,9 +148,27 @@ export class IssueService {
     };
   }
 
+  async getTagCounts(query: Pick<IssueQuery, "filter" | "assignee"> = {}): Promise<{ counts: { tagId: number; count: number }[]; untaggedCount: number }> {
+    const all = await this.getAll({ filter: query.filter, assignee: query.assignee });
+    const tagCountMap = new Map<number, number>();
+    let untaggedCount = 0;
+
+    for (const issue of all) {
+      if (issue.localTags.length === 0) {
+        untaggedCount++;
+      }
+      for (const tag of issue.localTags) {
+        tagCountMap.set(tag.id, (tagCountMap.get(tag.id) ?? 0) + 1);
+      }
+    }
+
+    const counts = Array.from(tagCountMap.entries()).map(([tagId, count]) => ({ tagId, count }));
+    return { counts, untaggedCount };
+  }
+
   private applyIssueQuery(
     issuesList: SharedIssue[],
-    query: Pick<IssueQuery, "filter" | "assignee" | "priority" | "status">,
+    query: Pick<IssueQuery, "filter" | "assignee" | "priority" | "status" | "tagIds" | "noTags">,
     context: {
       leadId: string;
       now: Date;
@@ -166,6 +187,19 @@ export class IssueService {
     }
     if (query.status) {
       result = result.filter((issue) => issue.statusName === query.status);
+    }
+
+    if (query.noTags) {
+      result = result.filter((issue) => issue.localTags.length === 0);
+    } else if (query.tagIds && query.tagIds.length > 0) {
+      const requiredIds = new Set(query.tagIds);
+      result = result.filter((issue) => {
+        const issueTagIds = new Set(issue.localTags.map((t) => t.id));
+        for (const id of requiredIds) {
+          if (!issueTagIds.has(id)) return false;
+        }
+        return true;
+      });
     }
 
     const effectiveDue = (issue: SharedIssue) => issue.developmentDueDate ?? issue.dueDate;

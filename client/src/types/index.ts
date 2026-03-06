@@ -144,6 +144,16 @@ export interface DueDateSuggestion {
   reason: string;
 }
 
+export interface TagCountItem {
+  tagId: number;
+  count: number;
+}
+
+export interface TagCountsResponse {
+  counts: TagCountItem[];
+  untaggedCount: number;
+}
+
 export interface ApiErrorResponse {
   error: string;
   status: number;

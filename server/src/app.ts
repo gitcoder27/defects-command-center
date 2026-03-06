@@ -41,7 +41,7 @@ export function createApp(services: AppServices) {
   app.use("/api/suggestions", createSuggestionsRouter(services.automationService, services.issueService));
   app.use("/api/sync", createSyncRouter(services.syncEngine));
   app.use("/api/config", createConfigRouter(services.syncEngine));
-  app.use("/api/tags", createTagsRouter(services.tagService));
+  app.use("/api/tags", createTagsRouter(services.tagService, services.issueService));
 
   if (process.env.NODE_ENV === "production") {
     const clientDistPath = path.resolve(process.cwd(), "client", "dist");

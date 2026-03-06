@@ -44,23 +44,50 @@ vi.mock('@/hooks/useWorkload', () => ({
   useWorkload: () => ({ data: mockWorkload }),
 }));
 
+vi.mock('@/hooks/useTags', () => ({
+  useTags: () => ({ data: [
+    { id: 1, name: 'ANALYSIS', color: '#6366f1' },
+    { id: 2, name: 'AMAR', color: '#ec4899' },
+  ] }),
+}));
+
+vi.mock('@/hooks/useTagCounts', () => ({
+  useTagCounts: () => ({ data: {
+    counts: [{ tagId: 1, count: 5 }, { tagId: 2, count: 3 }],
+    untaggedCount: 2,
+  } }),
+}));
+
 describe('FilterSidebar', () => {
   const onFilterChange = vi.fn();
   const onDeveloperChange = vi.fn();
+  const onTagToggle = vi.fn();
+  const onNoTagsToggle = vi.fn();
+  const onClearTagFilters = vi.fn();
+
+  const defaultProps = {
+    activeFilter: 'all' as const,
+    onFilterChange,
+    onDeveloperChange,
+    selectedTagId: undefined as number | undefined,
+    noTagsFilter: false,
+    onTagToggle,
+    onNoTagsToggle,
+    onClearTagFilters,
+  };
 
   beforeEach(() => {
     onFilterChange.mockClear();
     onDeveloperChange.mockClear();
+    onTagToggle.mockClear();
+    onNoTagsToggle.mockClear();
+    onClearTagFilters.mockClear();
   });
 
   it('renders filter buttons with counts', () => {
     render(
       <TestWrapper>
-        <FilterSidebar
-          activeFilter="all"
-          onFilterChange={onFilterChange}
-          onDeveloperChange={onDeveloperChange}
-        />
+        <FilterSidebar {...defaultProps} />
       </TestWrapper>
     );
 
@@ -74,11 +101,7 @@ describe('FilterSidebar', () => {
   it('activates filter on click', () => {
     render(
       <TestWrapper>
-        <FilterSidebar
-          activeFilter="all"
-          onFilterChange={onFilterChange}
-          onDeveloperChange={onDeveloperChange}
-        />
+        <FilterSidebar {...defaultProps} />
       </TestWrapper>
     );
 
@@ -89,11 +112,7 @@ describe('FilterSidebar', () => {
   it('renders developer buttons', () => {
     render(
       <TestWrapper>
-        <FilterSidebar
-          activeFilter="all"
-          onFilterChange={onFilterChange}
-          onDeveloperChange={onDeveloperChange}
-        />
+        <FilterSidebar {...defaultProps} />
       </TestWrapper>
     );
 
@@ -104,11 +123,7 @@ describe('FilterSidebar', () => {
   it('shows correct counts for dueThisWeek, stale, highPriority', () => {
     render(
       <TestWrapper>
-        <FilterSidebar
-          activeFilter="all"
-          onFilterChange={onFilterChange}
-          onDeveloperChange={onDeveloperChange}
-        />
+        <FilterSidebar {...defaultProps} />
       </TestWrapper>
     );
 
@@ -117,5 +132,46 @@ describe('FilterSidebar', () => {
     expect(screen.getAllByText('6').length).toBeGreaterThanOrEqual(1); // dueThisWeek
     expect(screen.getAllByText('4').length).toBeGreaterThanOrEqual(1); // stale
     expect(screen.getAllByText('7').length).toBeGreaterThanOrEqual(1); // highPriority
+  });
+
+  it('renders tag filter section with tags when expanded', () => {
+    render(
+      <TestWrapper>
+        <FilterSidebar {...defaultProps} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText('Tags')).toBeInTheDocument();
+    // Tags section is collapsed by default, expand it
+    fireEvent.click(screen.getByText('Tags'));
+    expect(screen.getByText('AMAR')).toBeInTheDocument();
+    expect(screen.getByText('ANALYSIS')).toBeInTheDocument();
+    expect(screen.getByText('No tags')).toBeInTheDocument();
+  });
+
+  it('calls onTagToggle when a tag is clicked', () => {
+    render(
+      <TestWrapper>
+        <FilterSidebar {...defaultProps} />
+      </TestWrapper>
+    );
+
+    // Expand tags section first
+    fireEvent.click(screen.getByText('Tags'));
+    fireEvent.click(screen.getByText('ANALYSIS'));
+    expect(onTagToggle).toHaveBeenCalledWith(1);
+  });
+
+  it('calls onNoTagsToggle when No tags is clicked', () => {
+    render(
+      <TestWrapper>
+        <FilterSidebar {...defaultProps} />
+      </TestWrapper>
+    );
+
+    // Expand tags section first
+    fireEvent.click(screen.getByText('Tags'));
+    fireEvent.click(screen.getByText('No tags'));
+    expect(onNoTagsToggle).toHaveBeenCalled();
   });
 });

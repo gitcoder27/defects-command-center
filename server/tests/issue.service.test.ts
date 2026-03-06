@@ -126,6 +126,13 @@ const mockedDevelopers = [
   { accountId: "dev-2", displayName: "Dev 2", isActive: 1 },
 ];
 
+const mockedIssueTags = [
+  { jiraKey: "PROJ-1", id: 10, name: "ANALYSIS", color: "#6366f1" },
+  { jiraKey: "PROJ-1", id: 20, name: "AMAR", color: "#ec4899" },
+  { jiraKey: "PROJ-2", id: 10, name: "ANALYSIS", color: "#6366f1" },
+  { jiraKey: "PROJ-4", id: 20, name: "AMAR", color: "#ec4899" },
+];
+
 vi.mock("../src/db/connection", () => {
   const db = {
     select: () => ({
@@ -134,7 +141,7 @@ vi.mock("../src/db/connection", () => {
         if (table?.tagId && !table?.summary) {
           return {
             innerJoin: () => {
-              const p: any = Promise.resolve([]);
+              const p: any = Promise.resolve(mockedIssueTags);
               p.where = () => Promise.resolve([]);
               return p;
             },
@@ -263,5 +270,57 @@ describe("IssueService", () => {
   it("adds comment through Jira client", async () => {
     await service.addComment("PROJ-1", "Investigating now");
     expect(jiraClient.addComment).toHaveBeenCalledWith("PROJ-1", "Investigating now");
+  });
+
+  it("filters issues by single tag (AND logic)", async () => {
+    const result = await service.getAll({ tagIds: [10] });
+    const keys = result.map((i) => i.jiraKey);
+    expect(keys).toContain("PROJ-1");
+    expect(keys).toContain("PROJ-2");
+    expect(keys).not.toContain("PROJ-4");
+  });
+
+  it("filters issues by multiple tags with AND logic", async () => {
+    // PROJ-1 has both tags 10 and 20, PROJ-2 only has 10, PROJ-4 only has 20
+    const result = await service.getAll({ tagIds: [10, 20] });
+    const keys = result.map((i) => i.jiraKey);
+    expect(keys).toEqual(["PROJ-1"]);
+  });
+
+  it("filters untagged issues with noTags", async () => {
+    // PROJ-4 has tag 20, so among active team issues: PROJ-1 (tagged), PROJ-2 (tagged), PROJ-4 (tagged)
+    // Only issues without any tags should be returned
+    const result = await service.getAll({ noTags: true });
+    const keys = result.map((i) => i.jiraKey);
+    // No active in-team issues without tags exist in this mock
+    expect(keys).toHaveLength(0);
+  });
+
+  it("combines tag filter with category filter", async () => {
+    // blocked + tag 10 = PROJ-2 (blocked and has tag 10)
+    const result = await service.getAll({ filter: "blocked", tagIds: [10] });
+    const keys = result.map((i) => i.jiraKey);
+    expect(keys).toEqual(["PROJ-2"]);
+  });
+
+  it("returns tag counts for current filter context", async () => {
+    const counts = await service.getTagCounts({});
+    expect(counts.counts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ tagId: 10 }),
+        expect.objectContaining({ tagId: 20 }),
+      ])
+    );
+    expect(counts.untaggedCount).toBe(0);
+  });
+
+  it("returns tag counts scoped to a category filter", async () => {
+    const counts = await service.getTagCounts({ filter: "blocked" });
+    // Only PROJ-2 is blocked, and it has tag 10
+    const tag10 = counts.counts.find((c) => c.tagId === 10);
+    expect(tag10?.count).toBe(1);
+    const tag20 = counts.counts.find((c) => c.tagId === 20);
+    expect(tag20).toBeUndefined();
+    expect(counts.untaggedCount).toBe(0);
   });
 });

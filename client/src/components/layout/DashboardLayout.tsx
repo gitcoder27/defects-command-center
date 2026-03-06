@@ -15,6 +15,8 @@ import type { FilterType, Alert } from '@/types';
 export function DashboardLayout() {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [activeDeveloper, setActiveDeveloper] = useState<string | undefined>();
+  const [selectedTagId, setSelectedTagId] = useState<number | undefined>();
+  const [noTagsFilter, setNoTagsFilter] = useState(false);
   const [selectedIssueKey, setSelectedIssueKey] = useState<string | undefined>();
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -31,7 +33,7 @@ export function DashboardLayout() {
   }, [isCompact]);
 
   // Get current issue list for keyboard nav
-  const issues = useTableIssueKeys(activeFilter, activeDeveloper);
+  const issues = useTableIssueKeys(activeFilter, activeDeveloper, selectedTagId, noTagsFilter);
 
   // Mark animation as played after first render
   useEffect(() => {
@@ -53,6 +55,27 @@ export function DashboardLayout() {
 
   const handleDeveloperChange = useCallback((accountId?: string) => {
     setActiveDeveloper(accountId);
+    setSelectedIssueKey(undefined);
+    setFocusedIndex(-1);
+  }, []);
+
+  const handleTagToggle = useCallback((tagId: number) => {
+    setNoTagsFilter(false);
+    setSelectedTagId((prev) => (prev === tagId ? undefined : tagId));
+    setSelectedIssueKey(undefined);
+    setFocusedIndex(-1);
+  }, []);
+
+  const handleNoTagsToggle = useCallback(() => {
+    setNoTagsFilter((prev) => !prev);
+    setSelectedTagId(undefined);
+    setSelectedIssueKey(undefined);
+    setFocusedIndex(-1);
+  }, []);
+
+  const handleClearTagFilters = useCallback(() => {
+    setSelectedTagId(undefined);
+    setNoTagsFilter(false);
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
   }, []);
@@ -173,6 +196,11 @@ export function DashboardLayout() {
             activeDeveloper={activeDeveloper}
             onFilterChange={handleFilterChange}
             onDeveloperChange={handleDeveloperChange}
+            selectedTagId={selectedTagId}
+            noTagsFilter={noTagsFilter}
+            onTagToggle={handleTagToggle}
+            onNoTagsToggle={handleNoTagsToggle}
+            onClearTagFilters={handleClearTagFilters}
           />
         )}
 
@@ -184,6 +212,8 @@ export function DashboardLayout() {
           onFocusedIndexChange={setFocusedIndex}
           onSelectIssue={handleSelectIssue}
           hasAnimated={hasAnimated}
+          tagId={selectedTagId}
+          noTags={noTagsFilter}
         />
 
         {/* Triage panel always overlays the table */}
