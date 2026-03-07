@@ -20,92 +20,95 @@ export function WorkloadBar({ onDeveloperClick }: WorkloadBarProps) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: 0.6 }}
-      className="border-t flex flex-col shrink-0"
-      style={{
-        borderColor: 'var(--border)',
-        background: 'var(--bg-secondary)',
-      }}
+      className="flex flex-col shrink-0 px-2 pb-2 pt-1.5 md:px-3 md:pb-3"
     >
-      {/* Collapsed: single compact strip */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-4 cursor-pointer shrink-0"
-        style={{ height: 32 }}
-      >
-        <span className="flex items-center gap-1.5 shrink-0">
-          <Users size={11} style={{ color: 'var(--text-muted)' }} />
-          <span
-            className="text-[10px] font-semibold uppercase"
-            style={{ letterSpacing: '0.05em', color: 'var(--text-muted)' }}
-          >
-            Workload
+      <div className="dashboard-panel rounded-[24px] overflow-hidden" style={{ borderColor: 'var(--border-strong)' }}>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center gap-3 px-3 py-3 cursor-pointer shrink-0"
+        >
+          <span className="h-9 w-9 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
+            <Users size={16} />
           </span>
-        </span>
-
-        {/* Inline developer chips — visible only when collapsed */}
-        {!expanded && (
-          <div className="flex items-center gap-3 flex-1 min-w-0 overflow-x-auto no-scrollbar">
-            {workload.map((dev) => {
-              const isIdle = dev.activeDefects === 0;
-              const color = isIdle ? 'var(--text-muted)' : workloadColor(dev.level);
-              return (
-                <span key={dev.developer.accountId} className="flex items-center gap-1.5 shrink-0">
-                  <span
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ background: color }}
-                  />
-                  <span
-                    className="text-[11px] truncate"
-                    style={{ color: 'var(--text-secondary)', maxWidth: 100 }}
-                  >
-                    {dev.developer.displayName.split(' ')[0]}
-                  </span>
-                  <span className="font-mono text-[11px] font-semibold tabular-nums" style={{ color }}>
-                    {dev.score}
-                  </span>
-                </span>
-              );
-            })}
-          </div>
-        )}
-
-        <span className="shrink-0 ml-auto">
-          {expanded ? (
-            <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} />
-          ) : (
-            <ChevronUp size={12} style={{ color: 'var(--text-muted)' }} />
-          )}
-        </span>
-      </button>
-
-      {/* Expanded: animated detail grid */}
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="overflow-hidden"
-          >
-            <div
-              className="px-4 pb-3 pt-1 overflow-y-auto"
-              style={{ maxHeight: 220 }}
+          <span className="min-w-0 text-left">
+            <span
+              className="text-[11px] font-semibold uppercase block"
+              style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}
             >
-              <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                {workload.map((dev) => (
-                  <DeveloperCard
+              Workload
+            </span>
+            <span className="text-[15px] font-medium block" style={{ color: 'var(--text-primary)' }}>
+              Team capacity radar
+            </span>
+          </span>
+
+          {!expanded && (
+            <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto no-scrollbar">
+              {workload.map((dev) => {
+                const isIdle = dev.activeDefects === 0;
+                const color = isIdle ? 'var(--text-muted)' : workloadColor(dev.level);
+                return (
+                  <span
                     key={dev.developer.accountId}
-                    dev={dev}
-                    expanded={true}
-                    onClick={() => onDeveloperClick(dev.developer.accountId)}
-                  />
-                ))}
-              </div>
+                    className="flex items-center gap-2 shrink-0 rounded-full px-2.5 py-1.5"
+                    style={{ background: 'var(--bg-tertiary)' }}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ background: color }}
+                    />
+                    <span
+                      className="text-[11px] truncate"
+                      style={{ color: 'var(--text-secondary)', maxWidth: 100 }}
+                    >
+                      {dev.developer.displayName.split(' ')[0]}
+                    </span>
+                    <span className="font-mono text-[11px] font-semibold tabular-nums" style={{ color }}>
+                      {dev.score}
+                    </span>
+                  </span>
+                );
+              })}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+
+          <span className="shrink-0 ml-auto h-9 w-9 rounded-2xl flex items-center justify-center" style={{ background: 'var(--bg-tertiary)' }}>
+            {expanded ? (
+              <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
+            ) : (
+              <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} />
+            )}
+          </span>
+        </button>
+
+        <AnimatePresence>
+          {expanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+              className="overflow-hidden"
+            >
+              <div
+                className="px-4 pb-4 pt-1 overflow-y-auto"
+                style={{ maxHeight: 260 }}
+              >
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+                  {workload.map((dev) => (
+                    <DeveloperCard
+                      key={dev.developer.accountId}
+                      dev={dev}
+                      expanded={true}
+                      onClick={() => onDeveloperClick(dev.developer.accountId)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </motion.div>
   );
 }

@@ -30,17 +30,24 @@ export function ErrorBanner() {
         animate={{ height: 'auto', opacity: 1 }}
         exit={{ height: 0, opacity: 0 }}
         transition={{ duration: 0.2 }}
-        className="px-5 py-2 flex items-center gap-2 text-[12px] font-medium"
+        className="mx-2 mt-2 rounded-[18px] px-3 py-2.5 flex items-start gap-2.5 text-[12px] font-medium md:mx-3 md:mt-3"
         style={{
           background: isWarning
-            ? 'rgba(245,158,11,0.1)'
-            : 'rgba(239,68,68,0.1)',
-          borderBottom: `1px solid ${isWarning ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)'}`,
+            ? 'linear-gradient(180deg, rgba(245,158,11,0.12) 0%, rgba(245,158,11,0.06) 100%)'
+            : 'linear-gradient(180deg, rgba(239,68,68,0.12) 0%, rgba(239,68,68,0.06) 100%)',
+          border: `1px solid ${isWarning ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)'}`,
           color: isWarning ? 'var(--warning)' : 'var(--danger)',
+          boxShadow: 'var(--soft-shadow)',
         }}
       >
-        <AlertTriangle size={14} />
-        {message}
+        <span className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: isWarning ? 'rgba(245,158,11,0.14)' : 'rgba(239,68,68,0.14)' }}>
+          <AlertTriangle size={13} />
+        </span>
+        <div>
+          <div className="text-[12px]" style={{ color: isWarning ? 'var(--warning)' : 'var(--danger)' }}>
+            {message}
+          </div>
+        </div>
       </motion.div>
     </AnimatePresence>
   );

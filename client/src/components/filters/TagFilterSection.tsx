@@ -38,13 +38,13 @@ export function TagFilterSection({
 
   return (
     <section
-      className="rounded-[22px] border p-2"
+      className="rounded-[20px] border p-1.5"
       style={{
         borderColor: 'var(--border)',
         background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)',
       }}
     >
-      <div className="flex items-center justify-between px-2 py-1">
+      <div className="flex items-center justify-between px-1.5 py-1">
         <button
           onClick={onToggleCollapse}
           className="flex items-center gap-2 cursor-pointer group min-w-0"
@@ -62,7 +62,7 @@ export function TagFilterSection({
             <div className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
               Tags
             </div>
-            <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+            <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
               {sortedTags.length > 0 ? `${sortedTags.length} labels available` : 'Create labels from the table'}
             </div>
           </div>
@@ -80,10 +80,10 @@ export function TagFilterSection({
       </div>
 
       {!collapsed && (
-        <div className="flex flex-col gap-1.5 pt-2">
+        <div className="flex flex-col gap-1 pt-1.5">
           {sortedTags.length === 0 && !noTagsFilter && (
             <span
-              className="text-[12px] px-3 py-2 italic"
+              className="text-[12px] px-2.5 py-1.5 italic"
               style={{ color: 'var(--text-muted)' }}
             >
               Assign tags in the table to start grouping related defects.
@@ -97,7 +97,7 @@ export function TagFilterSection({
               <button
                 key={tag.id}
                 onClick={() => onTagToggle(tag.id)}
-                className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-2xl text-[13px] font-medium transition-all duration-200 cursor-pointer border"
+                className="w-full flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-[18px] text-[13px] font-medium transition-all duration-200 cursor-pointer border"
                 style={{
                   background: isActive ? 'var(--bg-glow)' : 'transparent',
                   color: isActive ? tag.color : 'var(--text-secondary)',
@@ -107,7 +107,7 @@ export function TagFilterSection({
               >
                 <span className="flex items-center gap-3 min-w-0">
                   <span
-                    className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                    className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"
                     style={{ background: `${tag.color}22` }}
                   >
                     <span
@@ -132,7 +132,7 @@ export function TagFilterSection({
 
           <button
             onClick={onNoTagsToggle}
-            className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-2xl text-[13px] font-medium transition-all duration-200 cursor-pointer border"
+            className="w-full flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-[18px] text-[13px] font-medium transition-all duration-200 cursor-pointer border"
             style={{
               background: noTagsFilter ? 'var(--bg-glow)' : 'transparent',
               color: noTagsFilter ? 'var(--accent)' : 'var(--text-secondary)',
@@ -142,7 +142,7 @@ export function TagFilterSection({
           >
             <span className="flex items-center gap-3 min-w-0">
               <span
-                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ background: 'var(--bg-tertiary)' }}
               >
                 <span

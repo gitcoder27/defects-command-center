@@ -14,7 +14,7 @@ export function FilterButton({ label, count, isActive, onClick, shortcut, isIdle
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-2xl text-[13px] font-medium transition-all duration-200 cursor-pointer group border"
+      className="w-full flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-[18px] text-[13px] font-medium transition-all duration-200 cursor-pointer group border"
       style={{
         background: isActive ? 'var(--bg-glow)' : 'transparent',
         color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
@@ -25,7 +25,7 @@ export function FilterButton({ label, count, isActive, onClick, shortcut, isIdle
       <span className="flex items-center gap-3 min-w-0">
         {icon && (
           <span
-            className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+            className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{
               background: isActive ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
               color: isActive ? 'var(--accent)' : 'var(--text-muted)',
@@ -43,13 +43,13 @@ export function FilterButton({ label, count, isActive, onClick, shortcut, isIdle
           </span>
         )}
       </span>
-      <span className="flex items-center gap-1.5">
-        <span
-          className="text-[11px] font-mono tabular-nums min-w-[20px] text-center rounded-full px-1.5 py-0.5"
-          style={{
-            background: isActive ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
-            color: isActive ? 'var(--accent)' : 'var(--text-muted)',
-          }}
+        <span className="flex items-center gap-1.5">
+          <span
+            className="text-[11px] font-mono tabular-nums min-w-[20px] text-center rounded-full px-1.5 py-0.5"
+            style={{
+              background: isActive ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
+              color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+            }}
         >
           {count}
         </span>

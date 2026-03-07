@@ -17,13 +17,31 @@ export function DeveloperCard({ dev, expanded, onClick }: DeveloperCardProps) {
   return (
     <button
       onClick={onClick}
-      className="flex flex-col gap-1 cursor-pointer transition-all duration-150"
-      style={{ minWidth: expanded ? 160 : 0 }}
+      className="flex flex-col gap-3 cursor-pointer transition-all duration-200 rounded-[22px] border p-3 text-left"
+      style={{
+        minWidth: expanded ? 160 : 0,
+        borderColor: 'var(--border)',
+        background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 92%, white 8%) 0%, color-mix(in srgb, var(--bg-primary) 90%, var(--bg-secondary) 10%) 100%)',
+        boxShadow: 'var(--soft-shadow)',
+      }}
     >
-      <div className="flex items-center gap-2">
-        <span className="text-[12px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-          {dev.developer.displayName}
+      <div className="flex items-start gap-3">
+        <span className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0 text-[12px] font-semibold" style={{ background: isIdle ? 'var(--bg-tertiary)' : `${color}18`, color }}>
+          {dev.developer.displayName
+            .split(' ')
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0]?.toUpperCase() ?? '')
+            .join('')}
         </span>
+        <div className="min-w-0 flex-1">
+          <span className="text-[13px] font-medium truncate block" style={{ color: 'var(--text-primary)' }}>
+            {dev.developer.displayName}
+          </span>
+          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+            {expanded ? 'Developer workload profile' : 'Queue pressure'}
+          </span>
+        </div>
         {isIdle && (
           <span className="text-[10px] animate-glow-idle" style={{ color: 'var(--warning)' }}>
             ⚠
@@ -31,8 +49,7 @@ export function DeveloperCard({ dev, expanded, onClick }: DeveloperCardProps) {
         )}
       </div>
 
-      {/* Progress bar */}
-      <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'var(--bg-tertiary)' }}>
+      <div className="w-full h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-tertiary)' }}>
         <motion.div
           className="h-full rounded-full"
           initial={{ width: 0 }}
@@ -43,21 +60,19 @@ export function DeveloperCard({ dev, expanded, onClick }: DeveloperCardProps) {
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[14px] font-semibold tabular-nums" style={{ color }}>
+        <span className="font-mono text-[18px] font-semibold tabular-nums" style={{ color }}>
           {dev.score}
         </span>
-        {expanded && (
-          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            {dev.level}
-          </span>
-        )}
+        <span className="text-[11px] uppercase rounded-full px-2 py-1" style={{ color, background: `${color}14`, letterSpacing: '0.08em' }}>
+          {dev.level}
+        </span>
       </div>
 
       {expanded && (
-        <div className="flex flex-col gap-0.5 text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>
-          <span>Active: {dev.activeDefects}</span>
-          <span>Due Today: {dev.dueToday}</span>
-          <span>Blocked: {dev.blocked}</span>
+        <div className="grid grid-cols-3 gap-2 text-[11px] mt-1">
+          <span className="rounded-xl px-2 py-2" style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}>Active: {dev.activeDefects}</span>
+          <span className="rounded-xl px-2 py-2" style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}>Due: {dev.dueToday}</span>
+          <span className="rounded-xl px-2 py-2" style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}>Blocked: {dev.blocked}</span>
           {isIdle && <span style={{ color: 'var(--warning)' }}>No active defects</span>}
         </div>
       )}

@@ -24,25 +24,35 @@ export function AlertBanner({ onAlertClick }: AlertBannerProps) {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, height: 0 }}
         transition={{ duration: 0.25, delay: 0.3 }}
-        className="mx-5 my-1 rounded-lg px-4 py-2.5 flex items-center justify-between relative"
+        className="mx-2 mt-2 relative overflow-visible rounded-[20px] px-3 py-2.5 md:mx-3 md:mt-3"
         style={{
-          background: 'rgba(245,158,11,0.08)',
-          border: '1px solid rgba(245,158,11,0.2)',
+          background: 'linear-gradient(180deg, rgba(245,158,11,0.12) 0%, rgba(245,158,11,0.07) 100%)',
+          border: '1px solid rgba(245,158,11,0.22)',
+          boxShadow: 'var(--soft-shadow)',
         }}
       >
-        <div className="flex items-center gap-2 text-[13px] font-medium" style={{ color: 'var(--warning)' }}>
-          <AlertTriangle size={14} />
-          <span>
-            {alerts.length} alert{alerts.length !== 1 ? 's' : ''}: {summary}
-          </span>
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-2.5">
+            <span className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.16)', color: 'var(--warning)' }}>
+              <AlertTriangle size={14} />
+            </span>
+            <div className="min-w-0">
+              <div className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                {alerts.length} alert{alerts.length !== 1 ? 's' : ''} need review
+              </div>
+              <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                {summary}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowList(!showList)}
+            className="flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80 self-start md:self-auto rounded-xl px-3 py-1.5"
+            style={{ color: 'var(--warning)', background: 'rgba(245,158,11,0.1)' }}
+          >
+            {showList ? 'Hide Alerts' : 'View All'} <ChevronRight size={12} style={{ transform: showList ? 'rotate(90deg)' : 'none' }} />
+          </button>
         </div>
-        <button
-          onClick={() => setShowList(!showList)}
-          className="flex items-center gap-1 text-[12px] font-medium transition-colors hover:opacity-80"
-          style={{ color: 'var(--warning)' }}
-        >
-          View All <ChevronRight size={12} />
-        </button>
 
         {showList && (
           <AlertList alerts={alerts} onAlertClick={(a) => { onAlertClick(a); setShowList(false); }} />

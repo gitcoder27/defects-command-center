@@ -203,7 +203,7 @@ export function DashboardLayout() {
   }, [isCompact]);
 
   return (
-    <div className="h-full flex flex-col" style={{ background: 'var(--bg-primary)' }}>
+    <div className="h-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
       <Header
         onToggleSidebar={handleToggleSidebar}
         showSidebarToggle
@@ -211,57 +211,61 @@ export function DashboardLayout() {
         sidebarCollapsed={!isCompact && !desktopSidebarExpanded}
       />
 
-      <OverviewCards activeFilter={activeFilter} onFilterChange={handleFilterChange} />
+      <div className="flex-1 min-h-0 px-2 pb-2 md:px-3 md:pb-3">
+        <div className="h-full min-h-0 rounded-[30px] border overflow-hidden flex flex-col" style={{ borderColor: 'var(--border-strong)', background: 'color-mix(in srgb, var(--bg-primary) 84%, transparent)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)' }}>
+          <OverviewCards activeFilter={activeFilter} onFilterChange={handleFilterChange} />
 
-      <AlertBanner onAlertClick={handleAlertClick} />
-      <ErrorBanner />
+          <AlertBanner onAlertClick={handleAlertClick} />
+          <ErrorBanner />
 
-      <div className="flex flex-1 min-h-0 relative">
-        <FilterSidebar
-          activeFilter={activeFilter}
-          activeDeveloper={activeDeveloper}
-          onFilterChange={handleFilterChange}
-          onDeveloperChange={handleDeveloperChange}
-          selectedTagId={selectedTagId}
-          noTagsFilter={noTagsFilter}
-          onTagToggle={handleTagToggle}
-          onNoTagsToggle={handleNoTagsToggle}
-          onClearTagFilters={handleClearTagFilters}
-          collapsed={!isCompact && !desktopSidebarExpanded}
-          isMobile={isCompact}
-          open={!isCompact || mobileSidebarOpen}
-          onClose={() => setMobileSidebarOpen(false)}
-          onCollapse={() => setDesktopSidebarExpanded(false)}
-          onExpand={() => setDesktopSidebarExpanded(true)}
-        />
+          <div className="flex flex-1 min-h-0 relative">
+            <FilterSidebar
+              activeFilter={activeFilter}
+              activeDeveloper={activeDeveloper}
+              onFilterChange={handleFilterChange}
+              onDeveloperChange={handleDeveloperChange}
+              selectedTagId={selectedTagId}
+              noTagsFilter={noTagsFilter}
+              onTagToggle={handleTagToggle}
+              onNoTagsToggle={handleNoTagsToggle}
+              onClearTagFilters={handleClearTagFilters}
+              collapsed={!isCompact && !desktopSidebarExpanded}
+              isMobile={isCompact}
+              open={!isCompact || mobileSidebarOpen}
+              onClose={() => setMobileSidebarOpen(false)}
+              onCollapse={() => setDesktopSidebarExpanded(false)}
+              onExpand={() => setDesktopSidebarExpanded(true)}
+            />
 
-        <DefectTable
-          filter={activeFilter}
-          assigneeFilter={activeDeveloper}
-          selectedKey={selectedIssueKey}
-          focusedIndex={focusedIndex}
-          onFocusedIndexChange={setFocusedIndex}
-          onSelectIssue={handleSelectIssue}
-          hasAnimated={hasAnimated}
-          tagId={selectedTagId}
-          noTags={noTagsFilter}
-        />
+            <DefectTable
+              filter={activeFilter}
+              assigneeFilter={activeDeveloper}
+              selectedKey={selectedIssueKey}
+              focusedIndex={focusedIndex}
+              onFocusedIndexChange={setFocusedIndex}
+              onSelectIssue={handleSelectIssue}
+              hasAnimated={hasAnimated}
+              tagId={selectedTagId}
+              noTags={noTagsFilter}
+            />
 
-        {/* Triage panel always overlays the table */}
-        {selectedIssueKey && (
-          <div
-            className="absolute inset-0 bg-black/30 z-40"
-            onClick={handleClosePanel}
-          />
-        )}
-        <div className="absolute right-0 top-0 bottom-0 z-50 pointer-events-none">
-          <div className="pointer-events-auto h-full">
-            <TriagePanel issueKey={selectedIssueKey} onClose={handleClosePanel} />
+            {/* Triage panel always overlays the table */}
+            {selectedIssueKey && (
+              <div
+                className="absolute inset-0 bg-black/30 z-40 backdrop-blur-[1px]"
+                onClick={handleClosePanel}
+              />
+            )}
+            <div className="absolute right-0 top-0 bottom-0 z-50 pointer-events-none">
+              <div className="pointer-events-auto h-full">
+                <TriagePanel issueKey={selectedIssueKey} onClose={handleClosePanel} />
+              </div>
+            </div>
           </div>
+
+          <WorkloadBar onDeveloperClick={handleDeveloperClick} />
         </div>
       </div>
-
-      <WorkloadBar onDeveloperClick={handleDeveloperClick} />
 
       <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>

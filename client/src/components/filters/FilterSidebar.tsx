@@ -92,7 +92,7 @@ interface SectionProps {
 function SidebarSection({ title, description, countLabel, open, onToggle, children }: SectionProps) {
   return (
     <section
-      className="rounded-[22px] border p-2"
+      className="rounded-[20px] border p-1.5"
       style={{
         borderColor: 'var(--border)',
         background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)',
@@ -100,14 +100,14 @@ function SidebarSection({ title, description, countLabel, open, onToggle, childr
     >
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between gap-3 px-2 py-1 text-left"
+        className="w-full flex items-center justify-between gap-3 px-1.5 py-1 text-left"
         aria-expanded={open}
       >
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
             {title}
           </div>
-          <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+          <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
             {description}
           </div>
         </div>
@@ -128,7 +128,7 @@ function SidebarSection({ title, description, countLabel, open, onToggle, childr
           />
         </div>
       </button>
-      {open && <div className="pt-2">{children}</div>}
+      {open && <div className="pt-1.5">{children}</div>}
     </section>
   );
 }
@@ -173,24 +173,24 @@ export function FilterSidebar({
     Number(selectedTagId !== undefined || noTagsFilter);
 
   const renderExpandedPanel = (mobile: boolean) => (
-    <div className="h-full p-3">
+    <div className="h-full p-2">
       <div
-        className="h-full rounded-[28px] border overflow-hidden flex flex-col shadow-[0_24px_64px_rgba(0,0,0,0.28)]"
+        className="h-full rounded-[24px] border overflow-hidden flex flex-col shadow-[0_24px_64px_rgba(0,0,0,0.28)]"
         style={{
           borderColor: 'var(--border)',
           background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 96%, white 4%) 0%, color-mix(in srgb, var(--bg-primary) 88%, var(--bg-secondary) 12%) 100%)',
         }}
       >
-        <div className="px-4 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+        <div className="px-3 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
                 Focus Panel
               </div>
-              <h2 className="mt-1 text-[16px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+              <h2 className="mt-1 text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Refine the queue
               </h2>
-              <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+              <p className="mt-1 text-[11px] leading-4" style={{ color: 'var(--text-secondary)' }}>
                 Filter by risk view, tag clusters, or ownership without crowding the table.
               </p>
             </div>
@@ -209,35 +209,35 @@ export function FilterSidebar({
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 mt-4">
-            <div className="rounded-2xl px-3 py-2" style={{ background: 'var(--bg-tertiary)' }}>
+          <div className="grid grid-cols-3 gap-1.5 mt-3">
+            <div className="rounded-[16px] px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
               <div className="text-[10px] uppercase font-semibold" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
                 Views
               </div>
-              <div className="mt-1 text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+              <div className="mt-0.5 text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {FILTER_KEYS.length}
               </div>
             </div>
-            <div className="rounded-2xl px-3 py-2" style={{ background: 'var(--bg-tertiary)' }}>
+            <div className="rounded-[16px] px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
               <div className="text-[10px] uppercase font-semibold" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
                 Tags
               </div>
-              <div className="mt-1 text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+              <div className="mt-0.5 text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {tags?.length ?? 0}
               </div>
             </div>
-            <div className="rounded-2xl px-3 py-2" style={{ background: 'var(--bg-tertiary)' }}>
+            <div className="rounded-[16px] px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
               <div className="text-[10px] uppercase font-semibold" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
                 Active
               </div>
-              <div className="mt-1 text-[14px] font-semibold" style={{ color: activeSelectionCount > 0 ? 'var(--accent)' : 'var(--text-primary)' }}>
+              <div className="mt-0.5 text-[13px] font-semibold" style={{ color: activeSelectionCount > 0 ? 'var(--accent)' : 'var(--text-primary)' }}>
                 {activeSelectionCount}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
+        <div className="flex-1 overflow-y-auto px-2 py-2 space-y-2">
           <SidebarSection
             title="Filters"
             description="Saved views for the queue"
@@ -245,7 +245,7 @@ export function FilterSidebar({
             open={filtersOpen}
             onToggle={() => setFiltersOpen((prev) => !prev)}
           >
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               <FilterButton
                 label={FILTER_LABELS.all}
                 count={getCount('all')}
@@ -297,7 +297,7 @@ export function FilterSidebar({
               open={developersOpen}
               onToggle={() => setDevelopersOpen((prev) => !prev)}
             >
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1">
                 {workload.map((dev) => (
                   <FilterButton
                     key={dev.developer.accountId}
@@ -355,15 +355,15 @@ export function FilterSidebar({
   return (
     <motion.aside
       initial={false}
-      animate={{ width: collapsed ? 96 : 312 }}
+      animate={{ width: collapsed ? 88 : 286 }}
       transition={{ duration: 0.24, ease: [0.2, 0.9, 0.2, 1] }}
       className="relative shrink-0 overflow-hidden border-r"
       style={{ borderColor: 'var(--border)' }}
     >
       {collapsed ? (
-        <div className="h-full p-3">
+        <div className="h-full p-2">
           <div
-            className="h-full rounded-[28px] border flex flex-col items-center justify-between px-2 py-3"
+            className="h-full rounded-[24px] border flex flex-col items-center justify-between px-2 py-2.5"
             style={{
               borderColor: 'var(--border)',
               background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 94%, white 6%) 0%, color-mix(in srgb, var(--bg-primary) 90%, var(--bg-secondary) 10%) 100%)',
