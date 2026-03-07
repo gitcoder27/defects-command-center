@@ -23,7 +23,7 @@ import { useIssues } from '@/hooks/useIssues';
 import { useConfig } from '@/hooks/useConfig';
 import { useExcludeIssue } from '@/hooks/useExcludeIssue';
 import { useToast } from '@/context/ToastContext';
-import { formatRelativeTime, isOverdue, isDueToday, isStale } from '@/lib/utils';
+import { isOverdue, isDueToday, isStale } from '@/lib/utils';
 import type { Issue, FilterType } from '@/types';
 
 const ASPEN_SEVERITY_ORDER: Record<string, number> = {
@@ -351,15 +351,6 @@ export function DefectTable({
         cell: (info) => <AnalysisStatusCell hasNotes={Boolean(info.getValue())} />,
         sortDescFirst: false,
         size: 60,
-      }),
-      columnHelper.accessor('updatedAt', {
-        header: 'Updated',
-        cell: (info) => (
-          <span className="font-mono text-[12px]" style={{ color: 'var(--text-muted)' }}>
-            {formatRelativeTime(info.getValue())}
-          </span>
-        ),
-        size: 80,
       }),
       columnHelper.accessor('flagged', {
         header: '',

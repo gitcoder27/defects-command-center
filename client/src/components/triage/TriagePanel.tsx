@@ -15,7 +15,7 @@ import { SuggestionBar } from './SuggestionBar';
 import { CommentForm } from './CommentForm';
 import { PRIORITY_OPTIONS } from '@/lib/constants';
 import { formatIssueDescription } from '@/lib/issue-description';
-import { formatDate, priorityColor } from '@/lib/utils';
+import { formatDate, formatRelativeTime, priorityColor } from '@/lib/utils';
 import type { Developer } from '@/types';
 
 interface TriagePanelProps {
@@ -676,6 +676,12 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
                         {issue.flagged ? 'Click to clear' : 'Click to mark'}
                       </span>
                     </button>
+                  </PropertyCard>
+
+                  <PropertyCard label="Last Updated">
+                    <span className="font-mono text-[13px]" style={{ color: 'var(--text-secondary)' }}>
+                      {formatRelativeTime(issue.updatedAt)}
+                    </span>
                   </PropertyCard>
 
                   <div className="md:col-span-2">
