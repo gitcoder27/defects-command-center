@@ -84,10 +84,8 @@ describe('DashboardLayout', () => {
     expect(lastCall.assigneeFilter).toBe('dev-1');
   });
 
-  it('collapses the desktop sidebar from the sidebar control', () => {
+  it('renders the desktop sidebar collapsed by default', () => {
     render(<DashboardLayout />);
-
-    fireEvent.click(screen.getByText('Sidebar'));
 
     const lastCall = filterSidebarSpy.mock.calls.at(-1)?.[0] as { collapsed: boolean; open: boolean; isMobile: boolean };
     expect(lastCall.isMobile).toBe(false);

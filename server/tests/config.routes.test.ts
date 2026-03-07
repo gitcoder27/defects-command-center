@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
+import fs from "node:fs";
+import path from "node:path";
 import { Readable, Writable } from "node:stream";
 
 vi.mock("../src/config", () => ({
@@ -21,16 +23,30 @@ import { clearJiraApiToken, getJiraApiToken, setJiraApiToken } from "../src/runt
 import { notFoundHandler, errorHandler } from "../src/middleware/errorHandler";
 import { resetDatabase } from "./helpers/db";
 import { migrate } from "../src/db/migrate";
+import { BackupService } from "../src/services/backup.service";
+import { SettingsService } from "../src/services/settings.service";
+
+const testBackupDirectory = path.resolve("/tmp", "defects-command-center-test-config-backups");
 
 beforeEach(async () => {
   migrate(rawDb);
   await resetDatabase();
   clearJiraApiToken();
+  fs.rmSync(testBackupDirectory, { recursive: true, force: true });
+  await db.insert(configTable).values({ key: "backup_directory", value: testBackupDirectory }).onConflictDoUpdate({
+    target: configTable.key,
+    set: { value: testBackupDirectory },
+  });
+  await db.insert(configTable).values({ key: "backup_before_reset", value: "true" }).onConflictDoUpdate({
+    target: configTable.key,
+    set: { value: "true" },
+  });
 });
 
 function createTestApp() {
   const app = express();
-  app.use("/api/config", createConfigRouter());
+  const backupService = new BackupService(new SettingsService(), rawDb);
+  app.use("/api/config", createConfigRouter(undefined, backupService));
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;
@@ -264,5 +280,7 @@ ORDER BY updated DESC`);
     expect(issueTagRows).toHaveLength(0);
     expect(localTagRows).toHaveLength(0);
     expect(getJiraApiToken()).toBe("");
+    expect(typeof res.body?.backup?.path).toBe("string");
+    expect(fs.existsSync(res.body?.backup?.path)).toBe(true);
   });
 });

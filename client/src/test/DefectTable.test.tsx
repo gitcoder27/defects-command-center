@@ -277,12 +277,18 @@ describe('DefectTable', () => {
   });
 
   it('uses developmentDueDate as the row due-state source for left indicators', () => {
-    const originalDueDate = mockIssues[1].dueDate;
-    const originalDevDueDate = mockIssues[1].developmentDueDate;
+    const targetIssue = mockIssues.find((issue) => issue.jiraKey === 'PROJ-102');
+    expect(targetIssue).toBeDefined();
+    if (!targetIssue) {
+      throw new Error('Expected PROJ-102 in mockIssues');
+    }
+
+    const originalDueDate = targetIssue.dueDate;
+    const originalDevDueDate = targetIssue.developmentDueDate;
 
     // Make sources conflict: Jira due date is overdue, dev due date is far-future.
-    mockIssues[1].dueDate = '2020-01-01';
-    mockIssues[1].developmentDueDate = '2099-01-01';
+    targetIssue.dueDate = '2020-01-01';
+    targetIssue.developmentDueDate = '2099-01-01';
 
     try {
       render(
@@ -298,8 +304,8 @@ describe('DefectTable', () => {
       // PROJ-102 falls back to flagged styling.
       expect(within(row as HTMLElement).getByLabelText('Row indicator: Flagged issue')).toBeInTheDocument();
     } finally {
-      mockIssues[1].dueDate = originalDueDate;
-      mockIssues[1].developmentDueDate = originalDevDueDate;
+      targetIssue.dueDate = originalDueDate;
+      targetIssue.developmentDueDate = originalDevDueDate;
     }
   });
 });

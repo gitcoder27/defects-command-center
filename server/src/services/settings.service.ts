@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { config } from "../config";
+import { getDefaultBackupDirectory } from "../db/paths";
 import { db } from "../db/connection";
 import { configTable } from "../db/schema";
 import { JiraClient } from "../jira/client";
@@ -7,6 +8,12 @@ import { getJiraApiToken } from "../runtime-credentials";
 
 export const DEFAULT_SYNC_INTERVAL_MS = 300_000;
 export const DEFAULT_STALE_THRESHOLD_HOURS = 48;
+export const DEFAULT_BACKUP_ENABLED = true;
+export const DEFAULT_BACKUP_INTERVAL_MINUTES = 30;
+export const DEFAULT_BACKUP_RETENTION_DAYS = 14;
+export const DEFAULT_BACKUP_ON_STARTUP = true;
+export const DEFAULT_BACKUP_STARTUP_MAX_AGE_HOURS = 12;
+export const DEFAULT_BACKUP_BEFORE_RESET = true;
 
 export class SettingsService {
   async getConfigValue(key: string): Promise<string | undefined> {
@@ -55,6 +62,34 @@ export class SettingsService {
     return this.getPositiveIntegerConfig("stale_threshold_hours", DEFAULT_STALE_THRESHOLD_HOURS);
   }
 
+  async getBackupEnabled(): Promise<boolean> {
+    return this.getBooleanConfig("backup_enabled", DEFAULT_BACKUP_ENABLED);
+  }
+
+  async getBackupIntervalMinutes(): Promise<number> {
+    return this.getPositiveIntegerConfig("backup_interval_minutes", DEFAULT_BACKUP_INTERVAL_MINUTES);
+  }
+
+  async getBackupRetentionDays(): Promise<number> {
+    return this.getPositiveIntegerConfig("backup_retention_days", DEFAULT_BACKUP_RETENTION_DAYS);
+  }
+
+  async getBackupOnStartup(): Promise<boolean> {
+    return this.getBooleanConfig("backup_on_startup", DEFAULT_BACKUP_ON_STARTUP);
+  }
+
+  async getBackupStartupMaxAgeHours(): Promise<number> {
+    return this.getPositiveIntegerConfig("backup_startup_max_age_hours", DEFAULT_BACKUP_STARTUP_MAX_AGE_HOURS);
+  }
+
+  async getBackupBeforeReset(): Promise<boolean> {
+    return this.getBooleanConfig("backup_before_reset", DEFAULT_BACKUP_BEFORE_RESET);
+  }
+
+  async getBackupDirectory(): Promise<string> {
+    return (await this.getConfigValue("backup_directory")) ?? getDefaultBackupDirectory();
+  }
+
   async createJiraClient(): Promise<JiraClient> {
     const baseUrl = await this.getJiraBaseUrl();
     const email = await this.getJiraEmail();
@@ -75,5 +110,20 @@ export class SettingsService {
 
     const parsed = Number.parseInt(rawValue, 10);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+  }
+
+  private async getBooleanConfig(key: string, fallback: boolean): Promise<boolean> {
+    const rawValue = (await this.getConfigValue(key))?.trim().toLowerCase();
+    if (!rawValue) {
+      return fallback;
+    }
+
+    if (["1", "true", "yes", "on"].includes(rawValue)) {
+      return true;
+    }
+    if (["0", "false", "no", "off"].includes(rawValue)) {
+      return false;
+    }
+    return fallback;
   }
 }

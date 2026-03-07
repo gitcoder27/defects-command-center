@@ -25,7 +25,7 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
   const [noTagsFilter, setNoTagsFilter] = useState(false);
   const [selectedIssueKey, setSelectedIssueKey] = useState<string | undefined>();
   const [focusedIndex, setFocusedIndex] = useState(-1);
-  const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(true);
+  const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const hasAnimatedRef = useRef(false);

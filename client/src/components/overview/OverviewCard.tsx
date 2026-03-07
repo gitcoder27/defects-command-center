@@ -35,6 +35,8 @@ function AnimatedCounter({ value, duration = 600 }: { value: number; duration?: 
 }
 
 export function OverviewCard({ label, count, color, isActive, onClick, delay = 0 }: OverviewCardProps) {
+  const activeCountColor = `color-mix(in srgb, ${color} 22%, #0f172a 78%)`;
+
   return (
     <motion.button
       initial={{ opacity: 0, y: 8, scale: 0.98 }}
@@ -91,8 +93,8 @@ export function OverviewCard({ label, count, color, isActive, onClick, delay = 0
           <span
             className="text-[18px] font-semibold tabular-nums leading-none md:text-[20px]"
             style={{
-              color: count === 0 ? 'var(--text-muted)' : isActive ? color : 'var(--text-primary)',
-              textShadow: isActive ? `0 0 18px ${color}22` : 'none',
+              color: count === 0 ? 'var(--text-muted)' : isActive ? activeCountColor : 'var(--text-primary)',
+              textShadow: isActive ? `0 1px 0 rgba(255,255,255,0.14)` : 'none',
             }}
           >
             <AnimatedCounter value={count} />

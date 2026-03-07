@@ -4,5 +4,8 @@ coverage/
 .env
 data/*.db
 data/*.db-*
+data/**/*.db
+data/**/*.db-*
+server/data/
 client/dist/
 server/dist/

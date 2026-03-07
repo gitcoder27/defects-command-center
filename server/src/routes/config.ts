@@ -8,6 +8,8 @@ import { JiraClient } from "../jira/client";
 import { stripManagedAssigneeClause } from "../jira/jql";
 import { config } from "../config";
 import { clearJiraApiToken, getJiraApiToken, setJiraApiToken } from "../runtime-credentials";
+import { BackupService } from "../services/backup.service";
+import { SettingsService } from "../services/settings.service";
 import { SyncEngine } from "../sync/engine";
 import { logger } from "../utils/logger";
 
@@ -20,6 +22,13 @@ const configSchema = z.object({
     jiraApiToken: z.string().min(1).optional(),
     syncIntervalMs: z.number().int().positive().default(300000),
     staleThresholdHours: z.number().int().positive().default(48),
+    backupEnabled: z.boolean().optional(),
+    backupIntervalMinutes: z.number().int().positive().optional(),
+    backupRetentionDays: z.number().int().positive().optional(),
+    backupDirectory: z.string().min(1).optional(),
+    backupOnStartup: z.boolean().optional(),
+    backupStartupMaxAgeHours: z.number().int().positive().optional(),
+    backupBeforeReset: z.boolean().optional(),
     jiraSyncJql: z.string().optional(),
     jiraDevDueDateField: z.string().optional(),
     jiraAspenSeverityField: z.string().optional(),
@@ -51,7 +60,8 @@ async function getStoredJiraApiToken(): Promise<string | undefined> {
   return getConfigValue("jira_api_token");
 }
 
-export function createConfigRouter(syncEngine?: SyncEngine): Router {
+export function createConfigRouter(syncEngine?: SyncEngine, backupService?: BackupService): Router {
+  const settings = new SettingsService();
   const router = Router();
 
   router.get("/", async (_req, res, next) => {
@@ -63,6 +73,13 @@ export function createConfigRouter(syncEngine?: SyncEngine): Router {
       const jiraApiToken = (await getStoredJiraApiToken()) || getJiraApiToken() || config.JIRA_API_TOKEN || "";
       const syncIntervalMs = Number((await getConfigValue("sync_interval_ms")) ?? "300000");
       const staleThresholdHours = Number((await getConfigValue("stale_threshold_hours")) ?? "48");
+      const backupEnabled = await settings.getBackupEnabled();
+      const backupIntervalMinutes = await settings.getBackupIntervalMinutes();
+      const backupRetentionDays = await settings.getBackupRetentionDays();
+      const backupDirectory = await settings.getBackupDirectory();
+      const backupOnStartup = await settings.getBackupOnStartup();
+      const backupStartupMaxAgeHours = await settings.getBackupStartupMaxAgeHours();
+      const backupBeforeReset = await settings.getBackupBeforeReset();
       const jiraSyncJql = stripManagedAssigneeClause((await getConfigValue("jira_sync_jql")) ?? config.JIRA_SYNC_JQL ?? "");
       const jiraDevDueDateField = (await getConfigValue("jira_dev_due_date_field")) ?? config.JIRA_DEV_DUE_DATE_FIELD ?? "customfield_10128";
       const jiraAspenSeverityField = (await getConfigValue("jira_aspen_severity_field")) ?? config.JIRA_ASPEN_SEVERITY_FIELD ?? "";
@@ -75,6 +92,13 @@ export function createConfigRouter(syncEngine?: SyncEngine): Router {
         jiraApiToken: jiraApiToken ? "****" : "",
         syncIntervalMs,
         staleThresholdHours,
+        backupEnabled,
+        backupIntervalMinutes,
+        backupRetentionDays,
+        backupDirectory,
+        backupOnStartup,
+        backupStartupMaxAgeHours,
+        backupBeforeReset,
         jiraSyncJql,
         jiraDevDueDateField,
         jiraAspenSeverityField,
@@ -127,11 +151,35 @@ export function createConfigRouter(syncEngine?: SyncEngine): Router {
       if (req.body.jiraAspenSeverityField !== undefined) {
         await upsertConfig("jira_aspen_severity_field", req.body.jiraAspenSeverityField);
       }
+      if (req.body.backupEnabled !== undefined) {
+        await upsertConfig("backup_enabled", String(req.body.backupEnabled));
+      }
+      if (req.body.backupIntervalMinutes !== undefined) {
+        await upsertConfig("backup_interval_minutes", String(req.body.backupIntervalMinutes));
+      }
+      if (req.body.backupRetentionDays !== undefined) {
+        await upsertConfig("backup_retention_days", String(req.body.backupRetentionDays));
+      }
+      if (req.body.backupDirectory !== undefined) {
+        await upsertConfig("backup_directory", req.body.backupDirectory);
+      }
+      if (req.body.backupOnStartup !== undefined) {
+        await upsertConfig("backup_on_startup", String(req.body.backupOnStartup));
+      }
+      if (req.body.backupStartupMaxAgeHours !== undefined) {
+        await upsertConfig("backup_startup_max_age_hours", String(req.body.backupStartupMaxAgeHours));
+      }
+      if (req.body.backupBeforeReset !== undefined) {
+        await upsertConfig("backup_before_reset", String(req.body.backupBeforeReset));
+      }
 
       const token = req.body.jiraApiToken ?? tokenForLookup;
       if (syncEngine && req.body.jiraBaseUrl && req.body.jiraEmail && req.body.jiraProjectKey && token) {
         await syncEngine.start();
         void syncEngine.syncNow();
+      }
+      if (backupService) {
+        await backupService.start();
       }
 
       res.json({ success: true });
@@ -202,6 +250,7 @@ export function createConfigRouter(syncEngine?: SyncEngine): Router {
 
   router.post("/reset", async (_req, res, next) => {
     try {
+      const backup = await backupService?.createPreResetBackup();
       syncEngine?.stop();
       await db.delete(issueScopeHistory);
       await db.delete(issueTags);
@@ -214,7 +263,7 @@ export function createConfigRouter(syncEngine?: SyncEngine): Router {
 
       clearJiraApiToken();
       logger.info("Jira configuration reset via API");
-      res.json({ success: true, message: "Configuration reset successfully" });
+      res.json({ success: true, message: "Configuration reset successfully", backup });
     } catch (error) {
       next(error);
     }

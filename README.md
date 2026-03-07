@@ -130,6 +130,32 @@ Expected response:
 { "status": "ok" }
 ```
 
+## Automatic Backups
+
+The backend now creates SQLite backups automatically using the native `better-sqlite3` backup API.
+
+- Default schedule: every 30 minutes
+- Backup location: `data/backups/`
+- Extra protection: automatic backup before `POST /api/config/reset`
+- Startup safety: optional startup snapshot when the latest backup is too old
+- Retention: old backups are pruned automatically
+
+Manual operations:
+
+```bash
+# List backups
+GET http://localhost:3001/api/backups
+
+# Create a backup immediately
+POST http://localhost:3001/api/backups/run
+```
+
+Restore a backup only while the server is stopped:
+
+```bash
+npm run backup:restore -- data/backups/<backup-file>.db
+```
+
 ## Tests
 
 ```bash
@@ -172,6 +198,8 @@ Implemented base path: `/api`
 - `GET /api/config`
 - `PUT /api/config`
 - `POST /api/config/test`
+- `GET /api/backups`
+- `POST /api/backups/run`
 
 All errors return JSON in the form:
 

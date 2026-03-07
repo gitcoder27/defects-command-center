@@ -124,6 +124,13 @@ export interface DashboardConfig {
   jiraLeadAccountId: string;
   syncIntervalMs: number;
   staleThresholdHours: number;
+  backupEnabled: boolean;
+  backupIntervalMinutes: number;
+  backupRetentionDays: number;
+  backupDirectory: string;
+  backupOnStartup: boolean;
+  backupStartupMaxAgeHours: number;
+  backupBeforeReset: boolean;
   jiraSyncJql: string;
   jiraDevDueDateField: string;
   jiraAspenSeverityField: string;

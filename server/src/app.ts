@@ -8,11 +8,13 @@ import { createAlertsRouter } from "./routes/alerts";
 import { createSuggestionsRouter } from "./routes/suggestions";
 import { createSyncRouter } from "./routes/sync";
 import { createConfigRouter } from "./routes/config";
+import { createBackupsRouter } from "./routes/backups";
 import { createTagsRouter } from "./routes/tags";
 import { createTeamTrackerRouter } from "./routes/team-tracker";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { AlertService } from "./services/alert.service";
 import { AutomationService } from "./services/automation.service";
+import { BackupService } from "./services/backup.service";
 import { IssueService } from "./services/issue.service";
 import { WorkloadService } from "./services/workload.service";
 import { TagService } from "./services/tag.service";
@@ -25,6 +27,7 @@ export interface AppServices {
   alertService: AlertService;
   automationService: AutomationService;
   syncEngine: SyncEngine;
+  backupService: BackupService;
   tagService: TagService;
   teamTrackerService: TeamTrackerService;
 }
@@ -43,7 +46,8 @@ export function createApp(services: AppServices) {
   app.use("/api/alerts", createAlertsRouter(services.alertService));
   app.use("/api/suggestions", createSuggestionsRouter(services.automationService, services.issueService));
   app.use("/api/sync", createSyncRouter(services.syncEngine));
-  app.use("/api/config", createConfigRouter(services.syncEngine));
+  app.use("/api/config", createConfigRouter(services.syncEngine, services.backupService));
+  app.use("/api/backups", createBackupsRouter(services.backupService));
   app.use("/api/tags", createTagsRouter(services.tagService, services.issueService));
   app.use("/api/team-tracker", createTeamTrackerRouter(services.teamTrackerService));
 

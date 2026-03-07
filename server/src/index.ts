@@ -8,6 +8,7 @@ import { configTable } from "./db/schema";
 import { migrate } from "./db/migrate";
 import { AlertService } from "./services/alert.service";
 import { AutomationService } from "./services/automation.service";
+import { BackupService } from "./services/backup.service";
 import { IssueService } from "./services/issue.service";
 import { SettingsService } from "./services/settings.service";
 import { WorkloadService } from "./services/workload.service";
@@ -59,6 +60,7 @@ async function bootstrap(): Promise<void> {
   const alertService = new AlertService(workloadService, settingsService);
   const automationService = new AutomationService(workloadService);
   const syncEngine = new SyncEngine(settingsService);
+  const backupService = new BackupService(settingsService);
   const tagService = new TagService();
   const teamTrackerService = new TeamTrackerService();
 
@@ -68,9 +70,12 @@ async function bootstrap(): Promise<void> {
     alertService,
     automationService,
     syncEngine,
+    backupService,
     tagService,
     teamTrackerService,
   });
+
+  await backupService.initialize();
 
   app.listen(config.PORT, () => {
     logger.info(`Server listening on http://localhost:${config.PORT}`);
