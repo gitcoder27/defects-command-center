@@ -20,14 +20,14 @@ export function WorkloadBar({ onDeveloperClick }: WorkloadBarProps) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: 0.6 }}
-      className="flex flex-col shrink-0 px-2 pb-2 pt-1.5 md:px-3 md:pb-3"
+      className="flex flex-col shrink-0 px-2 pb-1.5 pt-1 md:px-2.5 md:pb-2"
     >
-      <div className="dashboard-panel rounded-[24px] overflow-hidden" style={{ borderColor: 'var(--border-strong)' }}>
+      <div className="dashboard-panel rounded-[16px] overflow-hidden" style={{ borderColor: 'var(--border-strong)' }}>
         <button
           onClick={() => setExpanded(!expanded)}
-          className="w-full flex items-center gap-3 px-3 py-3 cursor-pointer shrink-0"
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 cursor-pointer shrink-0"
         >
-          <span className="h-9 w-9 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
+          <span className="h-7 w-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
             <Users size={16} />
           </span>
           <span className="min-w-0 text-left">
@@ -72,7 +72,7 @@ export function WorkloadBar({ onDeveloperClick }: WorkloadBarProps) {
             </div>
           )}
 
-          <span className="shrink-0 ml-auto h-9 w-9 rounded-2xl flex items-center justify-center" style={{ background: 'var(--bg-tertiary)' }}>
+          <span className="shrink-0 ml-auto h-7 w-7 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg-tertiary)' }}>
             {expanded ? (
               <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
             ) : (
@@ -91,10 +91,10 @@ export function WorkloadBar({ onDeveloperClick }: WorkloadBarProps) {
               className="overflow-hidden"
             >
               <div
-                className="px-4 pb-4 pt-1 overflow-y-auto"
-                style={{ maxHeight: 260 }}
+                className="px-3 pb-3 pt-1 overflow-y-auto"
+                style={{ maxHeight: 240 }}
               >
-                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+                <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
                   {workload.map((dev) => (
                     <DeveloperCard
                       key={dev.developer.accountId}

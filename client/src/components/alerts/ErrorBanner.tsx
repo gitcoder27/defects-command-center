@@ -30,7 +30,7 @@ export function ErrorBanner() {
         animate={{ height: 'auto', opacity: 1 }}
         exit={{ height: 0, opacity: 0 }}
         transition={{ duration: 0.2 }}
-        className="mx-2 mt-2 rounded-[18px] px-3 py-2.5 flex items-start gap-2.5 text-[12px] font-medium md:mx-3 md:mt-3"
+        className="mx-2 mt-1.5 rounded-[14px] px-2.5 py-2 flex items-start gap-2 text-[12px] font-medium md:mx-2.5 md:mt-2"
         style={{
           background: isWarning
             ? 'linear-gradient(180deg, rgba(245,158,11,0.12) 0%, rgba(245,158,11,0.06) 100%)'
@@ -40,7 +40,7 @@ export function ErrorBanner() {
           boxShadow: 'var(--soft-shadow)',
         }}
       >
-        <span className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: isWarning ? 'rgba(245,158,11,0.14)' : 'rgba(239,68,68,0.14)' }}>
+        <span className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: isWarning ? 'rgba(245,158,11,0.14)' : 'rgba(239,68,68,0.14)' }}>
           <AlertTriangle size={13} />
         </span>
         <div>

@@ -211,8 +211,8 @@ export function DashboardLayout() {
         sidebarCollapsed={!isCompact && !desktopSidebarExpanded}
       />
 
-      <div className="flex-1 min-h-0 px-2 pb-2 md:px-3 md:pb-3">
-        <div className="h-full min-h-0 rounded-[30px] border overflow-hidden flex flex-col" style={{ borderColor: 'var(--border-strong)', background: 'color-mix(in srgb, var(--bg-primary) 84%, transparent)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)' }}>
+      <div className="flex-1 min-h-0 px-2 pb-1.5 md:px-2.5 md:pb-2">
+        <div className="h-full min-h-0 rounded-[22px] border overflow-hidden flex flex-col" style={{ borderColor: 'var(--border-strong)', background: 'color-mix(in srgb, var(--bg-primary) 84%, transparent)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)' }}>
           <OverviewCards activeFilter={activeFilter} onFilterChange={handleFilterChange} />
 
           <AlertBanner onAlertClick={handleAlertClick} />

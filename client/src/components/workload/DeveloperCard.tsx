@@ -17,7 +17,7 @@ export function DeveloperCard({ dev, expanded, onClick }: DeveloperCardProps) {
   return (
     <button
       onClick={onClick}
-      className="flex flex-col gap-3 cursor-pointer transition-all duration-200 rounded-[22px] border p-3 text-left"
+      className="flex flex-col gap-2 cursor-pointer transition-all duration-200 rounded-[16px] border p-2.5 text-left"
       style={{
         minWidth: expanded ? 160 : 0,
         borderColor: 'var(--border)',
@@ -25,8 +25,8 @@ export function DeveloperCard({ dev, expanded, onClick }: DeveloperCardProps) {
         boxShadow: 'var(--soft-shadow)',
       }}
     >
-      <div className="flex items-start gap-3">
-        <span className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0 text-[12px] font-semibold" style={{ background: isIdle ? 'var(--bg-tertiary)' : `${color}18`, color }}>
+      <div className="flex items-start gap-2">
+        <span className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0 text-[11px] font-semibold" style={{ background: isIdle ? 'var(--bg-tertiary)' : `${color}18`, color }}>
           {dev.developer.displayName
             .split(' ')
             .filter(Boolean)

@@ -24,16 +24,16 @@ export function AlertBanner({ onAlertClick }: AlertBannerProps) {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, height: 0 }}
         transition={{ duration: 0.25, delay: 0.3 }}
-        className="mx-2 mt-2 relative overflow-visible rounded-[20px] px-3 py-2.5 md:mx-3 md:mt-3"
+        className="mx-2 mt-1.5 relative overflow-visible rounded-[14px] px-2.5 py-2 md:mx-2.5 md:mt-2"
         style={{
           background: 'linear-gradient(180deg, rgba(245,158,11,0.12) 0%, rgba(245,158,11,0.07) 100%)',
           border: '1px solid rgba(245,158,11,0.22)',
           boxShadow: 'var(--soft-shadow)',
         }}
       >
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-start gap-2.5">
-            <span className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.16)', color: 'var(--warning)' }}>
+          <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-2">
+            <span className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.16)', color: 'var(--warning)' }}>
               <AlertTriangle size={14} />
             </span>
             <div className="min-w-0">

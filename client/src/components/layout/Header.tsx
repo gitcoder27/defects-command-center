@@ -25,17 +25,17 @@ export function Header({ onToggleSidebar, showSidebarToggle, onOpenSettings, sid
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="shrink-0 px-2 pt-2 md:px-3 md:pt-3"
+      className="shrink-0 px-2 pt-1.5 md:px-2.5 md:pt-2"
     >
       <div
-        className="dashboard-panel rounded-[24px] px-3 py-2.5 md:px-4 md:py-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between"
+        className="dashboard-panel rounded-[16px] px-3 py-2 md:px-3.5 md:py-2 flex flex-col gap-1.5 lg:flex-row lg:items-center lg:justify-between"
         style={{ borderColor: 'var(--border-strong)' }}
       >
         <div className="flex items-center gap-3 min-w-0">
           {showSidebarToggle && (
             <button
               onClick={onToggleSidebar}
-              className="h-11 w-11 rounded-2xl transition-colors duration-150 flex items-center justify-center"
+              className="h-9 w-9 rounded-xl transition-colors duration-150 flex items-center justify-center"
               style={{ background: 'var(--bg-tertiary)' }}
               title="Toggle sidebar"
               aria-label="Toggle sidebar"
@@ -47,12 +47,12 @@ export function Header({ onToggleSidebar, showSidebarToggle, onOpenSettings, sid
               )}
             </button>
           )}
-          <div className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
+          <div className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
             <Radar size={16} />
           </div>
           <div className="min-w-0">
             <h1
-              className="font-sans text-[18px] md:text-[19px] font-semibold truncate"
+              className="font-sans text-[16px] md:text-[17px] font-semibold truncate"
               style={{ color: 'var(--text-primary)' }}
             >
               Defect Command Center
@@ -63,9 +63,9 @@ export function Header({ onToggleSidebar, showSidebarToggle, onOpenSettings, sid
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+        <div className="flex flex-col gap-1.5 lg:flex-row lg:items-center">
           <div
-            className="rounded-2xl px-3 py-2 flex items-center gap-3"
+            className="rounded-xl px-2.5 py-1.5 flex items-center gap-2"
             style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
           >
             <span
@@ -94,13 +94,13 @@ export function Header({ onToggleSidebar, showSidebarToggle, onOpenSettings, sid
           </div>
 
           <div
-            className="rounded-2xl p-1 flex items-center gap-1 self-start lg:self-auto"
+            className="rounded-xl p-0.5 flex items-center gap-0.5 self-start lg:self-auto"
             style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
           >
             <button
               onClick={() => triggerSync.mutate()}
               disabled={isSyncing}
-              className="h-10 w-10 rounded-xl transition-colors duration-150 disabled:opacity-50 flex items-center justify-center"
+              className="h-8 w-8 rounded-lg transition-colors duration-150 disabled:opacity-50 flex items-center justify-center"
               style={{ background: 'transparent' }}
               title="Manual sync (r)"
             >
@@ -113,7 +113,7 @@ export function Header({ onToggleSidebar, showSidebarToggle, onOpenSettings, sid
 
             <button
               onClick={toggleTheme}
-              className="h-10 w-10 rounded-xl transition-colors duration-150 flex items-center justify-center"
+              className="h-8 w-8 rounded-lg transition-colors duration-150 flex items-center justify-center"
               style={{ background: 'transparent' }}
               title="Toggle theme"
             >
@@ -126,7 +126,7 @@ export function Header({ onToggleSidebar, showSidebarToggle, onOpenSettings, sid
 
             <button
               onClick={onOpenSettings}
-              className="h-10 w-10 rounded-xl transition-colors duration-150 flex items-center justify-center"
+              className="h-8 w-8 rounded-lg transition-colors duration-150 flex items-center justify-center"
               style={{ background: 'transparent' }}
               title="Settings"
             >

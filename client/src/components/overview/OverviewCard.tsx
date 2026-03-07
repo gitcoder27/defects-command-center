@@ -41,7 +41,7 @@ export function OverviewCard({ label, count, color, isActive, onClick, delay = 0
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.35, delay: 0.06 + delay * 0.05, ease: 'easeOut' }}
       onClick={onClick}
-      className="w-full cursor-pointer transition-all duration-200 rounded-[18px] border px-3 py-2.5 text-left overflow-hidden relative min-h-[62px]"
+      className="w-full cursor-pointer transition-all duration-200 rounded-[12px] border px-2.5 py-2 text-left overflow-hidden relative min-h-[48px]"
       style={{
         background: isActive
           ? `linear-gradient(160deg, ${color}14 0%, color-mix(in srgb, var(--bg-secondary) 95%, white 5%) 72%)`
@@ -52,13 +52,13 @@ export function OverviewCard({ label, count, color, isActive, onClick, delay = 0
       whileHover={{ y: -1, scale: 1.005 }}
     >
       <span
-        className="absolute right-2 top-2 h-12 w-12 rounded-full"
+        className="absolute right-2 top-2 h-10 w-10 rounded-full"
         style={{ background: `${color}18`, filter: 'blur(4px)' }}
       />
-      <div className="relative flex h-full items-center gap-3 min-w-0">
-        <div className="flex items-center justify-center gap-3">
+      <div className="relative flex h-full items-center gap-2 min-w-0">
+        <div className="flex items-center justify-center gap-2">
           <span
-            className="flex h-8 w-8 items-center justify-center rounded-xl flex-shrink-0"
+            className="flex h-6 w-6 items-center justify-center rounded-lg flex-shrink-0"
             style={{ background: `${color}18`, color }}
           >
             <span className="h-2 w-2 rounded-full" style={{ background: color }} />
@@ -76,7 +76,7 @@ export function OverviewCard({ label, count, color, isActive, onClick, delay = 0
 
         <div className="flex items-center gap-2 flex-shrink-0">
           <span
-            className="text-[22px] font-semibold tabular-nums leading-none"
+            className="text-[20px] font-semibold tabular-nums leading-none"
             style={{ color: count === 0 ? 'var(--text-muted)' : 'var(--text-primary)' }}
           >
             <AnimatedCounter value={count} />

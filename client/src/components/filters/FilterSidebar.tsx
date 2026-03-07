@@ -92,7 +92,7 @@ interface SectionProps {
 function SidebarSection({ title, description, countLabel, open, onToggle, children }: SectionProps) {
   return (
     <section
-      className="rounded-[20px] border p-1.5"
+      className="rounded-[14px] border p-1"
       style={{
         borderColor: 'var(--border)',
         background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)',
@@ -173,30 +173,30 @@ export function FilterSidebar({
     Number(selectedTagId !== undefined || noTagsFilter);
 
   const renderExpandedPanel = (mobile: boolean) => (
-    <div className="h-full p-2">
+    <div className="h-full p-1.5">
       <div
-        className="h-full rounded-[24px] border overflow-hidden flex flex-col shadow-[0_24px_64px_rgba(0,0,0,0.28)]"
+        className="h-full rounded-[18px] border overflow-hidden flex flex-col shadow-[0_24px_64px_rgba(0,0,0,0.28)]"
         style={{
           borderColor: 'var(--border)',
           background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 96%, white 4%) 0%, color-mix(in srgb, var(--bg-primary) 88%, var(--bg-secondary) 12%) 100%)',
         }}
       >
-        <div className="px-3 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex items-start justify-between gap-3">
+        <div className="px-2.5 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
                 Focus Panel
               </div>
-              <h2 className="mt-1 text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+              <h2 className="mt-0.5 text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Refine the queue
               </h2>
-              <p className="mt-1 text-[11px] leading-4" style={{ color: 'var(--text-secondary)' }}>
+              <p className="mt-0.5 text-[10px] leading-3.5" style={{ color: 'var(--text-secondary)' }}>
                 Filter by risk view, tag clusters, or ownership without crowding the table.
               </p>
             </div>
             <button
               onClick={mobile ? onClose : onCollapse}
-              className="h-9 w-9 rounded-xl flex items-center justify-center transition-colors"
+              className="h-7 w-7 rounded-lg flex items-center justify-center transition-colors"
               style={{ background: 'var(--bg-tertiary)' }}
               title={mobile ? 'Close sidebar' : 'Collapse sidebar'}
               aria-label={mobile ? 'Close sidebar' : 'Collapse sidebar'}
@@ -209,35 +209,35 @@ export function FilterSidebar({
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-1.5 mt-3">
-            <div className="rounded-[16px] px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
+          <div className="grid grid-cols-3 gap-1 mt-2">
+            <div className="rounded-[12px] px-2 py-1.5" style={{ background: 'var(--bg-tertiary)' }}>
               <div className="text-[10px] uppercase font-semibold" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
                 Views
               </div>
-              <div className="mt-0.5 text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+              <div className="mt-0.5 text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {FILTER_KEYS.length}
               </div>
             </div>
-            <div className="rounded-[16px] px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
+            <div className="rounded-[12px] px-2 py-1.5" style={{ background: 'var(--bg-tertiary)' }}>
               <div className="text-[10px] uppercase font-semibold" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
                 Tags
               </div>
-              <div className="mt-0.5 text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+              <div className="mt-0.5 text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {tags?.length ?? 0}
               </div>
             </div>
-            <div className="rounded-[16px] px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
+            <div className="rounded-[12px] px-2 py-1.5" style={{ background: 'var(--bg-tertiary)' }}>
               <div className="text-[10px] uppercase font-semibold" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
                 Active
               </div>
-              <div className="mt-0.5 text-[13px] font-semibold" style={{ color: activeSelectionCount > 0 ? 'var(--accent)' : 'var(--text-primary)' }}>
+              <div className="mt-0.5 text-[12px] font-semibold" style={{ color: activeSelectionCount > 0 ? 'var(--accent)' : 'var(--text-primary)' }}>
                 {activeSelectionCount}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-2 py-2 space-y-2">
+        <div className="flex-1 overflow-y-auto px-1.5 py-1.5 space-y-1.5">
           <SidebarSection
             title="Filters"
             description="Saved views for the queue"
@@ -355,24 +355,24 @@ export function FilterSidebar({
   return (
     <motion.aside
       initial={false}
-      animate={{ width: collapsed ? 88 : 286 }}
+      animate={{ width: collapsed ? 72 : 260 }}
       transition={{ duration: 0.24, ease: [0.2, 0.9, 0.2, 1] }}
       className="relative shrink-0 overflow-hidden border-r"
       style={{ borderColor: 'var(--border)' }}
     >
       {collapsed ? (
-        <div className="h-full p-2">
+        <div className="h-full p-1.5">
           <div
-            className="h-full rounded-[24px] border flex flex-col items-center justify-between px-2 py-2.5"
+            className="h-full rounded-[18px] border flex flex-col items-center justify-between px-1.5 py-2"
             style={{
               borderColor: 'var(--border)',
               background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 94%, white 6%) 0%, color-mix(in srgb, var(--bg-primary) 90%, var(--bg-secondary) 10%) 100%)',
             }}
           >
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-2">
               <button
                 onClick={onExpand}
-                className="h-10 w-10 rounded-2xl flex items-center justify-center transition-colors"
+                className="h-8 w-8 rounded-xl flex items-center justify-center transition-colors"
                 style={{ background: 'var(--bg-tertiary)' }}
                 title="Expand sidebar"
                 aria-label="Expand sidebar"
@@ -387,7 +387,7 @@ export function FilterSidebar({
                   setFiltersOpen(true);
                   onExpand();
                 }}
-                className="relative h-10 w-10 rounded-2xl flex items-center justify-center transition-colors"
+                className="relative h-8 w-8 rounded-xl flex items-center justify-center transition-colors"
                 style={{ background: activeFilter !== 'all' ? 'var(--accent-glow)' : 'var(--bg-tertiary)' }}
                 title="Expand filters"
                 aria-label="Expand filters"
@@ -400,7 +400,7 @@ export function FilterSidebar({
                   setTagsOpen(true);
                   onExpand();
                 }}
-                className="h-10 w-10 rounded-2xl flex items-center justify-center transition-colors"
+                className="h-8 w-8 rounded-xl flex items-center justify-center transition-colors"
                 style={{ background: selectedTagId !== undefined || noTagsFilter ? 'var(--accent-glow)' : 'var(--bg-tertiary)' }}
                 title="Expand tags"
                 aria-label="Expand tags"
@@ -413,7 +413,7 @@ export function FilterSidebar({
                   setDevelopersOpen(true);
                   onExpand();
                 }}
-                className="h-10 w-10 rounded-2xl flex items-center justify-center transition-colors"
+                className="h-8 w-8 rounded-xl flex items-center justify-center transition-colors"
                 style={{ background: activeDeveloper ? 'var(--accent-glow)' : 'var(--bg-tertiary)' }}
                 title="Expand developers"
                 aria-label="Expand developers"
