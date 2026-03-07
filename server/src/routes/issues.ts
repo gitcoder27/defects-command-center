@@ -94,5 +94,25 @@ export function createIssuesRouter(issueService: IssueService): Router {
     }
   });
 
+  router.post("/:key/exclude", validate(paramsSchema), async (req, res, next) => {
+    try {
+      const key = req.params.key as string;
+      await issueService.excludeIssue(key);
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/:key/restore", validate(paramsSchema), async (req, res, next) => {
+    try {
+      const key = req.params.key as string;
+      await issueService.restoreIssue(key);
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   return router;
 }

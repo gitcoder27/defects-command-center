@@ -108,6 +108,7 @@ const alterStatements = [
   "CREATE INDEX IF NOT EXISTS idx_issues_sync_scope ON issues(sync_scope_state)",
   "CREATE INDEX IF NOT EXISTS idx_issues_workload_scope ON issues(team_scope_state, sync_scope_state, status_category, assignee_id)",
   "CREATE INDEX IF NOT EXISTS idx_issue_scope_history_key_observed ON issue_scope_history(jira_key, observed_at DESC)",
+  "ALTER TABLE issues ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0",
 ];
 
 export function migrate(sqlite: BetterSqlite3.Database): void {

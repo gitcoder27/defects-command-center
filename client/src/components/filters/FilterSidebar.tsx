@@ -25,8 +25,8 @@ interface FilterSidebarProps {
 const FILTER_COUNT_MAP: Record<string, keyof OverviewCounts> = {
   unassigned: 'unassigned',
   outOfTeam: 'outOfTeam',
-  dueToday: 'dueToday',
   dueThisWeek: 'dueThisWeek',
+  noDueDate: 'noDueDate',
   overdue: 'overdue',
   blocked: 'blocked',
   stale: 'stale',

@@ -18,8 +18,11 @@ import { AnalysisStatusCell } from './AnalysisStatusCell';
 import { InlineEditAssignee } from './InlineEditAssignee';
 import { InlineEditDueDate } from './InlineEditDueDate';
 import { InlineEditTags } from './InlineEditTags';
+import { DismissCell } from './DismissCell';
 import { useIssues } from '@/hooks/useIssues';
 import { useConfig } from '@/hooks/useConfig';
+import { useExcludeIssue } from '@/hooks/useExcludeIssue';
+import { useToast } from '@/context/ToastContext';
 import { formatRelativeTime, isOverdue, isDueToday, isStale } from '@/lib/utils';
 import type { Issue, FilterType } from '@/types';
 
@@ -61,6 +64,8 @@ export function DefectTable({
 }: DefectTableProps) {
   const { data: issues, isLoading } = useIssues(filter, assigneeFilter, tagId, noTags);
   const { data: config } = useConfig();
+  const { exclude, restore } = useExcludeIssue();
+  const { addToast } = useToast();
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'aspenSeverity', desc: false },
     { id: 'developmentDueDate', desc: false },
@@ -160,8 +165,50 @@ export function DefectTable({
 
   const closeInlineEdit = useCallback(() => setEditingCell(null), []);
 
+  const handleExclude = useCallback(
+    (issueKey: string, _e: React.MouseEvent) => {
+      exclude.mutate(issueKey, {
+        onSuccess: () => {
+          addToast({
+            type: 'success',
+            title: `${issueKey} dismissed`,
+            message: 'Issue excluded from tracking',
+            action: {
+              label: 'Undo',
+              onClick: () => restore.mutate(issueKey),
+            },
+            duration: 8000,
+          });
+        },
+        onError: () => {
+          addToast({ type: 'error', title: 'Failed to dismiss issue' });
+        },
+      });
+    },
+    [exclude, restore, addToast]
+  );
+
   const columns = useMemo(
     () => [
+      ...(filter === 'outOfTeam'
+        ? [
+            columnHelper.display({
+              id: 'dismiss',
+              header: '',
+              cell: (info) => {
+                const issue = info.row.original;
+                return (
+                  <DismissCell
+                    issueKey={issue.jiraKey}
+                    onConfirm={handleExclude}
+                  />
+                );
+              },
+              size: 40,
+              enableSorting: false,
+            }),
+          ]
+        : []),
       columnHelper.accessor('aspenSeverity', {
         id: 'aspenSeverity',
         header: 'Sev',
@@ -320,7 +367,7 @@ export function DefectTable({
         enableSorting: false,
       }),
     ],
-    [editingCell, handleCellClick, closeInlineEdit, config, onTagEditorOpenChange, lastVisitedKey]
+    [editingCell, handleCellClick, closeInlineEdit, config, onTagEditorOpenChange, lastVisitedKey, filter, handleExclude]
   );
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -539,7 +586,7 @@ export function DefectTable({
                       }
                       onSelectIssue(issue.jiraKey);
                     }}
-                    className="cursor-pointer transition-colors duration-150"
+                    className="cursor-pointer transition-colors duration-150 group/row"
                     style={{
                       background: isSelected
                         ? 'var(--bg-glow)'

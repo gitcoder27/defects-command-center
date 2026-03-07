@@ -420,11 +420,12 @@ export class SyncEngine {
         jiraKey: issues.jiraKey,
         statusCategory: issues.statusCategory,
         syncScopeState: issues.syncScopeState,
+        excluded: issues.excluded,
       })
       .from(issues);
 
     return rows
-      .filter((row) => row.statusCategory !== "done" && row.syncScopeState === "active")
+      .filter((row) => row.statusCategory !== "done" && row.syncScopeState === "active" && row.excluded !== 1)
       .map((row) => row.jiraKey);
   }
 

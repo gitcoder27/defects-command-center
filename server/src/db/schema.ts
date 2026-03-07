@@ -26,6 +26,7 @@ export const issues = sqliteTable("issues", {
   lastReconciledAt: text("last_reconciled_at"),
   scopeChangedAt: text("scope_changed_at"),
   analysisNotes: text("analysis_notes"),
+  excluded: integer("excluded").notNull().default(0),
 });
 
 export const developers = sqliteTable("developers", {

@@ -18,6 +18,7 @@ export const FILTER_LABELS: Record<FilterType, string> = {
   unassigned: 'Unassigned',
   dueToday: 'Due Today',
   dueThisWeek: 'Due This Week',
+  noDueDate: 'No Due Date',
   overdue: 'Overdue',
   blocked: 'Blocked',
   stale: 'Stale',
@@ -26,11 +27,10 @@ export const FILTER_LABELS: Record<FilterType, string> = {
 };
 
 export const FILTER_KEYS: FilterType[] = [
-  'all',
   'unassigned',
   'outOfTeam',
-  'dueToday',
   'dueThisWeek',
+  'noDueDate',
   'overdue',
   'blocked',
   'stale',

@@ -120,6 +120,14 @@ export class IssueService {
     await this.jiraClient.addComment(jiraKey, text);
   }
 
+  async excludeIssue(jiraKey: string): Promise<void> {
+    await db.update(issues).set({ excluded: 1 }).where(eq(issues.jiraKey, jiraKey));
+  }
+
+  async restoreIssue(jiraKey: string): Promise<void> {
+    await db.update(issues).set({ excluded: 0 }).where(eq(issues.jiraKey, jiraKey));
+  }
+
   async getOverviewCounts(): Promise<OverviewCounts> {
     const rows: Array<typeof issues.$inferSelect> = await db.select().from(issues);
     const all = rows.map((row) => this.toSharedIssue(row));
@@ -137,6 +145,7 @@ export class IssueService {
       unassigned: this.applyIssueQuery(all, { filter: "unassigned" }, filterContext).length,
       dueToday: this.applyIssueQuery(all, { filter: "dueToday" }, filterContext).length,
       dueThisWeek: this.applyIssueQuery(all, { filter: "dueThisWeek" }, filterContext).length,
+      noDueDate: this.applyIssueQuery(all, { filter: "noDueDate" }, filterContext).length,
       overdue: this.applyIssueQuery(all, { filter: "overdue" }, filterContext).length,
       blocked: this.applyIssueQuery(all, { filter: "blocked" }, filterContext).length,
       stale: this.applyIssueQuery(all, { filter: "stale" }, filterContext).length,
@@ -222,6 +231,8 @@ export class IssueService {
           const dueDate = effectiveDue(issue);
           return Boolean(dueDate && dueDate >= context.today && dueDate <= context.weekEnd);
         });
+      case "noDueDate":
+        return activeTeamIssues().filter((issue) => !effectiveDue(issue));
       case "overdue":
         return activeTeamIssues().filter((issue) => {
           const dueDate = effectiveDue(issue);
@@ -310,17 +321,20 @@ export class IssueService {
       scopeChangedAt: row.scopeChangedAt ?? undefined,
       localTags: tags,
       analysisNotes: row.analysisNotes ?? undefined,
+      excluded: row.excluded === 1,
     };
   }
 
   private isActiveTeamIssue(issue: SharedIssue): boolean {
     return issue.statusCategory !== "done" &&
+      !issue.excluded &&
       (issue.teamScopeState ?? "in_team") !== "out_of_team" &&
       (issue.syncScopeState ?? "active") === "active";
   }
 
   private isOutOfTeamIssue(issue: SharedIssue): boolean {
     return issue.statusCategory !== "done" &&
+      !issue.excluded &&
       (issue.teamScopeState ?? "in_team") === "out_of_team" &&
       (issue.syncScopeState ?? "active") === "active";
   }

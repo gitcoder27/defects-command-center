@@ -10,6 +10,7 @@ export type FilterType =
   | "unassigned"
   | "dueToday"
   | "dueThisWeek"
+  | "noDueDate"
   | "overdue"
   | "blocked"
   | "stale"
@@ -48,6 +49,7 @@ export interface Issue {
   scopeChangedAt?: string;
   localTags: LocalTag[];
   analysisNotes?: string;
+  excluded?: boolean;
 }
 
 export interface Developer {
@@ -72,6 +74,7 @@ export interface OverviewCounts {
   unassigned: number;
   dueToday: number;
   dueThisWeek: number;
+  noDueDate: number;
   overdue: number;
   blocked: number;
   stale: number;
