@@ -35,6 +35,27 @@ CREATE TABLE IF NOT EXISTS developers (
   is_active    INTEGER DEFAULT 1
 );
 
+CREATE TABLE IF NOT EXISTS app_users (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  username             TEXT NOT NULL UNIQUE,
+  display_name         TEXT NOT NULL,
+  password_hash        TEXT NOT NULL,
+  role                 TEXT NOT NULL,
+  developer_account_id TEXT,
+  is_active            INTEGER NOT NULL DEFAULT 1,
+  created_at           TEXT NOT NULL,
+  updated_at           TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS app_sessions (
+  id           TEXT PRIMARY KEY,
+  user_id      INTEGER NOT NULL,
+  created_at   TEXT NOT NULL,
+  expires_at   TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES app_users(id)
+);
+
 CREATE TABLE IF NOT EXISTS component_map (
   component_name TEXT NOT NULL,
   account_id     TEXT NOT NULL,
@@ -125,10 +146,16 @@ CREATE TABLE IF NOT EXISTS team_tracker_checkins (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   day_id      INTEGER NOT NULL,
   summary     TEXT NOT NULL,
+  author_type TEXT NOT NULL DEFAULT 'manager',
+  author_account_id TEXT,
   created_at  TEXT NOT NULL,
   FOREIGN KEY (day_id) REFERENCES team_tracker_days(id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_app_users_username ON app_users(username);
+CREATE INDEX IF NOT EXISTS idx_app_users_dev_account ON app_users(developer_account_id);
+CREATE INDEX IF NOT EXISTS idx_app_sessions_user ON app_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_app_sessions_expires ON app_sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_tracker_days_date ON team_tracker_days(date);
 CREATE INDEX IF NOT EXISTS idx_tracker_days_dev ON team_tracker_days(developer_account_id);
 CREATE INDEX IF NOT EXISTS idx_tracker_items_day ON team_tracker_items(day_id);
@@ -149,6 +176,8 @@ const alterStatements = [
   "CREATE INDEX IF NOT EXISTS idx_issues_workload_scope ON issues(team_scope_state, sync_scope_state, status_category, assignee_id)",
   "CREATE INDEX IF NOT EXISTS idx_issue_scope_history_key_observed ON issue_scope_history(jira_key, observed_at DESC)",
   "ALTER TABLE issues ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE team_tracker_checkins ADD COLUMN author_type TEXT NOT NULL DEFAULT 'manager'",
+  "ALTER TABLE team_tracker_checkins ADD COLUMN author_account_id TEXT",
 ];
 
 export function migrate(sqlite: BetterSqlite3.Database): void {

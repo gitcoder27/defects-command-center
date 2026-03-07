@@ -16,4 +16,6 @@ export default defineConfig({
       '/api': 'http://localhost:3001',
     },
   },
+  // All non-API paths fall back to index.html for client-side routing
+  appType: 'spa',
 });

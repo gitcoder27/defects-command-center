@@ -37,6 +37,26 @@ export const developers = sqliteTable("developers", {
   isActive: integer("is_active").notNull().default(1),
 });
 
+export const appUsers = sqliteTable("app_users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  username: text("username").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  role: text("role").notNull(),
+  developerAccountId: text("developer_account_id"),
+  isActive: integer("is_active").notNull().default(1),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const appSessions = sqliteTable("app_sessions", {
+  id: text("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  createdAt: text("created_at").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  lastSeenAt: text("last_seen_at").notNull(),
+});
+
 export const componentMap = sqliteTable("component_map", {
   componentName: text("component_name").notNull(),
   accountId: text("account_id").notNull(),
@@ -114,5 +134,7 @@ export const teamTrackerCheckIns = sqliteTable("team_tracker_checkins", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   dayId: integer("day_id").notNull(),
   summary: text("summary").notNull(),
+  authorType: text("author_type").notNull().default("manager"),
+  authorAccountId: text("author_account_id"),
   createdAt: text("created_at").notNull(),
 });

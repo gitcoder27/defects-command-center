@@ -7,6 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server/src/index.js",
     "backup:restore": "tsx src/scripts/restore-backup.ts",
+    "auth:create-user": "tsx src/scripts/create-auth-user.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { RefreshCw, Moon, Sun, PanelLeftOpen, Radar, Settings, Users } from 'lucide-react';
+import { RefreshCw, Moon, Sun, PanelLeftOpen, Radar, Settings, Users, UserCircle } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
@@ -86,6 +86,18 @@ export function Header({ onOpenSettings, onOpenMobileSidebar, activeView, onView
               >
                 <Users size={12} />
                 Team Tracker
+              </button>
+              <button
+                onClick={() => onViewChange('my-day')}
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors"
+                style={{
+                  background: activeView === 'my-day' ? 'var(--bg-elevated)' : 'transparent',
+                  color: activeView === 'my-day' ? 'var(--accent)' : 'var(--text-muted)',
+                  boxShadow: activeView === 'my-day' ? 'var(--soft-shadow)' : 'none',
+                }}
+              >
+                <UserCircle size={12} />
+                My Day
               </button>
             </div>
           )}

@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, RefreshCw, Search, AlertTriangle, Loader2, UserPlus, UserMinus, Users } from 'lucide-react';
+import { X, Save, RefreshCw, Search, AlertTriangle, Loader2, UserPlus, UserMinus, Users, Shield, ChevronDown, Copy, CheckCircle2 } from 'lucide-react';
 import { useConfig } from '@/hooks/useConfig';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/lib/api';
 import { useDevelopers } from '@/hooks/useDevelopers';
+import type { AuthUser, UserRole } from '@/types';
 
 interface JiraField {
   id: string;
@@ -69,6 +70,18 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const [removingAccountId, setRemovingAccountId] = useState<string | null>(null);
   const discoverRequestRef = useRef(0);
 
+  // ── User Management state ──
+  const [appUsers, setAppUsers] = useState<AuthUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [newDisplayName, setNewDisplayName] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newRole, setNewRole] = useState<UserRole>('developer');
+  const [newDevAccountId, setNewDevAccountId] = useState('');
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
   const activeMemberIds = useMemo(() => new Set(developers.map((d) => d.accountId)), [developers]);
 
   const filteredDevelopers = useMemo(
@@ -95,6 +108,57 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
       setAspenSeverityField(config.jiraAspenSeverityField || '');
     }
   }, [config]);
+
+  // Load app users when panel opens
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setLoadingUsers(true);
+    api.get<{ users: AuthUser[] }>('/auth/users')
+      .then((res) => { if (!cancelled) setAppUsers(res.users ?? []); })
+      .catch(() => { if (!cancelled) setAppUsers([]); })
+      .finally(() => { if (!cancelled) setLoadingUsers(false); });
+    return () => { cancelled = true; };
+  }, [open]);
+
+  const handleCreateUser = async () => {
+    if (!newUsername.trim() || !newDisplayName.trim() || !newPassword.trim()) return;
+    if (newRole === 'developer' && !newDevAccountId) {
+      addToast({ type: 'error', title: 'Missing Jira identity', message: 'Developer accounts must be linked to a Jira profile.' });
+      return;
+    }
+    setCreatingUser(true);
+    try {
+      const res = await api.post<{ user: AuthUser }>('/auth/register', {
+        username: newUsername.trim(),
+        password: newPassword.trim(),
+        displayName: newDisplayName.trim(),
+        role: newRole,
+        ...(newRole === 'developer' ? { developerAccountId: newDevAccountId } : {}),
+      });
+      setAppUsers((prev) => [...prev, res.user]);
+      setNewUsername('');
+      setNewDisplayName('');
+      setNewPassword('');
+      setNewRole('developer');
+      setNewDevAccountId('');
+      setShowCreateUser(false);
+      addToast({ type: 'success', title: 'User created', message: `Account "${res.user.username}" created successfully.` });
+    } catch (err) {
+      addToast({ type: 'error', title: 'Failed to create user', message: err instanceof Error ? err.message : 'Request failed' });
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
+  const handleCopyDevLink = () => {
+    const url = `${window.location.origin}/my-day`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedLink(true);
+      addToast({ type: 'success', title: 'Link copied', message: url });
+      setTimeout(() => setCopiedLink(false), 2000);
+    });
+  };
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -927,6 +991,180 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
               >
                 <strong style={{ color: 'var(--text-primary)' }}>How it works:</strong> Saving updates
                 the dashboard configuration. The saved JQL stays as the base query, and sync appends the current team member assignees automatically. Click <strong>"Save & Sync"</strong> to apply it immediately.
+              </div>
+
+              {/* ── User Accounts ── */}
+              <div>
+                <label
+                  className="text-[11px] font-semibold uppercase mb-2 block"
+                  style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}
+                >
+                  <Shield size={12} className="inline mr-1.5" />
+                  User Accounts
+                </label>
+
+                {/* Developer link */}
+                <div
+                  className="rounded-md p-3 mb-3 flex items-center justify-between"
+                  style={{ border: '1px solid var(--border)', background: 'var(--bg-tertiary)' }}
+                >
+                  <div>
+                    <p className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>Developer Login Link</p>
+                    <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Share this URL with developers so they can go directly to their workspace</p>
+                  </div>
+                  <button
+                    onClick={handleCopyDevLink}
+                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all shrink-0 ml-3"
+                    style={{
+                      background: copiedLink ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-elevated)',
+                      color: copiedLink ? 'var(--success)' : 'var(--accent)',
+                      border: `1px solid ${copiedLink ? 'rgba(16, 185, 129, 0.3)' : 'var(--border)'}`,
+                    }}
+                  >
+                    {copiedLink ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+                    {copiedLink ? 'Copied!' : 'Copy Link'}
+                  </button>
+                </div>
+
+                {/* Existing users */}
+                {loadingUsers ? (
+                  <div className="flex items-center gap-2 py-3 justify-center">
+                    <Loader2 size={14} className="animate-spin" style={{ color: 'var(--text-muted)' }} />
+                    <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Loading users…</span>
+                  </div>
+                ) : appUsers.length > 0 ? (
+                  <div
+                    className="rounded-md overflow-hidden mb-3"
+                    style={{ border: '1px solid var(--border)' }}
+                  >
+                    {appUsers.map((u, idx) => (
+                      <div
+                        key={u.username}
+                        className="flex items-center gap-3 px-3 py-2"
+                        style={{
+                          background: idx % 2 === 0 ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
+                          borderTop: idx > 0 ? '1px solid var(--border)' : 'none',
+                        }}
+                      >
+                        <div
+                          className="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 text-[10px] font-bold"
+                          style={{
+                            background: u.role === 'manager' ? 'rgba(245, 158, 11, 0.12)' : 'var(--accent-glow)',
+                            color: u.role === 'manager' ? 'var(--warning)' : 'var(--accent)',
+                          }}
+                        >
+                          {u.displayName?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[12px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>{u.displayName}</span>
+                            <span
+                              className="text-[9px] font-bold uppercase px-1.5 rounded"
+                              style={{
+                                color: u.role === 'manager' ? 'var(--warning)' : 'var(--accent)',
+                                background: u.role === 'manager' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(6, 182, 212, 0.1)',
+                                letterSpacing: '0.06em',
+                              }}
+                            >{u.role}</span>
+                          </div>
+                          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>@{u.username}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {/* Create user */}
+                {!showCreateUser ? (
+                  <button
+                    onClick={() => setShowCreateUser(true)}
+                    className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-medium transition-colors"
+                    style={{
+                      color: 'var(--accent)',
+                      background: 'var(--bg-tertiary)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <UserPlus size={12} />
+                    Create User Account
+                  </button>
+                ) : (
+                  <div
+                    className="rounded-md p-3 space-y-2.5"
+                    style={{ border: '1px solid var(--border-active)', background: 'var(--bg-tertiary)' }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold" style={{ color: 'var(--accent)' }}>New User</span>
+                      <button onClick={() => setShowCreateUser(false)} className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Cancel</button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)}
+                        placeholder="Username" autoFocus
+                        className="rounded-lg px-2.5 py-2 text-[12px] outline-none col-span-1"
+                        style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      />
+                      <input
+                        type="text" value={newDisplayName} onChange={(e) => setNewDisplayName(e.target.value)}
+                        placeholder="Display Name"
+                        className="rounded-lg px-2.5 py-2 text-[12px] outline-none col-span-1"
+                        style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      />
+                    </div>
+                    <input
+                      type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Password (min 6 characters)" autoComplete="new-password"
+                      className="w-full rounded-lg px-2.5 py-2 text-[12px] outline-none"
+                      style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    />
+                    <div className="relative">
+                      <select
+                        value={newRole}
+                        onChange={(e) => { setNewRole(e.target.value as UserRole); if (e.target.value === 'manager') setNewDevAccountId(''); }}
+                        className="w-full rounded-lg px-2.5 py-2 text-[12px] outline-none appearance-none"
+                        style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      >
+                        <option value="developer">Developer</option>
+                        <option value="manager">Manager</option>
+                      </select>
+                      <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+                    </div>
+                    {newRole === 'developer' && (
+                      <div className="relative">
+                        <select
+                          value={newDevAccountId}
+                          onChange={(e) => setNewDevAccountId(e.target.value)}
+                          className="w-full rounded-lg px-2.5 py-2 text-[12px] outline-none appearance-none"
+                          style={{
+                            background: 'var(--bg-elevated)',
+                            color: newDevAccountId ? 'var(--text-primary)' : 'var(--text-muted)',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          <option value="">Select Jira profile…</option>
+                          {developers.map((dev) => (
+                            <option key={dev.accountId} value={dev.accountId}>
+                              {dev.displayName} {dev.email ? `(${dev.email})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+                      </div>
+                    )}
+                    <button
+                      onClick={handleCreateUser}
+                      disabled={creatingUser || !newUsername.trim() || !newDisplayName.trim() || !newPassword.trim()}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-semibold transition-all disabled:opacity-50"
+                      style={{
+                        background: 'var(--accent)',
+                        color: '#fff',
+                      }}
+                    >
+                      {creatingUser ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />}
+                      Create Account
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Row indicator legend */}

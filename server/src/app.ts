@@ -11,11 +11,15 @@ import { createConfigRouter } from "./routes/config";
 import { createBackupsRouter } from "./routes/backups";
 import { createTagsRouter } from "./routes/tags";
 import { createTeamTrackerRouter } from "./routes/team-tracker";
+import { createAuthRouter } from "./routes/auth";
+import { createMyDayRouter } from "./routes/my-day";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { AlertService } from "./services/alert.service";
 import { AutomationService } from "./services/automation.service";
+import { AuthService } from "./services/auth.service";
 import { BackupService } from "./services/backup.service";
 import { IssueService } from "./services/issue.service";
+import { MyDayService } from "./services/my-day.service";
 import { WorkloadService } from "./services/workload.service";
 import { TagService } from "./services/tag.service";
 import { TeamTrackerService } from "./services/team-tracker.service";
@@ -30,6 +34,8 @@ export interface AppServices {
   backupService: BackupService;
   tagService: TagService;
   teamTrackerService: TeamTrackerService;
+  authService: AuthService;
+  myDayService: MyDayService;
 }
 
 export function createApp(services: AppServices) {
@@ -49,7 +55,9 @@ export function createApp(services: AppServices) {
   app.use("/api/config", createConfigRouter(services.syncEngine, services.backupService));
   app.use("/api/backups", createBackupsRouter(services.backupService));
   app.use("/api/tags", createTagsRouter(services.tagService, services.issueService));
+  app.use("/api/auth", createAuthRouter(services.authService));
   app.use("/api/team-tracker", createTeamTrackerRouter(services.teamTrackerService));
+  app.use("/api/my-day", createMyDayRouter(services.myDayService, services.authService));
 
   if (process.env.NODE_ENV === "production") {
     const clientDistPath = path.resolve(process.cwd(), "client", "dist");

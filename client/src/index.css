@@ -125,3 +125,12 @@ body::after {
   box-shadow: var(--soft-shadow);
   backdrop-filter: blur(10px);
 }
+
+/* My Day page enhancements */
+.my-day-section {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 80%, transparent) 0%, color-mix(in srgb, var(--bg-primary) 60%, transparent) 100%);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  backdrop-filter: blur(8px);
+}

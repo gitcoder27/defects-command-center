@@ -8,6 +8,17 @@ vi.mock('@/hooks/useConfig', () => ({
   useConfig: () => useConfigMock(),
 }));
 
+vi.mock('@/context/AuthContext', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useAuth: () => ({
+    user: null,
+    isLoading: false,
+    isAuthenticated: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
+
 vi.mock('@/components/layout/DashboardLayout', () => ({
   DashboardLayout: () => <div>Dashboard loaded</div>,
 }));

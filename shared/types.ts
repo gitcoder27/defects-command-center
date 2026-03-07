@@ -171,6 +171,20 @@ export interface ApiErrorResponse {
   status: number;
 }
 
+export type UserRole = "manager" | "developer";
+
+export interface AuthUser {
+  username: string;
+  accountId: string;
+  displayName: string;
+  role: UserRole;
+  developerAccountId?: string;
+}
+
+export interface AuthSessionResponse {
+  user: AuthUser;
+}
+
 // ── Team Tracker types ──────────────────────────────────
 
 export type TrackerDeveloperStatus =
@@ -188,6 +202,8 @@ export interface TrackerCheckIn {
   dayId: number;
   summary: string;
   createdAt: string;
+  authorType?: UserRole;
+  authorAccountId?: string;
 }
 
 export interface TrackerWorkItem {
@@ -227,6 +243,19 @@ export interface TeamTrackerBoardResponse {
   date: string;
   developers: TrackerDeveloperDay[];
   summary: TrackerBoardSummary;
+}
+
+export interface MyDayResponse {
+  date: string;
+  developer: Developer;
+  status: TrackerDeveloperStatus;
+  lastCheckInAt?: string;
+  currentItem?: TrackerWorkItem;
+  plannedItems: TrackerWorkItem[];
+  completedItems: TrackerWorkItem[];
+  droppedItems: TrackerWorkItem[];
+  checkIns: TrackerCheckIn[];
+  isStale: boolean;
 }
 
 export interface TrackerIssueAssignment {

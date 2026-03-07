@@ -10,6 +10,7 @@ import type {
   TrackerBoardSummary,
   Developer,
   TrackerIssueAssignment,
+  UserRole,
 } from "shared/types";
 import { db } from "../db/connection";
 import {
@@ -70,6 +71,18 @@ function mapCheckIn(
     dayId: row.dayId,
     summary: row.summary,
     createdAt: row.createdAt,
+    authorType: row.authorType as UserRole,
+    authorAccountId: row.authorAccountId ?? undefined,
+  };
+}
+
+function mapDeveloper(row: typeof developers.$inferSelect): Developer {
+  return {
+    accountId: row.accountId,
+    displayName: row.displayName,
+    email: row.email ?? undefined,
+    avatarUrl: row.avatarUrl ?? undefined,
+    isActive: row.isActive === 1,
   };
 }
 
@@ -94,55 +107,34 @@ export class TeamTrackerService {
       .from(developers)
       .where(eq(developers.isActive, 1));
 
-    const devList: Developer[] = devRows.map((r) => ({
-      accountId: r.accountId,
-      displayName: r.displayName,
-      email: r.email ?? undefined,
-      avatarUrl: r.avatarUrl ?? undefined,
-      isActive: r.isActive === 1,
-    }));
+    const devList: Developer[] = devRows.map(mapDeveloper);
 
     const devDays: TrackerDeveloperDay[] = [];
 
     for (const dev of devList) {
-      const day = await this.ensureDay(date, dev.accountId);
-      const items = await db
-        .select()
-        .from(teamTrackerItems)
-        .where(eq(teamTrackerItems.dayId, day.id));
-      const checkIns = await db
-        .select()
-        .from(teamTrackerCheckIns)
-        .where(eq(teamTrackerCheckIns.dayId, day.id));
-
-      const mapped = (await this.mapItemsWithIssueContext(items)).sort(
-        (a, b) => a.position - b.position
-      );
-      const currentItem = mapped.find((i) => i.state === "in_progress");
-      const plannedItems = mapped.filter((i) => i.state === "planned");
-      const completedItems = mapped.filter((i) => i.state === "done");
-      const droppedItems = mapped.filter((i) => i.state === "dropped");
-
-      devDays.push({
-        id: day.id,
-        date,
-        developer: dev,
-        status: day.status as TrackerDeveloperStatus,
-        managerNotes: day.managerNotes ?? undefined,
-        lastCheckInAt: day.lastCheckInAt ?? undefined,
-        currentItem,
-        plannedItems,
-        completedItems,
-        droppedItems,
-        checkIns: checkIns.map(mapCheckIn),
-        isStale: isStale(day.lastCheckInAt),
-        createdAt: day.createdAt,
-        updatedAt: day.updatedAt,
-      });
+      devDays.push(await this.buildDeveloperDay(date, dev));
     }
 
     const summary = this.computeSummary(devDays);
     return { date, developers: devDays, summary };
+  }
+
+  async getDeveloperDay(
+    date: string,
+    developerAccountId: string,
+    options?: { includeManagerNotes?: boolean }
+  ): Promise<TrackerDeveloperDay> {
+    const developer = await this.getDeveloperByAccountId(developerAccountId);
+    const day = await this.buildDeveloperDay(date, developer);
+
+    if (options?.includeManagerNotes === false) {
+      return {
+        ...day,
+        managerNotes: undefined,
+      };
+    }
+
+    return day;
   }
 
   async ensureDay(
@@ -360,6 +352,10 @@ export class TeamTrackerService {
     params: {
       summary: string;
       status?: TrackerDeveloperStatus;
+    },
+    actor?: {
+      type: UserRole;
+      accountId?: string;
     }
   ): Promise<TrackerCheckIn> {
     const day = await this.ensureDay(date, accountId);
@@ -370,6 +366,8 @@ export class TeamTrackerService {
       .values({
         dayId: day.id,
         summary: params.summary,
+        authorType: actor?.type ?? "manager",
+        authorAccountId: actor?.accountId ?? null,
         createdAt: now,
       })
       .returning();
@@ -390,6 +388,29 @@ export class TeamTrackerService {
       .where(eq(teamTrackerDays.id, day.id));
 
     return mapCheckIn(checkInRow);
+  }
+
+  async assertItemBelongsToDeveloper(
+    itemId: number,
+    developerAccountId: string
+  ): Promise<void> {
+    const rows = await db
+      .select({
+        ownerAccountId: teamTrackerDays.developerAccountId,
+      })
+      .from(teamTrackerItems)
+      .innerJoin(teamTrackerDays, eq(teamTrackerDays.id, teamTrackerItems.dayId))
+      .where(eq(teamTrackerItems.id, itemId))
+      .limit(1);
+
+    const row = rows[0];
+    if (!row) {
+      throw new HttpError(404, "Item not found");
+    }
+
+    if (row.ownerAccountId !== developerAccountId) {
+      throw new HttpError(403, "Item does not belong to authenticated developer");
+    }
   }
 
   async getIssueAssignment(
@@ -580,6 +601,61 @@ export class TeamTrackerService {
       waiting: days.filter((d) => d.status === "waiting").length,
       noCurrent: days.filter((d) => !d.currentItem).length,
       doneForToday: days.filter((d) => d.status === "done_for_today").length,
+    };
+  }
+
+  private async getDeveloperByAccountId(accountId: string): Promise<Developer> {
+    const rows = await db
+      .select()
+      .from(developers)
+      .where(eq(developers.accountId, accountId))
+      .limit(1);
+
+    const row = rows[0];
+    if (!row) {
+      throw new HttpError(404, `Developer ${accountId} not found`);
+    }
+
+    return mapDeveloper(row);
+  }
+
+  private async buildDeveloperDay(
+    date: string,
+    developer: Developer
+  ): Promise<TrackerDeveloperDay> {
+    const day = await this.ensureDay(date, developer.accountId);
+    const items = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.dayId, day.id));
+    const checkIns = await db
+      .select()
+      .from(teamTrackerCheckIns)
+      .where(eq(teamTrackerCheckIns.dayId, day.id));
+
+    const mapped = (await this.mapItemsWithIssueContext(items)).sort(
+      (a, b) => a.position - b.position
+    );
+    const currentItem = mapped.find((i) => i.state === "in_progress");
+    const plannedItems = mapped.filter((i) => i.state === "planned");
+    const completedItems = mapped.filter((i) => i.state === "done");
+    const droppedItems = mapped.filter((i) => i.state === "dropped");
+
+    return {
+      id: day.id,
+      date,
+      developer,
+      status: day.status as TrackerDeveloperStatus,
+      managerNotes: day.managerNotes ?? undefined,
+      lastCheckInAt: day.lastCheckInAt ?? undefined,
+      currentItem,
+      plannedItems,
+      completedItems,
+      droppedItems,
+      checkIns: checkIns.map(mapCheckIn),
+      isStale: isStale(day.lastCheckInAt),
+      createdAt: day.createdAt,
+      updatedAt: day.updatedAt,
     };
   }
 
