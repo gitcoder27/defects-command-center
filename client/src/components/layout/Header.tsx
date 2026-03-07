@@ -1,18 +1,16 @@
 import { motion } from 'framer-motion';
-import { RefreshCw, Moon, Sun, PanelLeftClose, PanelLeftOpen, Radar, Settings } from 'lucide-react';
+import { RefreshCw, Moon, Sun, PanelLeftOpen, Radar, Settings } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { formatRelativeTime } from '@/lib/utils';
 
 interface HeaderProps {
-  onToggleSidebar?: () => void;
-  showSidebarToggle?: boolean;
   onOpenSettings?: () => void;
-  sidebarCollapsed?: boolean;
+  onOpenMobileSidebar?: () => void;
 }
 
-export function Header({ onToggleSidebar, showSidebarToggle, onOpenSettings, sidebarCollapsed }: HeaderProps) {
+export function Header({ onOpenSettings, onOpenMobileSidebar }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { data: sync } = useSyncStatus();
   const triggerSync = useTriggerSync();
@@ -32,19 +30,15 @@ export function Header({ onToggleSidebar, showSidebarToggle, onOpenSettings, sid
         style={{ borderColor: 'var(--border-strong)' }}
       >
         <div className="flex items-center gap-3 min-w-0">
-          {showSidebarToggle && (
+          {onOpenMobileSidebar && (
             <button
-              onClick={onToggleSidebar}
-              className="h-9 w-9 rounded-xl transition-colors duration-150 flex items-center justify-center"
+              onClick={onOpenMobileSidebar}
+              className="h-8 w-8 rounded-xl transition-colors duration-150 flex items-center justify-center lg:hidden"
               style={{ background: 'var(--bg-tertiary)' }}
-              title="Toggle sidebar"
-              aria-label="Toggle sidebar"
+              title="Open sidebar"
+              aria-label="Open sidebar"
             >
-              {sidebarCollapsed ? (
-                <PanelLeftOpen size={18} style={{ color: 'var(--text-secondary)' }} />
-              ) : (
-                <PanelLeftClose size={18} style={{ color: 'var(--text-secondary)' }} />
-              )}
+              <PanelLeftOpen size={16} style={{ color: 'var(--text-secondary)' }} />
             </button>
           )}
           <div className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>

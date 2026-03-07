@@ -19,8 +19,8 @@ vi.mock('@/hooks/useMediaQuery', () => ({
 }));
 
 vi.mock('@/components/layout/Header', () => ({
-  Header: ({ onToggleSidebar }: { onToggleSidebar?: () => void }) => (
-    <button onClick={onToggleSidebar}>Header</button>
+  Header: ({ onOpenMobileSidebar }: { onOpenMobileSidebar?: () => void }) => (
+    <button onClick={onOpenMobileSidebar}>Header</button>
   ),
 }));
 
@@ -82,17 +82,6 @@ describe('DashboardLayout', () => {
     const lastCall = defectTableSpy.mock.calls.at(-1)?.[0] as { filter: string; assigneeFilter?: string };
     expect(lastCall.filter).toBe('new');
     expect(lastCall.assigneeFilter).toBeUndefined();
-  });
-
-  it('collapses the desktop sidebar from the header toggle', () => {
-    render(<DashboardLayout />);
-
-    fireEvent.click(screen.getByText('Header'));
-
-    const lastCall = filterSidebarSpy.mock.calls.at(-1)?.[0] as { collapsed: boolean; open: boolean; isMobile: boolean };
-    expect(lastCall.isMobile).toBe(false);
-    expect(lastCall.open).toBe(true);
-    expect(lastCall.collapsed).toBe(true);
   });
 
   it('collapses the desktop sidebar from the sidebar control', () => {

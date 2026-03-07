@@ -205,10 +205,8 @@ export function DashboardLayout() {
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
       <Header
-        onToggleSidebar={handleToggleSidebar}
-        showSidebarToggle
         onOpenSettings={() => setSettingsOpen(true)}
-        sidebarCollapsed={!isCompact && !desktopSidebarExpanded}
+        onOpenMobileSidebar={isCompact ? () => setMobileSidebarOpen(true) : undefined}
       />
 
       <div className="flex-1 min-h-0 px-2 pb-1.5 md:px-2.5 md:pb-2">
