@@ -222,6 +222,15 @@ export interface TeamTrackerBoardResponse {
   summary: TrackerBoardSummary;
 }
 
+export interface TrackerIssueAssignment {
+  date: string;
+  jiraKey: string;
+  itemId: number;
+  title: string;
+  state: Extract<TrackerItemState, "planned" | "in_progress">;
+  developer: Developer;
+}
+
 export interface TrackerBoardSummary {
   total: number;
   stale: number;

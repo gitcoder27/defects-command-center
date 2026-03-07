@@ -154,6 +154,26 @@ describe("TeamTrackerService", () => {
         })
       ).rejects.toThrow("Jira issue AM-999 is not available in synced issues");
     });
+
+    it("rejects duplicate Jira-linked planned items for the same date", async () => {
+      await seedIssue();
+
+      await service.addItem("dev-1", "2026-03-07", {
+        itemType: "jira",
+        jiraKey: "AM-123",
+        title: "Linked Jira task",
+      });
+
+      await expect(
+        service.addItem("dev-1", "2026-03-07", {
+          itemType: "jira",
+          jiraKey: "AM-123",
+          title: "Linked Jira task",
+        })
+      ).rejects.toThrow(
+        "Jira issue AM-123 is already planned for Alice Smith on 2026-03-07"
+      );
+    });
   });
 
   describe("setCurrentItem", () => {
@@ -391,6 +411,34 @@ describe("TeamTrackerService", () => {
       const plannedTitles = devDay.plannedItems.map((item) => item.title);
       expect(plannedTitles.filter((title) => title === "Already carried")).toHaveLength(1);
       expect(plannedTitles.filter((title) => title === "Needs follow-up")).toHaveLength(1);
+    });
+  });
+
+  describe("getIssueAssignment", () => {
+    it("returns the active assignment for a Jira issue on a given date", async () => {
+      await seedIssue();
+      const item = await service.addItem("dev-1", "2026-03-07", {
+        itemType: "jira",
+        jiraKey: "AM-123",
+        title: "Linked Jira task",
+      });
+
+      const assignment = await service.getIssueAssignment("AM-123", "2026-03-07");
+
+      expect(assignment).toEqual({
+        date: "2026-03-07",
+        jiraKey: "AM-123",
+        itemId: item.id,
+        title: "Linked Jira task",
+        state: "planned",
+        developer: {
+          accountId: "dev-1",
+          displayName: "Alice Smith",
+          email: undefined,
+          avatarUrl: undefined,
+          isActive: true,
+        },
+      });
     });
   });
 

@@ -9,6 +9,7 @@ import type {
   TeamTrackerBoardResponse,
   TrackerBoardSummary,
   Developer,
+  TrackerIssueAssignment,
 } from "shared/types";
 import { db } from "../db/connection";
 import {
@@ -242,6 +243,18 @@ export class TeamTrackerService {
           `Jira issue ${normalizedJiraKey} is not available in synced issues`
         );
       }
+
+      const existingAssignment = await this.getIssueAssignment(
+        normalizedJiraKey,
+        date
+      );
+
+      if (existingAssignment) {
+        throw new HttpError(
+          409,
+          `Jira issue ${normalizedJiraKey} is already ${existingAssignment.state === "in_progress" ? "in progress" : "planned"} for ${existingAssignment.developer.displayName} on ${date}`
+        );
+      }
     }
 
     // Get next position
@@ -373,6 +386,82 @@ export class TeamTrackerService {
       .where(eq(teamTrackerDays.id, day.id));
 
     return mapCheckIn(checkInRow);
+  }
+
+  async getIssueAssignment(
+    jiraKey: string,
+    date: string
+  ): Promise<TrackerIssueAssignment | undefined> {
+    const normalizedJiraKey = jiraKey.trim();
+    if (!normalizedJiraKey) {
+      return undefined;
+    }
+
+    const dayRows = await db
+      .select()
+      .from(teamTrackerDays)
+      .where(eq(teamTrackerDays.date, date));
+
+    if (dayRows.length === 0) {
+      return undefined;
+    }
+
+    const dayIdToAccountId = new Map(
+      dayRows.map((row) => [row.id, row.developerAccountId])
+    );
+    const activeDayIds = dayRows.map((row) => row.id);
+    const itemRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(inArray(teamTrackerItems.dayId, activeDayIds));
+
+    const match = itemRows
+      .filter(
+        (item) =>
+          item.jiraKey === normalizedJiraKey &&
+          (item.state === "planned" || item.state === "in_progress")
+      )
+      .sort(
+        (left, right) =>
+          left.dayId - right.dayId ||
+          left.position - right.position ||
+          left.id - right.id
+      )[0];
+
+    if (!match) {
+      return undefined;
+    }
+
+    const accountId = dayIdToAccountId.get(match.dayId);
+    if (!accountId) {
+      return undefined;
+    }
+
+    const developerRows = await db
+      .select()
+      .from(developers)
+      .where(eq(developers.accountId, accountId))
+      .limit(1);
+
+    const developerRow = developerRows[0];
+    if (!developerRow) {
+      return undefined;
+    }
+
+    return {
+      date,
+      jiraKey: normalizedJiraKey,
+      itemId: match.id,
+      title: match.title,
+      state: match.state as "planned" | "in_progress",
+      developer: {
+        accountId: developerRow.accountId,
+        displayName: developerRow.displayName,
+        email: developerRow.email ?? undefined,
+        avatarUrl: developerRow.avatarUrl ?? undefined,
+        isActive: developerRow.isActive === 1,
+      },
+    };
   }
 
   async previewCarryForward(fromDate: string, toDate: string): Promise<number> {

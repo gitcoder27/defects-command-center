@@ -194,6 +194,63 @@ describe("team tracker routes", () => {
     );
   });
 
+  it("POST /api/team-tracker/:accountId/items rejects duplicate Jira issues already planned for the day", async () => {
+    await seedIssue();
+    await trackerService.addItem("dev-1", "2026-03-07", {
+      itemType: "jira",
+      jiraKey: "AM-123",
+      title: "Linked Jira task",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/team-tracker/dev-1/items",
+      body: {
+        date: "2026-03-07",
+        itemType: "jira",
+        jiraKey: "AM-123",
+        title: "Linked Jira task",
+      },
+    });
+
+    expect(res.status).toBe(409);
+    expect(res.body?.error).toBe(
+      "Jira issue AM-123 is already planned for Alice Smith on 2026-03-07"
+    );
+  });
+
+  it("GET /api/team-tracker/issues/:jiraKey/assignment returns the current assignment", async () => {
+    await seedIssue();
+    const item = await trackerService.addItem("dev-1", "2026-03-07", {
+      itemType: "jira",
+      jiraKey: "AM-123",
+      title: "Linked Jira task",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/team-tracker/issues/AM-123/assignment?date=2026-03-07",
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.assignment).toEqual({
+      date: "2026-03-07",
+      jiraKey: "AM-123",
+      itemId: item.id,
+      title: "Linked Jira task",
+      state: "planned",
+      developer: {
+        accountId: "dev-1",
+        displayName: "Alice Smith",
+        email: undefined,
+        avatarUrl: undefined,
+        isActive: true,
+      },
+    });
+  });
+
   it("GET /api/team-tracker/carry-forward-preview reports remaining carryable items", async () => {
     await seedIssue();
     await trackerService.addItem("dev-1", "2026-03-06", {

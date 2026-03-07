@@ -42,7 +42,14 @@ export function useAddTrackerItem(date: string) {
         title: params.title,
         note: params.note,
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['team-tracker', date] }),
+    onSuccess: (_data, params) => {
+      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      if (params.jiraKey) {
+        qc.invalidateQueries({
+          queryKey: ['team-tracker', 'issue-assignment', date, params.jiraKey],
+        });
+      }
+    },
   });
 }
 

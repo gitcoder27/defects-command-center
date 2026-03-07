@@ -5,6 +5,8 @@ import ReactMarkdown from 'react-markdown';
 import { useIssueDetail } from '@/hooks/useIssueDetail';
 import { useUpdateIssue } from '@/hooks/useUpdateIssue';
 import { useDevelopers } from '@/hooks/useDevelopers';
+import { useAddTrackerItem } from '@/hooks/useTeamTrackerMutations';
+import { useTrackerIssueAssignment } from '@/hooks/useTeamTracker';
 import { useConfig } from '@/hooks/useConfig';
 import { useIssueTagActions } from '@/hooks/useIssueTagActions';
 import { useToast } from '@/context/ToastContext';
@@ -19,6 +21,14 @@ import type { Developer } from '@/types';
 interface TriagePanelProps {
   issueKey?: string;
   onClose: () => void;
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? name;
 }
 
 function PropertyCard({
@@ -53,6 +63,9 @@ function PropertyCard({
 export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
   const { data: issue, isLoading } = useIssueDetail(issueKey);
   const { data: developers } = useDevelopers();
+  const trackerDate = todayIso();
+  const addTrackerItem = useAddTrackerItem(trackerDate);
+  const trackerAssignment = useTrackerIssueAssignment(issue?.jiraKey, trackerDate);
   const { data: config } = useConfig();
   const { allTags, assignedTagIds, isPending: isTagMutationPending, toggleTag, createOrAssignTag } = useIssueTagActions({
     issueKey: issue?.jiraKey,
@@ -65,16 +78,48 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
   const [newTagName, setNewTagName] = useState('');
   const [notesValue, setNotesValue] = useState('');
   const [notesSaved, setNotesSaved] = useState(true);
+  const [trackerAccountId, setTrackerAccountId] = useState<string | undefined>();
+  const [trackerAddedAccountId, setTrackerAddedAccountId] = useState<string | undefined>();
   const notesTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const renderedDescription = useMemo(() => formatIssueDescription(issue?.description), [issue?.description]);
+  const selectedTrackerDeveloper = useMemo(
+    () => developers?.find((dev) => dev.accountId === trackerAccountId),
+    [developers, trackerAccountId]
+  );
+  const activeTrackerAssignment = trackerAssignment.data;
+  const isAlreadyTrackedToday = Boolean(activeTrackerAssignment);
 
   // Sync local notes state with issue data
   useEffect(() => {
     if (issue) {
       setNotesValue(issue.analysisNotes ?? '');
       setNotesSaved(true);
+      setTrackerAddedAccountId(undefined);
     }
   }, [issue?.jiraKey, issue?.analysisNotes]);
+
+  useEffect(() => {
+    if (!developers?.length) {
+      setTrackerAccountId(undefined);
+      return;
+    }
+
+    setTrackerAccountId((current) => {
+      if (current && developers.some((dev) => dev.accountId === current)) {
+        return current;
+      }
+
+      if (activeTrackerAssignment?.developer.accountId && developers.some((dev) => dev.accountId === activeTrackerAssignment.developer.accountId)) {
+        return activeTrackerAssignment.developer.accountId;
+      }
+
+      if (issue?.assigneeId && developers.some((dev) => dev.accountId === issue.assigneeId)) {
+        return issue.assigneeId;
+      }
+
+      return developers[0]?.accountId;
+    });
+  }, [activeTrackerAssignment?.developer.accountId, developers, issue?.assigneeId, issue?.jiraKey]);
 
   const saveNotes = useCallback(
     (value: string) => {
@@ -148,6 +193,38 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
       }
     );
   };
+
+  const handleAddToTracker = useCallback(() => {
+    if (!issue || !selectedTrackerDeveloper || isAlreadyTrackedToday) {
+      return;
+    }
+
+    addTrackerItem.mutate(
+      {
+        accountId: selectedTrackerDeveloper.accountId,
+        itemType: 'jira',
+        jiraKey: issue.jiraKey,
+        title: issue.summary,
+      },
+      {
+        onSuccess: () => {
+          setTrackerAddedAccountId(selectedTrackerDeveloper.accountId);
+          addToast({
+            type: 'success',
+            title: `${issue.jiraKey} added to ${firstName(selectedTrackerDeveloper.displayName)}'s plan`,
+            message: `Tracker queue updated for ${trackerDate}.`,
+          });
+        },
+        onError: (err) => {
+          addToast({
+            type: 'error',
+            title: `Failed to add ${issue.jiraKey} to Team Tracker`,
+            message: err.message,
+          });
+        },
+      }
+    );
+  }, [addToast, addTrackerItem, isAlreadyTrackedToday, issue, selectedTrackerDeveloper, trackerDate]);
 
   return (
     <AnimatePresence>
@@ -368,6 +445,141 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
                 </div>
               </div>
 
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold uppercase flex items-center gap-1.5" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+                    <Plus size={12} /> Team Tracker
+                  </span>
+                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    Today
+                  </span>
+                </div>
+                <div
+                  className="rounded-xl px-3 py-3"
+                  style={{
+                    background: 'var(--bg-tertiary)',
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  {developers && developers.length > 0 ? (
+                    <>
+                      <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+                        Add this Jira issue to a developer&apos;s planned queue without leaving triage.
+                      </div>
+                      {isAlreadyTrackedToday && activeTrackerAssignment && (
+                        <div
+                          className="mt-3 rounded-lg px-3 py-2"
+                          style={{
+                            background: activeTrackerAssignment.state === 'in_progress'
+                              ? 'color-mix(in srgb, var(--success) 12%, var(--bg-secondary) 88%)'
+                              : 'color-mix(in srgb, var(--accent-glow) 56%, var(--bg-secondary) 44%)',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          <div className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                            {issue.jiraKey} is already {activeTrackerAssignment.state === 'in_progress' ? 'current work' : 'planned'} for {activeTrackerAssignment.developer.displayName}
+                          </div>
+                          <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                            Duplicate planned items are blocked until this tracker entry is moved, completed, or dropped.
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {developers.map((dev) => {
+                          const isSelected = trackerAccountId === dev.accountId;
+                          const isAssigned = issue?.assigneeId === dev.accountId;
+                          const wasJustAdded = trackerAddedAccountId === dev.accountId;
+                          const isTrackerOwner = activeTrackerAssignment?.developer.accountId === dev.accountId;
+
+                          return (
+                            <button
+                              key={dev.accountId}
+                              type="button"
+                              onClick={() => setTrackerAccountId(dev.accountId)}
+                              aria-pressed={isSelected}
+                              className="rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors"
+                              style={{
+                                background: isSelected
+                                  ? 'color-mix(in srgb, var(--accent-glow) 76%, var(--bg-secondary) 24%)'
+                                  : 'var(--bg-secondary)',
+                                color: isSelected ? 'var(--accent)' : 'var(--text-secondary)',
+                                border: `1px solid ${isSelected ? 'var(--border-active)' : 'var(--border)'}`,
+                              }}
+                            >
+                              <span className="flex items-center gap-1.5">
+                                {wasJustAdded && <Check size={12} />}
+                                <span>{dev.displayName}</span>
+                                {isAssigned && (
+                                  <span
+                                    className="rounded-full px-1.5 py-0.5 text-[10px]"
+                                    style={{
+                                      background: isSelected ? 'rgba(255,255,255,0.55)' : 'var(--bg-tertiary)',
+                                      color: isSelected ? 'var(--accent)' : 'var(--text-muted)',
+                                    }}
+                                  >
+                                    Assigned
+                                  </span>
+                                )}
+                                {isTrackerOwner && (
+                                  <span
+                                    className="rounded-full px-1.5 py-0.5 text-[10px]"
+                                    style={{
+                                      background: isSelected ? 'rgba(255,255,255,0.55)' : 'var(--bg-tertiary)',
+                                      color: isSelected ? 'var(--accent)' : 'var(--text-muted)',
+                                    }}
+                                  >
+                                    In Tracker
+                                  </span>
+                                )}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                            {isAlreadyTrackedToday && activeTrackerAssignment
+                              ? `${activeTrackerAssignment.developer.displayName} already owns this Jira task for ${trackerDate}`
+                              : selectedTrackerDeveloper
+                                ? `Add to ${selectedTrackerDeveloper.displayName}'s plan for ${trackerDate}`
+                                : 'Choose a developer'}
+                          </div>
+                          <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                            {isAlreadyTrackedToday
+                              ? 'Use Team Tracker to update the existing assignment instead of creating a duplicate.'
+                              : 'Creates a Jira-linked planned item in Team Tracker.'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleAddToTracker}
+                          disabled={!selectedTrackerDeveloper || addTrackerItem.isPending || isAlreadyTrackedToday}
+                          className="shrink-0 rounded-lg px-3 py-2 text-[12px] font-medium disabled:opacity-40"
+                          style={{
+                            background: 'var(--accent-glow)',
+                            color: 'var(--accent)',
+                            border: '1px solid color-mix(in srgb, var(--accent) 28%, transparent)',
+                          }}
+                        >
+                          {addTrackerItem.isPending
+                            ? 'Adding...'
+                            : isAlreadyTrackedToday && activeTrackerAssignment
+                              ? `Already in ${firstName(activeTrackerAssignment.developer.displayName)}'s plan`
+                              : selectedTrackerDeveloper
+                              ? `Add to ${firstName(selectedTrackerDeveloper.displayName)}`
+                              : 'Add to Team Tracker'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                      Add active team members in Settings to send Jira issues into Team Tracker.
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Tags */}
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -376,10 +588,17 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
                   </span>
                   <button
                     onClick={() => setShowTagPicker((p) => !p)}
-                    className="p-0.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors"
-                    title="Add tag"
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors"
+                    title={showTagPicker ? 'Hide tag editor' : 'Add tag'}
+                    aria-label={showTagPicker ? 'Hide tag editor' : 'Add tag'}
+                    style={{
+                      color: 'var(--text-secondary)',
+                      background: showTagPicker ? 'var(--bg-secondary)' : 'transparent',
+                      border: '1px solid var(--border)',
+                    }}
                   >
                     <Plus size={14} style={{ color: 'var(--text-muted)' }} />
+                    {showTagPicker ? 'Close' : 'Add Tag'}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-2">
@@ -395,7 +614,17 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
                     </button>
                   ))}
                   {issue.localTags.length === 0 && !showTagPicker && (
-                    <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>No tags assigned</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>No tags assigned</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowTagPicker(true)}
+                        className="text-[11px] font-medium"
+                        style={{ color: 'var(--accent)' }}
+                      >
+                        Add one
+                      </button>
+                    </div>
                   )}
                 </div>
                 {showTagPicker && (

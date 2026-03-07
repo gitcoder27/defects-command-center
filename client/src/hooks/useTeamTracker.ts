@@ -1,9 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { TeamTrackerBoardResponse } from '@/types';
+import type { TeamTrackerBoardResponse, TrackerIssueAssignment } from '@/types';
 
 interface CarryForwardPreviewResponse {
   carryable: number;
+}
+
+interface TrackerIssueAssignmentResponse {
+  assignment?: TrackerIssueAssignment;
 }
 
 export function useTeamTracker(date: string) {
@@ -26,5 +30,21 @@ export function useCarryForwardPreview(fromDate: string, toDate: string, enabled
     },
     enabled,
     staleTime: 30_000,
+  });
+}
+
+export function useTrackerIssueAssignment(jiraKey?: string, date?: string) {
+  return useQuery<TrackerIssueAssignment | undefined>({
+    queryKey: ['team-tracker', 'issue-assignment', date, jiraKey],
+    queryFn: async () => {
+      const params = new URLSearchParams({ date: date! });
+      const res = await api.get<TrackerIssueAssignmentResponse>(
+        `/team-tracker/issues/${encodeURIComponent(jiraKey!)}/assignment?${params.toString()}`
+      );
+      return res.assignment;
+    },
+    enabled: Boolean(jiraKey && date),
+    staleTime: 0,
+    refetchOnMount: true,
   });
 }

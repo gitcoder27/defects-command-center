@@ -68,6 +68,16 @@ const carryForwardPreviewSchema = z.object({
   params: z.any().optional(),
 });
 
+const issueAssignmentSchema = z.object({
+  params: z.object({
+    jiraKey: z.string().min(1, "jiraKey is required"),
+  }),
+  query: z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  }),
+  body: z.any().optional(),
+});
+
 const updateItemSchema = z.object({
   params: z.object({
     itemId: z.string().regex(/^\d+$/, "Invalid item id"),
@@ -135,6 +145,21 @@ export function createTeamTrackerRouter(
       next(error);
     }
   });
+
+  router.get(
+    "/issues/:jiraKey/assignment",
+    validate(issueAssignmentSchema),
+    async (req, res, next) => {
+      try {
+        const jiraKey = req.params.jiraKey as string;
+        const date = req.query.date as string;
+        const assignment = await trackerService.getIssueAssignment(jiraKey, date);
+        res.json({ assignment });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
 
   // PATCH /api/team-tracker/:accountId/day
   router.patch(
