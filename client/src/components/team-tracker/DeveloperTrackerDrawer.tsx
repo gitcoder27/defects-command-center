@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { X, MessageSquare, Save } from 'lucide-react';
 import type { TrackerDeveloperDay, TrackerDeveloperStatus, Issue } from '@/types';
+import type { TrackerWorkItem } from '@/types';
 import { TrackerStatusPill } from './TrackerStatusPill';
 import { TrackerItemRow } from './TrackerItemRow';
 import { AddTrackerItemForm } from './AddTrackerItemForm';
@@ -45,6 +46,42 @@ export function DeveloperTrackerDrawer({
   const [checkInText, setCheckInText] = useState('');
   const [notesText, setNotesText] = useState('');
   const [notesEditing, setNotesEditing] = useState(false);
+  const [localPlannedItems, setLocalPlannedItems] = useState<TrackerWorkItem[]>([]);
+  const isDraggingRef = useRef(false);
+
+  // Sync local planned items from server data when not actively dragging
+  useEffect(() => {
+    if (day && !isDraggingRef.current) {
+      setLocalPlannedItems(day.plannedItems);
+    }
+  }, [day?.plannedItems]);
+
+  const handleDragReorder = useCallback(
+    (newOrder: TrackerWorkItem[]) => {
+      setLocalPlannedItems(newOrder);
+    },
+    []
+  );
+
+  const handleDragEnd = useCallback(() => {
+    isDraggingRef.current = false;
+    if (!day) return;
+
+    // Find the item that moved and compute its new target position
+    const oldIds = day.plannedItems.map((i) => i.id);
+    const newIds = localPlannedItems.map((i) => i.id);
+
+    // Find the moved item: compare old vs new by index
+    for (let i = 0; i < newIds.length; i++) {
+      if (oldIds[i] !== newIds[i]) {
+        const movedItemId = newIds[i];
+        if (movedItemId === undefined) break;
+        const targetPosition = day.plannedItems[i]?.position ?? i;
+        onReorderPlannedItem({ itemId: movedItemId, position: targetPosition });
+        break;
+      }
+    }
+  }, [day, localPlannedItems, onReorderPlannedItem]);
 
   const handleSaveNotes = () => {
     if (!day) return;
@@ -175,32 +212,44 @@ export function DeveloperTrackerDrawer({
                 <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
                   Planned ({day.plannedItems.length})
                 </div>
-                <div className="space-y-0.5">
-                  {day.plannedItems.map((item, index) => (
-                    <TrackerItemRow
-                      key={item.id}
-                      item={item}
-                      onMoveUp={() =>
-                        onReorderPlannedItem({
-                          itemId: item.id,
-                          position: day.plannedItems[index - 1]?.position ?? item.position,
-                        })
-                      }
-                      onMoveDown={() =>
-                        onReorderPlannedItem({
-                          itemId: item.id,
-                          position: day.plannedItems[index + 1]?.position ?? item.position,
-                        })
-                      }
-                      canMoveUp={index > 0}
-                      canMoveDown={index < day.plannedItems.length - 1}
-                      onUpdateNote={(itemId, note) => onUpdateItemNote({ itemId, note })}
-                      onSetCurrent={onSetCurrent}
-                      onMarkDone={onMarkDone}
-                      onDrop={onDropItem}
-                    />
-                  ))}
-                </div>
+                {localPlannedItems.length > 0 ? (
+                  <Reorder.Group
+                    axis="y"
+                    values={localPlannedItems}
+                    onReorder={handleDragReorder}
+                    className="space-y-0.5"
+                    as="div"
+                  >
+                    {localPlannedItems.map((item) => (
+                      <Reorder.Item
+                        key={item.id}
+                        value={item}
+                        onDragStart={() => { isDraggingRef.current = true; }}
+                        onDragEnd={handleDragEnd}
+                        as="div"
+                        whileDrag={{
+                          scale: 1.02,
+                          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
+                          borderRadius: '8px',
+                          background: 'var(--bg-secondary)',
+                          zIndex: 50,
+                        }}
+                        style={{ position: 'relative', cursor: 'grab' }}
+                      >
+                        <TrackerItemRow
+                          item={item}
+                          draggable
+                          onUpdateNote={(itemId, note) => onUpdateItemNote({ itemId, note })}
+                          onSetCurrent={onSetCurrent}
+                          onMarkDone={onMarkDone}
+                          onDrop={onDropItem}
+                        />
+                      </Reorder.Item>
+                    ))}
+                  </Reorder.Group>
+                ) : (
+                  <div className="space-y-0.5" />
+                )}
                 <AddTrackerItemForm
                   onAdd={(params) => onAddItem({ accountId: day.developer.accountId, ...params })}
                   issues={issueList}

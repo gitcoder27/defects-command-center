@@ -229,7 +229,45 @@ describe('TeamTrackerPage', () => {
     });
   });
 
-  it('reorders planned items from the drawer', () => {
+  it('navigates to the previous day when clicking the left arrow', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /previous day/i }));
+    // The date input should now show yesterday
+    expect(screen.getByDisplayValue('2026-03-06')).toBeInTheDocument();
+  });
+
+  it('navigates to the next day when clicking the right arrow', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    // First go to a past date
+    fireEvent.click(screen.getByRole('button', { name: /previous day/i }));
+    // Now click next day
+    fireEvent.click(screen.getByRole('button', { name: /next day/i }));
+    // Should be back to today
+    expect(screen.getByDisplayValue('2026-03-07')).toBeInTheDocument();
+  });
+
+  it('disables next day button when on today', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    const nextDayButton = screen.getByRole('button', { name: /next day/i });
+    expect(nextDayButton).toBeDisabled();
+  });
+
+  it('shows drag handles for planned items in the drawer', () => {
     render(
       <TestWrapper>
         <TeamTrackerPage />
@@ -237,13 +275,32 @@ describe('TeamTrackerPage', () => {
     );
 
     fireEvent.click(screen.getByText('Bob Jones'));
-    const moveDownButton = screen.getAllByTitle('Move down').find((button) => !button.hasAttribute('disabled'));
-    expect(moveDownButton).toBeDefined();
-    fireEvent.click(moveDownButton!);
+    const dragHandles = screen.getAllByTitle('Drag to reorder');
+    // Bob has 2 planned items, each should have a drag handle
+    expect(dragHandles.length).toBe(2);
+  });
+
+  it('updates an existing item note from the drawer', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByText('Bob Jones'));
+    fireEvent.click(screen.getAllByTitle('Edit note')[0]!);
+    const noteEditor = screen.getAllByRole('textbox').find((element) => element.tagName === 'TEXTAREA');
+    expect(noteEditor).toBeDefined();
+    fireEvent.change(noteEditor!, {
+      target: { value: 'Needs a tighter ETA' },
+    });
+    const saveButton = screen.getAllByText('Save').find((element) => !element.hasAttribute('disabled'));
+    expect(saveButton).toBeDefined();
+    fireEvent.click(saveButton!);
 
     expect(mockUpdateTrackerItemMutate).toHaveBeenCalledWith({
-      itemId: 11,
-      position: 2,
+      itemId: 10,
+      note: 'Needs a tighter ETA',
     });
   });
 });
@@ -330,5 +387,96 @@ describe('TrackerItemRow', () => {
     );
     const textEl = screen.getByText('Finished task');
     expect(textEl.style.textDecoration).toBe('line-through');
+  });
+
+  it('saves edited notes through the provided callback', async () => {
+    const { TrackerItemRow } = await import('@/components/team-tracker/TrackerItemRow');
+    const onUpdateNote = vi.fn();
+
+    render(
+      <TrackerItemRow
+        item={{
+          id: 4,
+          dayId: 1,
+          itemType: 'custom',
+          title: 'Investigate logs',
+          note: 'Initial context',
+          state: 'planned',
+          position: 0,
+          createdAt: '2026-03-07T08:00:00Z',
+          updatedAt: '2026-03-07T08:00:00Z',
+        }}
+        onUpdateNote={onUpdateNote}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle('Edit note'));
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: 'Updated context' },
+    });
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(onUpdateNote).toHaveBeenCalledWith(4, 'Updated context');
+  });
+});
+
+describe('AddTrackerItemForm', () => {
+  it('creates a custom item with an optional note', async () => {
+    const { AddTrackerItemForm } = await import('@/components/team-tracker/AddTrackerItemForm');
+    const onAdd = vi.fn();
+
+    render(<AddTrackerItemForm onAdd={onAdd} />);
+
+    fireEvent.click(screen.getByText('Custom'));
+    const titleInput = screen.getByPlaceholderText('What are they working on?');
+    fireEvent.change(titleInput, {
+      target: { value: 'Prep release notes' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Optional note'), {
+      target: { value: 'Need this before standup' },
+    });
+    fireEvent.keyDown(titleInput, { key: 'Enter' });
+
+    expect(onAdd).toHaveBeenCalledWith({
+      itemType: 'custom',
+      title: 'Prep release notes',
+      note: 'Need this before standup',
+    });
+  });
+
+  it('creates a Jira item with an optional note', async () => {
+    const { AddTrackerItemForm } = await import('@/components/team-tracker/AddTrackerItemForm');
+    const onAdd = vi.fn();
+
+    render(
+      <AddTrackerItemForm
+        onAdd={onAdd}
+        issues={[
+          {
+            jiraKey: 'AM-789',
+            summary: 'Fix alert regression',
+            priorityName: 'High',
+            dueDate: '2026-03-10',
+          },
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Jira'));
+    fireEvent.change(screen.getByPlaceholderText('Search Jira issues...'), {
+      target: { value: 'AM-789' },
+    });
+    fireEvent.click(screen.getByText('Fix alert regression'));
+    fireEvent.change(screen.getByPlaceholderText('Optional note'), {
+      target: { value: 'Needs pairing with QA' },
+    });
+    fireEvent.click(screen.getByText('Add Jira Item'));
+
+    expect(onAdd).toHaveBeenCalledWith({
+      itemType: 'jira',
+      jiraKey: 'AM-789',
+      title: 'Fix alert regression',
+      note: 'Needs pairing with QA',
+    });
   });
 });

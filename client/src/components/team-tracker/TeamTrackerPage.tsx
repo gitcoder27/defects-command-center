@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, ArrowRight } from 'lucide-react';
+import { Calendar, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTeamTracker } from '@/hooks/useTeamTracker';
 import {
   useUpdateDay,
@@ -117,17 +117,36 @@ export function TeamTrackerPage() {
               </button>
             )}
             <div
-              className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5"
+              className="flex items-center gap-0.5 rounded-xl px-1 py-0.5"
               style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
             >
-              <Calendar size={12} style={{ color: 'var(--text-muted)' }} />
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="text-[12px] font-mono bg-transparent outline-none"
-                style={{ color: 'var(--text-primary)', colorScheme: 'dark' }}
-              />
+              <button
+                onClick={() => setDate(shiftIsoDate(date, -1))}
+                className="h-7 w-7 rounded-lg flex items-center justify-center transition-colors hover:brightness-125"
+                style={{ color: 'var(--text-secondary)' }}
+                aria-label="Previous day"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <div className="flex items-center gap-1.5 px-1.5">
+                <Calendar size={12} style={{ color: 'var(--text-muted)' }} />
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="text-[12px] font-mono bg-transparent outline-none"
+                  style={{ color: 'var(--text-primary)', colorScheme: 'dark' }}
+                />
+              </div>
+              <button
+                onClick={() => setDate(shiftIsoDate(date, 1))}
+                disabled={isToday}
+                className="h-7 w-7 rounded-lg flex items-center justify-center transition-colors hover:brightness-125 disabled:opacity-30"
+                style={{ color: 'var(--text-secondary)' }}
+                aria-label="Next day"
+              >
+                <ChevronRight size={14} />
+              </button>
             </div>
             {!isToday && (
               <button

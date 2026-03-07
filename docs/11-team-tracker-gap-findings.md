@@ -15,24 +15,24 @@ This is not a statement that the feature is broken overall. The implemented Team
 
 ## Summary
 
-The Team Tracker MVP is largely implemented. Seven meaningful gaps remain, and four originally identified items are now fixed:
+The Team Tracker MVP is largely implemented. Five meaningful gaps remain, and six originally identified items are now fixed:
 
 Fixed on 2026-03-07:
 
-1. Planned-item reordering in the drawer is implemented.
+1. Planned-item reordering in the drawer is implemented, including drag-and-drop.
 2. Jira-linked items now show priority and due-date context.
 3. Item notes are now editable in the UI.
 4. The single-current-item rule is now enforced through service logic.
+5. Date navigation now has quick prev/next day arrow controls.
+6. Drag-and-drop reordering replaces simple up/down controls in the drawer.
 
 Still open:
 
-5. Jira-linked item validation is weaker than the design expects.
-6. Carry-forward UX is partially implemented and uses brittle date logic.
-7. Frontend and route-level coverage do not yet match the implementation plan.
-8. Per-item title editing is not supported in the drawer.
-9. Date navigation lacks quick prev/next day controls.
-10. Carry-forward does not auto-prompt on first visit to a new day.
-11. Reorder UX should plan for drag-and-drop beyond simple up/down controls.
+7. Jira-linked item validation is weaker than the design expects.
+8. Carry-forward UX is partially implemented and uses brittle date logic.
+9. Frontend and route-level coverage do not yet match the implementation plan.
+10. Per-item title editing is not supported in the drawer.
+11. Carry-forward does not auto-prompt on first visit to a new day.
 
 ## Findings
 
@@ -56,10 +56,11 @@ Status:
 
 Implementation notes:
 
-- The drawer now exposes explicit up/down controls for planned items.
+- The drawer now supports full drag-and-drop reordering of planned items using framer-motion's `Reorder` API.
+- A grip handle on each planned item provides a clear affordance for drag interaction.
 - Reorder actions persist through `PATCH /api/team-tracker/items/:itemId`.
-- The service now normalizes sibling positions when a move occurs so the queue remains stable.
-- This satisfies the MVP expectation for simple reorder controls while leaving drag-and-drop as a future enhancement.
+- The service normalizes sibling positions when a move occurs so the queue remains stable.
+- Drag-and-drop replaces the earlier up/down arrow buttons, providing a more natural and efficient reordering experience.
 
 ### Fixed: Jira-linked items show priority and due-date context
 
@@ -217,7 +218,7 @@ Likely remediation:
 - Add click-to-edit for item titles in the drawer.
 - Wire title edits to the existing `useUpdateTrackerItem` mutation.
 
-### P3: Date navigation lacks quick prev/next day controls
+### Fixed: Date navigation now has quick prev/next day controls
 
 Affected requirements:
 
@@ -227,19 +228,17 @@ Affected code:
 
 - `client/src/components/team-tracker/TeamTrackerPage.tsx`
 
-Analysis:
+Status:
 
-- The page header includes a native date input and a "Today" button, but no single-click controls to move one day forward or backward.
-- Reviewing yesterday's board or planning tomorrow's queue requires manual date picker interaction, which is slower than necessary for a daily-cadence tool.
+- Fixed on 2026-03-07.
 
-User-visible impact:
+Implementation notes:
 
-- Navigating between adjacent days takes more clicks than expected, slowing the morning review and EOD wrap-up workflows.
-
-Likely remediation:
-
-- Add left/right arrow buttons flanking the date display to decrement/increment by one day.
-- Optionally skip weekends when advancing/going back.
+- ChevronLeft and ChevronRight arrow buttons now flank the date picker input.
+- The left arrow navigates to the previous day; the right arrow navigates to the next day.
+- The next-day button is disabled when already viewing today, preventing navigation into the future.
+- The arrows, date picker, and Today button are grouped in a single cohesive control strip.
+- Frontend tests cover previous-day navigation, next-day navigation, and the disabled state.
 
 ### P3: Test coverage is thinner than the implementation plan intended
 
@@ -271,12 +270,7 @@ Likely remediation:
 
 ## Recommended Follow-Up
 
-1. Implement planned-item reordering in the drawer and wire it to `position`; plan for drag-and-drop after MVP.
-2. Extend Jira-linked item snapshots to include priority and due-date context.
-3. Add item-note create/edit UI.
-4. Enforce the single-current-item rule in one backend write path.
-5. Tighten Jira item validation.
-6. Fix carry-forward UX to use explicit selected dates and auto-prompt on new day.
-7. Expand automated coverage around the remaining gaps.
-8. Add per-item inline editing for title and notes in the drawer.
-9. Add prev/next day navigation arrows to the date header.
+1. Tighten Jira item validation.
+2. Fix carry-forward UX to use explicit selected dates and auto-prompt on new day.
+3. Expand automated coverage around the remaining gaps.
+4. Add per-item inline title editing in the drawer.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { TrackerItemState, TrackerWorkItem } from '@/types';
-import { Play, CheckCircle2, XCircle, GripVertical, StickyNote, ArrowUp, ArrowDown, Save, PencilLine } from 'lucide-react';
+import { Play, CheckCircle2, XCircle, GripVertical, StickyNote, Save, PencilLine } from 'lucide-react';
 import { formatDate, priorityColor } from '@/lib/utils';
 
 interface TrackerItemRowProps {
@@ -14,6 +14,7 @@ interface TrackerItemRowProps {
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   compact?: boolean;
+  draggable?: boolean;
 }
 
 const stateIcons: Record<TrackerItemState, { icon: typeof Play; color: string }> = {
@@ -34,6 +35,7 @@ export function TrackerItemRow({
   canMoveUp = false,
   canMoveDown = false,
   compact,
+  draggable,
 }: TrackerItemRowProps) {
   const [noteEditing, setNoteEditing] = useState(false);
   const [draftNote, setDraftNote] = useState(item.note ?? '');
@@ -61,10 +63,21 @@ export function TrackerItemRow({
         borderLeft: isActive ? '2px solid var(--accent)' : '2px solid transparent',
       }}
     >
-      <Icon
-        size={compact ? 12 : 14}
-        style={{ color: stateInfo.color, flexShrink: 0 }}
-      />
+      {draggable ? (
+        <div
+          data-drag-handle
+          className="cursor-grab active:cursor-grabbing touch-none shrink-0 flex items-center justify-center h-5 w-5 rounded"
+          style={{ color: 'var(--text-muted)' }}
+          title="Drag to reorder"
+        >
+          <GripVertical size={14} />
+        </div>
+      ) : (
+        <Icon
+          size={compact ? 12 : 14}
+          style={{ color: stateInfo.color, flexShrink: 0 }}
+        />
+      )}
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
@@ -155,7 +168,7 @@ export function TrackerItemRow({
 
       {!isDone && (
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          {item.state === 'planned' && onMoveUp && (
+          {!draggable && item.state === 'planned' && onMoveUp && (
             <button
               onClick={() => onMoveUp(item.id)}
               disabled={!canMoveUp}
@@ -163,10 +176,10 @@ export function TrackerItemRow({
               style={{ background: 'var(--bg-tertiary)' }}
               title="Move up"
             >
-              <ArrowUp size={10} style={{ color: 'var(--text-secondary)' }} />
+              <GripVertical size={10} style={{ color: 'var(--text-secondary)' }} />
             </button>
           )}
-          {item.state === 'planned' && onMoveDown && (
+          {!draggable && item.state === 'planned' && onMoveDown && (
             <button
               onClick={() => onMoveDown(item.id)}
               disabled={!canMoveDown}
@@ -174,7 +187,7 @@ export function TrackerItemRow({
               style={{ background: 'var(--bg-tertiary)' }}
               title="Move down"
             >
-              <ArrowDown size={10} style={{ color: 'var(--text-secondary)' }} />
+              <GripVertical size={10} style={{ color: 'var(--text-secondary)' }} />
             </button>
           )}
           {item.state !== 'in_progress' && onSetCurrent && (
