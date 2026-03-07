@@ -169,9 +169,9 @@ export function FilterSidebar({
     Number(selectedTagId !== undefined || noTagsFilter);
 
   const renderExpandedPanel = (mobile: boolean) => (
-    <div className="h-full p-1.5">
+    <div className="h-full p-1">
       <div
-        className="h-full rounded-[18px] border overflow-hidden flex flex-col shadow-[0_24px_64px_rgba(0,0,0,0.28)]"
+        className="h-full rounded-[14px] border overflow-hidden flex flex-col shadow-[0_24px_64px_rgba(0,0,0,0.28)]"
         style={{
           borderColor: 'var(--border)',
           background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 96%, white 4%) 0%, color-mix(in srgb, var(--bg-primary) 88%, var(--bg-secondary) 12%) 100%)',

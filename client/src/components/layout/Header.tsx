@@ -26,10 +26,10 @@ export function Header({ onOpenSettings, onOpenMobileSidebar, activeView, onView
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="shrink-0 px-2 pt-1.5 md:px-2.5 md:pt-2"
+      className="shrink-0 px-1.5 pt-1 md:px-2 md:pt-1.5"
     >
       <div
-        className="dashboard-panel rounded-[16px] px-3 py-2 md:px-3.5 md:py-2 flex flex-col gap-1.5 lg:flex-row lg:items-center lg:justify-between"
+        className="dashboard-panel rounded-[14px] px-2.5 py-1.5 md:px-3 md:py-1.5 flex flex-col gap-1 lg:flex-row lg:items-center lg:justify-between"
         style={{ borderColor: 'var(--border-strong)' }}
       >
         <div className="flex items-center gap-3 min-w-0">

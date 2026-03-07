@@ -43,9 +43,9 @@ function AppContent() {
     return (
       <div className="h-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
         <Header activeView={activeView} onViewChange={setActiveView} />
-        <div className="flex-1 min-h-0 px-2 pb-1.5 md:px-2.5 md:pb-2">
+        <div className="flex-1 min-h-0 px-1.5 pb-1 md:px-2 md:pb-1.5">
           <div
-            className="h-full min-h-0 rounded-[22px] border overflow-hidden flex flex-col"
+            className="h-full min-h-0 rounded-[16px] border overflow-hidden flex flex-col"
             style={{
               borderColor: 'var(--border-strong)',
               background: 'color-mix(in srgb, var(--bg-primary) 84%, transparent)',

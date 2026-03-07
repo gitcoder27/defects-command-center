@@ -44,7 +44,7 @@ export function OverviewCard({ label, count, color, isActive, onClick, delay = 0
       transition={{ duration: 0.35, delay: 0.06 + delay * 0.05, ease: 'easeOut' }}
       onClick={onClick}
       aria-pressed={isActive}
-      className="w-full cursor-pointer transition-all duration-200 rounded-[12px] border px-2.5 py-2 text-left overflow-hidden relative min-h-[56px]"
+      className="w-full cursor-pointer transition-all duration-200 rounded-[10px] border px-2 py-1.5 text-left overflow-hidden relative min-h-[48px]"
       style={{
         background: isActive
           ? `linear-gradient(160deg, ${color}16 0%, color-mix(in srgb, var(--bg-secondary) 93%, white 7%) 72%)`

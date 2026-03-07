@@ -427,8 +427,8 @@ export function DefectTable({
 
   if (isLoading) {
     return (
-      <div className="flex-1 min-w-0 min-h-0 p-1.5 md:p-2">
-        <div className="dashboard-panel rounded-[18px] h-full p-2.5" style={{ borderColor: 'var(--border-strong)' }}>
+      <div className="flex-1 min-w-0 min-h-0 p-1 md:p-1.5">
+        <div className="dashboard-panel rounded-[14px] h-full p-2" style={{ borderColor: 'var(--border-strong)' }}>
           <div className="flex items-center justify-between gap-3 pb-1.5">
             <div className="text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
               Loading defects
@@ -437,7 +437,7 @@ export function DefectTable({
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className="h-11 mb-1.5 rounded-[14px] animate-pulse"
+              className="h-10 mb-1 rounded-[12px] animate-pulse"
               style={{ background: 'var(--bg-secondary)' }}
             />
           ))}
@@ -448,8 +448,8 @@ export function DefectTable({
 
   if (!baseIssues.length) {
     return (
-      <div className="flex-1 min-w-0 min-h-0 p-1.5 md:p-2">
-        <div className="dashboard-panel rounded-[18px] h-full flex items-center justify-center p-4 text-center" style={{ borderColor: 'var(--border-strong)' }}>
+      <div className="flex-1 min-w-0 min-h-0 p-1 md:p-1.5">
+        <div className="dashboard-panel rounded-[14px] h-full flex items-center justify-center p-4 text-center" style={{ borderColor: 'var(--border-strong)' }}>
           <div>
             <p className="text-[15px]" style={{ color: 'var(--text-secondary)' }}>
             {filter !== 'all'
@@ -463,11 +463,11 @@ export function DefectTable({
   }
 
   return (
-    <div className="flex-1 min-w-0 min-h-0 p-1.5 md:p-2">
-      <div className="dashboard-panel rounded-[18px] h-full min-w-0 min-h-0 flex flex-col overflow-hidden" style={{ borderColor: 'var(--border-strong)' }}>
+    <div className="flex-1 min-w-0 min-h-0 p-1 md:p-1.5">
+      <div className="dashboard-panel rounded-[14px] h-full min-w-0 min-h-0 flex flex-col overflow-hidden" style={{ borderColor: 'var(--border-strong)' }}>
         <div
           ref={searchContainerRef}
-          className="px-2.5 py-2 border-b flex items-center justify-between gap-2"
+          className="px-2 py-1.5 border-b flex items-center justify-between gap-2"
           style={{ borderColor: 'var(--border)' }}
         >
           <div className="min-w-0 flex items-center gap-2">
@@ -539,7 +539,7 @@ export function DefectTable({
         </div>
 
         <div
-          className="flex-1 min-w-0 overflow-auto px-1.5 pb-1.5"
+          className="flex-1 min-w-0 overflow-auto px-1 pb-1"
           ref={tableRef}
           onMouseDownCapture={handleTableMouseDownCapture}
           onClickCapture={handleTableClickCapture}
@@ -556,7 +556,7 @@ export function DefectTable({
               </div>
             </div>
           ) : (
-            <table className="min-w-full border-separate border-spacing-y-1">
+            <table className="min-w-full border-separate border-spacing-y-0.5">
               <thead>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
@@ -564,7 +564,7 @@ export function DefectTable({
                       <th
                         key={header.id}
                         onClick={header.column.getToggleSortingHandler()}
-                        className="text-left text-[11px] font-semibold uppercase px-3 py-2 cursor-pointer select-none sticky top-0 z-30"
+                        className="text-left text-[11px] font-semibold uppercase px-2 py-1.5 cursor-pointer select-none sticky top-0 z-30"
                         style={{
                           letterSpacing: '0.08em',
                           color: 'var(--text-muted)',
@@ -652,7 +652,7 @@ export function DefectTable({
                     whileHover={{ y: -1, backgroundColor: 'color-mix(in srgb, var(--bg-tertiary) 92%, white 8%)' }}
                   >
                     {row.getVisibleCells().map((cell, cellIndex) => (
-                      <td key={cell.id} className="px-2.5 py-2 text-[13px] relative z-0 first:rounded-l-[14px] last:rounded-r-[14px]">
+                      <td key={cell.id} className="px-2 py-1.5 text-[13px] relative z-0 first:rounded-l-[12px] last:rounded-r-[12px]">
                         {cellIndex === 0 && indicatorReason ? (
                           <span
                             className="absolute left-0 top-0 bottom-0 w-3 flex items-center justify-start cursor-help"
@@ -660,7 +660,7 @@ export function DefectTable({
                             aria-label={`Row indicator: ${indicatorReason}`}
                           >
                             <span
-                              className="block h-full w-[3px] rounded-l-[14px]"
+                              className="block h-full w-[3px] rounded-l-[12px]"
                               style={{ background: leftBorder }}
                             />
                           </span>
