@@ -114,6 +114,8 @@ describe("TeamTrackerService", () => {
 
   describe("addItem", () => {
     it("creates a planned item with correct position", async () => {
+      await seedIssue();
+
       const item1 = await service.addItem("dev-1", "2026-03-07", {
         itemType: "custom",
         title: "First",
@@ -141,6 +143,16 @@ describe("TeamTrackerService", () => {
 
       expect(item.jiraPriorityName).toBe("High");
       expect(item.jiraDueDate).toBe("2026-03-08");
+    });
+
+    it("rejects Jira-linked items whose key is not present in synced issues", async () => {
+      await expect(
+        service.addItem("dev-1", "2026-03-07", {
+          itemType: "jira",
+          jiraKey: "AM-999",
+          title: "Missing Jira task",
+        })
+      ).rejects.toThrow("Jira issue AM-999 is not available in synced issues");
     });
   });
 
@@ -303,6 +315,29 @@ describe("TeamTrackerService", () => {
   });
 
   describe("carryForward", () => {
+    it("previews only items that still need to be carried into the target day", async () => {
+      await service.addItem("dev-1", "2026-03-06", {
+        itemType: "custom",
+        title: "Unfinished task",
+      });
+      await service.addItem("dev-1", "2026-03-06", {
+        itemType: "custom",
+        title: "Second unfinished task",
+      });
+
+      await service.addItem("dev-1", "2026-03-07", {
+        itemType: "custom",
+        title: "Unfinished task",
+      });
+
+      const carryable = await service.previewCarryForward(
+        "2026-03-06",
+        "2026-03-07"
+      );
+
+      expect(carryable).toBe(1);
+    });
+
     it("carries unfinished items to the next day", async () => {
       await service.addItem("dev-1", "2026-03-06", {
         itemType: "custom",
@@ -325,6 +360,8 @@ describe("TeamTrackerService", () => {
     });
 
     it("skips items already present on the target day and is safe to retry", async () => {
+      await seedIssue();
+
       await service.addItem("dev-1", "2026-03-06", {
         itemType: "custom",
         title: "Already carried",

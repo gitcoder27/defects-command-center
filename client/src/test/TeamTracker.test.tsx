@@ -5,6 +5,9 @@ import type { TeamTrackerBoardResponse, TrackerDeveloperDay, Issue } from '@/typ
 
 const mockCarryForwardMutate = vi.fn();
 const mockUpdateTrackerItemMutate = vi.fn();
+const mockAddTrackerItemMutate = vi.fn();
+let mockCarryForwardPreviewValue = 0;
+let mockIssues: Issue[] = [];
 
 const mockDay: (overrides?: Partial<TrackerDeveloperDay>) => TrackerDeveloperDay = (overrides = {}) => ({
   id: 1,
@@ -80,11 +83,16 @@ const mockBoard: TeamTrackerBoardResponse = {
 
 vi.mock('@/hooks/useTeamTracker', () => ({
   useTeamTracker: () => ({ data: mockBoard, isLoading: false }),
+  useCarryForwardPreview: () => ({
+    data: mockCarryForwardPreviewValue,
+    isLoading: false,
+    isError: false,
+  }),
 }));
 
 vi.mock('@/hooks/useTeamTrackerMutations', () => ({
   useUpdateDay: () => ({ mutate: vi.fn() }),
-  useAddTrackerItem: () => ({ mutate: vi.fn(), isPending: false }),
+  useAddTrackerItem: () => ({ mutate: mockAddTrackerItemMutate, isPending: false }),
   useSetCurrentItem: () => ({ mutate: vi.fn() }),
   useUpdateTrackerItem: () => ({ mutate: mockUpdateTrackerItemMutate }),
   useDeleteTrackerItem: () => ({ mutate: vi.fn() }),
@@ -93,7 +101,7 @@ vi.mock('@/hooks/useTeamTrackerMutations', () => ({
 }));
 
 vi.mock('@/hooks/useIssues', () => ({
-  useIssues: () => ({ data: [] as Issue[] }),
+  useIssues: () => ({ data: mockIssues }),
 }));
 
 // Minimal framer-motion stub for tests
@@ -113,6 +121,10 @@ describe('TeamTrackerPage', () => {
     vi.setSystemTime(new Date('2026-03-07T12:00:00.000Z'));
     mockCarryForwardMutate.mockReset();
     mockUpdateTrackerItemMutate.mockReset();
+    mockAddTrackerItemMutate.mockReset();
+    mockCarryForwardPreviewValue = 0;
+    mockIssues = [];
+    window.sessionStorage.clear();
   });
 
   afterEach(() => {
@@ -226,6 +238,86 @@ describe('TeamTrackerPage', () => {
     expect(mockCarryForwardMutate).toHaveBeenCalledWith({
       fromDate: '2026-03-05',
       toDate: '2026-03-06',
+    });
+  });
+
+  it('shows a carry-forward prompt on first visit when previous-day work is available', () => {
+    mockCarryForwardPreviewValue = 2;
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText('2 unfinished items from 2026-03-06')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
+
+    expect(mockCarryForwardMutate).toHaveBeenCalledWith(
+      { fromDate: '2026-03-06', toDate: '2026-03-07' },
+      expect.objectContaining({ onSuccess: expect.any(Function) })
+    );
+  });
+
+  it('lets the user dismiss the carry-forward prompt for the viewed date', () => {
+    mockCarryForwardPreviewValue = 1;
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /dismiss carry-forward prompt/i }));
+
+    expect(screen.queryByText('1 unfinished item from 2026-03-06')).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem('team-tracker:carry-forward-prompt:2026-03-07')).toBe('dismissed');
+  });
+
+  it('adds a Jira-linked item from the drawer using the synced issue picker', () => {
+    mockIssues = [
+      {
+        jiraKey: 'AM-456',
+        summary: 'Investigate API latency',
+        description: 'Investigate slow endpoint responses',
+        priorityName: 'Highest',
+        priorityId: '1',
+        statusName: 'To Do',
+        statusCategory: 'new',
+        assigneeId: 'dev-2',
+        assigneeName: 'Bob Jones',
+        reporterName: 'Lead',
+        component: 'API',
+        labels: [],
+        dueDate: '2026-03-08',
+        developmentDueDate: undefined,
+        flagged: false,
+        createdAt: '2026-03-07T08:00:00Z',
+        updatedAt: '2026-03-07T08:00:00Z',
+        localTags: [],
+      },
+    ];
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByText('Bob Jones'));
+    fireEvent.click(screen.getByRole('button', { name: 'Jira' }));
+    fireEvent.change(screen.getByPlaceholderText('Search Jira issues...'), {
+      target: { value: 'AM-456' },
+    });
+    fireEvent.click(screen.getByText('Investigate API latency'));
+    fireEvent.click(screen.getByRole('button', { name: /add jira item/i }));
+
+    expect(mockAddTrackerItemMutate).toHaveBeenCalledWith({
+      accountId: 'dev-2',
+      itemType: 'jira',
+      jiraKey: 'AM-456',
+      title: 'Investigate API latency',
+      note: undefined,
     });
   });
 

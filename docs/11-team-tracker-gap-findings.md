@@ -15,7 +15,7 @@ This is not a statement that the feature is broken overall. The implemented Team
 
 ## Summary
 
-The Team Tracker MVP is largely implemented. Three meaningful gaps remain, and eight originally identified items are now fixed:
+The Team Tracker MVP is implemented and the gaps identified in this review are now closed:
 
 Fixed on 2026-03-07:
 
@@ -27,12 +27,9 @@ Fixed on 2026-03-07:
 6. Drag-and-drop reordering replaces simple up/down controls in the drawer.
 7. Carry-forward correctly uses the selected date, not a hardcoded yesterday.
 8. Per-item title editing is now supported via click-to-edit in the drawer.
-
-Still open:
-
-9. Jira-linked item validation is weaker than the design expects.
-10. Frontend and route-level coverage do not yet match the implementation plan.
-11. Carry-forward does not auto-prompt on first visit to a new day.
+9. Jira-linked item validation now requires a valid synced Jira key.
+10. Frontend and route-level coverage now cover the tracker flows called out in the implementation plan.
+11. Carry-forward now auto-prompts on first visit to a new day when prior unfinished work exists.
 
 ## Findings
 
@@ -131,7 +128,7 @@ Implementation notes:
 - `updateItem()` now uses the same single-current enforcement path as `setCurrentItem()` when a direct state update sets an item to `in_progress`.
 - This closes the API-level gap where multiple items on the same developer/day could previously be marked current through the patch endpoint.
 
-### P2: Jira-linked item validation is weaker than the design expects
+### Fixed: Jira-linked item validation now matches the intended contract
 
 Affected requirements:
 
@@ -141,22 +138,19 @@ Affected code:
 
 - `server/src/routes/team-tracker.ts`
 - `server/src/services/team-tracker.service.ts`
+- `server/tests/team-tracker.service.test.ts`
+- `server/tests/team-tracker.routes.test.ts`
 
-Analysis:
+Status:
 
-- The implementation plan says `jiraKey` should be required when `itemType = 'jira'`.
-- The current route schema allows Jira items without a `jiraKey`.
-- The backend also does not verify that the selected Jira issue exists in the synced local issue set.
+- Fixed on 2026-03-07.
 
-User-visible impact:
+Implementation notes:
 
-- The tracker can accept incomplete or invalid Jira-linked items.
-- This weakens one of the core distinctions between Jira-linked and custom work.
-
-Likely remediation:
-
-- Tighten request validation so Jira items require a `jiraKey`.
-- Validate that the key exists in synced issues before creating the item.
+- Route validation now requires `jiraKey` when `itemType = 'jira'` and rejects stray Jira keys on custom items.
+- Service logic now verifies that a Jira-linked tracker item references an issue present in the synced local `issues` table.
+- Invalid Jira-linked item requests now fail with a `400` instead of silently creating incomplete tracker data.
+- Service and route tests cover both the missing-key and unknown-key cases.
 
 ### Fixed: Carry-forward correctly uses the selected date
 
@@ -229,7 +223,7 @@ Implementation notes:
 - The arrows, date picker, and Today button are grouped in a single cohesive control strip.
 - Frontend tests cover previous-day navigation, next-day navigation, and the disabled state.
 
-### P3: Test coverage is thinner than the implementation plan intended
+### Fixed: Team Tracker coverage now includes route-level and broader frontend flows
 
 Affected requirements:
 
@@ -238,27 +232,48 @@ Affected requirements:
 Affected code:
 
 - `server/tests/team-tracker.service.test.ts`
+- `server/tests/team-tracker.routes.test.ts`
 - `client/src/test/TeamTracker.test.tsx`
+- `client/src/components/team-tracker/TeamTrackerPage.tsx`
 
-Analysis:
+Status:
 
-- Current backend tests cover core service behavior and currently pass.
-- Current frontend tests cover rendering, summary filtering, basic status display, and drawer opening.
-- The implementation plan called for deeper coverage, including app-shell navigation, mutation behavior, add-item flows, and broader visual-state assertions.
-- No dedicated route-level integration tests were identified for the Team Tracker API.
+- Fixed on 2026-03-07.
 
-User-visible impact:
+Implementation notes:
 
-- The current build is testable, but some regressions could slip through more easily than intended.
-- The uncovered areas align with several of the remaining product gaps.
+- Backend coverage now includes dedicated Team Tracker route tests for board loading, active-developer filtering, Jira item validation failures, and carry-forward preview responses.
+- Frontend coverage now includes the carry-forward prompt flow and Jira-linked add-item flow in addition to the previously added drawer-edit and navigation tests.
+- Service coverage also now explicitly exercises invalid Jira-linked item rejection and carry-forward preview behavior.
 
-Likely remediation:
+### Fixed: Carry-forward now auto-prompts on first visit to a new day
 
-- Add frontend tests for view switching, add-item flows, check-ins, carry-forward, and mutation-driven state refresh.
-- Add backend route tests and a test that explicitly confirms inactive developers are excluded from the board.
+Affected requirements:
+
+- `docs/07-team-tracker-prd.md`
+- `docs/08-team-tracker-implementation-plan.md`
+
+Affected code:
+
+- `client/src/components/team-tracker/TeamTrackerPage.tsx`
+- `client/src/hooks/useTeamTracker.ts`
+- `server/src/routes/team-tracker.ts`
+- `server/src/services/team-tracker.service.ts`
+- `client/src/test/TeamTracker.test.tsx`
+- `server/tests/team-tracker.routes.test.ts`
+
+Status:
+
+- Fixed on 2026-03-07.
+
+Implementation notes:
+
+- The tracker now uses a dedicated carry-forward preview endpoint that reports how many unfinished items from the previous day are still eligible to be carried into the viewed date.
+- On first visit to a date, the page shows a carry-forward prompt when prior unfinished work exists and has not already been carried into that date.
+- Dismissing the prompt is remembered per viewed date for the current browser session, while the existing manual carry-forward action remains available for explicit day-to-next-day moves.
+- The preview path is read-only and avoids fetching prior-day boards in a way that would create tracker day rows as a side effect.
 
 ## Recommended Follow-Up
 
-1. Tighten Jira item validation.
-2. Expand automated coverage around the remaining gaps.
-3. Auto-prompt carry-forward on first visit to a new day.
+1. Monitor whether the carry-forward prompt should eventually persist dismissal across browser sessions instead of the current session-only behavior.
+2. Consider extracting the lightweight route test `invoke()` helper if more route modules adopt the same pattern.

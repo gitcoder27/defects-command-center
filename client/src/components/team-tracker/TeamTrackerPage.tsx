@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useTeamTracker } from '@/hooks/useTeamTracker';
+import { Calendar, ArrowRight, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useTeamTracker, useCarryForwardPreview } from '@/hooks/useTeamTracker';
 import {
   useUpdateDay,
   useAddTrackerItem,
@@ -26,13 +26,44 @@ function shiftIsoDate(date: string, days: number): string {
   return shifted.toISOString().slice(0, 10);
 }
 
+function getCarryForwardPromptKey(date: string): string {
+  return `team-tracker:carry-forward-prompt:${date}`;
+}
+
+function readCarryForwardPromptState(date: string): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  try {
+    return window.sessionStorage.getItem(getCarryForwardPromptKey(date)) === 'dismissed';
+  } catch {
+    return false;
+  }
+}
+
+function writeCarryForwardPromptState(date: string): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(getCarryForwardPromptKey(date), 'dismissed');
+  } catch {
+    // Ignore storage access failures; the prompt will simply reappear.
+  }
+}
+
 export function TeamTrackerPage() {
   const [date, setDate] = useState(todayIso);
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
   const [drawerAccountId, setDrawerAccountId] = useState<string | undefined>();
+  const [carryPromptDismissed, setCarryPromptDismissed] = useState(() => readCarryForwardPromptState(todayIso()));
 
   const { data: board, isLoading } = useTeamTracker(date);
   const { data: issues } = useIssues('all');
+  const previousDate = useMemo(() => shiftIsoDate(date, -1), [date]);
+  const carryForwardPreview = useCarryForwardPreview(previousDate, date, !carryPromptDismissed);
 
   const updateDay = useUpdateDay(date);
   const addItem = useAddTrackerItem(date);
@@ -72,7 +103,33 @@ export function TeamTrackerPage() {
     carryForward.mutate({ fromDate: date, toDate: shiftIsoDate(date, 1) });
   }, [carryForward, date]);
 
+  const dismissCarryForwardPrompt = useCallback(() => {
+    writeCarryForwardPromptState(date);
+    setCarryPromptDismissed(true);
+  }, [date]);
+
+  const handleCarryForwardFromPreviousDay = useCallback(() => {
+    carryForward.mutate(
+      { fromDate: previousDate, toDate: date },
+      {
+        onSuccess: () => {
+          dismissCarryForwardPrompt();
+        },
+      }
+    );
+  }, [carryForward, date, dismissCarryForwardPrompt, previousDate]);
+
+  useEffect(() => {
+    setCarryPromptDismissed(readCarryForwardPromptState(date));
+  }, [date]);
+
   const isToday = date === todayIso();
+  const carryableFromPreviousDay = carryForwardPreview.data ?? 0;
+  const showCarryForwardPrompt =
+    !carryPromptDismissed &&
+    !carryForwardPreview.isLoading &&
+    !carryForwardPreview.isError &&
+    carryableFromPreviousDay > 0;
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -170,6 +227,49 @@ export function TeamTrackerPage() {
             activeFilter={summaryFilter}
             onFilterChange={setSummaryFilter}
           />
+        )}
+
+        {showCarryForwardPrompt && (
+          <div
+            className="mt-2 flex items-center justify-between gap-3 rounded-[16px] border px-3 py-2"
+            style={{
+              borderColor: 'var(--border-strong)',
+              background: 'color-mix(in srgb, var(--accent-glow) 34%, var(--bg-secondary) 66%)',
+            }}
+          >
+            <div className="min-w-0">
+              <div className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                {carryableFromPreviousDay} unfinished item{carryableFromPreviousDay === 1 ? '' : 's'} from {previousDate}
+              </div>
+              <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                Carry them into {date} before you start updating today&apos;s board.
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={handleCarryForwardFromPreviousDay}
+                disabled={carryForward.isPending}
+                className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium disabled:opacity-50"
+                style={{
+                  background: 'var(--accent-glow)',
+                  color: 'var(--accent)',
+                  border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
+                }}
+              >
+                Carry Forward
+              </button>
+              <button
+                type="button"
+                onClick={dismissCarryForwardPrompt}
+                className="h-8 w-8 rounded-lg flex items-center justify-center"
+                style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}
+                aria-label="Dismiss carry-forward prompt"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
         )}
       </motion.div>
 

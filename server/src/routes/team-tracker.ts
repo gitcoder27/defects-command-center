@@ -31,14 +31,41 @@ const addItemSchema = z.object({
   params: z.object({
     accountId: z.string().regex(/^[A-Za-z0-9:_-]+$/, "Invalid account id"),
   }),
-  body: z.object({
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    itemType: z.enum(["jira", "custom"]),
-    jiraKey: z.string().optional(),
-    title: z.string().min(1).max(500),
-    note: z.string().max(2000).optional(),
-  }),
+  body: z
+    .object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      itemType: z.enum(["jira", "custom"]),
+      jiraKey: z.string().trim().optional(),
+      title: z.string().min(1).max(500),
+      note: z.string().max(2000).optional(),
+    })
+    .superRefine((body, ctx) => {
+      if (body.itemType === "jira" && !body.jiraKey) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["jiraKey"],
+          message: "jiraKey is required for Jira items",
+        });
+      }
+
+      if (body.itemType === "custom" && body.jiraKey) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["jiraKey"],
+          message: "jiraKey is only allowed for Jira items",
+        });
+      }
+    }),
   query: z.any().optional(),
+});
+
+const carryForwardPreviewSchema = z.object({
+  query: z.object({
+    fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  }),
+  body: z.any().optional(),
+  params: z.any().optional(),
 });
 
 const updateItemSchema = z.object({
@@ -214,6 +241,26 @@ export function createTeamTrackerRouter(
   );
 
   // POST /api/team-tracker/carry-forward
+  router.get(
+    "/carry-forward-preview",
+    validate(carryForwardPreviewSchema),
+    async (req, res, next) => {
+      try {
+        const { fromDate, toDate } = req.query as {
+          fromDate: string;
+          toDate: string;
+        };
+        const carryable = await trackerService.previewCarryForward(
+          fromDate,
+          toDate
+        );
+        res.json({ carryable });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
   router.post(
     "/carry-forward",
     validate(carryForwardSchema),
