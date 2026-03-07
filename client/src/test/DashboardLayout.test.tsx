@@ -58,8 +58,8 @@ vi.mock('@/components/triage/TriagePanel', () => ({
 }));
 
 vi.mock('@/components/workload/WorkloadBar', () => ({
-  WorkloadBar: ({ onDeveloperClick }: { onDeveloperClick: (accountId: string) => void }) => (
-    <button onClick={() => onDeveloperClick('dev-1')}>Select Developer</button>
+  WorkloadBar: ({ activeDeveloper, onDeveloperClick }: { activeDeveloper?: string; onDeveloperClick: (accountId?: string) => void }) => (
+    <button onClick={() => onDeveloperClick(activeDeveloper === 'dev-1' ? undefined : 'dev-1')}>Select Developer</button>
   ),
 }));
 
@@ -93,6 +93,18 @@ describe('DashboardLayout', () => {
     expect(lastCall.isMobile).toBe(false);
     expect(lastCall.open).toBe(true);
     expect(lastCall.collapsed).toBe(true);
+  });
+
+  it('syncs workload developer selection into the sidebar and defect table filters', () => {
+    render(<DashboardLayout />);
+
+    fireEvent.click(screen.getByText('Select Developer'));
+
+    const lastSidebarCall = filterSidebarSpy.mock.calls.at(-1)?.[0] as { activeDeveloper?: string };
+    const lastTableCall = defectTableSpy.mock.calls.at(-1)?.[0] as { assigneeFilter?: string };
+
+    expect(lastSidebarCall.activeDeveloper).toBe('dev-1');
+    expect(lastTableCall.assigneeFilter).toBe('dev-1');
   });
 
   it('opens the mobile drawer from the header toggle', () => {

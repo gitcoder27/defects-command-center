@@ -6,14 +6,19 @@ import { DeveloperCard } from './DeveloperCard';
 import { workloadColor } from '@/lib/utils';
 
 interface WorkloadBarProps {
-  onDeveloperClick: (accountId: string) => void;
+  activeDeveloper?: string;
+  onDeveloperClick: (accountId?: string) => void;
 }
 
-export function WorkloadBar({ onDeveloperClick }: WorkloadBarProps) {
+export function WorkloadBar({ activeDeveloper, onDeveloperClick }: WorkloadBarProps) {
   const { data: workload, isLoading } = useWorkload();
   const [expanded, setExpanded] = useState(false);
 
   if (isLoading || !workload?.length) return null;
+
+  function handleDeveloperSelect(accountId: string) {
+    onDeveloperClick(activeDeveloper === accountId ? undefined : accountId);
+  }
 
   return (
     <motion.div
@@ -23,63 +28,116 @@ export function WorkloadBar({ onDeveloperClick }: WorkloadBarProps) {
       className="flex flex-col shrink-0 px-2 pb-1.5 pt-1 md:px-2.5 md:pb-2"
     >
       <div className="dashboard-panel rounded-[16px] overflow-hidden" style={{ borderColor: 'var(--border-strong)' }}>
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="w-full flex items-center gap-2.5 px-2.5 py-2 cursor-pointer shrink-0"
-        >
-          <span className="h-7 w-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
-            <Users size={16} />
-          </span>
-          <span className="min-w-0 text-left">
-            <span
-              className="text-[11px] font-semibold uppercase block"
-              style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}
+        <div className={`shrink-0 ${expanded ? 'px-2.5 py-2' : 'px-2 py-1.5'}`}>
+          <div className={`flex items-center ${expanded ? 'gap-2.5' : 'gap-1.5'}`}>
+            <button
+              type="button"
+              onClick={() => setExpanded((prev) => !prev)}
+              className={`flex items-center text-left shrink-0 ${expanded ? 'min-w-0 flex-1 gap-2.5' : 'gap-2 rounded-full border pl-1.5 pr-2.5 py-1'}`}
+              aria-expanded={expanded}
+              aria-label={expanded ? 'Collapse workload panel' : 'Expand workload panel'}
+              style={expanded ? undefined : {
+                borderColor: 'var(--border)',
+                background: 'color-mix(in srgb, var(--bg-secondary) 82%, transparent)',
+              }}
             >
-              Workload
-            </span>
-            <span className="text-[15px] font-medium block" style={{ color: 'var(--text-primary)' }}>
-              Team capacity radar
-            </span>
-          </span>
-
-          {!expanded && (
-            <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto no-scrollbar">
-              {workload.map((dev) => {
-                const isIdle = dev.activeDefects === 0;
-                const color = isIdle ? 'var(--text-muted)' : workloadColor(dev.level);
-                return (
-                  <span
-                    key={dev.developer.accountId}
-                    className="flex items-center gap-2 shrink-0 rounded-full px-2.5 py-1.5"
-                    style={{ background: 'var(--bg-tertiary)' }}
-                  >
+              <span className="h-7 w-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
+                <Users size={16} />
+              </span>
+              <span className="min-w-0 text-left">
+                {expanded ? (
+                  <>
                     <span
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{ background: color }}
-                    />
-                    <span
-                      className="text-[11px] truncate"
-                      style={{ color: 'var(--text-secondary)', maxWidth: 100 }}
+                      className="text-[11px] font-semibold uppercase block"
+                      style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}
                     >
-                      {dev.developer.displayName.split(' ')[0]}
+                      Workload
                     </span>
-                    <span className="font-mono text-[11px] font-semibold tabular-nums" style={{ color }}>
-                      {dev.score}
+                    <span className="text-[15px] font-medium block" style={{ color: 'var(--text-primary)' }}>
+                      Team capacity radar
+                    </span>
+                  </>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <span className="text-[12px] font-semibold uppercase" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
+                      Workload
+                    </span>
+                    <span
+                      className="rounded-full px-2 py-0.5 text-[10px] font-mono"
+                      style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}
+                    >
+                      {workload.length}
                     </span>
                   </span>
-                );
-              })}
-            </div>
-          )}
+                )}
+              </span>
+            </button>
 
-          <span className="shrink-0 ml-auto h-7 w-7 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg-tertiary)' }}>
-            {expanded ? (
-              <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
-            ) : (
-              <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} />
+            {!expanded && (
+              <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto no-scrollbar">
+                {workload.map((dev) => {
+                  const isIdle = dev.activeDefects === 0;
+                  const color = isIdle ? 'var(--text-muted)' : workloadColor(dev.level);
+                  const isActive = activeDeveloper === dev.developer.accountId;
+                  return (
+                    <button
+                      key={dev.developer.accountId}
+                      type="button"
+                      onClick={() => handleDeveloperSelect(dev.developer.accountId)}
+                      aria-label={`Filter by ${dev.developer.displayName}`}
+                      aria-pressed={isActive}
+                      className="flex items-center gap-1.5 shrink-0 rounded-full border px-2 py-1 transition-colors"
+                      style={{
+                        borderColor: isActive ? 'var(--accent)' : 'var(--border)',
+                        background: isActive
+                          ? 'color-mix(in srgb, var(--accent-glow) 78%, var(--bg-secondary) 22%)'
+                          : 'color-mix(in srgb, var(--bg-tertiary) 84%, transparent)',
+                      }}
+                    >
+                      <span
+                        className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold"
+                        style={{
+                          color: isActive ? 'var(--accent)' : color,
+                          background: isActive ? 'rgba(255,255,255,0.55)' : `${color}18`,
+                        }}
+                      >
+                        {dev.developer.displayName
+                          .split(' ')
+                          .filter(Boolean)
+                          .slice(0, 1)
+                          .map((part) => part[0]?.toUpperCase() ?? '')
+                          .join('')}
+                      </span>
+                      <span
+                        className="text-[11px] truncate"
+                        style={{ color: isActive ? 'var(--accent)' : 'var(--text-secondary)', maxWidth: 76 }}
+                      >
+                        {dev.developer.displayName.split(' ')[0]}
+                      </span>
+                      <span className="font-mono text-[11px] font-semibold tabular-nums" style={{ color: isActive ? 'var(--accent)' : color }}>
+                        {dev.score}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
-          </span>
-        </button>
+
+            <button
+              type="button"
+              onClick={() => setExpanded((prev) => !prev)}
+              className="shrink-0 h-7 w-7 rounded-xl flex items-center justify-center"
+              style={{ background: 'var(--bg-tertiary)' }}
+              aria-label={expanded ? 'Collapse workload panel' : 'Expand workload panel'}
+            >
+              {expanded ? (
+                <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
+              ) : (
+                <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} />
+              )}
+            </button>
+          </div>
+        </div>
 
         <AnimatePresence>
           {expanded && (
@@ -100,7 +158,8 @@ export function WorkloadBar({ onDeveloperClick }: WorkloadBarProps) {
                       key={dev.developer.accountId}
                       dev={dev}
                       expanded={true}
-                      onClick={() => onDeveloperClick(dev.developer.accountId)}
+                      active={activeDeveloper === dev.developer.accountId}
+                      onClick={() => handleDeveloperSelect(dev.developer.accountId)}
                     />
                   ))}
                 </div>

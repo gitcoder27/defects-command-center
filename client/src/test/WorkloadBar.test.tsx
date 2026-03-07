@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { WorkloadBar } from '@/components/workload/WorkloadBar';
 import { TestWrapper } from '@/test/wrapper';
@@ -30,6 +30,10 @@ vi.mock('@/hooks/useWorkload', () => ({
 describe('WorkloadBar', () => {
   const onDeveloperClick = vi.fn();
 
+  beforeEach(() => {
+    onDeveloperClick.mockClear();
+  });
+
   it('renders developer cards', () => {
     render(
       <TestWrapper>
@@ -48,11 +52,8 @@ describe('WorkloadBar', () => {
       </TestWrapper>
     );
 
-    // Expand the workload panel to reveal full DeveloperCards with ⚠ badges
-    const toggle = screen.getByText('Workload').closest('button')!;
-    fireEvent.click(toggle);
+    fireEvent.click(screen.getAllByLabelText('Expand workload panel')[0]!);
 
-    // Eve has 0 active defects, should show warning
     const warnings = screen.getAllByText('⚠');
     expect(warnings.length).toBeGreaterThanOrEqual(1);
   });
@@ -66,5 +67,32 @@ describe('WorkloadBar', () => {
 
     expect(screen.getByText('9')).toBeInTheDocument();
     expect(screen.getByText('0')).toBeInTheDocument();
+  });
+
+  it('applies a developer filter when a collapsed pill is clicked', () => {
+    render(
+      <TestWrapper>
+        <WorkloadBar onDeveloperClick={onDeveloperClick} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by Alice' }));
+
+    expect(onDeveloperClick).toHaveBeenCalledWith('alice-1');
+  });
+
+  it('clears the developer filter when the active pill is clicked again', () => {
+    render(
+      <TestWrapper>
+        <WorkloadBar activeDeveloper="alice-1" onDeveloperClick={onDeveloperClick} />
+      </TestWrapper>
+    );
+
+    const aliceFilter = screen.getByRole('button', { name: 'Filter by Alice' });
+    expect(aliceFilter).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(aliceFilter);
+
+    expect(onDeveloperClick).toHaveBeenCalledWith(undefined);
   });
 });

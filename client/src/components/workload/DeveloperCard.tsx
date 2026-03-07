@@ -5,10 +5,11 @@ import type { DeveloperWorkload } from '@/types';
 interface DeveloperCardProps {
   dev: DeveloperWorkload;
   expanded: boolean;
+  active?: boolean;
   onClick: () => void;
 }
 
-export function DeveloperCard({ dev, expanded, onClick }: DeveloperCardProps) {
+export function DeveloperCard({ dev, expanded, active = false, onClick }: DeveloperCardProps) {
   const maxScore = 20;
   const fillPercent = Math.min((dev.score / maxScore) * 100, 100);
   const isIdle = dev.activeDefects === 0;
@@ -18,11 +19,14 @@ export function DeveloperCard({ dev, expanded, onClick }: DeveloperCardProps) {
     <button
       onClick={onClick}
       className="flex flex-col gap-2 cursor-pointer transition-all duration-200 rounded-[16px] border p-2.5 text-left"
+      aria-pressed={active}
       style={{
         minWidth: expanded ? 160 : 0,
-        borderColor: 'var(--border)',
-        background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 92%, white 8%) 0%, color-mix(in srgb, var(--bg-primary) 90%, var(--bg-secondary) 10%) 100%)',
-        boxShadow: 'var(--soft-shadow)',
+        borderColor: active ? 'var(--accent)' : 'var(--border)',
+        background: active
+          ? 'linear-gradient(180deg, color-mix(in srgb, var(--accent-glow) 72%, var(--bg-secondary) 28%) 0%, color-mix(in srgb, var(--accent-glow) 42%, var(--bg-primary) 58%) 100%)'
+          : 'linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 92%, white 8%) 0%, color-mix(in srgb, var(--bg-primary) 90%, var(--bg-secondary) 10%) 100%)',
+        boxShadow: active ? '0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent), var(--soft-shadow)' : 'var(--soft-shadow)',
       }}
     >
       <div className="flex items-start gap-2">

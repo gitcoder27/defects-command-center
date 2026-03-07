@@ -16,6 +16,7 @@ interface DeveloperTrackerDrawerProps {
   onAddItem: (params: { accountId: string; itemType: 'jira' | 'custom'; jiraKey?: string; title: string; note?: string }) => void;
   onReorderPlannedItem: (params: { itemId: number; position: number }) => void;
   onUpdateItemNote: (params: { itemId: number; note?: string }) => void;
+  onUpdateItemTitle: (params: { itemId: number; title: string }) => void;
   onSetCurrent: (itemId: number) => void;
   onMarkDone: (itemId: number) => void;
   onDropItem: (itemId: number) => void;
@@ -35,6 +36,7 @@ export function DeveloperTrackerDrawer({
   onAddItem,
   onReorderPlannedItem,
   onUpdateItemNote,
+  onUpdateItemTitle,
   onSetCurrent,
   onMarkDone,
   onDropItem,
@@ -196,6 +198,7 @@ export function DeveloperTrackerDrawer({
                   <TrackerItemRow
                     item={day.currentItem}
                     onUpdateNote={(itemId, note) => onUpdateItemNote({ itemId, note })}
+                    onUpdateTitle={(itemId, title) => onUpdateItemTitle({ itemId, title })}
                     onSetCurrent={onSetCurrent}
                     onMarkDone={onMarkDone}
                     onDrop={onDropItem}
@@ -240,6 +243,7 @@ export function DeveloperTrackerDrawer({
                           item={item}
                           draggable
                           onUpdateNote={(itemId, note) => onUpdateItemNote({ itemId, note })}
+                          onUpdateTitle={(itemId, title) => onUpdateItemTitle({ itemId, title })}
                           onSetCurrent={onSetCurrent}
                           onMarkDone={onMarkDone}
                           onDrop={onDropItem}
