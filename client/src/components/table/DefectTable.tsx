@@ -427,7 +427,7 @@ export function DefectTable({
 
   if (isLoading) {
     return (
-      <div className="flex-1 min-h-0 p-1.5 md:p-2">
+      <div className="flex-1 min-w-0 min-h-0 p-1.5 md:p-2">
         <div className="dashboard-panel rounded-[18px] h-full p-2.5" style={{ borderColor: 'var(--border-strong)' }}>
           <div className="flex items-center justify-between gap-3 pb-1.5">
             <div className="text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
@@ -448,7 +448,7 @@ export function DefectTable({
 
   if (!baseIssues.length) {
     return (
-      <div className="flex-1 min-h-0 p-1.5 md:p-2">
+      <div className="flex-1 min-w-0 min-h-0 p-1.5 md:p-2">
         <div className="dashboard-panel rounded-[18px] h-full flex items-center justify-center p-4 text-center" style={{ borderColor: 'var(--border-strong)' }}>
           <div>
             <p className="text-[15px]" style={{ color: 'var(--text-secondary)' }}>
@@ -463,8 +463,8 @@ export function DefectTable({
   }
 
   return (
-    <div className="flex-1 min-h-0 p-1.5 md:p-2">
-      <div className="dashboard-panel rounded-[18px] h-full min-h-0 flex flex-col overflow-hidden" style={{ borderColor: 'var(--border-strong)' }}>
+    <div className="flex-1 min-w-0 min-h-0 p-1.5 md:p-2">
+      <div className="dashboard-panel rounded-[18px] h-full min-w-0 min-h-0 flex flex-col overflow-hidden" style={{ borderColor: 'var(--border-strong)' }}>
         <div
           ref={searchContainerRef}
           className="px-2.5 py-2 border-b flex items-center justify-between gap-2"
@@ -539,7 +539,7 @@ export function DefectTable({
         </div>
 
         <div
-          className="flex-1 overflow-auto px-1.5 pb-1.5"
+          className="flex-1 min-w-0 overflow-auto px-1.5 pb-1.5"
           ref={tableRef}
           onMouseDownCapture={handleTableMouseDownCapture}
           onClickCapture={handleTableClickCapture}
@@ -556,7 +556,7 @@ export function DefectTable({
               </div>
             </div>
           ) : (
-            <table className="w-full border-separate border-spacing-y-1">
+            <table className="min-w-full border-separate border-spacing-y-1">
               <thead>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
