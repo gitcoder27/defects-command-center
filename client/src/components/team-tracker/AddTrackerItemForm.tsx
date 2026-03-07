@@ -4,7 +4,13 @@ import type { TrackerItemType } from '@/types';
 
 interface AddTrackerItemFormProps {
   onAdd: (params: { itemType: TrackerItemType; title: string; jiraKey?: string; note?: string }) => void;
-  issues?: Array<{ jiraKey: string; summary: string }>;
+  issues?: Array<{
+    jiraKey: string;
+    summary: string;
+    priorityName?: string;
+    dueDate?: string;
+    developmentDueDate?: string;
+  }>;
   isPending?: boolean;
 }
 
@@ -126,15 +132,29 @@ export function AddTrackerItemForm({ onAdd, issues, isPending }: AddTrackerItemF
               key={issue.jiraKey}
               onClick={() => handleSelectJira(issue.jiraKey, issue.summary)}
               disabled={isPending && selectedJiraKey === issue.jiraKey}
-              className="w-full text-left px-2 py-1.5 flex items-center gap-2 transition-colors"
+              className="w-full text-left px-2 py-1.5 transition-colors"
               style={{ borderBottom: '1px solid var(--border)' }}
             >
-              <span className="font-mono text-[10px] font-semibold shrink-0" style={{ color: 'var(--accent)' }}>
-                {issue.jiraKey}
-              </span>
-              <span className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>
-                {issue.summary}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[10px] font-semibold shrink-0" style={{ color: 'var(--accent)' }}>
+                  {issue.jiraKey}
+                </span>
+                <span className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>
+                  {issue.summary}
+                </span>
+              </div>
+              {(issue.priorityName || issue.developmentDueDate || issue.dueDate) && (
+                <div className="mt-0.5 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                  {[
+                    issue.priorityName,
+                    (issue.developmentDueDate ?? issue.dueDate)
+                      ? `Due ${issue.developmentDueDate ?? issue.dueDate}`
+                      : undefined,
+                  ]
+                    .filter(Boolean)
+                    .join(' • ')}
+                </div>
+              )}
             </button>
           ))}
         </div>

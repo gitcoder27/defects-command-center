@@ -4,21 +4,26 @@ Date: 2026-03-07
 
 ## Scope
 
-This note captures the remaining Team Tracker gaps identified by comparing:
+This note captures the Team Tracker gaps identified by comparing:
 
 - `docs/07-team-tracker-prd.md`
 - `docs/08-team-tracker-implementation-plan.md`
 
 against the current implementation in `client/`, `server/`, and `shared/`.
 
-This is not a statement that the feature is broken overall. The implemented Team Tracker flows are present and broadly working. This document only records the missing or partial items that still separate the current build from the intended MVP.
+This is not a statement that the feature is broken overall. The implemented Team Tracker flows are present and broadly working. This document records the identified gaps and, where applicable, notes items that have since been fixed.
 
 ## Summary
 
-The Team Tracker MVP is largely implemented, but eleven meaningful gaps remain:
+The Team Tracker MVP is largely implemented. Nine meaningful gaps remain, and two originally identified items are now fixed:
 
-1. Planned-item reordering is not implemented.
-2. Jira-linked items do not show the required Jira context.
+Fixed on 2026-03-07:
+
+1. Planned-item reordering in the drawer is implemented.
+2. Jira-linked items now show priority and due-date context.
+
+Still open:
+
 3. Item notes exist in the model but are not editable in the UI.
 4. The single-current-item rule is only partially enforced.
 5. Jira-linked item validation is weaker than the design expects.
@@ -31,7 +36,7 @@ The Team Tracker MVP is largely implemented, but eleven meaningful gaps remain:
 
 ## Findings
 
-### P1: Planned-item reordering is missing from the drawer workflow
+### Fixed: Planned-item reordering is available in the drawer workflow
 
 Affected requirements:
 
@@ -42,27 +47,21 @@ Affected code:
 
 - `client/src/components/team-tracker/DeveloperTrackerDrawer.tsx`
 - `client/src/components/team-tracker/TrackerItemRow.tsx`
-- `client/src/hooks/useTeamTrackerMutations.ts`
+- `client/src/components/team-tracker/TeamTrackerPage.tsx`
+- `server/src/services/team-tracker.service.ts`
 
-Analysis:
+Status:
 
-- The PRD requires the lead to reorder next-up items when priorities change.
-- The implementation plan explicitly calls out reorder support in the detail drawer, with simple up/down controls acceptable for MVP.
-- The current drawer renders planned items, but there are no reorder controls and no UI that updates `position`.
-- The mutation layer does support updating `position`, but nothing in the frontend uses it.
+- Fixed on 2026-03-07.
 
-User-visible impact:
+Implementation notes:
 
-- The lead cannot reprioritize a developer's planned queue from the dashboard.
-- Midday follow-up and interruption/replanning workflows are incomplete.
+- The drawer now exposes explicit up/down controls for planned items.
+- Reorder actions persist through `PATCH /api/team-tracker/items/:itemId`.
+- The service now normalizes sibling positions when a move occurs so the queue remains stable.
+- This satisfies the MVP expectation for simple reorder controls while leaving drag-and-drop as a future enhancement.
 
-Likely remediation:
-
-- Add explicit reorder controls in the drawer.
-- Persist order changes through `PATCH /api/team-tracker/items/:itemId`.
-- For MVP, up/down arrow buttons are sufficient; plan for drag-and-drop as a follow-up enhancement using a library such as `@dnd-kit/sortable` to provide tactile reorder semantics and reduce click count during busy triage sessions.
-
-### P2: Jira-linked items do not show priority or due-date context
+### Fixed: Jira-linked items show priority and due-date context
 
 Affected requirements:
 
@@ -75,23 +74,18 @@ Affected code:
 - `server/src/services/team-tracker.service.ts`
 - `client/src/components/team-tracker/TrackerItemRow.tsx`
 - `client/src/components/team-tracker/AddTrackerItemForm.tsx`
+- `client/src/types/index.ts`
 
-Analysis:
+Status:
 
-- The PRD says Jira-linked items should show issue key, title, priority, and due-date context.
-- The current tracker data model only carries `jiraKey` and `title` for Jira-linked items.
-- The backend does not resolve or snapshot Jira metadata from the synced issues table.
-- The frontend therefore renders only key and title.
+- Fixed on 2026-03-07.
 
-User-visible impact:
+Implementation notes:
 
-- Jira-linked work lacks the operational context that distinguishes one issue from another.
-- The tracker does not fully deliver the intended “Jira-linked but manager-owned” view.
-
-Likely remediation:
-
-- Extend tracker item data to include snapshot Jira metadata such as priority and effective due date.
-- Populate those values when creating Jira-linked items and render them on cards and in the drawer.
+- Tracker item types now carry Jira priority and effective due-date fields.
+- The backend enriches Jira-linked tracker items from the synced local `issues` table.
+- The frontend now renders that context on tracker rows and in the Jira item picker.
+- Due-date context uses the existing effective-date rule of `developmentDueDate ?? dueDate`.
 
 ### P2: Item notes are modeled but not exposed as an editable UI flow
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { TeamTrackerService } from "../src/services/team-tracker.service";
 import { resetDatabase, db } from "./helpers/db";
-import { developers, teamTrackerDays } from "../src/db/schema";
+import { developers, issues, teamTrackerDays } from "../src/db/schema";
 
 const service = new TeamTrackerService();
 
@@ -10,6 +10,38 @@ async function seedDevelopers() {
     { accountId: "dev-1", displayName: "Alice Smith", email: null, avatarUrl: null, isActive: 1 },
     { accountId: "dev-2", displayName: "Bob Jones", email: null, avatarUrl: null, isActive: 1 },
   ]);
+}
+
+async function seedIssue(overrides: Partial<typeof issues.$inferInsert> = {}) {
+  await db.insert(issues).values({
+    jiraKey: "AM-123",
+    summary: "Linked Jira task",
+    description: null,
+    aspenSeverity: null,
+    priorityName: "High",
+    priorityId: "1",
+    statusName: "In Progress",
+    statusCategory: "indeterminate",
+    assigneeId: "dev-1",
+    assigneeName: "Alice Smith",
+    teamScopeState: "in_team",
+    syncScopeState: "active",
+    reporterName: "Lead",
+    component: null,
+    labels: JSON.stringify([]),
+    dueDate: "2026-03-10",
+    developmentDueDate: "2026-03-08",
+    flagged: 0,
+    createdAt: "2026-03-07T08:00:00.000Z",
+    updatedAt: "2026-03-07T08:00:00.000Z",
+    syncedAt: "2026-03-07T08:00:00.000Z",
+    lastSeenInScopedSyncAt: "2026-03-07T08:00:00.000Z",
+    lastReconciledAt: "2026-03-07T08:00:00.000Z",
+    scopeChangedAt: null,
+    analysisNotes: null,
+    excluded: 0,
+    ...overrides,
+  });
 }
 
 describe("TeamTrackerService", () => {
@@ -97,6 +129,19 @@ describe("TeamTrackerService", () => {
       expect(item2.jiraKey).toBe("AM-123");
       expect(item2.state).toBe("planned");
     });
+
+    it("hydrates Jira-linked items with priority and effective due date context", async () => {
+      await seedIssue();
+
+      const item = await service.addItem("dev-1", "2026-03-07", {
+        itemType: "jira",
+        jiraKey: "AM-123",
+        title: "Linked Jira task",
+      });
+
+      expect(item.jiraPriorityName).toBe("High");
+      expect(item.jiraDueDate).toBe("2026-03-08");
+    });
   });
 
   describe("setCurrentItem", () => {
@@ -137,6 +182,36 @@ describe("TeamTrackerService", () => {
       const updated = await service.updateItem(item.id, { state: "done" });
       expect(updated.state).toBe("done");
       expect(updated.completedAt).toBeDefined();
+    });
+
+    it("reorders items by normalizing sibling positions", async () => {
+      const first = await service.addItem("dev-1", "2026-03-07", {
+        itemType: "custom",
+        title: "First",
+      });
+      const second = await service.addItem("dev-1", "2026-03-07", {
+        itemType: "custom",
+        title: "Second",
+      });
+      const third = await service.addItem("dev-1", "2026-03-07", {
+        itemType: "custom",
+        title: "Third",
+      });
+
+      await service.updateItem(third.id, { position: second.position });
+
+      const board = await service.getBoard("2026-03-07");
+      const devDay = board.developers.find(
+        (d) => d.developer.accountId === "dev-1"
+      )!;
+
+      expect(devDay.plannedItems.map((item) => item.title)).toEqual([
+        "First",
+        "Third",
+        "Second",
+      ]);
+      expect(devDay.plannedItems.map((item) => item.position)).toEqual([0, 1, 2]);
+      expect(first.position).toBe(0);
     });
   });
 

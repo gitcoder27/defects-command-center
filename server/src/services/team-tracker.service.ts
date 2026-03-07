@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type {
   TrackerDeveloperStatus,
   TrackerItemState,
@@ -13,10 +13,12 @@ import type {
 import { db } from "../db/connection";
 import {
   developers,
+  issues,
   teamTrackerDays,
   teamTrackerItems,
   teamTrackerCheckIns,
 } from "../db/schema";
+import { getEffectiveDueDate } from "./issue-rules";
 
 const STALE_HOURS = 4;
 
@@ -30,12 +32,24 @@ function isStale(lastCheckInAt: string | null, now = new Date()): boolean {
   return diff > STALE_HOURS * 60 * 60 * 1000;
 }
 
-function mapItem(row: typeof teamTrackerItems.$inferSelect): TrackerWorkItem {
+type TrackerIssueContext = Pick<
+  typeof issues.$inferSelect,
+  "jiraKey" | "priorityName" | "dueDate" | "developmentDueDate"
+>;
+
+function mapItem(
+  row: typeof teamTrackerItems.$inferSelect,
+  issueContext?: TrackerIssueContext
+): TrackerWorkItem {
   return {
     id: row.id,
     dayId: row.dayId,
     itemType: row.itemType as TrackerItemType,
     jiraKey: row.jiraKey ?? undefined,
+    jiraPriorityName: issueContext?.priorityName ?? undefined,
+    jiraDueDate: issueContext
+      ? getEffectiveDueDate(issueContext) ?? undefined
+      : undefined,
     title: row.title,
     state: row.state as TrackerItemState,
     position: row.position,
@@ -99,7 +113,9 @@ export class TeamTrackerService {
         .from(teamTrackerCheckIns)
         .where(eq(teamTrackerCheckIns.dayId, day.id));
 
-      const mapped = items.map(mapItem).sort((a, b) => a.position - b.position);
+      const mapped = (await this.mapItemsWithIssueContext(items)).sort(
+        (a, b) => a.position - b.position
+      );
       const currentItem = mapped.find((i) => i.state === "in_progress");
       const plannedItems = mapped.filter((i) => i.state === "planned");
       const completedItems = mapped.filter((i) => i.state === "done");
@@ -233,7 +249,7 @@ export class TeamTrackerService {
       })
       .returning();
 
-    return mapItem(inserted[0]!);
+    return this.getItemById(inserted[0]!.id);
   }
 
   async updateItem(
@@ -245,12 +261,12 @@ export class TeamTrackerService {
       position?: number;
     }
   ): Promise<TrackerWorkItem> {
+    const existing = await this.getItemRow(itemId);
     const now = nowIso();
     const setFields: Record<string, unknown> = { updatedAt: now };
 
     if (updates.title !== undefined) setFields.title = updates.title;
     if (updates.note !== undefined) setFields.note = updates.note;
-    if (updates.position !== undefined) setFields.position = updates.position;
     if (updates.state !== undefined) {
       setFields.state = updates.state;
       if (updates.state === "done") {
@@ -258,19 +274,18 @@ export class TeamTrackerService {
       }
     }
 
-    await db
-      .update(teamTrackerItems)
-      .set(setFields)
-      .where(eq(teamTrackerItems.id, itemId));
+    if (updates.position !== undefined) {
+      await this.reorderItem(existing, updates.position, now);
+    }
 
-    const rows = await db
-      .select()
-      .from(teamTrackerItems)
-      .where(eq(teamTrackerItems.id, itemId))
-      .limit(1);
+    if (Object.keys(setFields).length > 1) {
+      await db
+        .update(teamTrackerItems)
+        .set(setFields)
+        .where(eq(teamTrackerItems.id, itemId));
+    }
 
-    if (!rows[0]) throw new Error("Item not found");
-    return mapItem(rows[0]!);
+    return this.getItemById(itemId);
   }
 
   async deleteItem(itemId: number): Promise<void> {
@@ -281,14 +296,8 @@ export class TeamTrackerService {
 
   async setCurrentItem(itemId: number): Promise<TrackerWorkItem> {
     // Get the item to find its day
-    const items = await db
-      .select()
-      .from(teamTrackerItems)
-      .where(eq(teamTrackerItems.id, itemId))
-      .limit(1);
-
-    if (!items[0]) throw new Error("Item not found");
-    const dayId = items[0].dayId;
+    const item = await this.getItemRow(itemId);
+    const dayId = item.dayId;
     const now = nowIso();
 
     // Reset all current in_progress items for this day to planned
@@ -315,7 +324,7 @@ export class TeamTrackerService {
       .limit(1);
 
     if (!updated[0]) throw new Error("Item not found after update");
-    return mapItem(updated[0]);
+    return this.getItemById(updated[0].id);
   }
 
   async addCheckIn(
@@ -439,5 +448,101 @@ export class TeamTrackerService {
       noCurrent: days.filter((d) => !d.currentItem).length,
       doneForToday: days.filter((d) => d.status === "done_for_today").length,
     };
+  }
+
+  private async getItemRow(
+    itemId: number
+  ): Promise<typeof teamTrackerItems.$inferSelect> {
+    const rows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.id, itemId))
+      .limit(1);
+
+    if (!rows[0]) throw new Error("Item not found");
+    return rows[0];
+  }
+
+  private async getItemById(itemId: number): Promise<TrackerWorkItem> {
+    const row = await this.getItemRow(itemId);
+    const issueContextMap = await this.getIssueContextMap(
+      row.jiraKey ? [row.jiraKey] : []
+    );
+    return mapItem(row, row.jiraKey ? issueContextMap.get(row.jiraKey) : undefined);
+  }
+
+  private async mapItemsWithIssueContext(
+    rows: Array<typeof teamTrackerItems.$inferSelect>
+  ): Promise<TrackerWorkItem[]> {
+    const jiraKeys = rows
+      .map((row) => row.jiraKey)
+      .filter((jiraKey): jiraKey is string => Boolean(jiraKey));
+    const issueContextMap = await this.getIssueContextMap(jiraKeys);
+
+    return rows.map((row) =>
+      mapItem(row, row.jiraKey ? issueContextMap.get(row.jiraKey) : undefined)
+    );
+  }
+
+  private async getIssueContextMap(
+    jiraKeys: string[]
+  ): Promise<Map<string, TrackerIssueContext>> {
+    const uniqueKeys = [...new Set(jiraKeys)];
+    if (uniqueKeys.length === 0) {
+      return new Map();
+    }
+
+    const rows = await db
+      .select({
+        jiraKey: issues.jiraKey,
+        priorityName: issues.priorityName,
+        dueDate: issues.dueDate,
+        developmentDueDate: issues.developmentDueDate,
+      })
+      .from(issues)
+      .where(inArray(issues.jiraKey, uniqueKeys));
+
+    return new Map(rows.map((row) => [row.jiraKey, row]));
+  }
+
+  private async reorderItem(
+    item: typeof teamTrackerItems.$inferSelect,
+    targetPosition: number,
+    now: string
+  ): Promise<void> {
+    const siblings = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.dayId, item.dayId));
+
+    const ordered = [...siblings].sort(
+      (left, right) => left.position - right.position || left.id - right.id
+    );
+    const currentIndex = ordered.findIndex((candidate) => candidate.id === item.id);
+    if (currentIndex === -1) {
+      throw new Error("Item not found");
+    }
+
+    const boundedIndex = Math.max(0, Math.min(targetPosition, ordered.length - 1));
+    if (currentIndex === boundedIndex) {
+      return;
+    }
+
+    const [moved] = ordered.splice(currentIndex, 1);
+    if (!moved) {
+      throw new Error("Item not found");
+    }
+    ordered.splice(boundedIndex, 0, moved);
+
+    for (const [index, sibling] of ordered.entries()) {
+      if (sibling.position === index) {
+        continue;
+      }
+
+      await db
+        .update(teamTrackerItems)
+        .set({ position: index, updatedAt: now })
+        .where(eq(teamTrackerItems.id, sibling.id));
+    }
   }
 }

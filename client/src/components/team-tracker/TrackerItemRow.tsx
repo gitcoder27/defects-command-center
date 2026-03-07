@@ -1,26 +1,47 @@
-import type { TrackerWorkItem } from '@/types';
-import { Play, CheckCircle2, XCircle, GripVertical, StickyNote } from 'lucide-react';
+import type { TrackerItemState, TrackerWorkItem } from '@/types';
+import { Play, CheckCircle2, XCircle, GripVertical, StickyNote, ArrowUp, ArrowDown } from 'lucide-react';
+import { formatDate, priorityColor } from '@/lib/utils';
 
 interface TrackerItemRowProps {
   item: TrackerWorkItem;
   onSetCurrent?: (id: number) => void;
   onMarkDone?: (id: number) => void;
   onDrop?: (id: number) => void;
+  onMoveUp?: (id: number) => void;
+  onMoveDown?: (id: number) => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
   compact?: boolean;
 }
 
-const stateIcons: Record<string, { icon: typeof Play; color: string }> = {
+const stateIcons: Record<TrackerItemState, { icon: typeof Play; color: string }> = {
   planned: { icon: GripVertical, color: 'var(--text-muted)' },
   in_progress: { icon: Play, color: 'var(--accent)' },
   done: { icon: CheckCircle2, color: 'var(--success)' },
   dropped: { icon: XCircle, color: 'var(--text-muted)' },
 };
 
-export function TrackerItemRow({ item, onSetCurrent, onMarkDone, onDrop, compact }: TrackerItemRowProps) {
+export function TrackerItemRow({
+  item,
+  onSetCurrent,
+  onMarkDone,
+  onDrop,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
+  compact,
+}: TrackerItemRowProps) {
   const stateInfo = stateIcons[item.state] ?? stateIcons.planned;
   const Icon = stateInfo.icon;
   const isActive = item.state === 'in_progress';
   const isDone = item.state === 'done' || item.state === 'dropped';
+  const jiraMeta = [
+    item.jiraPriorityName,
+    item.jiraDueDate ? `Due ${formatDate(item.jiraDueDate)}` : undefined,
+  ]
+    .filter(Boolean)
+    .join(' • ');
 
   return (
     <div
@@ -67,6 +88,13 @@ export function TrackerItemRow({ item, onSetCurrent, onMarkDone, onDrop, compact
             {item.title}
           </span>
         </div>
+        {jiraMeta && (
+          <div className="mt-0.5">
+            <span className="text-[10px]" style={{ color: item.jiraPriorityName ? priorityColor(item.jiraPriorityName) : 'var(--text-muted)' }}>
+              {jiraMeta}
+            </span>
+          </div>
+        )}
         {item.note && !compact && (
           <div className="flex items-center gap-1 mt-0.5">
             <StickyNote size={10} style={{ color: 'var(--text-muted)' }} />
@@ -79,6 +107,28 @@ export function TrackerItemRow({ item, onSetCurrent, onMarkDone, onDrop, compact
 
       {!isDone && (
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          {item.state === 'planned' && onMoveUp && (
+            <button
+              onClick={() => onMoveUp(item.id)}
+              disabled={!canMoveUp}
+              className="h-6 w-6 rounded-md flex items-center justify-center transition-colors disabled:opacity-30"
+              style={{ background: 'var(--bg-tertiary)' }}
+              title="Move up"
+            >
+              <ArrowUp size={10} style={{ color: 'var(--text-secondary)' }} />
+            </button>
+          )}
+          {item.state === 'planned' && onMoveDown && (
+            <button
+              onClick={() => onMoveDown(item.id)}
+              disabled={!canMoveDown}
+              className="h-6 w-6 rounded-md flex items-center justify-center transition-colors disabled:opacity-30"
+              style={{ background: 'var(--bg-tertiary)' }}
+              title="Move down"
+            >
+              <ArrowDown size={10} style={{ color: 'var(--text-secondary)' }} />
+            </button>
+          )}
           {item.state !== 'in_progress' && onSetCurrent && (
             <button
               onClick={() => onSetCurrent(item.id)}

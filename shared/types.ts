@@ -188,6 +188,8 @@ export interface TrackerWorkItem {
   dayId: number;
   itemType: TrackerItemType;
   jiraKey?: string;
+  jiraPriorityName?: string;
+  jiraDueDate?: string;
   title: string;
   state: TrackerItemState;
   position: number;

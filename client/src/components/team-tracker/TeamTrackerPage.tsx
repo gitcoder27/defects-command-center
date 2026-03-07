@@ -192,6 +192,7 @@ export function TeamTrackerPage() {
         onClose={() => setDrawerAccountId(undefined)}
         onUpdateDay={(params) => updateDay.mutate(params)}
         onAddItem={(params) => addItem.mutate(params)}
+        onReorderPlannedItem={(params) => updateItem.mutate(params)}
         onSetCurrent={handleSetCurrent}
         onMarkDone={handleMarkDone}
         onDropItem={handleDropItem}

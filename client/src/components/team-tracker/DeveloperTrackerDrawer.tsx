@@ -13,6 +13,7 @@ interface DeveloperTrackerDrawerProps {
   onClose: () => void;
   onUpdateDay: (params: { accountId: string; status?: TrackerDeveloperStatus; managerNotes?: string }) => void;
   onAddItem: (params: { accountId: string; itemType: 'jira' | 'custom'; jiraKey?: string; title: string; note?: string }) => void;
+  onReorderPlannedItem: (params: { itemId: number; position: number }) => void;
   onSetCurrent: (itemId: number) => void;
   onMarkDone: (itemId: number) => void;
   onDropItem: (itemId: number) => void;
@@ -29,6 +30,7 @@ export function DeveloperTrackerDrawer({
   onClose,
   onUpdateDay,
   onAddItem,
+  onReorderPlannedItem,
   onSetCurrent,
   onMarkDone,
   onDropItem,
@@ -52,7 +54,13 @@ export function DeveloperTrackerDrawer({
     setCheckInText('');
   };
 
-  const issueList = issues?.map((i) => ({ jiraKey: i.jiraKey, summary: i.summary })) ?? [];
+  const issueList = issues?.map((i) => ({
+    jiraKey: i.jiraKey,
+    summary: i.summary,
+    priorityName: i.priorityName,
+    dueDate: i.dueDate,
+    developmentDueDate: i.developmentDueDate,
+  })) ?? [];
 
   return (
     <AnimatePresence>
@@ -163,10 +171,24 @@ export function DeveloperTrackerDrawer({
                   Planned ({day.plannedItems.length})
                 </div>
                 <div className="space-y-0.5">
-                  {day.plannedItems.map((item) => (
+                  {day.plannedItems.map((item, index) => (
                     <TrackerItemRow
                       key={item.id}
                       item={item}
+                      onMoveUp={() =>
+                        onReorderPlannedItem({
+                          itemId: item.id,
+                          position: day.plannedItems[index - 1]?.position ?? item.position,
+                        })
+                      }
+                      onMoveDown={() =>
+                        onReorderPlannedItem({
+                          itemId: item.id,
+                          position: day.plannedItems[index + 1]?.position ?? item.position,
+                        })
+                      }
+                      canMoveUp={index > 0}
+                      canMoveDown={index < day.plannedItems.length - 1}
                       onSetCurrent={onSetCurrent}
                       onMarkDone={onMarkDone}
                       onDrop={onDropItem}

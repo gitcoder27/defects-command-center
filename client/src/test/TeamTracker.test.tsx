@@ -4,6 +4,7 @@ import { TestWrapper } from '@/test/wrapper';
 import type { TeamTrackerBoardResponse, TrackerDeveloperDay, Issue } from '@/types';
 
 const mockCarryForwardMutate = vi.fn();
+const mockUpdateTrackerItemMutate = vi.fn();
 
 const mockDay: (overrides?: Partial<TrackerDeveloperDay>) => TrackerDeveloperDay = (overrides = {}) => ({
   id: 1,
@@ -34,6 +35,8 @@ const mockBoard: TeamTrackerBoardResponse = {
         dayId: 2,
         itemType: 'jira',
         jiraKey: 'AM-123',
+        jiraPriorityName: 'High',
+        jiraDueDate: '2026-03-08',
         title: 'Fix login bug',
         state: 'in_progress',
         position: 0,
@@ -48,6 +51,16 @@ const mockBoard: TeamTrackerBoardResponse = {
           title: 'Code review',
           state: 'planned',
           position: 1,
+          createdAt: '2026-03-07T08:00:00Z',
+          updatedAt: '2026-03-07T08:00:00Z',
+        },
+        {
+          id: 12,
+          dayId: 2,
+          itemType: 'custom',
+          title: 'Follow up with QA',
+          state: 'planned',
+          position: 2,
           createdAt: '2026-03-07T08:00:00Z',
           updatedAt: '2026-03-07T08:00:00Z',
         },
@@ -73,7 +86,7 @@ vi.mock('@/hooks/useTeamTrackerMutations', () => ({
   useUpdateDay: () => ({ mutate: vi.fn() }),
   useAddTrackerItem: () => ({ mutate: vi.fn(), isPending: false }),
   useSetCurrentItem: () => ({ mutate: vi.fn() }),
-  useUpdateTrackerItem: () => ({ mutate: vi.fn() }),
+  useUpdateTrackerItem: () => ({ mutate: mockUpdateTrackerItemMutate }),
   useDeleteTrackerItem: () => ({ mutate: vi.fn() }),
   useAddCheckIn: () => ({ mutate: vi.fn() }),
   useCarryForward: () => ({ mutate: mockCarryForwardMutate, isPending: false }),
@@ -99,6 +112,7 @@ describe('TeamTrackerPage', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-07T12:00:00.000Z'));
     mockCarryForwardMutate.mockReset();
+    mockUpdateTrackerItemMutate.mockReset();
   });
 
   afterEach(() => {
@@ -214,6 +228,24 @@ describe('TeamTrackerPage', () => {
       toDate: '2026-03-06',
     });
   });
+
+  it('reorders planned items from the drawer', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByText('Bob Jones'));
+    const moveDownButton = screen.getAllByTitle('Move down').find((button) => !button.hasAttribute('disabled'));
+    expect(moveDownButton).toBeDefined();
+    fireEvent.click(moveDownButton!);
+
+    expect(mockUpdateTrackerItemMutate).toHaveBeenCalledWith({
+      itemId: 11,
+      position: 2,
+    });
+  });
 });
 
 describe('TrackerStatusPill', () => {
@@ -242,6 +274,8 @@ describe('TrackerItemRow', () => {
           dayId: 1,
           itemType: 'jira',
           jiraKey: 'AM-456',
+          jiraPriorityName: 'Highest',
+          jiraDueDate: '2026-03-09',
           title: 'Deploy fix',
           state: 'planned',
           position: 0,
@@ -252,6 +286,7 @@ describe('TrackerItemRow', () => {
     );
     expect(screen.getByText('AM-456')).toBeInTheDocument();
     expect(screen.getByText('Deploy fix')).toBeInTheDocument();
+    expect(screen.getByText('Highest • Due Mar 9')).toBeInTheDocument();
   });
 
   it('renders custom item badge', async () => {
