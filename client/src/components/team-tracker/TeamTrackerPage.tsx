@@ -213,6 +213,7 @@ export function TeamTrackerPage() {
         onAddItem={(params) => addItem.mutate(params)}
         onReorderPlannedItem={(params) => updateItem.mutate(params)}
         onUpdateItemNote={(params) => updateItem.mutate(params)}
+        onUpdateItemTitle={(params) => updateItem.mutate(params)}
         onSetCurrent={handleSetCurrent}
         onMarkDone={handleMarkDone}
         onDropItem={handleDropItem}

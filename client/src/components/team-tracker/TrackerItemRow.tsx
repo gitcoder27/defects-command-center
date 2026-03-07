@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { TrackerItemState, TrackerWorkItem } from '@/types';
-import { Play, CheckCircle2, XCircle, GripVertical, StickyNote, Save, PencilLine } from 'lucide-react';
+import { Play, CheckCircle2, XCircle, GripVertical, StickyNote, Save, PencilLine, Check, X } from 'lucide-react';
 import { formatDate, priorityColor } from '@/lib/utils';
 
 interface TrackerItemRowProps {
@@ -11,6 +11,7 @@ interface TrackerItemRowProps {
   onMoveUp?: (id: number) => void;
   onMoveDown?: (id: number) => void;
   onUpdateNote?: (id: number, note?: string) => void;
+  onUpdateTitle?: (id: number, title: string) => void;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   compact?: boolean;
@@ -32,6 +33,7 @@ export function TrackerItemRow({
   onMoveUp,
   onMoveDown,
   onUpdateNote,
+  onUpdateTitle,
   canMoveUp = false,
   canMoveDown = false,
   compact,
@@ -39,10 +41,24 @@ export function TrackerItemRow({
 }: TrackerItemRowProps) {
   const [noteEditing, setNoteEditing] = useState(false);
   const [draftNote, setDraftNote] = useState(item.note ?? '');
+  const [titleEditing, setTitleEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(item.title);
 
   useEffect(() => {
     setDraftNote(item.note ?? '');
   }, [item.note, item.id]);
+
+  useEffect(() => {
+    setDraftTitle(item.title);
+  }, [item.title, item.id]);
+
+  const commitTitle = () => {
+    const trimmed = draftTitle.trim();
+    if (trimmed && trimmed !== item.title) {
+      onUpdateTitle?.(item.id, trimmed);
+    }
+    setTitleEditing(false);
+  };
 
   const stateInfo = stateIcons[item.state] ?? stateIcons.planned;
   const Icon = stateInfo.icon;
@@ -101,15 +117,56 @@ export function TrackerItemRow({
               Custom
             </span>
           )}
-          <span
-            className="text-[12px] truncate"
-            style={{
-              color: isDone ? 'var(--text-muted)' : 'var(--text-primary)',
-              textDecoration: isDone ? 'line-through' : 'none',
-            }}
-          >
-            {item.title}
-          </span>
+          {titleEditing && !compact && onUpdateTitle ? (
+            <div className="flex items-center gap-1 flex-1 min-w-0">
+              <input
+                autoFocus
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitTitle();
+                  if (e.key === 'Escape') { setDraftTitle(item.title); setTitleEditing(false); }
+                }}
+                className="flex-1 min-w-0 rounded px-1.5 py-0.5 text-[12px] outline-none"
+                style={{
+                  background: 'var(--bg-tertiary)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-active)',
+                }}
+                aria-label="Edit title"
+              />
+              <button
+                onClick={commitTitle}
+                className="h-5 w-5 rounded flex items-center justify-center shrink-0"
+                style={{ color: 'var(--success)' }}
+                title="Save title"
+              >
+                <Check size={10} />
+              </button>
+              <button
+                onClick={() => { setDraftTitle(item.title); setTitleEditing(false); }}
+                className="h-5 w-5 rounded flex items-center justify-center shrink-0"
+                style={{ color: 'var(--text-muted)' }}
+                title="Cancel"
+              >
+                <X size={10} />
+              </button>
+            </div>
+          ) : (
+            <span
+              className={`text-[12px] truncate${!compact && onUpdateTitle && !isDone ? ' cursor-pointer hover:underline' : ''}`}
+              style={{
+                color: isDone ? 'var(--text-muted)' : 'var(--text-primary)',
+                textDecoration: isDone ? 'line-through' : 'none',
+              }}
+              onClick={() => {
+                if (!compact && onUpdateTitle && !isDone) setTitleEditing(true);
+              }}
+              title={!compact && onUpdateTitle && !isDone ? 'Click to edit title' : undefined}
+            >
+              {item.title}
+            </span>
+          )}
         </div>
         {jiraMeta && (
           <div className="mt-0.5">

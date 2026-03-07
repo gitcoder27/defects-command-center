@@ -115,10 +115,6 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
     }
   }, []);
 
-  const handleDeveloperClick = useCallback((accountId: string) => {
-    setActiveDeveloper(accountId);
-  }, []);
-
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -269,7 +265,7 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
             </div>
           </div>
 
-          <WorkloadBar onDeveloperClick={handleDeveloperClick} />
+          <WorkloadBar activeDeveloper={activeDeveloper} onDeveloperClick={handleDeveloperChange} />
         </div>
       </div>
 

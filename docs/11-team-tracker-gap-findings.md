@@ -15,7 +15,7 @@ This is not a statement that the feature is broken overall. The implemented Team
 
 ## Summary
 
-The Team Tracker MVP is largely implemented. Five meaningful gaps remain, and six originally identified items are now fixed:
+The Team Tracker MVP is largely implemented. Three meaningful gaps remain, and eight originally identified items are now fixed:
 
 Fixed on 2026-03-07:
 
@@ -25,13 +25,13 @@ Fixed on 2026-03-07:
 4. The single-current-item rule is now enforced through service logic.
 5. Date navigation now has quick prev/next day arrow controls.
 6. Drag-and-drop reordering replaces simple up/down controls in the drawer.
+7. Carry-forward correctly uses the selected date, not a hardcoded yesterday.
+8. Per-item title editing is now supported via click-to-edit in the drawer.
 
 Still open:
 
-7. Jira-linked item validation is weaker than the design expects.
-8. Carry-forward UX is partially implemented and uses brittle date logic.
-9. Frontend and route-level coverage do not yet match the implementation plan.
-10. Per-item title editing is not supported in the drawer.
+9. Jira-linked item validation is weaker than the design expects.
+10. Frontend and route-level coverage do not yet match the implementation plan.
 11. Carry-forward does not auto-prompt on first visit to a new day.
 
 ## Findings
@@ -158,7 +158,7 @@ Likely remediation:
 - Tighten request validation so Jira items require a `jiraKey`.
 - Validate that the key exists in synced issues before creating the item.
 
-### P2: Carry-forward is only partially implemented in the UI
+### Fixed: Carry-forward correctly uses the selected date
 
 Affected requirements:
 
@@ -171,25 +171,18 @@ Affected code:
 - `client/src/hooks/useTeamTrackerMutations.ts`
 - `server/src/services/team-tracker.service.ts`
 
-Analysis:
+Status:
 
-- The backend provides a generic carry-forward endpoint with `{ fromDate, toDate }`.
-- The UI only shows the button when viewing a non-today date.
-- When clicked, it always submits `yesterday -> today`, regardless of the selected date.
-- This means the UX does not cleanly map to the backend contract or the requirement to carry unfinished planned work across days.
+- Fixed on 2026-03-07.
 
-User-visible impact:
+Implementation notes:
 
-- The feature can behave unexpectedly when validating non-today dates.
-- It is easy to misunderstand what will be carried and from which day.
+- `handleCarryForward` uses the selected `date` state: `{ fromDate: date, toDate: shiftIsoDate(date, 1) }`.
+- This correctly carries forward from the viewed date to the next day, regardless of which date the user is viewing.
+- A frontend test confirms the carry-forward submits the selected date pair rather than a hardcoded yesterday.
+- The original finding that carry-forward always submitted `yesterday -> today` is no longer accurate.
 
-Likely remediation:
-
-- Make carry-forward operate on the selected date pair explicitly.
-- Surface the source and destination dates in the UI so the action is unambiguous.
-- Auto-prompt carry-forward when the lead first opens the tracker on a new day and there are unfinished items from the previous working day, rather than relying on a manual button discovery.
-
-### P2: Per-item title editing is not supported in the drawer
+### Fixed: Per-item title editing is now supported in the drawer
 
 Affected requirements:
 
@@ -198,25 +191,21 @@ Affected requirements:
 
 Affected code:
 
-- `client/src/components/team-tracker/DeveloperTrackerDrawer.tsx`
 - `client/src/components/team-tracker/TrackerItemRow.tsx`
-- `client/src/hooks/useTeamTrackerMutations.ts`
+- `client/src/components/team-tracker/DeveloperTrackerDrawer.tsx`
+- `client/src/components/team-tracker/TeamTrackerPage.tsx`
 
-Analysis:
+Status:
 
-- The drawer now supports note editing, but title text still cannot be edited after creation.
-- The API supports `PATCH` updates to title, note, and state on existing items, but the frontend still does not expose title editing.
-- During triage the lead may still need to refine an item title without deleting and recreating the item.
+- Fixed on 2026-03-07.
 
-User-visible impact:
+Implementation notes:
 
-- To correct a typo or update the scope of a work item the lead must still drop and re-add the item, losing position and creation timestamp.
-- Note-only editing helps, but full item refinement is still incomplete.
-
-Likely remediation:
-
-- Add click-to-edit for item titles in the drawer.
-- Wire title edits to the existing `useUpdateTrackerItem` mutation.
+- Item titles in the drawer are now click-to-edit for non-completed items.
+- Clicking a title opens an inline text input with save (Enter or checkmark) and cancel (Escape or X button) controls.
+- Title edits persist through the existing `PATCH /api/team-tracker/items/:itemId` endpoint.
+- Both the current item and planned items support title editing.
+- Frontend tests cover click-to-edit save via button, save via Enter, and cancel via Escape.
 
 ### Fixed: Date navigation now has quick prev/next day controls
 
@@ -271,6 +260,5 @@ Likely remediation:
 ## Recommended Follow-Up
 
 1. Tighten Jira item validation.
-2. Fix carry-forward UX to use explicit selected dates and auto-prompt on new day.
-3. Expand automated coverage around the remaining gaps.
-4. Add per-item inline title editing in the drawer.
+2. Expand automated coverage around the remaining gaps.
+3. Auto-prompt carry-forward on first visit to a new day.

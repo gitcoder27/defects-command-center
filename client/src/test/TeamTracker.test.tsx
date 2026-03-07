@@ -303,6 +303,28 @@ describe('TeamTrackerPage', () => {
       note: 'Needs a tighter ETA',
     });
   });
+
+  it('edits an item title from the drawer via click-to-edit', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByText('Bob Jones'));
+    // Click the current item title in the drawer (the first clickable title)
+    const editableTitles = screen.getAllByTitle('Click to edit title');
+    fireEvent.click(editableTitles[0]!);
+    const titleInput = screen.getByLabelText('Edit title');
+    expect(titleInput).toBeInTheDocument();
+    fireEvent.change(titleInput, { target: { value: 'Fix login bug (urgent)' } });
+    fireEvent.click(screen.getByTitle('Save title'));
+
+    expect(mockUpdateTrackerItemMutate).toHaveBeenCalledWith({
+      itemId: 10,
+      title: 'Fix login bug (urgent)',
+    });
+  });
 });
 
 describe('TrackerStatusPill', () => {
@@ -417,6 +439,64 @@ describe('TrackerItemRow', () => {
     fireEvent.click(screen.getByText('Save'));
 
     expect(onUpdateNote).toHaveBeenCalledWith(4, 'Updated context');
+  });
+
+  it('edits a title via click-to-edit and saves on Enter', async () => {
+    const { TrackerItemRow } = await import('@/components/team-tracker/TrackerItemRow');
+    const onUpdateTitle = vi.fn();
+
+    render(
+      <TrackerItemRow
+        item={{
+          id: 5,
+          dayId: 1,
+          itemType: 'custom',
+          title: 'Original title',
+          state: 'planned',
+          position: 0,
+          createdAt: '2026-03-07T08:00:00Z',
+          updatedAt: '2026-03-07T08:00:00Z',
+        }}
+        onUpdateTitle={onUpdateTitle}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Original title'));
+    const input = screen.getByLabelText('Edit title');
+    fireEvent.change(input, { target: { value: 'Revised title' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onUpdateTitle).toHaveBeenCalledWith(5, 'Revised title');
+  });
+
+  it('cancels title editing on Escape', async () => {
+    const { TrackerItemRow } = await import('@/components/team-tracker/TrackerItemRow');
+    const onUpdateTitle = vi.fn();
+
+    render(
+      <TrackerItemRow
+        item={{
+          id: 6,
+          dayId: 1,
+          itemType: 'custom',
+          title: 'Keep this title',
+          state: 'planned',
+          position: 0,
+          createdAt: '2026-03-07T08:00:00Z',
+          updatedAt: '2026-03-07T08:00:00Z',
+        }}
+        onUpdateTitle={onUpdateTitle}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Keep this title'));
+    const input = screen.getByLabelText('Edit title');
+    fireEvent.change(input, { target: { value: 'Changed' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    // Should revert and not call the callback
+    expect(onUpdateTitle).not.toHaveBeenCalled();
+    expect(screen.getByText('Keep this title')).toBeInTheDocument();
   });
 });
 
