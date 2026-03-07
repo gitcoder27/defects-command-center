@@ -12,6 +12,7 @@ import { AutomationService } from "./services/automation.service";
 import { IssueService } from "./services/issue.service";
 import { WorkloadService } from "./services/workload.service";
 import { TagService } from "./services/tag.service";
+import { TeamTrackerService } from "./services/team-tracker.service";
 import { SyncEngine } from "./sync/engine";
 import { logger } from "./utils/logger";
 import { db } from "./db/connection";
@@ -59,6 +60,7 @@ async function bootstrap(): Promise<void> {
   const automationService = new AutomationService(workloadService);
   const syncEngine = new SyncEngine();
   const tagService = new TagService();
+  const teamTrackerService = new TeamTrackerService();
 
   const app = createApp({
     issueService,
@@ -67,6 +69,7 @@ async function bootstrap(): Promise<void> {
     automationService,
     syncEngine,
     tagService,
+    teamTrackerService,
   });
 
   app.listen(config.PORT, () => {

@@ -77,4 +77,14 @@ describe('OverviewCards', () => {
     fireEvent.click(screen.getByText('In Progress'));
     expect(onFilterChange).toHaveBeenCalledWith('inProgress');
   });
+
+  it('renders the overview cards in a single horizontal strip', () => {
+    render(
+      <TestWrapper>
+        <OverviewCards activeFilter="all" onFilterChange={onFilterChange} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByTestId('overview-cards-strip')).toHaveClass('flex', 'overflow-x-auto');
+  });
 });

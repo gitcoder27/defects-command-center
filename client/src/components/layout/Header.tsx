@@ -1,16 +1,19 @@
 import { motion } from 'framer-motion';
-import { RefreshCw, Moon, Sun, PanelLeftOpen, Radar, Settings } from 'lucide-react';
+import { RefreshCw, Moon, Sun, PanelLeftOpen, Radar, Settings, Users } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { formatRelativeTime } from '@/lib/utils';
+import type { AppView } from '@/App';
 
 interface HeaderProps {
   onOpenSettings?: () => void;
   onOpenMobileSidebar?: () => void;
+  activeView?: AppView;
+  onViewChange?: (view: AppView) => void;
 }
 
-export function Header({ onOpenSettings, onOpenMobileSidebar }: HeaderProps) {
+export function Header({ onOpenSettings, onOpenMobileSidebar, activeView, onViewChange }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { data: sync } = useSyncStatus();
   const triggerSync = useTriggerSync();
@@ -55,6 +58,37 @@ export function Header({ onOpenSettings, onOpenMobileSidebar }: HeaderProps) {
               Defect triage workspace
             </div>
           </div>
+          {onViewChange && (
+            <div
+              className="flex items-center rounded-xl p-0.5 gap-0.5"
+              style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
+            >
+              <button
+                onClick={() => onViewChange('dashboard')}
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors"
+                style={{
+                  background: activeView === 'dashboard' ? 'var(--bg-elevated)' : 'transparent',
+                  color: activeView === 'dashboard' ? 'var(--accent)' : 'var(--text-muted)',
+                  boxShadow: activeView === 'dashboard' ? 'var(--soft-shadow)' : 'none',
+                }}
+              >
+                <Radar size={12} />
+                Dashboard
+              </button>
+              <button
+                onClick={() => onViewChange('team-tracker')}
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors"
+                style={{
+                  background: activeView === 'team-tracker' ? 'var(--bg-elevated)' : 'transparent',
+                  color: activeView === 'team-tracker' ? 'var(--accent)' : 'var(--text-muted)',
+                  boxShadow: activeView === 'team-tracker' ? 'var(--soft-shadow)' : 'none',
+                }}
+              >
+                <Users size={12} />
+                Team Tracker
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5 lg:flex-row lg:items-center">

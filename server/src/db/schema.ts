@@ -82,3 +82,37 @@ export const issueScopeHistory = sqliteTable("issue_scope_history", {
   fromStatusCategory: text("from_status_category"),
   toStatusCategory: text("to_status_category"),
 });
+
+// ── Team Tracker tables ────────────────────────────────
+
+export const teamTrackerDays = sqliteTable("team_tracker_days", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  date: text("date").notNull(),
+  developerAccountId: text("developer_account_id").notNull(),
+  status: text("status").notNull().default("on_track"),
+  managerNotes: text("manager_notes"),
+  lastCheckInAt: text("last_check_in_at"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const teamTrackerItems = sqliteTable("team_tracker_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  dayId: integer("day_id").notNull(),
+  itemType: text("item_type").notNull(),
+  jiraKey: text("jira_key"),
+  title: text("title").notNull(),
+  state: text("state").notNull().default("planned"),
+  position: integer("position").notNull().default(0),
+  note: text("note"),
+  completedAt: text("completed_at"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const teamTrackerCheckIns = sqliteTable("team_tracker_checkins", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  dayId: integer("day_id").notNull(),
+  summary: text("summary").notNull(),
+  createdAt: text("created_at").notNull(),
+});

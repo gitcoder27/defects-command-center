@@ -9,12 +9,14 @@ import { createSuggestionsRouter } from "./routes/suggestions";
 import { createSyncRouter } from "./routes/sync";
 import { createConfigRouter } from "./routes/config";
 import { createTagsRouter } from "./routes/tags";
+import { createTeamTrackerRouter } from "./routes/team-tracker";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { AlertService } from "./services/alert.service";
 import { AutomationService } from "./services/automation.service";
 import { IssueService } from "./services/issue.service";
 import { WorkloadService } from "./services/workload.service";
 import { TagService } from "./services/tag.service";
+import { TeamTrackerService } from "./services/team-tracker.service";
 import { SyncEngine } from "./sync/engine";
 
 export interface AppServices {
@@ -24,6 +26,7 @@ export interface AppServices {
   automationService: AutomationService;
   syncEngine: SyncEngine;
   tagService: TagService;
+  teamTrackerService: TeamTrackerService;
 }
 
 export function createApp(services: AppServices) {
@@ -42,6 +45,7 @@ export function createApp(services: AppServices) {
   app.use("/api/sync", createSyncRouter(services.syncEngine));
   app.use("/api/config", createConfigRouter(services.syncEngine));
   app.use("/api/tags", createTagsRouter(services.tagService, services.issueService));
+  app.use("/api/team-tracker", createTeamTrackerRouter(services.teamTrackerService));
 
   if (process.env.NODE_ENV === "production") {
     const clientDistPath = path.resolve(process.cwd(), "client", "dist");

@@ -1,0 +1,329 @@
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, MessageSquare, Save } from 'lucide-react';
+import type { TrackerDeveloperDay, TrackerDeveloperStatus, Issue } from '@/types';
+import { TrackerStatusPill } from './TrackerStatusPill';
+import { TrackerItemRow } from './TrackerItemRow';
+import { AddTrackerItemForm } from './AddTrackerItemForm';
+import { formatRelativeTime } from '@/lib/utils';
+
+interface DeveloperTrackerDrawerProps {
+  day: TrackerDeveloperDay | undefined;
+  open: boolean;
+  onClose: () => void;
+  onUpdateDay: (params: { accountId: string; status?: TrackerDeveloperStatus; managerNotes?: string }) => void;
+  onAddItem: (params: { accountId: string; itemType: 'jira' | 'custom'; jiraKey?: string; title: string; note?: string }) => void;
+  onSetCurrent: (itemId: number) => void;
+  onMarkDone: (itemId: number) => void;
+  onDropItem: (itemId: number) => void;
+  onDeleteItem: (itemId: number) => void;
+  onAddCheckIn: (params: { accountId: string; summary: string; status?: TrackerDeveloperStatus }) => void;
+  issues?: Issue[];
+}
+
+const statusOptions: TrackerDeveloperStatus[] = ['on_track', 'at_risk', 'blocked', 'waiting', 'done_for_today'];
+
+export function DeveloperTrackerDrawer({
+  day,
+  open,
+  onClose,
+  onUpdateDay,
+  onAddItem,
+  onSetCurrent,
+  onMarkDone,
+  onDropItem,
+  onDeleteItem,
+  onAddCheckIn,
+  issues,
+}: DeveloperTrackerDrawerProps) {
+  const [checkInText, setCheckInText] = useState('');
+  const [notesText, setNotesText] = useState('');
+  const [notesEditing, setNotesEditing] = useState(false);
+
+  const handleSaveNotes = () => {
+    if (!day) return;
+    onUpdateDay({ accountId: day.developer.accountId, managerNotes: notesText });
+    setNotesEditing(false);
+  };
+
+  const handleCheckIn = () => {
+    if (!day || !checkInText.trim()) return;
+    onAddCheckIn({ accountId: day.developer.accountId, summary: checkInText.trim() });
+    setCheckInText('');
+  };
+
+  const issueList = issues?.map((i) => ({ jiraKey: i.jiraKey, summary: i.summary })) ?? [];
+
+  return (
+    <AnimatePresence>
+      {open && day && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-[60]"
+            style={{ background: 'rgba(0, 0, 0, 0.4)', backdropFilter: 'blur(2px)' }}
+            onClick={onClose}
+          />
+          <motion.div
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            className="fixed right-0 top-0 bottom-0 z-[61] w-full max-w-[480px] overflow-hidden flex flex-col"
+            style={{
+              background: 'linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)',
+              borderLeft: '1px solid var(--border-strong)',
+              boxShadow: '-20px 0 60px rgba(0, 0, 0, 0.3)',
+            }}
+          >
+            {/* Drawer header */}
+            <div
+              className="shrink-0 px-4 py-3 flex items-center justify-between"
+              style={{ borderBottom: '1px solid var(--border)' }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="h-10 w-10 rounded-xl flex items-center justify-center text-[13px] font-bold"
+                  style={{
+                    background: 'linear-gradient(135deg, var(--accent-glow), var(--bg-tertiary))',
+                    color: 'var(--accent)',
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  {day.developer.displayName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    {day.developer.displayName}
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <TrackerStatusPill status={day.status} size="md" />
+                    {day.lastCheckInAt && (
+                      <span className="text-[10px]" style={{ color: day.isStale ? 'var(--warning)' : 'var(--text-muted)' }}>
+                        Last check-in {formatRelativeTime(day.lastCheckInAt)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="h-8 w-8 rounded-xl flex items-center justify-center transition-colors"
+                style={{ background: 'var(--bg-tertiary)' }}
+              >
+                <X size={16} style={{ color: 'var(--text-secondary)' }} />
+              </button>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+              {/* Status selector */}
+              <div>
+                <div className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                  Status
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {statusOptions.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => onUpdateDay({ accountId: day.developer.accountId, status: s })}
+                      className={`transition-all ${day.status === s ? '' : 'opacity-50 hover:opacity-80'}`}
+                    >
+                      <TrackerStatusPill status={s} size="md" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Current item */}
+              <div>
+                <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                  Current Work
+                </div>
+                {day.currentItem ? (
+                  <TrackerItemRow
+                    item={day.currentItem}
+                    onSetCurrent={onSetCurrent}
+                    onMarkDone={onMarkDone}
+                    onDrop={onDropItem}
+                  />
+                ) : (
+                  <div className="text-[12px] py-2" style={{ color: 'var(--text-muted)' }}>
+                    No active item. Set one from the planned list.
+                  </div>
+                )}
+              </div>
+
+              {/* Planned items */}
+              <div>
+                <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                  Planned ({day.plannedItems.length})
+                </div>
+                <div className="space-y-0.5">
+                  {day.plannedItems.map((item) => (
+                    <TrackerItemRow
+                      key={item.id}
+                      item={item}
+                      onSetCurrent={onSetCurrent}
+                      onMarkDone={onMarkDone}
+                      onDrop={onDropItem}
+                    />
+                  ))}
+                </div>
+                <AddTrackerItemForm
+                  onAdd={(params) => onAddItem({ accountId: day.developer.accountId, ...params })}
+                  issues={issueList}
+                />
+              </div>
+
+              {/* Completed items */}
+              {day.completedItems.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                    Completed ({day.completedItems.length})
+                  </div>
+                  <div className="space-y-0.5">
+                    {day.completedItems.map((item) => (
+                      <TrackerItemRow key={item.id} item={item} compact />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Dropped items */}
+              {day.droppedItems.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                    Dropped ({day.droppedItems.length})
+                  </div>
+                  <div className="space-y-0.5">
+                    {day.droppedItems.map((item) => (
+                      <div key={item.id} className="flex items-center gap-2">
+                        <TrackerItemRow item={item} compact />
+                        <button
+                          onClick={() => onDeleteItem(item.id)}
+                          className="text-[10px] shrink-0 px-1"
+                          style={{ color: 'var(--danger)' }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Manager notes */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                    Manager Notes
+                  </div>
+                  {!notesEditing && (
+                    <button
+                      onClick={() => { setNotesText(day.managerNotes ?? ''); setNotesEditing(true); }}
+                      className="text-[10px]"
+                      style={{ color: 'var(--accent)' }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+                {notesEditing ? (
+                  <div className="space-y-1">
+                    <textarea
+                      value={notesText}
+                      onChange={(e) => setNotesText(e.target.value)}
+                      rows={3}
+                      className="w-full rounded-lg px-2 py-1.5 text-[12px] outline-none resize-none"
+                      style={{
+                        background: 'var(--bg-tertiary)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-active)',
+                      }}
+                    />
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={handleSaveNotes}
+                        className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px]"
+                        style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
+                      >
+                        <Save size={10} /> Save
+                      </button>
+                      <button
+                        onClick={() => setNotesEditing(false)}
+                        className="text-[11px] px-1"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-[12px]" style={{ color: day.managerNotes ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                    {day.managerNotes || 'No notes yet.'}
+                  </div>
+                )}
+              </div>
+
+              {/* Check-in history */}
+              <div>
+                <div className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                  Check-ins ({day.checkIns.length})
+                </div>
+                <div className="space-y-1.5 mb-2">
+                  {day.checkIns.length === 0 && (
+                    <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>No check-ins today.</div>
+                  )}
+                  {[...day.checkIns].reverse().map((ci) => (
+                    <div
+                      key={ci.id}
+                      className="rounded-lg px-2.5 py-2"
+                      style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
+                    >
+                      <div className="text-[12px]" style={{ color: 'var(--text-primary)' }}>{ci.summary}</div>
+                      <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        {formatRelativeTime(ci.createdAt)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* New check-in input */}
+                <div className="flex items-center gap-1.5">
+                  <MessageSquare size={12} style={{ color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    value={checkInText}
+                    onChange={(e) => setCheckInText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCheckIn();
+                    }}
+                    placeholder="Add a check-in note..."
+                    className="flex-1 rounded-lg px-2 py-1.5 text-[12px] outline-none"
+                    style={{
+                      background: 'var(--bg-tertiary)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border)',
+                    }}
+                  />
+                  <button
+                    onClick={handleCheckIn}
+                    disabled={!checkInText.trim()}
+                    className="shrink-0 h-7 rounded-lg px-2 text-[11px] font-medium disabled:opacity-40 transition-colors"
+                    style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}

@@ -11,8 +11,14 @@ import { SettingsPanel } from '@/components/settings/SettingsPanel';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { FilterType, Alert } from '@/types';
+import type { AppView } from '@/App';
 
-export function DashboardLayout() {
+interface DashboardLayoutProps {
+  activeView?: AppView;
+  onViewChange?: (view: AppView) => void;
+}
+
+export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutProps) {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [activeDeveloper, setActiveDeveloper] = useState<string | undefined>();
   const [selectedTagId, setSelectedTagId] = useState<number | undefined>();
@@ -207,6 +213,8 @@ export function DashboardLayout() {
       <Header
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenMobileSidebar={isCompact ? () => setMobileSidebarOpen(true) : undefined}
+        activeView={activeView}
+        onViewChange={onViewChange}
       />
 
       <div className="flex-1 min-h-0 px-2 pb-1.5 md:px-2.5 md:pb-2">

@@ -93,6 +93,46 @@ CREATE TABLE IF NOT EXISTS issue_scope_history (
   to_status_category    TEXT,
   FOREIGN KEY (jira_key) REFERENCES issues(jira_key)
 );
+
+CREATE TABLE IF NOT EXISTS team_tracker_days (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  date                  TEXT NOT NULL,
+  developer_account_id  TEXT NOT NULL,
+  status                TEXT NOT NULL DEFAULT 'on_track',
+  manager_notes         TEXT,
+  last_check_in_at      TEXT,
+  created_at            TEXT NOT NULL,
+  updated_at            TEXT NOT NULL,
+  UNIQUE(date, developer_account_id)
+);
+
+CREATE TABLE IF NOT EXISTS team_tracker_items (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  day_id        INTEGER NOT NULL,
+  item_type     TEXT NOT NULL,
+  jira_key      TEXT,
+  title         TEXT NOT NULL,
+  state         TEXT NOT NULL DEFAULT 'planned',
+  position      INTEGER NOT NULL DEFAULT 0,
+  note          TEXT,
+  completed_at  TEXT,
+  created_at    TEXT NOT NULL,
+  updated_at    TEXT NOT NULL,
+  FOREIGN KEY (day_id) REFERENCES team_tracker_days(id)
+);
+
+CREATE TABLE IF NOT EXISTS team_tracker_checkins (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  day_id      INTEGER NOT NULL,
+  summary     TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  FOREIGN KEY (day_id) REFERENCES team_tracker_days(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tracker_days_date ON team_tracker_days(date);
+CREATE INDEX IF NOT EXISTS idx_tracker_days_dev ON team_tracker_days(developer_account_id);
+CREATE INDEX IF NOT EXISTS idx_tracker_items_day ON team_tracker_items(day_id);
+CREATE INDEX IF NOT EXISTS idx_tracker_checkins_day ON team_tracker_checkins(day_id);
 `;
 
 const alterStatements = [

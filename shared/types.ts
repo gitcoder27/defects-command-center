@@ -163,3 +163,69 @@ export interface ApiErrorResponse {
   error: string;
   status: number;
 }
+
+// ── Team Tracker types ──────────────────────────────────
+
+export type TrackerDeveloperStatus =
+  | "on_track"
+  | "at_risk"
+  | "blocked"
+  | "waiting"
+  | "done_for_today";
+
+export type TrackerItemState = "planned" | "in_progress" | "done" | "dropped";
+export type TrackerItemType = "jira" | "custom";
+
+export interface TrackerCheckIn {
+  id: number;
+  dayId: number;
+  summary: string;
+  createdAt: string;
+}
+
+export interface TrackerWorkItem {
+  id: number;
+  dayId: number;
+  itemType: TrackerItemType;
+  jiraKey?: string;
+  title: string;
+  state: TrackerItemState;
+  position: number;
+  note?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TrackerDeveloperDay {
+  id: number;
+  date: string;
+  developer: Developer;
+  status: TrackerDeveloperStatus;
+  managerNotes?: string;
+  lastCheckInAt?: string;
+  currentItem?: TrackerWorkItem;
+  plannedItems: TrackerWorkItem[];
+  completedItems: TrackerWorkItem[];
+  droppedItems: TrackerWorkItem[];
+  checkIns: TrackerCheckIn[];
+  isStale: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamTrackerBoardResponse {
+  date: string;
+  developers: TrackerDeveloperDay[];
+  summary: TrackerBoardSummary;
+}
+
+export interface TrackerBoardSummary {
+  total: number;
+  stale: number;
+  blocked: number;
+  atRisk: number;
+  waiting: number;
+  noCurrent: number;
+  doneForToday: number;
+}
