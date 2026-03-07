@@ -37,32 +37,42 @@ export function TagFilterSection({
   }
 
   return (
-    <>
-      <div className="flex items-center justify-between px-3 mt-4 mb-2">
+    <section
+      className="rounded-[22px] border p-2"
+      style={{
+        borderColor: 'var(--border)',
+        background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)',
+      }}
+    >
+      <div className="flex items-center justify-between px-2 py-1">
         <button
           onClick={onToggleCollapse}
-          className="flex items-center gap-1 cursor-pointer group"
+          className="flex items-center gap-2 cursor-pointer group min-w-0"
+          aria-expanded={!collapsed}
         >
           <ChevronRight
-            size={12}
-            className="transition-transform duration-150"
+            size={14}
+            className="transition-transform duration-200"
             style={{
               color: 'var(--text-muted)',
               transform: collapsed ? 'rotate(0deg)' : 'rotate(90deg)',
             }}
           />
-          <span
-            className="text-[11px] font-semibold uppercase"
-            style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}
-          >
-            Tags
-          </span>
+          <div className="min-w-0 text-left">
+            <div className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
+              Tags
+            </div>
+            <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+              {sortedTags.length > 0 ? `${sortedTags.length} labels available` : 'Create labels from the table'}
+            </div>
+          </div>
         </button>
         {hasActiveFilters && (
           <button
             onClick={onClear}
-            className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+            className="h-8 w-8 rounded-xl transition-colors flex items-center justify-center"
             title="Clear tag filters"
+            style={{ background: 'var(--bg-tertiary)' }}
           >
             <X size={12} style={{ color: 'var(--text-muted)' }} />
           </button>
@@ -70,79 +80,90 @@ export function TagFilterSection({
       </div>
 
       {!collapsed && (
-      <div className="flex flex-col gap-0.5">
-        {sortedTags.length === 0 && !noTagsFilter && (
-          <span
-            className="text-[11px] px-3 py-1.5 italic"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Assign tags in the table
-          </span>
-        )}
-
-        {sortedTags.map((tag) => {
-          const isActive = selectedTagId === tag.id;
-          const count = getTagCount(tag.id);
-          return (
-            <button
-              key={tag.id}
-              onClick={() => onTagToggle(tag.id)}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 cursor-pointer group"
-              style={{
-                background: isActive ? 'var(--bg-glow)' : 'transparent',
-                color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
-                borderLeft: isActive ? `2px solid ${tag.color}` : '2px solid transparent',
-              }}
+        <div className="flex flex-col gap-1.5 pt-2">
+          {sortedTags.length === 0 && !noTagsFilter && (
+            <span
+              className="text-[12px] px-3 py-2 italic"
+              style={{ color: 'var(--text-muted)' }}
             >
-              <span className="flex items-center gap-2 truncate">
-                <span
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ background: tag.color }}
-                />
-                <span className="truncate">{tag.name}</span>
-              </span>
-              <span
-                className="text-[11px] font-mono tabular-nums min-w-[20px] text-center rounded-full px-1.5 py-0.5"
+              Assign tags in the table to start grouping related defects.
+            </span>
+          )}
+
+          {sortedTags.map((tag) => {
+            const isActive = selectedTagId === tag.id;
+            const count = getTagCount(tag.id);
+            return (
+              <button
+                key={tag.id}
+                onClick={() => onTagToggle(tag.id)}
+                className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-2xl text-[13px] font-medium transition-all duration-200 cursor-pointer border"
                 style={{
-                  background: isActive ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
-                  color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+                  background: isActive ? 'var(--bg-glow)' : 'transparent',
+                  color: isActive ? tag.color : 'var(--text-secondary)',
+                  borderColor: isActive ? `${tag.color}66` : 'transparent',
+                  boxShadow: isActive ? `inset 0 0 0 1px ${tag.color}44` : 'none',
                 }}
               >
-                {count}
-              </span>
-            </button>
-          );
-        })}
+                <span className="flex items-center gap-3 min-w-0">
+                  <span
+                    className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: `${tag.color}22` }}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ background: tag.color }}
+                    />
+                  </span>
+                  <span className="truncate">{tag.name}</span>
+                </span>
+                <span
+                  className="text-[11px] font-mono tabular-nums min-w-[24px] text-center rounded-full px-2 py-1"
+                  style={{
+                    background: isActive ? `${tag.color}22` : 'var(--bg-tertiary)',
+                    color: isActive ? tag.color : 'var(--text-muted)',
+                  }}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
 
-        {/* No tags filter */}
-        <button
-          onClick={onNoTagsToggle}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 cursor-pointer group"
-          style={{
-            background: noTagsFilter ? 'var(--bg-glow)' : 'transparent',
-            color: noTagsFilter ? 'var(--accent)' : 'var(--text-secondary)',
-            borderLeft: noTagsFilter ? '2px solid var(--accent)' : '2px solid transparent',
-          }}
-        >
-          <span className="flex items-center gap-2 truncate">
-            <span
-              className="w-2 h-2 rounded-full flex-shrink-0 border"
-              style={{ borderColor: 'var(--text-muted)' }}
-            />
-            <span className="truncate italic">No tags</span>
-          </span>
-          <span
-            className="text-[11px] font-mono tabular-nums min-w-[20px] text-center rounded-full px-1.5 py-0.5"
+          <button
+            onClick={onNoTagsToggle}
+            className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-2xl text-[13px] font-medium transition-all duration-200 cursor-pointer border"
             style={{
-              background: noTagsFilter ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
-              color: noTagsFilter ? 'var(--accent)' : 'var(--text-muted)',
+              background: noTagsFilter ? 'var(--bg-glow)' : 'transparent',
+              color: noTagsFilter ? 'var(--accent)' : 'var(--text-secondary)',
+              borderColor: noTagsFilter ? 'var(--border-active)' : 'transparent',
+              boxShadow: noTagsFilter ? 'inset 0 0 0 1px var(--border-active)' : 'none',
             }}
           >
-            {tagCounts?.untaggedCount ?? 0}
-          </span>
-        </button>
-      </div>
+            <span className="flex items-center gap-3 min-w-0">
+              <span
+                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'var(--bg-tertiary)' }}
+              >
+                <span
+                  className="w-3 h-3 rounded-full border"
+                  style={{ borderColor: 'var(--text-muted)' }}
+                />
+              </span>
+              <span className="truncate italic">No tags</span>
+            </span>
+            <span
+              className="text-[11px] font-mono tabular-nums min-w-[24px] text-center rounded-full px-2 py-1"
+              style={{
+                background: noTagsFilter ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
+                color: noTagsFilter ? 'var(--accent)' : 'var(--text-muted)',
+              }}
+            >
+              {tagCounts?.untaggedCount ?? 0}
+            </span>
+          </button>
+        </div>
       )}
-    </>
+    </section>
   );
 }

@@ -19,7 +19,8 @@ export function DashboardLayout() {
   const [noTagsFilter, setNoTagsFilter] = useState(false);
   const [selectedIssueKey, setSelectedIssueKey] = useState<string | undefined>();
   const [focusedIndex, setFocusedIndex] = useState(-1);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const hasAnimatedRef = useRef(false);
   const [hasAnimated, setHasAnimated] = useState(false);
@@ -27,9 +28,10 @@ export function DashboardLayout() {
 
   const isCompact = useMediaQuery('(max-width: 1023px)');
 
-  // Collapse sidebar automatically on small screens
   useEffect(() => {
-    setSidebarOpen(!isCompact);
+    if (!isCompact) {
+      setMobileSidebarOpen(false);
+    }
   }, [isCompact]);
 
   // Get current issue list for keyboard nav
@@ -46,39 +48,50 @@ export function DashboardLayout() {
     }
   }, []);
 
+  const closeSidebarOnCompact = useCallback(() => {
+    if (isCompact) {
+      setMobileSidebarOpen(false);
+    }
+  }, [isCompact]);
+
   const handleFilterChange = useCallback((filter: FilterType) => {
     setActiveFilter(filter);
     setActiveDeveloper(undefined);
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
-  }, []);
+    closeSidebarOnCompact();
+  }, [closeSidebarOnCompact]);
 
   const handleDeveloperChange = useCallback((accountId?: string) => {
     setActiveDeveloper(accountId);
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
-  }, []);
+    closeSidebarOnCompact();
+  }, [closeSidebarOnCompact]);
 
   const handleTagToggle = useCallback((tagId: number) => {
     setNoTagsFilter(false);
     setSelectedTagId((prev) => (prev === tagId ? undefined : tagId));
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
-  }, []);
+    closeSidebarOnCompact();
+  }, [closeSidebarOnCompact]);
 
   const handleNoTagsToggle = useCallback(() => {
     setNoTagsFilter((prev) => !prev);
     setSelectedTagId(undefined);
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
-  }, []);
+    closeSidebarOnCompact();
+  }, [closeSidebarOnCompact]);
 
   const handleClearTagFilters = useCallback(() => {
     setSelectedTagId(undefined);
     setNoTagsFilter(false);
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
-  }, []);
+    closeSidebarOnCompact();
+  }, [closeSidebarOnCompact]);
 
   const handleSelectIssue = useCallback((key: string) => {
     setSelectedIssueKey((prev) => (prev === key ? undefined : key));
@@ -180,9 +193,23 @@ export function DashboardLayout() {
     return () => window.removeEventListener('keydown', handler);
   }, [triggerSync, issues, focusedIndex]);
 
+  const handleToggleSidebar = useCallback(() => {
+    if (isCompact) {
+      setMobileSidebarOpen((prev) => !prev);
+      return;
+    }
+
+    setDesktopSidebarExpanded((prev) => !prev);
+  }, [isCompact]);
+
   return (
     <div className="h-full flex flex-col" style={{ background: 'var(--bg-primary)' }}>
-      <Header onToggleSidebar={() => setSidebarOpen((p) => !p)} showSidebarToggle={isCompact} onOpenSettings={() => setSettingsOpen(true)} />
+      <Header
+        onToggleSidebar={handleToggleSidebar}
+        showSidebarToggle
+        onOpenSettings={() => setSettingsOpen(true)}
+        sidebarCollapsed={!isCompact && !desktopSidebarExpanded}
+      />
 
       <OverviewCards activeFilter={activeFilter} onFilterChange={handleFilterChange} />
 
@@ -190,19 +217,23 @@ export function DashboardLayout() {
       <ErrorBanner />
 
       <div className="flex flex-1 min-h-0 relative">
-        {sidebarOpen && (
-          <FilterSidebar
-            activeFilter={activeFilter}
-            activeDeveloper={activeDeveloper}
-            onFilterChange={handleFilterChange}
-            onDeveloperChange={handleDeveloperChange}
-            selectedTagId={selectedTagId}
-            noTagsFilter={noTagsFilter}
-            onTagToggle={handleTagToggle}
-            onNoTagsToggle={handleNoTagsToggle}
-            onClearTagFilters={handleClearTagFilters}
-          />
-        )}
+        <FilterSidebar
+          activeFilter={activeFilter}
+          activeDeveloper={activeDeveloper}
+          onFilterChange={handleFilterChange}
+          onDeveloperChange={handleDeveloperChange}
+          selectedTagId={selectedTagId}
+          noTagsFilter={noTagsFilter}
+          onTagToggle={handleTagToggle}
+          onNoTagsToggle={handleNoTagsToggle}
+          onClearTagFilters={handleClearTagFilters}
+          collapsed={!isCompact && !desktopSidebarExpanded}
+          isMobile={isCompact}
+          open={!isCompact || mobileSidebarOpen}
+          onClose={() => setMobileSidebarOpen(false)}
+          onCollapse={() => setDesktopSidebarExpanded(false)}
+          onExpand={() => setDesktopSidebarExpanded(true)}
+        />
 
         <DefectTable
           filter={activeFilter}

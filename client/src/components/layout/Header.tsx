@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { RefreshCw, Moon, Sun, Menu, Settings } from 'lucide-react';
+import { RefreshCw, Moon, Sun, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
@@ -9,9 +9,10 @@ interface HeaderProps {
   onToggleSidebar?: () => void;
   showSidebarToggle?: boolean;
   onOpenSettings?: () => void;
+  sidebarCollapsed?: boolean;
 }
 
-export function Header({ onToggleSidebar, showSidebarToggle, onOpenSettings }: HeaderProps) {
+export function Header({ onToggleSidebar, showSidebarToggle, onOpenSettings, sidebarCollapsed }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { data: sync } = useSyncStatus();
   const triggerSync = useTriggerSync();
@@ -31,10 +32,15 @@ export function Header({ onToggleSidebar, showSidebarToggle, onOpenSettings }: H
         {showSidebarToggle && (
           <button
             onClick={onToggleSidebar}
-            className="p-1.5 rounded-md transition-colors duration-150 hover:bg-[var(--bg-tertiary)]"
+            className="p-2 rounded-xl transition-colors duration-150 hover:bg-[var(--bg-tertiary)]"
             title="Toggle sidebar"
+            aria-label="Toggle sidebar"
           >
-            <Menu size={16} style={{ color: 'var(--text-secondary)' }} />
+            {sidebarCollapsed ? (
+              <PanelLeftOpen size={16} style={{ color: 'var(--text-secondary)' }} />
+            ) : (
+              <PanelLeftClose size={16} style={{ color: 'var(--text-secondary)' }} />
+            )}
           </button>
         )}
         <h1

@@ -7,17 +7,21 @@ const mockTriggerSync = {
 };
 
 const defectTableSpy = vi.fn();
+const filterSidebarSpy = vi.fn();
+const useMediaQueryMock = vi.fn(() => false);
 
 vi.mock('@/hooks/useTriggerSync', () => ({
   useTriggerSync: () => mockTriggerSync,
 }));
 
 vi.mock('@/hooks/useMediaQuery', () => ({
-  useMediaQuery: () => false,
+  useMediaQuery: () => useMediaQueryMock(),
 }));
 
 vi.mock('@/components/layout/Header', () => ({
-  Header: () => <div>Header</div>,
+  Header: ({ onToggleSidebar }: { onToggleSidebar?: () => void }) => (
+    <button onClick={onToggleSidebar}>Header</button>
+  ),
 }));
 
 vi.mock('@/components/overview/OverviewCards', () => ({
@@ -35,7 +39,10 @@ vi.mock('@/components/alerts/ErrorBanner', () => ({
 }));
 
 vi.mock('@/components/filters/FilterSidebar', () => ({
-  FilterSidebar: () => null,
+  FilterSidebar: (props: { onCollapse?: () => void }) => {
+    filterSidebarSpy(props);
+    return <button onClick={props.onCollapse}>Sidebar</button>;
+  },
 }));
 
 vi.mock('@/components/table/DefectTable', () => ({
@@ -63,6 +70,7 @@ vi.mock('@/components/settings/SettingsPanel', () => ({
 describe('DashboardLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useMediaQueryMock.mockReturnValue(false);
   });
 
   it('clears the active developer when a top overview card is clicked', () => {
@@ -74,5 +82,40 @@ describe('DashboardLayout', () => {
     const lastCall = defectTableSpy.mock.calls.at(-1)?.[0] as { filter: string; assigneeFilter?: string };
     expect(lastCall.filter).toBe('new');
     expect(lastCall.assigneeFilter).toBeUndefined();
+  });
+
+  it('collapses the desktop sidebar from the header toggle', () => {
+    render(<DashboardLayout />);
+
+    fireEvent.click(screen.getByText('Header'));
+
+    const lastCall = filterSidebarSpy.mock.calls.at(-1)?.[0] as { collapsed: boolean; open: boolean; isMobile: boolean };
+    expect(lastCall.isMobile).toBe(false);
+    expect(lastCall.open).toBe(true);
+    expect(lastCall.collapsed).toBe(true);
+  });
+
+  it('collapses the desktop sidebar from the sidebar control', () => {
+    render(<DashboardLayout />);
+
+    fireEvent.click(screen.getByText('Sidebar'));
+
+    const lastCall = filterSidebarSpy.mock.calls.at(-1)?.[0] as { collapsed: boolean; open: boolean; isMobile: boolean };
+    expect(lastCall.isMobile).toBe(false);
+    expect(lastCall.open).toBe(true);
+    expect(lastCall.collapsed).toBe(true);
+  });
+
+  it('opens the mobile drawer from the header toggle', () => {
+    useMediaQueryMock.mockReturnValue(true);
+
+    render(<DashboardLayout />);
+
+    fireEvent.click(screen.getByText('Header'));
+
+    const lastCall = filterSidebarSpy.mock.calls.at(-1)?.[0] as { collapsed: boolean; open: boolean; isMobile: boolean };
+    expect(lastCall.isMobile).toBe(true);
+    expect(lastCall.open).toBe(true);
+    expect(lastCall.collapsed).toBe(false);
   });
 });

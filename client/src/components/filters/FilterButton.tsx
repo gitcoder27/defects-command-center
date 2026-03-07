@@ -1,4 +1,4 @@
-import type { FilterType } from '@/types';
+import type { ReactNode } from 'react';
 
 interface FilterButtonProps {
   label: string;
@@ -7,21 +7,36 @@ interface FilterButtonProps {
   onClick: () => void;
   shortcut?: string;
   isIdle?: boolean;
+  icon?: ReactNode;
 }
 
-export function FilterButton({ label, count, isActive, onClick, shortcut, isIdle }: FilterButtonProps) {
+export function FilterButton({ label, count, isActive, onClick, shortcut, isIdle, icon }: FilterButtonProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center justify-between px-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 cursor-pointer group"
+      className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-2xl text-[13px] font-medium transition-all duration-200 cursor-pointer group border"
       style={{
         background: isActive ? 'var(--bg-glow)' : 'transparent',
         color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
-        borderLeft: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+        borderColor: isActive ? 'var(--border-active)' : 'transparent',
+        boxShadow: isActive ? 'inset 0 0 0 1px var(--border-active)' : 'none',
       }}
     >
-      <span className="flex items-center gap-2 truncate">
-        {label}
+      <span className="flex items-center gap-3 min-w-0">
+        {icon && (
+          <span
+            className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{
+              background: isActive ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
+              color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+            }}
+          >
+            {icon}
+          </span>
+        )}
+        <span className="truncate">
+          {label}
+        </span>
         {isIdle && (
           <span className="text-[10px] animate-glow-idle" style={{ color: 'var(--warning)' }}>
             ⚠

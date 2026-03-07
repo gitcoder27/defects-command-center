@@ -6,9 +6,11 @@ import type { OverviewCounts, DeveloperWorkload } from '@/types';
 
 const mockOverview: OverviewCounts = {
   new: 3,
+  reopened: 1,
   unassigned: 5,
   dueToday: 2,
   dueThisWeek: 6,
+  noDueDate: 2,
   overdue: 1,
   blocked: 2,
   stale: 4,
@@ -64,6 +66,9 @@ describe('FilterSidebar', () => {
   const onTagToggle = vi.fn();
   const onNoTagsToggle = vi.fn();
   const onClearTagFilters = vi.fn();
+  const onClose = vi.fn();
+  const onCollapse = vi.fn();
+  const onExpand = vi.fn();
 
   const defaultProps = {
     activeFilter: 'all' as const,
@@ -74,6 +79,12 @@ describe('FilterSidebar', () => {
     onTagToggle,
     onNoTagsToggle,
     onClearTagFilters,
+    collapsed: false,
+    isMobile: false,
+    open: true,
+    onClose,
+    onCollapse,
+    onExpand,
   };
 
   beforeEach(() => {
@@ -82,6 +93,9 @@ describe('FilterSidebar', () => {
     onTagToggle.mockClear();
     onNoTagsToggle.mockClear();
     onClearTagFilters.mockClear();
+    onClose.mockClear();
+    onCollapse.mockClear();
+    onExpand.mockClear();
   });
 
   it('renders filter buttons with counts', () => {
@@ -93,7 +107,7 @@ describe('FilterSidebar', () => {
 
     expect(screen.getByText('All')).toBeInTheDocument();
     expect(screen.getByText('Unassigned')).toBeInTheDocument();
-    expect(screen.getByText('Due Today')).toBeInTheDocument();
+    expect(screen.getByText('Due This Week')).toBeInTheDocument();
     expect(screen.getByText('Overdue')).toBeInTheDocument();
     expect(screen.getByText('Blocked')).toBeInTheDocument();
   });
@@ -141,9 +155,7 @@ describe('FilterSidebar', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByText('Tags')).toBeInTheDocument();
-    // Tags section is collapsed by default, expand it
-    fireEvent.click(screen.getByText('Tags'));
+    expect(screen.getAllByText('Tags').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('AMAR')).toBeInTheDocument();
     expect(screen.getByText('ANALYSIS')).toBeInTheDocument();
     expect(screen.getByText('No tags')).toBeInTheDocument();
@@ -156,8 +168,6 @@ describe('FilterSidebar', () => {
       </TestWrapper>
     );
 
-    // Expand tags section first
-    fireEvent.click(screen.getByText('Tags'));
     fireEvent.click(screen.getByText('ANALYSIS'));
     expect(onTagToggle).toHaveBeenCalledWith(1);
   });
@@ -169,9 +179,20 @@ describe('FilterSidebar', () => {
       </TestWrapper>
     );
 
-    // Expand tags section first
-    fireEvent.click(screen.getByText('Tags'));
     fireEvent.click(screen.getByText('No tags'));
     expect(onNoTagsToggle).toHaveBeenCalled();
+  });
+
+  it('renders a collapsed rail and expands from the rail controls', () => {
+    render(
+      <TestWrapper>
+        <FilterSidebar {...defaultProps} collapsed />
+      </TestWrapper>
+    );
+
+    expect(screen.queryByText('Refine the queue')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Expand tags'));
+    expect(onExpand).toHaveBeenCalled();
   });
 });
