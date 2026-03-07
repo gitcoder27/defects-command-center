@@ -268,9 +268,14 @@ export class TeamTrackerService {
     if (updates.title !== undefined) setFields.title = updates.title;
     if (updates.note !== undefined) setFields.note = updates.note;
     if (updates.state !== undefined) {
+      if (updates.state === "in_progress") {
+        await this.setSingleInProgress(existing.dayId, itemId, now);
+      }
       setFields.state = updates.state;
       if (updates.state === "done") {
         setFields.completedAt = now;
+      } else {
+        setFields.completedAt = null;
       }
     }
 
@@ -297,25 +302,9 @@ export class TeamTrackerService {
   async setCurrentItem(itemId: number): Promise<TrackerWorkItem> {
     // Get the item to find its day
     const item = await this.getItemRow(itemId);
-    const dayId = item.dayId;
     const now = nowIso();
 
-    // Reset all current in_progress items for this day to planned
-    await db
-      .update(teamTrackerItems)
-      .set({ state: "planned", updatedAt: now })
-      .where(
-        and(
-          eq(teamTrackerItems.dayId, dayId),
-          eq(teamTrackerItems.state, "in_progress")
-        )
-      );
-
-    // Set the target item to in_progress
-    await db
-      .update(teamTrackerItems)
-      .set({ state: "in_progress", updatedAt: now })
-      .where(eq(teamTrackerItems.id, itemId));
+    await this.setSingleInProgress(item.dayId, itemId, now);
 
     const updated = await db
       .select()
@@ -544,5 +533,26 @@ export class TeamTrackerService {
         .set({ position: index, updatedAt: now })
         .where(eq(teamTrackerItems.id, sibling.id));
     }
+  }
+
+  private async setSingleInProgress(
+    dayId: number,
+    itemId: number,
+    now: string
+  ): Promise<void> {
+    await db
+      .update(teamTrackerItems)
+      .set({ state: "planned", updatedAt: now })
+      .where(
+        and(
+          eq(teamTrackerItems.dayId, dayId),
+          eq(teamTrackerItems.state, "in_progress")
+        )
+      );
+
+    await db
+      .update(teamTrackerItems)
+      .set({ state: "in_progress", updatedAt: now, completedAt: null })
+      .where(eq(teamTrackerItems.id, itemId));
   }
 }

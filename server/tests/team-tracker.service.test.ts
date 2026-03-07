@@ -184,6 +184,30 @@ describe("TeamTrackerService", () => {
       expect(updated.completedAt).toBeDefined();
     });
 
+    it("enforces a single current item when state is updated directly to in_progress", async () => {
+      const first = await service.addItem("dev-1", "2026-03-07", {
+        itemType: "custom",
+        title: "First",
+      });
+      const second = await service.addItem("dev-1", "2026-03-07", {
+        itemType: "custom",
+        title: "Second",
+      });
+
+      await service.setCurrentItem(first.id);
+      await service.updateItem(second.id, { state: "in_progress" });
+
+      const board = await service.getBoard("2026-03-07");
+      const devDay = board.developers.find(
+        (d) => d.developer.accountId === "dev-1"
+      )!;
+
+      expect(devDay.currentItem?.id).toBe(second.id);
+      expect(devDay.plannedItems.some((item) => item.id === first.id)).toBe(
+        true
+      );
+    });
+
     it("reorders items by normalizing sibling positions", async () => {
       const first = await service.addItem("dev-1", "2026-03-07", {
         itemType: "custom",

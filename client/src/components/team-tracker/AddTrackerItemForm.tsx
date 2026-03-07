@@ -17,8 +17,20 @@ interface AddTrackerItemFormProps {
 export function AddTrackerItemForm({ onAdd, issues, isPending }: AddTrackerItemFormProps) {
   const [mode, setMode] = useState<'idle' | 'custom' | 'jira'>('idle');
   const [title, setTitle] = useState('');
+  const [note, setNote] = useState('');
   const [jiraSearch, setJiraSearch] = useState('');
-  const [selectedJiraKey, setSelectedJiraKey] = useState('');
+  const [selectedIssue, setSelectedIssue] = useState<{
+    jiraKey: string;
+    summary: string;
+  } | null>(null);
+
+  const resetForm = () => {
+    setTitle('');
+    setNote('');
+    setJiraSearch('');
+    setSelectedIssue(null);
+    setMode('idle');
+  };
 
   const filteredIssues = issues?.filter(
     (i) =>
@@ -28,17 +40,19 @@ export function AddTrackerItemForm({ onAdd, issues, isPending }: AddTrackerItemF
 
   const handleSubmitCustom = () => {
     if (!title.trim()) return;
-    onAdd({ itemType: 'custom', title: title.trim() });
-    setTitle('');
-    setMode('idle');
+    onAdd({ itemType: 'custom', title: title.trim(), note: note.trim() || undefined });
+    resetForm();
   };
 
-  const handleSelectJira = (key: string, summary: string) => {
-    setSelectedJiraKey(key);
-    onAdd({ itemType: 'jira', jiraKey: key, title: summary });
-    setJiraSearch('');
-    setSelectedJiraKey('');
-    setMode('idle');
+  const handleSubmitJira = () => {
+    if (!selectedIssue) return;
+    onAdd({
+      itemType: 'jira',
+      jiraKey: selectedIssue.jiraKey,
+      title: selectedIssue.summary,
+      note: note.trim() || undefined,
+    });
+    resetForm();
   };
 
   if (mode === 'idle') {
@@ -66,39 +80,53 @@ export function AddTrackerItemForm({ onAdd, issues, isPending }: AddTrackerItemF
 
   if (mode === 'custom') {
     return (
-      <div className="flex items-center gap-1 pt-1">
-        <input
-          type="text"
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSubmitCustom();
-            if (e.key === 'Escape') { setTitle(''); setMode('idle'); }
-          }}
-          placeholder="What are they working on?"
-          className="flex-1 rounded-lg px-2 py-1 text-[12px] outline-none"
+      <div className="pt-1 space-y-1.5">
+        <div className="flex items-center gap-1">
+          <input
+            type="text"
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSubmitCustom();
+              if (e.key === 'Escape') resetForm();
+            }}
+            placeholder="What are they working on?"
+            className="flex-1 rounded-lg px-2 py-1 text-[12px] outline-none"
+            style={{
+              background: 'var(--bg-tertiary)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-active)',
+            }}
+          />
+          <button
+            onClick={handleSubmitCustom}
+            disabled={!title.trim() || isPending}
+            className="h-6 w-6 rounded-md flex items-center justify-center disabled:opacity-40"
+            style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
+          >
+            <Plus size={12} />
+          </button>
+          <button
+            onClick={resetForm}
+            className="text-[11px] px-1"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Cancel
+          </button>
+        </div>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={2}
+          placeholder="Optional note"
+          className="w-full rounded-lg px-2 py-1.5 text-[11px] outline-none resize-none"
           style={{
             background: 'var(--bg-tertiary)',
             color: 'var(--text-primary)',
-            border: '1px solid var(--border-active)',
+            border: '1px solid var(--border)',
           }}
         />
-        <button
-          onClick={handleSubmitCustom}
-          disabled={!title.trim() || isPending}
-          className="h-6 w-6 rounded-md flex items-center justify-center disabled:opacity-40"
-          style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
-        >
-          <Plus size={12} />
-        </button>
-        <button
-          onClick={() => { setTitle(''); setMode('idle'); }}
-          className="text-[11px] px-1"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          Cancel
-        </button>
       </div>
     );
   }
@@ -112,7 +140,7 @@ export function AddTrackerItemForm({ onAdd, issues, isPending }: AddTrackerItemF
         value={jiraSearch}
         onChange={(e) => setJiraSearch(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') { setJiraSearch(''); setMode('idle'); }
+          if (e.key === 'Escape') resetForm();
         }}
         placeholder="Search Jira issues..."
         className="w-full rounded-lg px-2 py-1 text-[12px] outline-none"
@@ -130,8 +158,8 @@ export function AddTrackerItemForm({ onAdd, issues, isPending }: AddTrackerItemF
           {filteredIssues.map((issue) => (
             <button
               key={issue.jiraKey}
-              onClick={() => handleSelectJira(issue.jiraKey, issue.summary)}
-              disabled={isPending && selectedJiraKey === issue.jiraKey}
+              onClick={() => setSelectedIssue({ jiraKey: issue.jiraKey, summary: issue.summary })}
+              disabled={isPending && selectedIssue?.jiraKey === issue.jiraKey}
               className="w-full text-left px-2 py-1.5 transition-colors"
               style={{ borderBottom: '1px solid var(--border)' }}
             >
@@ -159,8 +187,44 @@ export function AddTrackerItemForm({ onAdd, issues, isPending }: AddTrackerItemF
           ))}
         </div>
       )}
+      {selectedIssue && (
+        <div
+          className="mt-1.5 rounded-lg p-2 space-y-2"
+          style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[10px] font-semibold shrink-0" style={{ color: 'var(--accent)' }}>
+              {selectedIssue.jiraKey}
+            </span>
+            <span className="text-[11px]" style={{ color: 'var(--text-primary)' }}>
+              {selectedIssue.summary}
+            </span>
+          </div>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            placeholder="Optional note"
+            className="w-full rounded-lg px-2 py-1.5 text-[11px] outline-none resize-none"
+            style={{
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
+            }}
+          />
+          <button
+            onClick={handleSubmitJira}
+            disabled={isPending}
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium disabled:opacity-40"
+            style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
+          >
+            <Plus size={10} />
+            Add Jira Item
+          </button>
+        </div>
+      )}
       <button
-        onClick={() => { setJiraSearch(''); setMode('idle'); }}
+        onClick={resetForm}
         className="text-[11px] px-1 mt-1"
         style={{ color: 'var(--text-muted)' }}
       >

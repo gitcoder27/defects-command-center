@@ -15,21 +15,21 @@ This is not a statement that the feature is broken overall. The implemented Team
 
 ## Summary
 
-The Team Tracker MVP is largely implemented. Nine meaningful gaps remain, and two originally identified items are now fixed:
+The Team Tracker MVP is largely implemented. Seven meaningful gaps remain, and four originally identified items are now fixed:
 
 Fixed on 2026-03-07:
 
 1. Planned-item reordering in the drawer is implemented.
 2. Jira-linked items now show priority and due-date context.
+3. Item notes are now editable in the UI.
+4. The single-current-item rule is now enforced through service logic.
 
 Still open:
 
-3. Item notes exist in the model but are not editable in the UI.
-4. The single-current-item rule is only partially enforced.
 5. Jira-linked item validation is weaker than the design expects.
 6. Carry-forward UX is partially implemented and uses brittle date logic.
 7. Frontend and route-level coverage do not yet match the implementation plan.
-8. Per-item inline editing is not supported in the drawer.
+8. Per-item title editing is not supported in the drawer.
 9. Date navigation lacks quick prev/next day controls.
 10. Carry-forward does not auto-prompt on first visit to a new day.
 11. Reorder UX should plan for drag-and-drop beyond simple up/down controls.
@@ -87,7 +87,7 @@ Implementation notes:
 - The frontend now renders that context on tracker rows and in the Jira item picker.
 - Due-date context uses the existing effective-date rule of `developmentDueDate ?? dueDate`.
 
-### P2: Item notes are modeled but not exposed as an editable UI flow
+### Fixed: Item notes are editable during create and update flows
 
 Affected requirements:
 
@@ -95,29 +95,22 @@ Affected requirements:
 
 Affected code:
 
-- `shared/types.ts`
-- `server/src/routes/team-tracker.ts`
-- `server/src/services/team-tracker.service.ts`
 - `client/src/components/team-tracker/AddTrackerItemForm.tsx`
+- `client/src/components/team-tracker/DeveloperTrackerDrawer.tsx`
+- `client/src/components/team-tracker/TrackerItemRow.tsx`
+- `client/src/components/team-tracker/TeamTrackerPage.tsx`
 
-Analysis:
+Status:
 
-- The API and persistence model support an optional per-item `note`.
-- The row component can display a note if one exists.
-- The current add-item and edit flows do not provide any input for item notes.
-- This leaves the feature only partially usable from the UI.
+- Fixed on 2026-03-07.
 
-User-visible impact:
+Implementation notes:
 
-- Leads cannot capture short item-specific context when creating or updating work items.
-- Some “why is this in the queue?” context has to be pushed into manager notes instead of staying attached to the item.
+- The add-item flow now accepts an optional note for both custom and Jira-linked items.
+- Existing items now expose a small inline note editor in the drawer.
+- Note edits are persisted through the existing `PATCH /api/team-tracker/items/:itemId` endpoint.
 
-Likely remediation:
-
-- Add optional note input when creating Jira/custom items.
-- Add a small edit affordance for updating notes on existing items.
-
-### P1: The single-current-item rule is only partially enforced
+### Fixed: The single-current-item rule is enforced through service logic
 
 Affected requirements:
 
@@ -127,24 +120,15 @@ Affected requirements:
 Affected code:
 
 - `server/src/services/team-tracker.service.ts`
-- `server/src/routes/team-tracker.ts`
 
-Analysis:
+Status:
 
-- The intended rule is that exactly one item per developer/day can be `in_progress`.
-- `setCurrentItem()` correctly resets any existing `in_progress` item before setting the new current item.
-- `updateItem()` also allows direct updates to `state: "in_progress"` without resetting sibling items.
-- That means the rule is enforced by one path, but not by service logic globally.
+- Fixed on 2026-03-07.
 
-User-visible impact:
+Implementation notes:
 
-- The current UI may behave correctly, but the API contract is weaker than the requirement.
-- Any future UI change or external use of the patch endpoint can create invalid tracker state.
-
-Likely remediation:
-
-- Centralize `in_progress` enforcement inside service logic so every write path respects the rule.
-- Consider rejecting direct `state: "in_progress"` updates unless they go through the current-item helper.
+- `updateItem()` now uses the same single-current enforcement path as `setCurrentItem()` when a direct state update sets an item to `in_progress`.
+- This closes the API-level gap where multiple items on the same developer/day could previously be marked current through the patch endpoint.
 
 ### P2: Jira-linked item validation is weaker than the design expects
 
@@ -204,7 +188,7 @@ Likely remediation:
 - Surface the source and destination dates in the UI so the action is unambiguous.
 - Auto-prompt carry-forward when the lead first opens the tracker on a new day and there are unfinished items from the previous working day, rather than relying on a manual button discovery.
 
-### P2: Per-item inline editing is not supported in the drawer
+### P2: Per-item title editing is not supported in the drawer
 
 Affected requirements:
 
@@ -219,19 +203,19 @@ Affected code:
 
 Analysis:
 
-- The drawer shows items in read-only form. Title and note text cannot be edited after creation.
-- The API supports `PATCH` updates to title, note, and state on existing items, but the frontend does not expose these fields for editing.
-- During triage the lead frequently needs to refine a title or amend an item-level note without deleting and recreating the item.
+- The drawer now supports note editing, but title text still cannot be edited after creation.
+- The API supports `PATCH` updates to title, note, and state on existing items, but the frontend still does not expose title editing.
+- During triage the lead may still need to refine an item title without deleting and recreating the item.
 
 User-visible impact:
 
-- To correct a typo or update the scope of a work item the lead must drop and re-add the item, losing position and creation timestamp.
-- Quick annotation of items during a follow-up conversation is not possible.
+- To correct a typo or update the scope of a work item the lead must still drop and re-add the item, losing position and creation timestamp.
+- Note-only editing helps, but full item refinement is still incomplete.
 
 Likely remediation:
 
-- Add click-to-edit on the item title and an inline note input in `TrackerItemRow` or the drawer item list.
-- Wire edits to the existing `useUpdateTrackerItem` mutation.
+- Add click-to-edit for item titles in the drawer.
+- Wire title edits to the existing `useUpdateTrackerItem` mutation.
 
 ### P3: Date navigation lacks quick prev/next day controls
 

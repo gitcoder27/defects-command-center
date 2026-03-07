@@ -193,12 +193,14 @@ export function TeamTrackerPage() {
         onUpdateDay={(params) => updateDay.mutate(params)}
         onAddItem={(params) => addItem.mutate(params)}
         onReorderPlannedItem={(params) => updateItem.mutate(params)}
+        onUpdateItemNote={(params) => updateItem.mutate(params)}
         onSetCurrent={handleSetCurrent}
         onMarkDone={handleMarkDone}
         onDropItem={handleDropItem}
         onDeleteItem={(id) => deleteItem.mutate(id)}
         onAddCheckIn={(params) => addCheckIn.mutate(params)}
         issues={issues}
+        isAddItemPending={addItem.isPending}
       />
     </div>
   );

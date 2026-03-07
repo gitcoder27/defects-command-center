@@ -14,12 +14,14 @@ interface DeveloperTrackerDrawerProps {
   onUpdateDay: (params: { accountId: string; status?: TrackerDeveloperStatus; managerNotes?: string }) => void;
   onAddItem: (params: { accountId: string; itemType: 'jira' | 'custom'; jiraKey?: string; title: string; note?: string }) => void;
   onReorderPlannedItem: (params: { itemId: number; position: number }) => void;
+  onUpdateItemNote: (params: { itemId: number; note?: string }) => void;
   onSetCurrent: (itemId: number) => void;
   onMarkDone: (itemId: number) => void;
   onDropItem: (itemId: number) => void;
   onDeleteItem: (itemId: number) => void;
   onAddCheckIn: (params: { accountId: string; summary: string; status?: TrackerDeveloperStatus }) => void;
   issues?: Issue[];
+  isAddItemPending?: boolean;
 }
 
 const statusOptions: TrackerDeveloperStatus[] = ['on_track', 'at_risk', 'blocked', 'waiting', 'done_for_today'];
@@ -31,12 +33,14 @@ export function DeveloperTrackerDrawer({
   onUpdateDay,
   onAddItem,
   onReorderPlannedItem,
+  onUpdateItemNote,
   onSetCurrent,
   onMarkDone,
   onDropItem,
   onDeleteItem,
   onAddCheckIn,
   issues,
+  isAddItemPending,
 }: DeveloperTrackerDrawerProps) {
   const [checkInText, setCheckInText] = useState('');
   const [notesText, setNotesText] = useState('');
@@ -154,6 +158,7 @@ export function DeveloperTrackerDrawer({
                 {day.currentItem ? (
                   <TrackerItemRow
                     item={day.currentItem}
+                    onUpdateNote={(itemId, note) => onUpdateItemNote({ itemId, note })}
                     onSetCurrent={onSetCurrent}
                     onMarkDone={onMarkDone}
                     onDrop={onDropItem}
@@ -189,6 +194,7 @@ export function DeveloperTrackerDrawer({
                       }
                       canMoveUp={index > 0}
                       canMoveDown={index < day.plannedItems.length - 1}
+                      onUpdateNote={(itemId, note) => onUpdateItemNote({ itemId, note })}
                       onSetCurrent={onSetCurrent}
                       onMarkDone={onMarkDone}
                       onDrop={onDropItem}
@@ -198,6 +204,7 @@ export function DeveloperTrackerDrawer({
                 <AddTrackerItemForm
                   onAdd={(params) => onAddItem({ accountId: day.developer.accountId, ...params })}
                   issues={issueList}
+                  isPending={isAddItemPending}
                 />
               </div>
 

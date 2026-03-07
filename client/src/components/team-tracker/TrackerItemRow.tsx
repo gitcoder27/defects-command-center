@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react';
 import type { TrackerItemState, TrackerWorkItem } from '@/types';
-import { Play, CheckCircle2, XCircle, GripVertical, StickyNote, ArrowUp, ArrowDown } from 'lucide-react';
+import { Play, CheckCircle2, XCircle, GripVertical, StickyNote, ArrowUp, ArrowDown, Save, PencilLine } from 'lucide-react';
 import { formatDate, priorityColor } from '@/lib/utils';
 
 interface TrackerItemRowProps {
@@ -9,6 +10,7 @@ interface TrackerItemRowProps {
   onDrop?: (id: number) => void;
   onMoveUp?: (id: number) => void;
   onMoveDown?: (id: number) => void;
+  onUpdateNote?: (id: number, note?: string) => void;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   compact?: boolean;
@@ -28,10 +30,18 @@ export function TrackerItemRow({
   onDrop,
   onMoveUp,
   onMoveDown,
+  onUpdateNote,
   canMoveUp = false,
   canMoveDown = false,
   compact,
 }: TrackerItemRowProps) {
+  const [noteEditing, setNoteEditing] = useState(false);
+  const [draftNote, setDraftNote] = useState(item.note ?? '');
+
+  useEffect(() => {
+    setDraftNote(item.note ?? '');
+  }, [item.note, item.id]);
+
   const stateInfo = stateIcons[item.state] ?? stateIcons.planned;
   const Icon = stateInfo.icon;
   const isActive = item.state === 'in_progress';
@@ -95,12 +105,50 @@ export function TrackerItemRow({
             </span>
           </div>
         )}
-        {item.note && !compact && (
+        {item.note && !compact && !noteEditing && (
           <div className="flex items-center gap-1 mt-0.5">
             <StickyNote size={10} style={{ color: 'var(--text-muted)' }} />
             <span className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
               {item.note}
             </span>
+          </div>
+        )}
+        {!compact && noteEditing && (
+          <div className="mt-1.5 space-y-1.5">
+            <textarea
+              value={draftNote}
+              onChange={(event) => setDraftNote(event.target.value)}
+              rows={2}
+              className="w-full rounded-lg px-2 py-1.5 text-[11px] outline-none resize-none"
+              style={{
+                background: 'var(--bg-tertiary)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-active)',
+              }}
+            />
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  onUpdateNote?.(item.id, draftNote.trim() || undefined);
+                  setNoteEditing(false);
+                }}
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px]"
+                style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
+              >
+                <Save size={10} />
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  setDraftNote(item.note ?? '');
+                  setNoteEditing(false);
+                }}
+                className="text-[10px]"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -137,6 +185,16 @@ export function TrackerItemRow({
               title="Set as current"
             >
               <Play size={10} style={{ color: 'var(--accent)' }} />
+            </button>
+          )}
+          {!compact && onUpdateNote && (
+            <button
+              onClick={() => setNoteEditing((editing) => !editing)}
+              className="h-6 w-6 rounded-md flex items-center justify-center transition-colors"
+              style={{ background: 'var(--bg-tertiary)' }}
+              title="Edit note"
+            >
+              <PencilLine size={10} style={{ color: item.note ? 'var(--accent)' : 'var(--text-secondary)' }} />
             </button>
           )}
           {onMarkDone && (
