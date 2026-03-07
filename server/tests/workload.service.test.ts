@@ -8,10 +8,11 @@ const devRows = [
 ];
 
 const issueRows = [
-  { assigneeId: "dev-1", statusCategory: "indeterminate", priorityName: "Highest", dueDate: "2099-01-01", flagged: 0 },
-  { assigneeId: "dev-1", statusCategory: "indeterminate", priorityName: "High", dueDate: null, flagged: 1 },
-  { assigneeId: "dev-2", statusCategory: "new", priorityName: "Medium", dueDate: null, flagged: 0 },
-  { assigneeId: "dev-2", statusCategory: "done", priorityName: "Low", dueDate: null, flagged: 0 },
+  { assigneeId: "dev-1", statusCategory: "indeterminate", priorityName: "Highest", dueDate: "2099-01-01", developmentDueDate: null, flagged: 0, excluded: 0, teamScopeState: "in_team", syncScopeState: "active" },
+  { assigneeId: "dev-1", statusCategory: "indeterminate", priorityName: "High", dueDate: null, developmentDueDate: null, flagged: 1, excluded: 0, teamScopeState: "in_team", syncScopeState: "active" },
+  { assigneeId: "dev-2", statusCategory: "new", priorityName: "Medium", dueDate: null, developmentDueDate: null, flagged: 0, excluded: 0, teamScopeState: "in_team", syncScopeState: "active" },
+  { assigneeId: "dev-2", statusCategory: "done", priorityName: "Low", dueDate: null, developmentDueDate: null, flagged: 0, excluded: 0, teamScopeState: "in_team", syncScopeState: "active" },
+  { assigneeId: "dev-3", statusCategory: "indeterminate", priorityName: "High", dueDate: null, developmentDueDate: null, flagged: 0, excluded: 1, teamScopeState: "in_team", syncScopeState: "active" },
 ] as any[];
 
 vi.mock("../src/db/connection", () => ({
@@ -21,7 +22,9 @@ vi.mock("../src/db/connection", () => ({
         if (table?.accountId) {
           return { where: async () => devRows };
         }
-        return issueRows;
+        const rows: any = issueRows;
+        rows.where = async () => issueRows.filter((issue) => issue.assigneeId === "dev-3");
+        return rows;
       },
     }),
   },
@@ -79,5 +82,14 @@ describe("WorkloadService", () => {
     const ranked = await service.suggestAssignee();
     expect(ranked[0]?.developer.accountId).toBe("dev-3");
     expect(ranked.at(-1)?.developer.accountId).toBe("dev-1");
+  });
+
+  it("ignores excluded issues in workload and developer issue queries", async () => {
+    const service = new WorkloadService();
+    const team = await service.getTeamWorkload();
+    const dev3 = team.find((entry) => entry.developer.accountId === "dev-3");
+
+    expect(dev3?.activeDefects).toBe(0);
+    expect(await service.getDeveloperIssues("dev-3")).toHaveLength(0);
   });
 });

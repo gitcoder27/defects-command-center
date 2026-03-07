@@ -3,8 +3,9 @@ import type { FilterType, Issue as SharedIssue, IssueUpdate, LocalTag, OverviewC
 import { db } from "../db/connection";
 import { configTable, developers, issues, issueTags, localTags, syncLog } from "../db/schema";
 import { JiraClient } from "../jira/client";
-import { config } from "../config";
-import { endOfWeekIsoDate, isOlderThanHours, todayIsoDate } from "../utils/date";
+import { endOfWeekIsoDate, todayIsoDate } from "../utils/date";
+import { getEffectiveDueDate, isActiveTeamIssue, isOutOfTeamIssue, isStaleIssue } from "./issue-rules";
+import { SettingsService } from "./settings.service";
 
 export interface IssueQuery {
   filter?: FilterType;
@@ -17,13 +18,20 @@ export interface IssueQuery {
   noTags?: boolean;
 }
 
+type JiraMutationClient = Pick<JiraClient, "updateIssue" | "addComment">;
+type JiraClientResolver = JiraMutationClient | (() => Promise<JiraMutationClient>);
+
 export class IssueService {
-  constructor(private readonly jiraClient: JiraClient) {}
+  constructor(
+    private readonly jiraClientResolver?: JiraClientResolver,
+    private readonly settings = new SettingsService(),
+  ) {}
 
   async getAll(query: IssueQuery = {}): Promise<SharedIssue[]> {
     const rows: Array<typeof issues.$inferSelect> = await db.select().from(issues).orderBy(desc(issues.updatedAt));
     const tagMap = await this.getTagMapForAll();
-    const leadId = await this.getLeadAccountId();
+    const leadId = await this.settings.getJiraLeadAccountId();
+    const staleThresholdHours = await this.settings.getStaleThresholdHours();
     const now = new Date();
     const today = todayIsoDate(now);
     const weekEnd = endOfWeekIsoDate(now);
@@ -32,6 +40,7 @@ export class IssueService {
     let result: SharedIssue[] = rows.map((row: typeof issues.$inferSelect) => this.toSharedIssue(row, tagMap.get(row.jiraKey) ?? []));
     result = this.applyIssueQuery(result, query, {
       leadId,
+      staleThresholdHours,
       now,
       today,
       weekEnd,
@@ -53,8 +62,7 @@ export class IssueService {
 
   async update(jiraKey: string, payload: IssueUpdate): Promise<SharedIssue> {
     const jiraFields: Record<string, unknown> = {};
-    const devDueDateFieldDb = await this.getConfigValue("jira_dev_due_date_field");
-    const devDueDateField = devDueDateFieldDb || config.JIRA_DEV_DUE_DATE_FIELD;
+    const devDueDateField = await this.settings.getJiraDevDueDateField();
     const updatedAt = new Date().toISOString();
 
     if (payload.assigneeId !== undefined) {
@@ -77,7 +85,8 @@ export class IssueService {
     const hasJiraFields = payload.assigneeId !== undefined || payload.priorityName !== undefined ||
       payload.dueDate !== undefined || payload.developmentDueDate !== undefined || payload.flagged !== undefined;
     if (hasJiraFields) {
-      await this.jiraClient.updateIssue(jiraKey, jiraFields);
+      const jiraClient = await this.getJiraClient();
+      await jiraClient.updateIssue(jiraKey, jiraFields);
     }
 
     const localUpdate: Partial<typeof issues.$inferInsert> = {};
@@ -117,7 +126,8 @@ export class IssueService {
   }
 
   async addComment(jiraKey: string, text: string): Promise<void> {
-    await this.jiraClient.addComment(jiraKey, text);
+    const jiraClient = await this.getJiraClient();
+    await jiraClient.addComment(jiraKey, text);
   }
 
   async excludeIssue(jiraKey: string): Promise<void> {
@@ -131,14 +141,15 @@ export class IssueService {
   async getOverviewCounts(): Promise<OverviewCounts> {
     const rows: Array<typeof issues.$inferSelect> = await db.select().from(issues);
     const all = rows.map((row) => this.toSharedIssue(row));
-    const leadId = await this.getLeadAccountId();
+    const leadId = await this.settings.getJiraLeadAccountId();
+    const staleThresholdHours = await this.settings.getStaleThresholdHours();
     const now = new Date();
     const today = todayIsoDate(now);
     const weekEnd = endOfWeekIsoDate(now);
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
     const latest = await db.select().from(syncLog).orderBy(desc(syncLog.id)).limit(1);
-    const filterContext = { leadId, now, today, weekEnd, dayAgo };
+    const filterContext = { leadId, staleThresholdHours, now, today, weekEnd, dayAgo };
 
     return {
       new: this.applyIssueQuery(all, { filter: "new" }, filterContext).length,
@@ -181,6 +192,7 @@ export class IssueService {
     query: Pick<IssueQuery, "filter" | "assignee" | "priority" | "status" | "tagIds" | "noTags">,
     context: {
       leadId: string;
+      staleThresholdHours: number;
       now: Date;
       today: string;
       weekEnd: string;
@@ -212,8 +224,7 @@ export class IssueService {
       });
     }
 
-    const effectiveDue = (issue: SharedIssue) => issue.developmentDueDate ?? issue.dueDate;
-    const activeTeamIssues = () => result.filter((issue) => this.isActiveTeamIssue(issue));
+    const activeTeamIssues = () => result.filter((issue) => isActiveTeamIssue(issue));
 
     switch (query.filter) {
       case "new":
@@ -225,41 +236,31 @@ export class IssueService {
       case "unassigned":
         return activeTeamIssues().filter((issue) => issue.assigneeId === context.leadId || issue.teamScopeState === "unassigned");
       case "dueToday":
-        return activeTeamIssues().filter((issue) => effectiveDue(issue) === context.today);
+        return activeTeamIssues().filter((issue) => getEffectiveDueDate(issue) === context.today);
       case "dueThisWeek":
         return activeTeamIssues().filter((issue) => {
-          const dueDate = effectiveDue(issue);
+          const dueDate = getEffectiveDueDate(issue);
           return Boolean(dueDate && dueDate >= context.today && dueDate <= context.weekEnd);
         });
       case "noDueDate":
-        return activeTeamIssues().filter((issue) => !effectiveDue(issue));
+        return activeTeamIssues().filter((issue) => !getEffectiveDueDate(issue));
       case "overdue":
         return activeTeamIssues().filter((issue) => {
-          const dueDate = effectiveDue(issue);
+          const dueDate = getEffectiveDueDate(issue);
           return Boolean(dueDate && dueDate < context.today);
         });
       case "blocked":
         return activeTeamIssues().filter((issue) => issue.flagged);
       case "stale":
-        return activeTeamIssues().filter((issue) => isOlderThanHours(issue.updatedAt, 48, context.now));
+        return activeTeamIssues().filter((issue) => isStaleIssue(issue, context.staleThresholdHours, context.now));
       case "highPriority":
         return activeTeamIssues().filter((issue) => issue.priorityName === "Highest" || issue.priorityName === "High");
       case "outOfTeam":
-        return result.filter((issue) => this.isOutOfTeamIssue(issue));
+        return result.filter((issue) => isOutOfTeamIssue(issue));
       case "all":
       case undefined:
         return activeTeamIssues();
     }
-  }
-
-  private async getLeadAccountId(): Promise<string> {
-    const row = await db.select().from(configTable).where(eq(configTable.key, "jira_lead_account_id")).limit(1);
-    return row[0]?.value ?? "";
-  }
-
-  private async getConfigValue(key: string): Promise<string | undefined> {
-    const row = await db.select().from(configTable).where(eq(configTable.key, key)).limit(1);
-    return row[0]?.value;
   }
 
   private async resolveTeamScopeState(assigneeId?: string): Promise<"in_team" | "out_of_team" | "unassigned"> {
@@ -325,20 +326,6 @@ export class IssueService {
     };
   }
 
-  private isActiveTeamIssue(issue: SharedIssue): boolean {
-    return issue.statusCategory !== "done" &&
-      !issue.excluded &&
-      (issue.teamScopeState ?? "in_team") !== "out_of_team" &&
-      (issue.syncScopeState ?? "active") === "active";
-  }
-
-  private isOutOfTeamIssue(issue: SharedIssue): boolean {
-    return issue.statusCategory !== "done" &&
-      !issue.excluded &&
-      (issue.teamScopeState ?? "in_team") === "out_of_team" &&
-      (issue.syncScopeState ?? "active") === "active";
-  }
-
   private hasStatusName(issue: SharedIssue, statusName: string): boolean {
     return issue.statusName.trim().toLowerCase() === statusName.trim().toLowerCase();
   }
@@ -374,5 +361,15 @@ export class IssueService {
       map.set(row.jiraKey, arr);
     }
     return map;
+  }
+
+  private async getJiraClient(): Promise<JiraMutationClient> {
+    if (typeof this.jiraClientResolver === "function") {
+      return this.jiraClientResolver();
+    }
+    if (this.jiraClientResolver) {
+      return this.jiraClientResolver;
+    }
+    return this.settings.createJiraClient();
   }
 }

@@ -1,6 +1,19 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { Readable, Writable } from "node:stream";
+
+vi.mock("../src/config", () => ({
+  config: {
+    JIRA_BASE_URL: undefined,
+    JIRA_EMAIL: undefined,
+    JIRA_API_TOKEN: undefined,
+    JIRA_PROJECT_KEY: undefined,
+    JIRA_SYNC_JQL: undefined,
+    JIRA_DEV_DUE_DATE_FIELD: "customfield_10128",
+    JIRA_ASPEN_SEVERITY_FIELD: undefined,
+  },
+}));
+
 import { createConfigRouter } from "../src/routes/config";
 import { configTable, developers, issues, componentMap, syncLog, issueTags, localTags } from "../src/db/schema";
 import { db, rawDb } from "../src/db/connection";

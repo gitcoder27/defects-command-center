@@ -3,6 +3,7 @@ import type { AssignmentSuggestion, Developer, DeveloperWorkload, WorkloadLevel 
 import { db } from "../db/connection";
 import { developers, issues } from "../db/schema";
 import { todayIsoDate } from "../utils/date";
+import { getEffectiveDueDate, isActiveTeamIssue } from "./issue-rules";
 
 const PRIORITY_WEIGHTS: Record<string, number> = {
   Highest: 5,
@@ -30,12 +31,12 @@ export class WorkloadService {
     const today = todayIsoDate();
 
     return devs.map((dev) => {
-      const mine = activeIssues.filter((issue) => issue.assigneeId === dev.accountId && this.isActiveTeamIssue(issue));
+      const mine = activeIssues.filter((issue) => issue.assigneeId === dev.accountId && isActiveTeamIssue(issue));
       const score = this.calculateScore(mine.map((item) => item.priorityName));
       return {
         developer: dev,
         activeDefects: mine.length,
-        dueToday: mine.filter((item) => this.getEffectiveDueDate(item) === today).length,
+        dueToday: mine.filter((item) => getEffectiveDueDate(item) === today).length,
         blocked: mine.filter((item) => item.flagged === 1).length,
         score,
         level: this.getLevel(score),
@@ -45,7 +46,7 @@ export class WorkloadService {
 
   async getDeveloperIssues(accountId: string): Promise<Array<typeof issues.$inferSelect>> {
     const rows = await db.select().from(issues).where(eq(issues.assigneeId, accountId));
-    return rows.filter((issue) => this.isActiveTeamIssue(issue));
+    return rows.filter((issue) => isActiveTeamIssue(issue));
   }
 
   async getIdleDevelopers(): Promise<Developer[]> {
@@ -76,15 +77,5 @@ export class WorkloadService {
       return "medium";
     }
     return "heavy";
-  }
-
-  private isActiveTeamIssue(issue: typeof issues.$inferSelect): boolean {
-    const teamScopeState = issue.teamScopeState ?? "in_team";
-    const syncScopeState = issue.syncScopeState ?? "active";
-    return issue.statusCategory !== "done" && teamScopeState !== "out_of_team" && syncScopeState === "active";
-  }
-
-  private getEffectiveDueDate(issue: typeof issues.$inferSelect): string | null {
-    return issue.developmentDueDate ?? issue.dueDate ?? null;
   }
 }

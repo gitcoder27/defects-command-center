@@ -2,21 +2,29 @@ import type { Alert } from "shared/types";
 import { db } from "../db/connection";
 import { issues } from "../db/schema";
 import { isOlderThanHours, todayIsoDate } from "../utils/date";
+import { getEffectiveDueDate, isStaleIssue } from "./issue-rules";
+import { SettingsService } from "./settings.service";
 import { WorkloadService } from "./workload.service";
 
 export class AlertService {
-  constructor(private readonly workloadService: WorkloadService) {}
+  constructor(
+    private readonly workloadService: WorkloadService,
+    private readonly settings = new SettingsService(),
+  ) {}
 
   async computeAlerts(now = new Date()): Promise<Alert[]> {
     const rows = await db.select().from(issues);
+    const staleThresholdHours = await this.settings.getStaleThresholdHours();
     const today = todayIsoDate(now);
     const alerts: Alert[] = [];
 
     for (const row of rows) {
-      if (row.dueDate && row.dueDate < today && row.statusCategory !== "done") {
+      const effectiveDueDate = getEffectiveDueDate(row);
+
+      if (effectiveDueDate && effectiveDueDate < today && row.statusCategory !== "done") {
         alerts.push(this.makeIssueAlert("overdue", "high", row.jiraKey, `Issue ${row.jiraKey} is overdue.`));
       }
-      if (row.statusCategory !== "done" && isOlderThanHours(row.updatedAt, 48, now)) {
+      if (row.statusCategory !== "done" && isStaleIssue(row, staleThresholdHours, now)) {
         alerts.push(this.makeIssueAlert("stale", "medium", row.jiraKey, `Issue ${row.jiraKey} is stale.`));
       }
       if (row.flagged === 1) {

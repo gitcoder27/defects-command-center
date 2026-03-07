@@ -6,10 +6,10 @@ import { config } from "./config";
 import { rawDb } from "./db/connection";
 import { configTable } from "./db/schema";
 import { migrate } from "./db/migrate";
-import { JiraClient } from "./jira/client";
 import { AlertService } from "./services/alert.service";
 import { AutomationService } from "./services/automation.service";
 import { IssueService } from "./services/issue.service";
+import { SettingsService } from "./services/settings.service";
 import { WorkloadService } from "./services/workload.service";
 import { TagService } from "./services/tag.service";
 import { TeamTrackerService } from "./services/team-tracker.service";
@@ -53,12 +53,12 @@ async function bootstrap(): Promise<void> {
     logger.warn("Jira configuration is incomplete. Server will start without sync.");
   }
 
-  const issueJiraClient = new JiraClient(jiraBaseUrl ?? "", jiraEmail ?? "", startupToken);
+  const settingsService = new SettingsService();
   const workloadService = new WorkloadService();
-  const issueService = new IssueService(issueJiraClient);
-  const alertService = new AlertService(workloadService);
+  const issueService = new IssueService(undefined, settingsService);
+  const alertService = new AlertService(workloadService, settingsService);
   const automationService = new AutomationService(workloadService);
-  const syncEngine = new SyncEngine();
+  const syncEngine = new SyncEngine(settingsService);
   const tagService = new TagService();
   const teamTrackerService = new TeamTrackerService();
 
@@ -78,7 +78,7 @@ async function bootstrap(): Promise<void> {
 
   if (Boolean(jiraBaseUrl && jiraEmail && jiraProject && startupToken)) {
     void syncEngine.syncNow();
-    syncEngine.start();
+    await syncEngine.start();
   }
 }
 

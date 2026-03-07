@@ -130,7 +130,7 @@ export function createConfigRouter(syncEngine?: SyncEngine): Router {
 
       const token = req.body.jiraApiToken ?? tokenForLookup;
       if (syncEngine && req.body.jiraBaseUrl && req.body.jiraEmail && req.body.jiraProjectKey && token) {
-        syncEngine.start();
+        await syncEngine.start();
         void syncEngine.syncNow();
       }
 

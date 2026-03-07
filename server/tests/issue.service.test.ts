@@ -193,7 +193,13 @@ describe("IssueService", () => {
     addComment: vi.fn(async () => undefined),
   } as unknown as JiraClient;
 
-  const service = new IssueService(jiraClient);
+  const settings = {
+    getJiraLeadAccountId: vi.fn(async () => "lead-1"),
+    getStaleThresholdHours: vi.fn(async () => 48),
+    getJiraDevDueDateField: vi.fn(async () => "customfield_10128"),
+    createJiraClient: vi.fn(async () => jiraClient),
+  };
+  const service = new IssueService(jiraClient, settings as any);
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -270,6 +276,36 @@ describe("IssueService", () => {
   it("adds comment through Jira client", async () => {
     await service.addComment("PROJ-1", "Investigating now");
     expect(jiraClient.addComment).toHaveBeenCalledWith("PROJ-1", "Investigating now");
+  });
+
+  it("uses the configured stale threshold for stale filters and overview counts", async () => {
+    const strictThresholdSettings = {
+      ...settings,
+      getStaleThresholdHours: vi.fn(async () => 96),
+    };
+    const strictService = new IssueService(jiraClient, strictThresholdSettings as any);
+
+    expect(await strictService.getAll({ filter: "stale" })).toHaveLength(0);
+    expect((await strictService.getOverviewCounts()).stale).toBe(0);
+  });
+
+  it("does not cache the Jira mutation client", async () => {
+    const oldClient = {
+      updateIssue: vi.fn(async () => undefined),
+      addComment: vi.fn(async () => undefined),
+    };
+    const newClient = {
+      updateIssue: vi.fn(async () => undefined),
+      addComment: vi.fn(async () => undefined),
+    };
+    let currentClient = oldClient;
+    const dynamicService = new IssueService(async () => currentClient as unknown as JiraClient, settings as any);
+
+    currentClient = newClient;
+    await dynamicService.addComment("PROJ-1", "Fresh client");
+
+    expect(oldClient.addComment).not.toHaveBeenCalled();
+    expect(newClient.addComment).toHaveBeenCalledWith("PROJ-1", "Fresh client");
   });
 
   it("filters issues by single tag (AND logic)", async () => {

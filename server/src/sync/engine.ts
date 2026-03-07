@@ -1,13 +1,12 @@
-import cron from "node-cron";
 import { desc, eq } from "drizzle-orm";
 import { db } from "../db/connection";
 import { configTable, developers, issues, issueScopeHistory, syncLog } from "../db/schema";
 import { JiraClient } from "../jira/client";
 import { buildScopedJql } from "../jira/jql";
 import { JiraIssue } from "../jira/types";
-import { logger } from "../utils/logger";
 import { config } from "../config";
-import { getJiraApiToken } from "../runtime-credentials";
+import { logger } from "../utils/logger";
+import { SettingsService } from "../services/settings.service";
 
 export interface SyncResult {
   status: "success" | "error";
@@ -21,22 +20,25 @@ type TeamScopeState = "in_team" | "out_of_team" | "unassigned";
 type SyncScopeState = "active" | "inaccessible";
 
 export class SyncEngine {
-  private task?: { stop: () => void };
+  private task?: NodeJS.Timeout;
   private syncing = false;
   private lastStatus: "idle" | "syncing" | "error" = "idle";
   private lastError?: string;
 
-  constructor() {}
+  constructor(private readonly settings = new SettingsService()) {}
 
-  start(): void {
+  async start(): Promise<void> {
     this.stop();
-    this.task = cron.schedule("*/5 * * * *", () => {
+    const syncIntervalMs = await this.settings.getSyncIntervalMs();
+    this.task = setInterval(() => {
       void this.syncNow();
-    });
+    }, syncIntervalMs);
   }
 
   stop(): void {
-    this.task?.stop();
+    if (this.task) {
+      clearInterval(this.task);
+    }
     this.task = undefined;
   }
 
@@ -62,19 +64,17 @@ export class SyncEngine {
     const logId = logInsert[0]?.id;
 
     try {
-      const project = await this.getConfigValue("jira_project_key");
+      const project = await this.settings.getJiraProjectKey();
       if (!project) {
         throw new Error("Missing jira_project_key in config");
       }
 
-      const dbJql = await this.getConfigValue("jira_sync_jql");
+      const dbJql = await this.settings.getJiraSyncJql();
       const teamAccountIds = await this.getScopedTeamAccountIds();
       const jql = buildScopedJql(project, dbJql ?? config.JIRA_SYNC_JQL, teamAccountIds);
-      const dbDevField = await this.getConfigValue("jira_dev_due_date_field");
-      const devDueDateField = dbDevField || config.JIRA_DEV_DUE_DATE_FIELD;
-      const dbAspenSeverityField = await this.getConfigValue("jira_aspen_severity_field");
-      const aspenSeverityField = dbAspenSeverityField || config.JIRA_ASPEN_SEVERITY_FIELD;
-      const jiraClient = await this.getJiraClient();
+      const devDueDateField = await this.settings.getJiraDevDueDateField();
+      const aspenSeverityField = await this.settings.getJiraAspenSeverityField();
+      const jiraClient = await this.settings.createJiraClient();
       const locallyTrackedKeys = await this.getLocallyTrackedActiveKeys();
       const fields = [
         "summary",
@@ -135,11 +135,6 @@ export class SyncEngine {
     } finally {
       this.syncing = false;
     }
-  }
-
-  private async getConfigValue(key: string): Promise<string | undefined> {
-    const rows = await db.select().from(configTable).where(eq(configTable.key, key)).limit(1);
-    return rows[0]?.value;
   }
 
   private toIssueRow(
@@ -407,7 +402,7 @@ export class SyncEngine {
 
   private async getScopedTeamAccountIds(): Promise<Set<string>> {
     const teamAccountIds = await this.getActiveTeamAccountIds();
-    const leadAccountId = (await this.getConfigValue("jira_lead_account_id"))?.trim();
+    const leadAccountId = (await this.settings.getJiraLeadAccountId()).trim();
     if (leadAccountId) {
       teamAccountIds.add(leadAccountId);
     }
@@ -493,22 +488,5 @@ export class SyncEngine {
       return "reassigned";
     }
     return "issue_updated";
-  }
-
-  private async getJiraClient(): Promise<JiraClient> {
-    const baseUrl = (await this.getConfigValue("jira_base_url")) ?? config.JIRA_BASE_URL;
-    const email = (await this.getConfigValue("jira_email")) ?? config.JIRA_EMAIL;
-    const token = await this.getJiraToken();
-
-    if (!baseUrl || !email || !token) {
-      throw new Error("Missing Jira credentials");
-    }
-
-    return new JiraClient(baseUrl, email, token);
-  }
-
-  private async getJiraToken(): Promise<string | undefined> {
-    const tokenFromDb = await this.getConfigValue("jira_api_token");
-    return tokenFromDb || getJiraApiToken() || config.JIRA_API_TOKEN;
   }
 }
