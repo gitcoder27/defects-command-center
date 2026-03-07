@@ -39,6 +39,10 @@ function hasAnalysisNotes(issue: Issue): boolean {
   return Boolean(issue.analysisNotes?.trim());
 }
 
+function getEffectiveDueDate(issue: Issue): string | undefined {
+  return issue.developmentDueDate ?? issue.dueDate;
+}
+
 interface DefectTableProps {
   filter: FilterType;
   assigneeFilter?: string;
@@ -318,7 +322,7 @@ export function DefectTable({
         header: 'Due Date',
         cell: (info) => {
           const issue = info.row.original;
-          const effectiveDueDate = issue.developmentDueDate ?? issue.dueDate;
+          const effectiveDueDate = getEffectiveDueDate(issue);
           if (editingCell?.rowKey === issue.jiraKey && editingCell?.column === 'dueDate') {
             return (
               <InlineEditDueDate
@@ -585,19 +589,36 @@ export function DefectTable({
             const issue = row.original;
             const isSelected = issue.jiraKey === selectedKey;
             const isFocused = i === focusedIndex;
-            const overdue = isOverdue(issue.dueDate ?? undefined);
-            const dueToday = isDueToday(issue.dueDate ?? undefined);
+              const effectiveDueDate = getEffectiveDueDate(issue);
+              const overdue = isOverdue(effectiveDueDate);
+              const dueToday = isDueToday(effectiveDueDate);
             const stale = issue.statusCategory !== 'done' && isStale(issue.updatedAt);
             const isLastVisited = lastVisitedKey === issue.jiraKey;
 
             let leftBorder = 'transparent';
-            if (isSelected) leftBorder = 'var(--accent)';
-            else if (isFocused) leftBorder = 'var(--accent)';
-            else if (isLastVisited) leftBorder = 'var(--info)';
-            else if (overdue) leftBorder = 'var(--danger)';
-            else if (dueToday) leftBorder = 'var(--warning)';
-            else if (issue.flagged) leftBorder = 'var(--danger-muted)';
-            else if (stale) leftBorder = 'var(--text-muted)';
+            let indicatorReason: string | null = null;
+            if (isSelected) {
+              leftBorder = 'var(--accent)';
+              indicatorReason = 'Selected defect';
+            } else if (isFocused) {
+              leftBorder = 'var(--accent)';
+              indicatorReason = 'Focused defect';
+            } else if (isLastVisited) {
+              leftBorder = 'var(--info)';
+              indicatorReason = 'Last opened in Jira';
+            } else if (overdue) {
+              leftBorder = 'var(--danger)';
+              indicatorReason = 'Overdue development due date';
+            } else if (dueToday) {
+              leftBorder = 'var(--warning)';
+              indicatorReason = 'Development due date is today';
+            } else if (issue.flagged) {
+              leftBorder = 'var(--danger-muted)';
+              indicatorReason = 'Flagged issue';
+            } else if (stale) {
+              leftBorder = 'var(--text-muted)';
+              indicatorReason = 'Stale: not updated in the last 48 hours';
+            }
 
             const shouldAnimate = !hasAnimated && i < 10;
 
@@ -625,14 +646,21 @@ export function DefectTable({
                         : issue.flagged
                         ? 'rgba(239,68,68,0.04)'
                         : 'color-mix(in srgb, var(--bg-secondary) 92%, white 8%)',
-                      boxShadow: `inset 4px 0 0 ${leftBorder}`,
                       borderTop: '1px solid var(--border)',
                       borderBottom: '1px solid var(--border)',
                     }}
                     whileHover={{ y: -1, backgroundColor: 'color-mix(in srgb, var(--bg-tertiary) 92%, white 8%)' }}
                   >
-                    {row.getVisibleCells().map((cell) => (
+                    {row.getVisibleCells().map((cell, cellIndex) => (
                       <td key={cell.id} className="px-2.5 py-2 text-[13px] relative z-0 first:rounded-l-[14px] last:rounded-r-[14px]">
+                        {cellIndex === 0 && indicatorReason ? (
+                          <span
+                            className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-[14px] cursor-help"
+                            style={{ background: leftBorder }}
+                            title={indicatorReason}
+                            aria-label={`Row indicator: ${indicatorReason}`}
+                          />
+                        ) : null}
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}

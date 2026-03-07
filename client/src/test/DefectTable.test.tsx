@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { DefectTable } from '@/components/table/DefectTable';
 import { TestWrapper } from '@/test/wrapper';
 import type { Issue } from '@/types';
@@ -156,6 +156,7 @@ describe('DefectTable', () => {
     // PROJ-103 is stale (updatedAt is Feb 2026)
     expect(screen.getByText('PROJ-103')).toBeInTheDocument();
     expect(screen.getByText('Stale defect not updated')).toBeInTheDocument();
+    expect(screen.getAllByLabelText('Row indicator: Stale: not updated in the last 48 hours').length).toBeGreaterThan(0);
   });
 
   it('uses ASPEN Severity values for the first-column indicators', () => {
@@ -273,5 +274,32 @@ describe('DefectTable', () => {
     fireEvent.blur(input);
 
     expect(screen.getByLabelText('Search defects by ID or title')).toBeInTheDocument();
+  });
+
+  it('uses developmentDueDate as the row due-state source for left indicators', () => {
+    const originalDueDate = mockIssues[1].dueDate;
+    const originalDevDueDate = mockIssues[1].developmentDueDate;
+
+    // Make sources conflict: Jira due date is overdue, dev due date is far-future.
+    mockIssues[1].dueDate = '2020-01-01';
+    mockIssues[1].developmentDueDate = '2099-01-01';
+
+    try {
+      render(
+        <TestWrapper>
+          <DefectTable {...defaultProps} />
+        </TestWrapper>
+      );
+
+      const row = screen.getByText('PROJ-102').closest('tr');
+      expect(row).toBeTruthy();
+
+      // If dueDate was used, this would be var(--danger); with developmentDueDate precedence,
+      // PROJ-102 falls back to flagged styling.
+      expect(within(row as HTMLElement).getByLabelText('Row indicator: Flagged issue')).toBeInTheDocument();
+    } finally {
+      mockIssues[1].dueDate = originalDueDate;
+      mockIssues[1].developmentDueDate = originalDevDueDate;
+    }
   });
 });
