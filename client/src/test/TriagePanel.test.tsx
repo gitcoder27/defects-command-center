@@ -242,11 +242,31 @@ describe('TriagePanel', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByText('PROJ-101 is already planned for Bob')).toBeInTheDocument();
+    expect(screen.getByText('Bob • Planned')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /already in bob's plan/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /bob in tracker/i })).toHaveAttribute('aria-pressed', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: /^alice assigned$/i }));
     expect(mockAddTrackerItemMutate).not.toHaveBeenCalled();
+  });
+
+  it('shows done tracker state and allows adding the Jira issue again', () => {
+    mockTrackerAssignment = {
+      date: '2026-03-07',
+      jiraKey: 'PROJ-101',
+      itemId: 44,
+      title: 'Login page crashes on submit with special chars',
+      state: 'done',
+      developer: { accountId: 'bob-2', displayName: 'Bob', isActive: true },
+    };
+
+    render(
+      <TestWrapper>
+        <TriagePanel issueKey="PROJ-101" onClose={onClose} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText('Bob • Done')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add to bob/i })).toBeEnabled();
   });
 });

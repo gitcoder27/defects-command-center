@@ -31,6 +31,19 @@ function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] ?? name;
 }
 
+function trackerStateLabel(state: 'planned' | 'in_progress' | 'done' | 'dropped'): string {
+  switch (state) {
+    case 'in_progress':
+      return 'Current work';
+    case 'done':
+      return 'Done';
+    case 'dropped':
+      return 'Dropped';
+    default:
+      return 'Planned';
+  }
+}
+
 function PropertyCard({
   label,
   children,
@@ -87,7 +100,9 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
     [developers, trackerAccountId]
   );
   const activeTrackerAssignment = trackerAssignment.data;
-  const isAlreadyTrackedToday = Boolean(activeTrackerAssignment);
+  const isAlreadyTrackedToday =
+    activeTrackerAssignment?.state === 'planned' ||
+    activeTrackerAssignment?.state === 'in_progress';
 
   // Sync local notes state with issue data
   useEffect(() => {
@@ -309,6 +324,230 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
                 />
               </div>
 
+              {/* Tags */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold uppercase flex items-center gap-1.5" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+                    <Tag size={12} /> Tags
+                  </span>
+                  <button
+                    onClick={() => setShowTagPicker((p) => !p)}
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors"
+                    title={showTagPicker ? 'Hide tag editor' : 'Add tag'}
+                    aria-label={showTagPicker ? 'Hide tag editor' : 'Add tag'}
+                    style={{
+                      color: 'var(--text-secondary)',
+                      background: showTagPicker ? 'var(--bg-secondary)' : 'transparent',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <Plus size={14} style={{ color: 'var(--text-muted)' }} />
+                    {showTagPicker ? 'Close' : 'Add Tag'}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {issue.localTags.map((tag) => (
+                    <button
+                      key={tag.id}
+                      onClick={() => toggleTag(tag.id)}
+                      className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 hover:opacity-80 transition-opacity"
+                      style={{ background: `${tag.color}25`, color: tag.color, border: `1px solid ${tag.color}40` }}
+                      title={`Remove "${tag.name}"`}
+                    >
+                      {tag.name} ×
+                    </button>
+                  ))}
+                  {issue.localTags.length === 0 && !showTagPicker && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>No tags assigned</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowTagPicker(true)}
+                        className="text-[11px] font-medium"
+                        style={{ color: 'var(--accent)' }}
+                      >
+                        Add one
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {showTagPicker && (
+                  <div className="rounded-md p-2 flex flex-col gap-2" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+                    {allTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {allTags.map((tag) => {
+                          const isAssigned = assignedTagIds.has(tag.id);
+                          return (
+                            <button
+                              key={tag.id}
+                              onClick={() => toggleTag(tag.id)}
+                              className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 transition-opacity"
+                              style={{
+                                background: isAssigned ? `${tag.color}40` : `${tag.color}15`,
+                                color: tag.color,
+                                border: `1px solid ${tag.color}${isAssigned ? '80' : '30'}`,
+                                opacity: isAssigned ? 1 : 0.7,
+                              }}
+                            >
+                              {isAssigned && <Check size={10} />}
+                              {tag.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        value={newTagName}
+                        onChange={(e) => setNewTagName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            createOrAssignTag(newTagName, { onSuccess: () => setNewTagName('') });
+                          }
+                        }}
+                        placeholder="New tag name..."
+                        className="flex-1 text-[12px] px-2 py-1 rounded focus:outline-none focus:ring-1"
+                        style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)', outlineColor: 'var(--accent)' }}
+                      />
+                      <button
+                        onClick={() => createOrAssignTag(newTagName, { onSuccess: () => setNewTagName('') })}
+                        disabled={!newTagName.trim() || isTagMutationPending}
+                        className="text-[11px] px-2 py-1 rounded font-medium disabled:opacity-40 transition-colors"
+                        style={{ background: 'var(--accent)', color: '#fff' }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold uppercase flex items-center gap-1.5" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+                    <Plus size={12} /> Team Tracker
+                  </span>
+                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    Today
+                  </span>
+                </div>
+                <div
+                  className="rounded-xl px-3 py-3"
+                  style={{
+                    background: 'var(--bg-tertiary)',
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  {developers && developers.length > 0 ? (
+                    <>
+                      {activeTrackerAssignment && (
+                        <div
+                          className="mb-3 rounded-lg px-3 py-2 text-[12px] font-medium"
+                          style={{
+                            background: activeTrackerAssignment.state === 'in_progress'
+                              ? 'color-mix(in srgb, var(--success) 12%, var(--bg-secondary) 88%)'
+                              : activeTrackerAssignment.state === 'planned'
+                                ? 'color-mix(in srgb, var(--accent-glow) 56%, var(--bg-secondary) 44%)'
+                                : activeTrackerAssignment.state === 'done'
+                                  ? 'color-mix(in srgb, var(--success) 8%, var(--bg-secondary) 92%)'
+                                  : 'color-mix(in srgb, var(--warning) 8%, var(--bg-secondary) 92%)',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text-primary)',
+                          }}
+                        >
+                          {activeTrackerAssignment.developer.displayName} • {trackerStateLabel(activeTrackerAssignment.state)}
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-1.5">
+                        {developers.map((dev) => {
+                          const isSelected = trackerAccountId === dev.accountId;
+                          const isAssigned = issue?.assigneeId === dev.accountId;
+                          const wasJustAdded = trackerAddedAccountId === dev.accountId;
+                          const isTrackerOwner = activeTrackerAssignment?.developer.accountId === dev.accountId;
+
+                          return (
+                            <button
+                              key={dev.accountId}
+                              type="button"
+                              onClick={() => setTrackerAccountId(dev.accountId)}
+                              aria-pressed={isSelected}
+                              className="rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors"
+                              style={{
+                                background: isSelected
+                                  ? 'color-mix(in srgb, var(--accent-glow) 76%, var(--bg-secondary) 24%)'
+                                  : 'var(--bg-secondary)',
+                                color: isSelected ? 'var(--accent)' : 'var(--text-secondary)',
+                                border: `1px solid ${isSelected ? 'var(--border-active)' : 'var(--border)'}`,
+                              }}
+                            >
+                              <span className="flex items-center gap-1.5">
+                                {wasJustAdded && <Check size={12} />}
+                                <span>{dev.displayName}</span>
+                                {isAssigned && (
+                                  <span
+                                    className="rounded-full px-1.5 py-0.5 text-[10px]"
+                                    style={{
+                                      background: isSelected ? 'rgba(255,255,255,0.55)' : 'var(--bg-tertiary)',
+                                      color: isSelected ? 'var(--accent)' : 'var(--text-muted)',
+                                    }}
+                                  >
+                                    Assigned
+                                  </span>
+                                )}
+                                {isTrackerOwner && (
+                                  <span
+                                    className="rounded-full px-1.5 py-0.5 text-[10px]"
+                                    style={{
+                                      background: isSelected ? 'rgba(255,255,255,0.55)' : 'var(--bg-tertiary)',
+                                      color: isSelected ? 'var(--accent)' : 'var(--text-muted)',
+                                    }}
+                                  >
+                                    In Tracker
+                                  </span>
+                                )}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <div className="min-w-0 text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                            {isAlreadyTrackedToday && activeTrackerAssignment
+                              ? `${issue.jiraKey} already linked to ${activeTrackerAssignment.developer.displayName}`
+                              : selectedTrackerDeveloper
+                                ? `${selectedTrackerDeveloper.displayName} for ${trackerDate}`
+                                : 'Choose a developer'}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleAddToTracker}
+                          disabled={!selectedTrackerDeveloper || addTrackerItem.isPending || isAlreadyTrackedToday}
+                          className="shrink-0 rounded-lg px-3 py-2 text-[12px] font-medium disabled:opacity-40"
+                          style={{
+                            background: 'var(--accent-glow)',
+                            color: 'var(--accent)',
+                            border: '1px solid color-mix(in srgb, var(--accent) 28%, transparent)',
+                          }}
+                        >
+                          {addTrackerItem.isPending
+                            ? 'Adding...'
+                            : isAlreadyTrackedToday && activeTrackerAssignment
+                              ? `Already in ${firstName(activeTrackerAssignment.developer.displayName)}'s plan`
+                              : selectedTrackerDeveloper
+                                ? `Add to ${firstName(selectedTrackerDeveloper.displayName)}`
+                                : 'Add to Team Tracker'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                      No active team members available.
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Triage properties */}
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -443,240 +682,6 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
                     <IssueDetails issue={issue} />
                   </div>
                 </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-semibold uppercase flex items-center gap-1.5" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-                    <Plus size={12} /> Team Tracker
-                  </span>
-                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                    Today
-                  </span>
-                </div>
-                <div
-                  className="rounded-xl px-3 py-3"
-                  style={{
-                    background: 'var(--bg-tertiary)',
-                    border: '1px solid var(--border)',
-                  }}
-                >
-                  {developers && developers.length > 0 ? (
-                    <>
-                      <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
-                        Add this Jira issue to a developer&apos;s planned queue without leaving triage.
-                      </div>
-                      {isAlreadyTrackedToday && activeTrackerAssignment && (
-                        <div
-                          className="mt-3 rounded-lg px-3 py-2"
-                          style={{
-                            background: activeTrackerAssignment.state === 'in_progress'
-                              ? 'color-mix(in srgb, var(--success) 12%, var(--bg-secondary) 88%)'
-                              : 'color-mix(in srgb, var(--accent-glow) 56%, var(--bg-secondary) 44%)',
-                            border: '1px solid var(--border)',
-                          }}
-                        >
-                          <div className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                            {issue.jiraKey} is already {activeTrackerAssignment.state === 'in_progress' ? 'current work' : 'planned'} for {activeTrackerAssignment.developer.displayName}
-                          </div>
-                          <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                            Duplicate planned items are blocked until this tracker entry is moved, completed, or dropped.
-                          </div>
-                        </div>
-                      )}
-                      <div className="flex flex-wrap gap-1.5 mt-3">
-                        {developers.map((dev) => {
-                          const isSelected = trackerAccountId === dev.accountId;
-                          const isAssigned = issue?.assigneeId === dev.accountId;
-                          const wasJustAdded = trackerAddedAccountId === dev.accountId;
-                          const isTrackerOwner = activeTrackerAssignment?.developer.accountId === dev.accountId;
-
-                          return (
-                            <button
-                              key={dev.accountId}
-                              type="button"
-                              onClick={() => setTrackerAccountId(dev.accountId)}
-                              aria-pressed={isSelected}
-                              className="rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors"
-                              style={{
-                                background: isSelected
-                                  ? 'color-mix(in srgb, var(--accent-glow) 76%, var(--bg-secondary) 24%)'
-                                  : 'var(--bg-secondary)',
-                                color: isSelected ? 'var(--accent)' : 'var(--text-secondary)',
-                                border: `1px solid ${isSelected ? 'var(--border-active)' : 'var(--border)'}`,
-                              }}
-                            >
-                              <span className="flex items-center gap-1.5">
-                                {wasJustAdded && <Check size={12} />}
-                                <span>{dev.displayName}</span>
-                                {isAssigned && (
-                                  <span
-                                    className="rounded-full px-1.5 py-0.5 text-[10px]"
-                                    style={{
-                                      background: isSelected ? 'rgba(255,255,255,0.55)' : 'var(--bg-tertiary)',
-                                      color: isSelected ? 'var(--accent)' : 'var(--text-muted)',
-                                    }}
-                                  >
-                                    Assigned
-                                  </span>
-                                )}
-                                {isTrackerOwner && (
-                                  <span
-                                    className="rounded-full px-1.5 py-0.5 text-[10px]"
-                                    style={{
-                                      background: isSelected ? 'rgba(255,255,255,0.55)' : 'var(--bg-tertiary)',
-                                      color: isSelected ? 'var(--accent)' : 'var(--text-muted)',
-                                    }}
-                                  >
-                                    In Tracker
-                                  </span>
-                                )}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="mt-3 flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                            {isAlreadyTrackedToday && activeTrackerAssignment
-                              ? `${activeTrackerAssignment.developer.displayName} already owns this Jira task for ${trackerDate}`
-                              : selectedTrackerDeveloper
-                                ? `Add to ${selectedTrackerDeveloper.displayName}'s plan for ${trackerDate}`
-                                : 'Choose a developer'}
-                          </div>
-                          <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                            {isAlreadyTrackedToday
-                              ? 'Use Team Tracker to update the existing assignment instead of creating a duplicate.'
-                              : 'Creates a Jira-linked planned item in Team Tracker.'}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleAddToTracker}
-                          disabled={!selectedTrackerDeveloper || addTrackerItem.isPending || isAlreadyTrackedToday}
-                          className="shrink-0 rounded-lg px-3 py-2 text-[12px] font-medium disabled:opacity-40"
-                          style={{
-                            background: 'var(--accent-glow)',
-                            color: 'var(--accent)',
-                            border: '1px solid color-mix(in srgb, var(--accent) 28%, transparent)',
-                          }}
-                        >
-                          {addTrackerItem.isPending
-                            ? 'Adding...'
-                            : isAlreadyTrackedToday && activeTrackerAssignment
-                              ? `Already in ${firstName(activeTrackerAssignment.developer.displayName)}'s plan`
-                              : selectedTrackerDeveloper
-                              ? `Add to ${firstName(selectedTrackerDeveloper.displayName)}`
-                              : 'Add to Team Tracker'}
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                      Add active team members in Settings to send Jira issues into Team Tracker.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Tags */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-semibold uppercase flex items-center gap-1.5" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-                    <Tag size={12} /> Tags
-                  </span>
-                  <button
-                    onClick={() => setShowTagPicker((p) => !p)}
-                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors"
-                    title={showTagPicker ? 'Hide tag editor' : 'Add tag'}
-                    aria-label={showTagPicker ? 'Hide tag editor' : 'Add tag'}
-                    style={{
-                      color: 'var(--text-secondary)',
-                      background: showTagPicker ? 'var(--bg-secondary)' : 'transparent',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    <Plus size={14} style={{ color: 'var(--text-muted)' }} />
-                    {showTagPicker ? 'Close' : 'Add Tag'}
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {issue.localTags.map((tag) => (
-                    <button
-                      key={tag.id}
-                      onClick={() => toggleTag(tag.id)}
-                      className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 hover:opacity-80 transition-opacity"
-                      style={{ background: `${tag.color}25`, color: tag.color, border: `1px solid ${tag.color}40` }}
-                      title={`Remove "${tag.name}"`}
-                    >
-                      {tag.name} ×
-                    </button>
-                  ))}
-                  {issue.localTags.length === 0 && !showTagPicker && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>No tags assigned</span>
-                      <button
-                        type="button"
-                        onClick={() => setShowTagPicker(true)}
-                        className="text-[11px] font-medium"
-                        style={{ color: 'var(--accent)' }}
-                      >
-                        Add one
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {showTagPicker && (
-                  <div className="rounded-md p-2 flex flex-col gap-2" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
-                    {allTags.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {allTags.map((tag) => {
-                          const isAssigned = assignedTagIds.has(tag.id);
-                          return (
-                            <button
-                              key={tag.id}
-                              onClick={() => toggleTag(tag.id)}
-                              className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 transition-opacity"
-                              style={{
-                                background: isAssigned ? `${tag.color}40` : `${tag.color}15`,
-                                color: tag.color,
-                                border: `1px solid ${tag.color}${isAssigned ? '80' : '30'}`,
-                                opacity: isAssigned ? 1 : 0.7,
-                              }}
-                            >
-                              {isAssigned && <Check size={10} />}
-                              {tag.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                    <div className="flex gap-1.5">
-                      <input
-                        type="text"
-                        value={newTagName}
-                        onChange={(e) => setNewTagName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            createOrAssignTag(newTagName, { onSuccess: () => setNewTagName('') });
-                          }
-                        }}
-                        placeholder="New tag name..."
-                        className="flex-1 text-[12px] px-2 py-1 rounded focus:outline-none focus:ring-1"
-                        style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)', outlineColor: 'var(--accent)' }}
-                      />
-                      <button
-                        onClick={() => createOrAssignTag(newTagName, { onSuccess: () => setNewTagName('') })}
-                        disabled={!newTagName.trim() || isTagMutationPending}
-                        className="text-[11px] px-2 py-1 rounded font-medium disabled:opacity-40 transition-colors"
-                        style={{ background: 'var(--accent)', color: '#fff' }}
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Suggestions */}

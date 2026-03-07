@@ -8,6 +8,12 @@ import type {
   TrackerItemState,
 } from '@/types';
 
+function invalidateIssueAssignments(queryClient: ReturnType<typeof useQueryClient>, date: string) {
+  return queryClient.invalidateQueries({
+    queryKey: ['team-tracker', 'issue-assignment', date],
+  });
+}
+
 export function useUpdateDay(date: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -44,6 +50,7 @@ export function useAddTrackerItem(date: string) {
       }),
     onSuccess: (_data, params) => {
       qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      invalidateIssueAssignments(qc, date);
       if (params.jiraKey) {
         qc.invalidateQueries({
           queryKey: ['team-tracker', 'issue-assignment', date, params.jiraKey],
@@ -66,7 +73,10 @@ export function useUpdateTrackerItem(date: string) {
       const { itemId, ...body } = params;
       return api.patch<TrackerWorkItem>(`/team-tracker/items/${itemId}`, body);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['team-tracker', date] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      invalidateIssueAssignments(qc, date);
+    },
   });
 }
 
@@ -75,7 +85,10 @@ export function useDeleteTrackerItem(date: string) {
   return useMutation({
     mutationFn: (itemId: number) =>
       api.delete(`/team-tracker/items/${itemId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['team-tracker', date] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      invalidateIssueAssignments(qc, date);
+    },
   });
 }
 
@@ -84,7 +97,10 @@ export function useSetCurrentItem(date: string) {
   return useMutation({
     mutationFn: (itemId: number) =>
       api.post<TrackerWorkItem>(`/team-tracker/items/${itemId}/set-current`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['team-tracker', date] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      invalidateIssueAssignments(qc, date);
+    },
   });
 }
 

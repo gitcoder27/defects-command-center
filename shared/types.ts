@@ -227,7 +227,7 @@ export interface TrackerIssueAssignment {
   jiraKey: string;
   itemId: number;
   title: string;
-  state: Extract<TrackerItemState, "planned" | "in_progress">;
+  state: TrackerItemState;
   developer: Developer;
 }
 

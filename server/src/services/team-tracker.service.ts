@@ -249,7 +249,11 @@ export class TeamTrackerService {
         date
       );
 
-      if (existingAssignment) {
+      if (
+        existingAssignment &&
+        (existingAssignment.state === "planned" ||
+          existingAssignment.state === "in_progress")
+      ) {
         throw new HttpError(
           409,
           `Jira issue ${normalizedJiraKey} is already ${existingAssignment.state === "in_progress" ? "in progress" : "planned"} for ${existingAssignment.developer.displayName} on ${date}`
@@ -416,15 +420,13 @@ export class TeamTrackerService {
       .where(inArray(teamTrackerItems.dayId, activeDayIds));
 
     const match = itemRows
-      .filter(
-        (item) =>
-          item.jiraKey === normalizedJiraKey &&
-          (item.state === "planned" || item.state === "in_progress")
-      )
+      .filter((item) => item.jiraKey === normalizedJiraKey)
       .sort(
         (left, right) =>
-          left.dayId - right.dayId ||
+          (left.state === "in_progress" ? 0 : left.state === "planned" ? 1 : 2) -
+            (right.state === "in_progress" ? 0 : right.state === "planned" ? 1 : 2) ||
           left.position - right.position ||
+          new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime() ||
           left.id - right.id
       )[0];
 
@@ -453,7 +455,7 @@ export class TeamTrackerService {
       jiraKey: normalizedJiraKey,
       itemId: match.id,
       title: match.title,
-      state: match.state as "planned" | "in_progress",
+      state: match.state as TrackerItemState,
       developer: {
         accountId: developerRow.accountId,
         displayName: developerRow.displayName,

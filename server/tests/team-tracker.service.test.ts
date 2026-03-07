@@ -440,6 +440,21 @@ describe("TeamTrackerService", () => {
         },
       });
     });
+
+    it("returns done when the tracker item has been completed", async () => {
+      await seedIssue();
+      const item = await service.addItem("dev-1", "2026-03-07", {
+        itemType: "jira",
+        jiraKey: "AM-123",
+        title: "Linked Jira task",
+      });
+      await service.updateItem(item.id, { state: "done" });
+
+      const assignment = await service.getIssueAssignment("AM-123", "2026-03-07");
+
+      expect(assignment?.state).toBe("done");
+      expect(assignment?.developer.displayName).toBe("Alice Smith");
+    });
   });
 
   describe("stale detection", () => {
