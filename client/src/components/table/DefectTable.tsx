@@ -655,11 +655,15 @@ export function DefectTable({
                       <td key={cell.id} className="px-2.5 py-2 text-[13px] relative z-0 first:rounded-l-[14px] last:rounded-r-[14px]">
                         {cellIndex === 0 && indicatorReason ? (
                           <span
-                            className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-[14px] cursor-help"
-                            style={{ background: leftBorder }}
+                            className="absolute left-0 top-0 bottom-0 w-3 flex items-center justify-start cursor-help"
                             title={indicatorReason}
                             aria-label={`Row indicator: ${indicatorReason}`}
-                          />
+                          >
+                            <span
+                              className="block h-full w-[3px] rounded-l-[14px]"
+                              style={{ background: leftBorder }}
+                            />
+                          </span>
                         ) : null}
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>

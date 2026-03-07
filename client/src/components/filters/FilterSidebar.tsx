@@ -82,14 +82,13 @@ function getInitials(name: string): string {
 
 interface SectionProps {
   title: string;
-  description: string;
   countLabel: string;
   open: boolean;
   onToggle: () => void;
   children: ReactNode;
 }
 
-function SidebarSection({ title, description, countLabel, open, onToggle, children }: SectionProps) {
+function SidebarSection({ title, countLabel, open, onToggle, children }: SectionProps) {
   return (
     <section
       className="rounded-[14px] border p-1"
@@ -106,9 +105,6 @@ function SidebarSection({ title, description, countLabel, open, onToggle, childr
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
             {title}
-          </div>
-          <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-            {description}
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -182,18 +178,7 @@ export function FilterSidebar({
         }}
       >
         <div className="px-2.5 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
-                Focus Panel
-              </div>
-              <h2 className="mt-0.5 text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                Refine the queue
-              </h2>
-              <p className="mt-0.5 text-[10px] leading-3.5" style={{ color: 'var(--text-secondary)' }}>
-                Filter by risk view, tag clusters, or ownership without crowding the table.
-              </p>
-            </div>
+          <div className="flex items-center justify-end">
             <button
               onClick={mobile ? onClose : onCollapse}
               className="h-7 w-7 rounded-lg flex items-center justify-center transition-colors"
@@ -240,7 +225,6 @@ export function FilterSidebar({
         <div className="flex-1 overflow-y-auto px-1.5 py-1.5 space-y-1.5">
           <SidebarSection
             title="Filters"
-            description="Saved views for the queue"
             countLabel={`${FILTER_KEYS.length}`}
             open={filtersOpen}
             onToggle={() => setFiltersOpen((prev) => !prev)}
@@ -249,11 +233,8 @@ export function FilterSidebar({
               <FilterButton
                 label={FILTER_LABELS.all}
                 count={getCount('all')}
-                isActive={activeFilter === 'all' && !activeDeveloper}
-                onClick={() => {
-                  onDeveloperChange(undefined);
-                  onFilterChange('all');
-                }}
+                isActive={activeFilter === 'all'}
+                onClick={() => onFilterChange('all')}
                 shortcut="0"
                 icon={<Filter size={15} />}
               />
@@ -264,11 +245,8 @@ export function FilterSidebar({
                     key={key}
                     label={FILTER_LABELS[key] ?? key}
                     count={getCount(key)}
-                    isActive={activeFilter === key && !activeDeveloper}
-                    onClick={() => {
-                      onDeveloperChange(undefined);
-                      onFilterChange(key);
-                    }}
+                    isActive={activeFilter === key}
+                    onClick={() => onFilterChange(key)}
                     shortcut={index <= 6 ? `${index + 1}` : undefined}
                     icon={<Icon size={15} />}
                   />
@@ -292,7 +270,6 @@ export function FilterSidebar({
           {workload && workload.length > 0 && (
             <SidebarSection
               title="Developers"
-              description="Ownership and load"
               countLabel={`${workload.length}`}
               open={developersOpen}
               onToggle={() => setDevelopersOpen((prev) => !prev)}

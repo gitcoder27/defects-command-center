@@ -928,6 +928,47 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                 <strong style={{ color: 'var(--text-primary)' }}>How it works:</strong> Saving updates
                 the dashboard configuration. The saved JQL stays as the base query, and sync appends the current team member assignees automatically. Click <strong>"Save & Sync"</strong> to apply it immediately.
               </div>
+
+              {/* Row indicator legend */}
+              <div>
+                <label
+                  className="text-[11px] font-semibold uppercase mb-2 block"
+                  style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}
+                >
+                  Row Indicator Legend
+                </label>
+                <div
+                  className="rounded-md p-3"
+                  style={{ border: '1px solid var(--border)', background: 'var(--bg-tertiary)' }}
+                >
+                  <div className="grid gap-2 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="flex items-center gap-2">
+                      <span className="h-4 w-[3px]" style={{ background: 'var(--accent)' }} />
+                      <span>Selected or focused defect</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="h-4 w-[3px]" style={{ background: 'var(--info)' }} />
+                      <span>Last opened in Jira</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="h-4 w-[3px]" style={{ background: 'var(--danger)' }} />
+                      <span>Overdue development due date</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="h-4 w-[3px]" style={{ background: 'var(--warning)' }} />
+                      <span>Development due date is today</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="h-4 w-[3px]" style={{ background: 'var(--danger-muted)' }} />
+                      <span>Flagged issue</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="h-4 w-[3px]" style={{ background: 'var(--text-muted)' }} />
+                      <span>Stale: not updated in the last 48 hours</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Footer */}

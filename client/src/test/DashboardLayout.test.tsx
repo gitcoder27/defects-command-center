@@ -73,7 +73,7 @@ describe('DashboardLayout', () => {
     useMediaQueryMock.mockReturnValue(false);
   });
 
-  it('clears the active developer when a top overview card is clicked', () => {
+  it('keeps the active developer when a top overview card is clicked', () => {
     render(<DashboardLayout />);
 
     fireEvent.click(screen.getByText('Select Developer'));
@@ -81,7 +81,7 @@ describe('DashboardLayout', () => {
 
     const lastCall = defectTableSpy.mock.calls.at(-1)?.[0] as { filter: string; assigneeFilter?: string };
     expect(lastCall.filter).toBe('new');
-    expect(lastCall.assigneeFilter).toBeUndefined();
+    expect(lastCall.assigneeFilter).toBe('dev-1');
   });
 
   it('collapses the desktop sidebar from the sidebar control', () => {
@@ -104,6 +104,21 @@ describe('DashboardLayout', () => {
     const lastTableCall = defectTableSpy.mock.calls.at(-1)?.[0] as { assigneeFilter?: string };
 
     expect(lastSidebarCall.activeDeveloper).toBe('dev-1');
+    expect(lastTableCall.assigneeFilter).toBe('dev-1');
+  });
+
+  it('keeps the active jira filter when a workload developer is selected', () => {
+    render(<DashboardLayout />);
+
+    fireEvent.click(screen.getByText('New Card'));
+    fireEvent.click(screen.getByText('Select Developer'));
+
+    const lastSidebarCall = filterSidebarSpy.mock.calls.at(-1)?.[0] as { activeFilter: string; activeDeveloper?: string };
+    const lastTableCall = defectTableSpy.mock.calls.at(-1)?.[0] as { filter: string; assigneeFilter?: string };
+
+    expect(lastSidebarCall.activeFilter).toBe('new');
+    expect(lastSidebarCall.activeDeveloper).toBe('dev-1');
+    expect(lastTableCall.filter).toBe('new');
     expect(lastTableCall.assigneeFilter).toBe('dev-1');
   });
 

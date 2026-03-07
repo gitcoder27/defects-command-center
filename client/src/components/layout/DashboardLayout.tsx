@@ -62,7 +62,6 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
 
   const handleFilterChange = useCallback((filter: FilterType) => {
     setActiveFilter(filter);
-    setActiveDeveloper(undefined);
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
     closeSidebarOnCompact();
@@ -147,7 +146,6 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
         case '0':
           e.preventDefault();
           setActiveFilter('all');
-          setActiveDeveloper(undefined);
           setFocusedIndex(-1);
           break;
         case '1':

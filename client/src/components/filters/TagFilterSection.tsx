@@ -62,9 +62,6 @@ export function TagFilterSection({
             <div className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
               Tags
             </div>
-            <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-              {sortedTags.length > 0 ? `${sortedTags.length} labels available` : 'Create labels from the table'}
-            </div>
           </div>
         </button>
         {hasActiveFilters && (

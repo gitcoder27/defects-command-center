@@ -13,7 +13,9 @@ interface FilterButtonProps {
 export function FilterButton({ label, count, isActive, onClick, shortcut, isIdle, icon }: FilterButtonProps) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-pressed={isActive}
       className="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-[14px] text-[12px] font-medium transition-all duration-200 cursor-pointer group border"
       style={{
         background: isActive ? 'var(--bg-glow)' : 'transparent',

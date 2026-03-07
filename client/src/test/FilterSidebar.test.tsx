@@ -121,6 +121,7 @@ describe('FilterSidebar', () => {
 
     fireEvent.click(screen.getByText('Unassigned'));
     expect(onFilterChange).toHaveBeenCalledWith('unassigned');
+    expect(onDeveloperChange).not.toHaveBeenCalled();
   });
 
   it('renders developer buttons', () => {
@@ -194,5 +195,16 @@ describe('FilterSidebar', () => {
 
     fireEvent.click(screen.getByLabelText('Expand tags'));
     expect(onExpand).toHaveBeenCalled();
+  });
+
+  it('keeps the all filter active while a developer filter is also active', () => {
+    render(
+      <TestWrapper>
+        <FilterSidebar {...defaultProps} activeDeveloper="alice-1" />
+      </TestWrapper>
+    );
+
+    expect(screen.getByRole('button', { name: /All/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /Alice/ })).toHaveAttribute('aria-pressed', 'true');
   });
 });
