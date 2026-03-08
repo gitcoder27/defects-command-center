@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { ToastProvider } from '@/context/ToastContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
@@ -38,6 +38,32 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+interface WorkspaceShellProps {
+  activeView: AppView;
+  onViewChange: (view: AppView) => void;
+  children: ReactNode;
+}
+
+function WorkspaceShell({ activeView, onViewChange, children }: WorkspaceShellProps) {
+  return (
+    <div className="h-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
+      <Header activeView={activeView} onViewChange={onViewChange} />
+      <div className="flex-1 min-h-0 px-1.5 pb-1 md:px-2 md:pb-1.5">
+        <div
+          className="h-full min-h-0 rounded-[16px] border overflow-hidden flex flex-col"
+          style={{
+            borderColor: 'var(--border-strong)',
+            background: 'color-mix(in srgb, var(--bg-primary) 84%, transparent)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function AppContent() {
   const { data: config, isLoading, refetch } = useConfig();
@@ -85,7 +111,11 @@ function AppContent() {
       handleViewChange('my-day');
       return null;
     }
-    return <ManagerDeskPage />;
+    return (
+      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
+        <ManagerDeskPage />
+      </WorkspaceShell>
+    );
   }
 
   // If the URL is /my-day, always show the my-day experience
@@ -110,21 +140,9 @@ function AppContent() {
 
   if (activeView === 'team-tracker') {
     return (
-      <div className="h-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
-        <Header activeView={activeView} onViewChange={handleViewChange} />
-        <div className="flex-1 min-h-0 px-1.5 pb-1 md:px-2 md:pb-1.5">
-          <div
-            className="h-full min-h-0 rounded-[16px] border overflow-hidden flex flex-col"
-            style={{
-              borderColor: 'var(--border-strong)',
-              background: 'color-mix(in srgb, var(--bg-primary) 84%, transparent)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
-            }}
-          >
-            <TeamTrackerPage />
-          </div>
-        </div>
-      </div>
+      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
+        <TeamTrackerPage />
+      </WorkspaceShell>
     );
   }
 

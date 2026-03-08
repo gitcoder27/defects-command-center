@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import App from '@/App';
 
 const useConfigMock = vi.fn();
+const useAuthMock = vi.fn();
 
 vi.mock('@/hooks/useConfig', () => ({
   useConfig: () => useConfigMock(),
@@ -10,26 +11,52 @@ vi.mock('@/hooks/useConfig', () => ({
 
 vi.mock('@/context/AuthContext', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  useAuth: () => ({
-    user: null,
-    isLoading: false,
-    isAuthenticated: false,
-    login: vi.fn(),
-    logout: vi.fn(),
-  }),
+  useAuth: () => useAuthMock(),
 }));
 
 vi.mock('@/components/layout/DashboardLayout', () => ({
   DashboardLayout: () => <div>Dashboard loaded</div>,
 }));
 
+vi.mock('@/components/layout/Header', () => ({
+  Header: () => <div>Shared header</div>,
+}));
+
+vi.mock('@/components/team-tracker/TeamTrackerPage', () => ({
+  TeamTrackerPage: () => <div>Team tracker loaded</div>,
+}));
+
 vi.mock('@/components/setup/SetupWizard', () => ({
   SetupWizard: () => <div>Setup wizard</div>,
+}));
+
+vi.mock('@/components/my-day/MyDayPage', () => ({
+  MyDayPage: () => <div>My day loaded</div>,
+}));
+
+vi.mock('@/components/my-day/LoginPage', () => ({
+  LoginPage: () => <div>Login page</div>,
+}));
+
+vi.mock('@/components/my-day/ManagerMyDayLanding', () => ({
+  ManagerMyDayLanding: () => <div>Manager my day redirect</div>,
+}));
+
+vi.mock('@/components/manager-desk', () => ({
+  ManagerDeskPage: () => <div>Manager desk loaded</div>,
 }));
 
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.pushState(null, '', '/');
+    useAuthMock.mockReturnValue({
+      user: null,
+      isLoading: false,
+      isAuthenticated: false,
+      login: vi.fn(),
+      logout: vi.fn(),
+    });
   });
 
   it('shows loading while checking configuration state', () => {
@@ -63,5 +90,47 @@ describe('App', () => {
 
     render(<App />);
     expect(screen.getByText('Dashboard loaded')).toBeInTheDocument();
+  });
+
+  it('renders manager desk inside the shared shell for manager users', () => {
+    window.history.pushState(null, '', '/manager-desk');
+    useConfigMock.mockReturnValue({
+      data: { isConfigured: true },
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+    useAuthMock.mockReturnValue({
+      user: { role: 'manager' },
+      isLoading: false,
+      isAuthenticated: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+    });
+
+    render(<App />);
+
+    expect(screen.getByText('Shared header')).toBeInTheDocument();
+    expect(screen.getByText('Manager desk loaded')).toBeInTheDocument();
+  });
+
+  it('shows the manager my day redirect screen outside the shared shell', () => {
+    window.history.pushState(null, '', '/my-day');
+    useConfigMock.mockReturnValue({
+      data: { isConfigured: true },
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+    useAuthMock.mockReturnValue({
+      user: { role: 'manager' },
+      isLoading: false,
+      isAuthenticated: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+    });
+
+    render(<App />);
+
+    expect(screen.getByText('Manager my day redirect')).toBeInTheDocument();
+    expect(screen.queryByText('Shared header')).not.toBeInTheDocument();
   });
 });

@@ -6,15 +6,10 @@ import {
   ChevronRight,
   CalendarDays,
   Briefcase,
-  LogOut,
-  Moon,
-  Sun,
   ArrowRightFromLine,
   Filter,
   X,
 } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import {
   useManagerDesk,
@@ -54,8 +49,6 @@ type FilterState = {
 };
 
 export function ManagerDeskPage() {
-  const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const { addToast } = useToast();
 
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
@@ -222,13 +215,13 @@ export function ManagerDeskPage() {
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--bg-canvas)' }}>
-      {/* ── Header ──────────────────────────────── */}
-      <motion.header
+    <div className="h-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
+      {/* ── Page header ─────────────────────────── */}
+      <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="shrink-0 px-2 pt-1.5 md:px-3 md:pt-2"
+        className="shrink-0 px-3 pt-3 pb-1 md:px-4"
       >
         <div
           className="md-header-panel rounded-[14px] px-3 py-2 md:px-4 md:py-2.5 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between"
@@ -327,33 +320,9 @@ export function ManagerDeskPage() {
               <Filter size={12} />
               {hasActiveFilters ? 'Filtered' : 'Filter'}
             </button>
-
-            <div
-              className="rounded-xl p-0.5 flex items-center gap-0.5"
-              style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
-            >
-              <button
-                onClick={toggleTheme}
-                className="h-7 w-7 rounded-lg flex items-center justify-center transition-colors"
-                title="Toggle theme"
-              >
-                {theme === 'dark' ? (
-                  <Sun size={14} style={{ color: 'var(--text-secondary)' }} />
-                ) : (
-                  <Moon size={14} style={{ color: 'var(--text-secondary)' }} />
-                )}
-              </button>
-              <button
-                onClick={logout}
-                className="h-7 w-7 rounded-lg flex items-center justify-center transition-colors"
-                title="Sign out"
-              >
-                <LogOut size={14} style={{ color: 'var(--text-secondary)' }} />
-              </button>
-            </div>
           </div>
         </div>
-      </motion.header>
+      </motion.div>
 
       {/* ── Filter bar ──────────────────────────── */}
       {showFilters && (
