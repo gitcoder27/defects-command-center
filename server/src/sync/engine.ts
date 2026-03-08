@@ -402,9 +402,9 @@ export class SyncEngine {
 
   private async getScopedTeamAccountIds(): Promise<Set<string>> {
     const teamAccountIds = await this.getActiveTeamAccountIds();
-    const leadAccountId = (await this.settings.getJiraLeadAccountId()).trim();
-    if (leadAccountId) {
-      teamAccountIds.add(leadAccountId);
+    const managerJiraAccountId = (await this.settings.getManagerJiraAccountId()).trim();
+    if (managerJiraAccountId) {
+      teamAccountIds.add(managerJiraAccountId);
     }
     return teamAccountIds;
   }

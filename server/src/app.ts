@@ -14,6 +14,7 @@ import { createTeamTrackerRouter } from "./routes/team-tracker";
 import { createAuthRouter } from "./routes/auth";
 import { createMyDayRouter } from "./routes/my-day";
 import { createManagerDeskRouter } from "./routes/manager-desk";
+import { requireManager } from "./middleware/auth";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { AlertService } from "./services/alert.service";
 import { AutomationService } from "./services/automation.service";
@@ -49,17 +50,33 @@ export function createApp(services: AppServices) {
     res.json({ status: "ok" });
   });
 
-  app.use("/api/issues", createIssuesRouter(services.issueService));
-  app.use("/api/overview", createOverviewRouter(services.issueService));
-  app.use("/api/team", createTeamRouter(services.workloadService));
-  app.use("/api/alerts", createAlertsRouter(services.alertService));
-  app.use("/api/suggestions", createSuggestionsRouter(services.automationService, services.issueService));
-  app.use("/api/sync", createSyncRouter(services.syncEngine));
-  app.use("/api/config", createConfigRouter(services.syncEngine, services.backupService));
-  app.use("/api/backups", createBackupsRouter(services.backupService));
-  app.use("/api/tags", createTagsRouter(services.tagService, services.issueService));
+  app.use("/api/issues", requireManager(services.authService), createIssuesRouter(services.issueService));
+  app.use("/api/overview", requireManager(services.authService), createOverviewRouter(services.issueService));
+  app.use("/api/team", requireManager(services.authService), createTeamRouter(services.workloadService));
+  app.use("/api/alerts", requireManager(services.authService), createAlertsRouter(services.alertService));
+  app.use(
+    "/api/suggestions",
+    requireManager(services.authService),
+    createSuggestionsRouter(services.automationService, services.issueService)
+  );
+  app.use("/api/sync", requireManager(services.authService), createSyncRouter(services.syncEngine));
+  app.use(
+    "/api/config",
+    requireManager(services.authService),
+    createConfigRouter(services.syncEngine, services.backupService)
+  );
+  app.use("/api/backups", requireManager(services.authService), createBackupsRouter(services.backupService));
+  app.use(
+    "/api/tags",
+    requireManager(services.authService),
+    createTagsRouter(services.tagService, services.issueService)
+  );
   app.use("/api/auth", createAuthRouter(services.authService));
-  app.use("/api/team-tracker", createTeamTrackerRouter(services.teamTrackerService));
+  app.use(
+    "/api/team-tracker",
+    requireManager(services.authService),
+    createTeamTrackerRouter(services.teamTrackerService)
+  );
   app.use("/api/my-day", createMyDayRouter(services.myDayService, services.authService));
   app.use(
     "/api/manager-desk",

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Header } from './Header';
 import { OverviewCards } from '@/components/overview/OverviewCards';
 import { AlertBanner } from '@/components/alerts/AlertBanner';
@@ -11,11 +11,6 @@ import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { FilterType, Alert } from '@/types';
 import type { AppView } from '@/App';
-
-const SettingsPanel = lazy(async () => {
-  const module = await import('@/components/settings/SettingsPanel');
-  return { default: module.SettingsPanel };
-});
 
 interface DashboardLayoutProps {
   activeView?: AppView;
@@ -31,7 +26,6 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const hasAnimatedRef = useRef(false);
   const [hasAnimated, setHasAnimated] = useState(false);
   const triggerSync = useTriggerSync();
@@ -209,7 +203,6 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
       <Header
-        onOpenSettings={() => setSettingsOpen(true)}
         onOpenMobileSidebar={isCompact ? () => setMobileSidebarOpen(true) : undefined}
         activeView={activeView}
         onViewChange={onViewChange}
@@ -271,11 +264,6 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
         </div>
       </div>
 
-      {settingsOpen && (
-        <Suspense fallback={null}>
-          <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-        </Suspense>
-      )}
     </div>
   );
 }

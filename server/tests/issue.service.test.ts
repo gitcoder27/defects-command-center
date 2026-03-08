@@ -194,6 +194,7 @@ describe("IssueService", () => {
   } as unknown as JiraClient;
 
   const settings = {
+    getManagerJiraAccountId: vi.fn(async () => "lead-1"),
     getJiraLeadAccountId: vi.fn(async () => "lead-1"),
     getStaleThresholdHours: vi.fn(async () => 48),
     getJiraDevDueDateField: vi.fn(async () => "customfield_10128"),

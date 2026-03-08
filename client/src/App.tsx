@@ -1,20 +1,21 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { lazy, Suspense, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { ToastProvider } from '@/context/ToastContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { useBootstrapState } from '@/hooks/useBootstrapState';
 import { useConfig } from '@/hooks/useConfig';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
 
-export type AppView = 'dashboard' | 'team-tracker' | 'my-day' | 'manager-desk';
+export type AppView = 'dashboard' | 'team-tracker' | 'my-day' | 'manager-desk' | 'settings';
 
 const loadTeamTrackerPage = () => import('@/components/team-tracker/TeamTrackerPage');
 const loadSetupWizard = () => import('@/components/setup/SetupWizard');
 const loadMyDayPage = () => import('@/components/my-day/MyDayPage');
 const loadLoginPage = () => import('@/components/my-day/LoginPage');
-const loadManagerMyDayLanding = () => import('@/components/my-day/ManagerMyDayLanding');
 const loadManagerDeskPage = () => import('@/components/manager-desk');
+const loadSettingsPage = () => import('@/components/settings/SettingsPanel');
 
 const TeamTrackerPage = lazy(async () => {
   const module = await loadTeamTrackerPage();
@@ -36,27 +37,29 @@ const LoginPage = lazy(async () => {
   return { default: module.LoginPage };
 });
 
-const ManagerMyDayLanding = lazy(async () => {
-  const module = await loadManagerMyDayLanding();
-  return { default: module.ManagerMyDayLanding };
-});
-
 const ManagerDeskPage = lazy(async () => {
   const module = await loadManagerDeskPage();
   return { default: module.ManagerDeskPage };
 });
 
-function pathToView(pathname: string): AppView | null {
+const SettingsPage = lazy(async () => {
+  const module = await loadSettingsPage();
+  return { default: module.SettingsPage };
+});
+
+function pathToView(pathname: string): AppView {
   if (pathname === '/my-day' || pathname === '/my-day/') return 'my-day';
   if (pathname === '/team-tracker' || pathname === '/team-tracker/') return 'team-tracker';
   if (pathname === '/manager-desk' || pathname === '/manager-desk/') return 'manager-desk';
-  return null;
+  if (pathname === '/settings' || pathname === '/settings/') return 'settings';
+  return 'dashboard';
 }
 
 function viewToPath(view: AppView): string {
   if (view === 'my-day') return '/my-day';
   if (view === 'team-tracker') return '/team-tracker';
   if (view === 'manager-desk') return '/manager-desk';
+  if (view === 'settings') return '/settings';
   return '/';
 }
 
@@ -77,13 +80,28 @@ function preloadView(view: AppView) {
       break;
     case 'my-day':
       void loadMyDayPage();
-      void loadManagerMyDayLanding();
       break;
     case 'manager-desk':
       void loadManagerDeskPage();
       break;
+    case 'settings':
+      void loadSettingsPage();
+      break;
     default:
       break;
+  }
+}
+
+function navigateToView(view: AppView, replace = false) {
+  const target = viewToPath(view);
+  if (window.location.pathname === target) {
+    return;
+  }
+
+  if (replace) {
+    window.history.replaceState(null, '', target);
+  } else {
+    window.history.pushState(null, '', target);
   }
 }
 
@@ -110,6 +128,35 @@ function PanelLoading() {
           style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }}
         />
         <span className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>Loading…</span>
+      </div>
+    </div>
+  );
+}
+
+function ConfigErrorState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="h-full flex items-center justify-center px-4" style={{ background: 'var(--bg-canvas)' }}>
+      <div
+        className="w-full max-w-xl rounded-[28px] border px-6 py-8 text-center"
+        style={{
+          borderColor: 'var(--border-strong)',
+          background: 'color-mix(in srgb, var(--bg-primary) 94%, transparent)',
+        }}
+      >
+        <h1 className="text-[26px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Manager setup is currently unavailable
+        </h1>
+        <p className="mt-3 text-[14px] leading-7" style={{ color: 'var(--text-secondary)' }}>
+          The manager surface could not load its Jira configuration. Retry the request or sign out and re-enter the
+          workspace.
+        </p>
+        <button
+          onClick={onRetry}
+          className="mt-6 rounded-[18px] px-4 py-3 text-[14px] font-semibold"
+          style={{ background: 'var(--accent)', color: '#fff' }}
+        >
+          Retry
+        </button>
       </div>
     </div>
   );
@@ -142,51 +189,143 @@ function WorkspaceShell({ activeView, onViewChange, children }: WorkspaceShellPr
 }
 
 function AppContent() {
-  const { data: config, isLoading, refetch } = useConfig();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const bootstrapQuery = useBootstrapState();
+  const bootstrapState = bootstrapQuery.data;
 
-  // Derive initial view from URL path
-  const [activeView, setActiveView] = useState<AppView>(() => {
-    return pathToView(window.location.pathname) ?? 'dashboard';
-  });
+  const [activeView, setActiveView] = useState<AppView>(() => pathToView(window.location.pathname));
 
-  // Sync browser URL when view changes
+  const shouldLoadManagerConfig = Boolean(
+    bootstrapState &&
+    !bootstrapState.bootstrapOpen &&
+    isAuthenticated &&
+    user?.role === 'manager'
+  );
+  const configQuery = useConfig({ enabled: shouldLoadManagerConfig });
+
   const handleViewChange = useCallback((view: AppView) => {
     preloadView(view);
     setActiveView(view);
-    const target = viewToPath(view);
-    if (window.location.pathname !== target) {
-      window.history.pushState(null, '', target);
-    }
+    navigateToView(view);
   }, []);
 
-  // Handle browser back/forward
+  const replaceView = useCallback((view: AppView) => {
+    preloadView(view);
+    setActiveView(view);
+    navigateToView(view, true);
+  }, []);
+
   useEffect(() => {
     const onPopState = () => {
-      const view = pathToView(window.location.pathname) ?? 'dashboard';
-      setActiveView(view);
+      setActiveView(pathToView(window.location.pathname));
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  if (isLoading || authLoading) {
+  useEffect(() => {
+    if (authLoading || bootstrapQuery.isLoading || !bootstrapState) {
+      return;
+    }
+
+    if (bootstrapState.bootstrapOpen) {
+      if (activeView !== 'dashboard') {
+        replaceView('dashboard');
+      }
+      return;
+    }
+
+    if (activeView === 'my-day') {
+      if (isAuthenticated && user?.role === 'manager') {
+        replaceView('dashboard');
+      }
+      return;
+    }
+
+    if (isAuthenticated && user?.role === 'developer') {
+      replaceView('my-day');
+    }
+  }, [
+    activeView,
+    authLoading,
+    bootstrapQuery.isLoading,
+    bootstrapState,
+    isAuthenticated,
+    replaceView,
+    user,
+  ]);
+
+  if (authLoading || bootstrapQuery.isLoading || !bootstrapState) {
     return <FullPageLoading />;
   }
 
-  // Manager Desk — manager-only route
-  if (activeView === 'manager-desk') {
+  if (bootstrapState.bootstrapOpen) {
+    return (
+      <Suspense fallback={<FullPageLoading />}>
+        <SetupWizard
+          onComplete={async () => {
+            await bootstrapQuery.refetch();
+            await configQuery.refetch();
+          }}
+        />
+      </Suspense>
+    );
+  }
+
+  if (activeView === 'my-day') {
     if (!isAuthenticated) {
       return (
         <Suspense fallback={<FullPageLoading />}>
-          <LoginPage />
+          <LoginPage role="developer" />
         </Suspense>
       );
     }
-    if (user?.role !== 'manager') {
-      handleViewChange('my-day');
-      return null;
+
+    if (user?.role !== 'developer') {
+      return <FullPageLoading />;
     }
+
+    return (
+      <Suspense fallback={<FullPageLoading />}>
+        <MyDayPage />
+      </Suspense>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <Suspense fallback={<FullPageLoading />}>
+        <LoginPage role="manager" />
+      </Suspense>
+    );
+  }
+
+  if (user?.role !== 'manager') {
+    return <FullPageLoading />;
+  }
+
+  if (configQuery.isError) {
+    return <ConfigErrorState onRetry={() => void configQuery.refetch()} />;
+  }
+
+  if (configQuery.isLoading || !configQuery.data) {
+    return <FullPageLoading />;
+  }
+
+  if (!configQuery.data.isConfigured) {
+    return (
+      <Suspense fallback={<FullPageLoading />}>
+        <SetupWizard
+          onComplete={async () => {
+            await bootstrapQuery.refetch();
+            await configQuery.refetch();
+          }}
+        />
+      </Suspense>
+    );
+  }
+
+  if (activeView === 'manager-desk') {
     return (
       <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
         <Suspense fallback={<PanelLoading />}>
@@ -196,49 +335,21 @@ function AppContent() {
     );
   }
 
-  // If the URL is /my-day, always show the my-day experience
-  if (activeView === 'my-day') {
-    if (!isAuthenticated) {
-      return (
-        <Suspense fallback={<FullPageLoading />}>
-          <LoginPage />
-        </Suspense>
-      );
-    }
-    // Managers see a landing page since My Day API requires developer role
-    if (user?.role === 'manager') {
-      return (
-        <Suspense fallback={<FullPageLoading />}>
-          <ManagerMyDayLanding onGoToDashboard={() => handleViewChange('dashboard')} />
-        </Suspense>
-      );
-    }
-    return (
-      <Suspense fallback={<FullPageLoading />}>
-        <MyDayPage />
-      </Suspense>
-    );
-  }
-
-  // Developers always get redirected to /my-day
-  if (isAuthenticated && user?.role === 'developer') {
-    handleViewChange('my-day');
-    return null;
-  }
-
-  if (config && !config.isConfigured) {
-    return (
-      <Suspense fallback={<FullPageLoading />}>
-        <SetupWizard onComplete={() => refetch()} />
-      </Suspense>
-    );
-  }
-
   if (activeView === 'team-tracker') {
     return (
       <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
         <Suspense fallback={<PanelLoading />}>
           <TeamTrackerPage />
+        </Suspense>
+      </WorkspaceShell>
+    );
+  }
+
+  if (activeView === 'settings') {
+    return (
+      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
+        <Suspense fallback={<PanelLoading />}>
+          <SettingsPage />
         </Suspense>
       </WorkspaceShell>
     );

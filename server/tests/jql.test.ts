@@ -49,4 +49,10 @@ ORDER BY Rank ASC`);
       'project = AM AND issuetype = Bug AND statusCategory != Done AND assignee IN ("lead-1")'
     );
   });
+
+  it("builds a match-nothing scoped query when no assignee scope is configured", () => {
+    expect(buildScopedJql("AM", "", [])).toBe(
+      "project = AM AND issuetype = Bug AND statusCategory != Done AND assignee IS EMPTY AND assignee IS NOT EMPTY"
+    );
+  });
 });

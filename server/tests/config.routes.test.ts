@@ -136,12 +136,11 @@ async function invoke(
 }
 
 describe("config routes", () => {
-  it("marks setup as configured when token is persisted in DB", async () => {
+  it("marks setup as configured when Jira connection fields are persisted without manager Jira mapping", async () => {
     await db.insert(configTable).values([
       { key: "jira_base_url", value: "https://tenant.atlassian.net" },
       { key: "jira_email", value: "ops@example.com" },
       { key: "jira_project_key", value: "AM" },
-      { key: "jira_lead_account_id", value: "lead-1" },
       { key: "jira_api_token", value: "token-from-db" },
     ]);
 
@@ -149,8 +148,25 @@ describe("config routes", () => {
     const res = await invoke(app, { method: "GET", url: "/api/config" });
     expect(res.status).toBe(200);
     expect(res.body?.isConfigured).toBe(true);
+    expect(res.body?.managerJiraAccountId).toBe("");
     expect(res.body?.jiraApiToken).toBe("****");
     expect(res.body?.backupMaxScheduledSnapshots).toBe(DEFAULT_BACKUP_MAX_SCHEDULED_SNAPSHOTS);
+  });
+
+  it("GET /api/config falls back to the legacy lead config key for manager Jira mapping", async () => {
+    await db.insert(configTable).values([
+      { key: "jira_base_url", value: "https://tenant.atlassian.net" },
+      { key: "jira_email", value: "ops@example.com" },
+      { key: "jira_project_key", value: "AM" },
+      { key: "jira_api_token", value: "token-from-db" },
+      { key: "jira_lead_account_id", value: "legacy-lead-1" },
+    ]);
+
+    const app = createTestApp();
+    const res = await invoke(app, { method: "GET", url: "/api/config" });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.managerJiraAccountId).toBe("legacy-lead-1");
   });
 
   it("GET /api/config returns the base JQL without a manually managed assignee clause", async () => {
@@ -158,7 +174,6 @@ describe("config routes", () => {
       { key: "jira_base_url", value: "https://tenant.atlassian.net" },
       { key: "jira_email", value: "ops@example.com" },
       { key: "jira_project_key", value: "AM" },
-      { key: "jira_lead_account_id", value: "lead-1" },
       { key: "jira_api_token", value: "token-from-db" },
       {
         key: "jira_sync_jql",
@@ -183,7 +198,6 @@ ORDER BY updated DESC`);
       { key: "jira_base_url", value: "https://tenant.atlassian.net" },
       { key: "jira_email", value: "ops@example.com" },
       { key: "jira_project_key", value: "AM" },
-      { key: "jira_lead_account_id", value: "lead-1" },
       { key: "jira_api_token", value: "token-from-db" },
       { key: "jira_sync_jql", value: "project = OLD" },
       { key: "jira_dev_due_date_field", value: "customfield_10020" },
@@ -214,6 +228,47 @@ ORDER BY updated DESC`);
     expect(map["jira_project_key"]).toBe("AM");
   });
 
+  it("PUT /api/config/settings stores and clears an optional manager Jira mapping", async () => {
+    await db.insert(configTable).values([
+      { key: "jira_base_url", value: "https://tenant.atlassian.net" },
+      { key: "jira_email", value: "ops@example.com" },
+      { key: "jira_project_key", value: "AM" },
+      { key: "jira_api_token", value: "token-from-db" },
+      { key: "jira_lead_account_id", value: "legacy-lead-1" },
+    ]);
+
+    const app = createTestApp();
+
+    const save = await invoke(app, {
+      method: "PUT",
+      url: "/api/config/settings",
+      body: {
+        managerJiraAccountId: "manager-1",
+      },
+    });
+
+    expect(save.status).toBe(200);
+
+    let rows = await db.select().from(configTable);
+    let map = Object.fromEntries(rows.map((row) => [row.key, row.value]));
+    expect(map["manager_jira_account_id"]).toBe("manager-1");
+    expect(map["jira_lead_account_id"]).toBeUndefined();
+
+    const clear = await invoke(app, {
+      method: "PUT",
+      url: "/api/config/settings",
+      body: {
+        managerJiraAccountId: "",
+      },
+    });
+
+    expect(clear.status).toBe(200);
+
+    rows = await db.select().from(configTable);
+    map = Object.fromEntries(rows.map((row) => [row.key, row.value]));
+    expect(map["manager_jira_account_id"]).toBeUndefined();
+  });
+
   it("GET /api/config/fields returns 400 when Jira credentials are not available", async () => {
     const app = createTestApp();
     const res = await invoke(app, { method: "GET", url: "/api/config/fields" });
@@ -227,7 +282,6 @@ ORDER BY updated DESC`);
       { key: "jira_base_url", value: "https://tenant.atlassian.net" },
       { key: "jira_email", value: "ops@example.com" },
       { key: "jira_project_key", value: "AM" },
-      { key: "jira_lead_account_id", value: "lead-1" },
       { key: "jira_api_token", value: "token-from-db" },
     ]);
 

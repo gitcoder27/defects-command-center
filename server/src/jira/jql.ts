@@ -158,11 +158,9 @@ function quoteAccountId(accountId: string): string {
 
 export function appendManagedAssigneeClause(query: string, teamAccountIds: Iterable<string>): string {
   const uniqueTeamIds = Array.from(new Set(Array.from(teamAccountIds).map((id) => id.trim()).filter(Boolean)));
-  if (uniqueTeamIds.length === 0) {
-    return query.trim();
-  }
-
-  const assigneeClause = `assignee IN (${uniqueTeamIds.map(quoteAccountId).join(", ")})`;
+  const assigneeClause = uniqueTeamIds.length > 0
+    ? `assignee IN (${uniqueTeamIds.map(quoteAccountId).join(", ")})`
+    : "assignee IS EMPTY AND assignee IS NOT EMPTY";
   const { body, orderBy } = splitOrderBy(query.trim());
   const multiline = body.includes("\n");
   const clauses = hasTopLevelKeyword(body, "OR")

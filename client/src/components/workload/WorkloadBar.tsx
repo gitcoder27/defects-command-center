@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronUp, ChevronDown, Users } from 'lucide-react';
 import { useWorkload } from '@/hooks/useWorkload';
@@ -20,6 +20,12 @@ export function WorkloadBar({ activeDeveloper, onDeveloperClick }: WorkloadBarPr
     onDeveloperClick(activeDeveloper === accountId ? undefined : accountId);
   }
 
+  function handleCollapsedHeaderClick(event: ReactMouseEvent<HTMLDivElement>) {
+    if (expanded) return;
+    if ((event.target as HTMLElement).closest('button')) return;
+    setExpanded(true);
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -29,7 +35,11 @@ export function WorkloadBar({ activeDeveloper, onDeveloperClick }: WorkloadBarPr
     >
         <div className="dashboard-panel rounded-[12px] overflow-hidden" style={{ borderColor: 'var(--border-strong)' }}>
         <div className={`shrink-0 ${expanded ? 'px-2 py-1.5' : 'px-1.5 py-1'}`}>
-          <div className={`flex items-center ${expanded ? 'gap-2.5' : 'gap-1.5'}`}>
+          <div
+            className={`flex items-center ${expanded ? 'gap-2.5' : 'gap-1.5'}`}
+            data-testid="workload-bar-header"
+            onClick={handleCollapsedHeaderClick}
+          >
             <button
               type="button"
               onClick={() => setExpanded((prev) => !prev)}

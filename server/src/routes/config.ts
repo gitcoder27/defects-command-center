@@ -18,7 +18,7 @@ const configSchema = z.object({
     jiraBaseUrl: z.string().url(),
     jiraEmail: z.string().email(),
     jiraProjectKey: z.string().min(1),
-    jiraLeadAccountId: z.string().regex(/^[A-Za-z0-9:-]+$/).optional(),
+    managerJiraAccountId: z.string().trim().optional(),
     jiraApiToken: z.string().min(1).optional(),
     syncIntervalMs: z.number().int().positive().default(300000),
     staleThresholdHours: z.number().int().positive().default(48),
@@ -52,6 +52,10 @@ async function upsertConfig(key: string, value: string): Promise<void> {
   await db.insert(configTable).values({ key, value }).onConflictDoUpdate({ target: configTable.key, set: { value } });
 }
 
+async function deleteConfigValue(key: string): Promise<void> {
+  await db.delete(configTable).where(eq(configTable.key, key));
+}
+
 async function getConfigValue(key: string): Promise<string | undefined> {
   const rows = await db.select().from(configTable).where(eq(configTable.key, key)).limit(1);
   return rows[0]?.value;
@@ -59,6 +63,23 @@ async function getConfigValue(key: string): Promise<string | undefined> {
 
 async function getStoredJiraApiToken(): Promise<string | undefined> {
   return getConfigValue("jira_api_token");
+}
+
+async function getStoredManagerJiraAccountId(): Promise<string> {
+  return (await getConfigValue("manager_jira_account_id")) ??
+    (await getConfigValue("jira_lead_account_id")) ??
+    "";
+}
+
+function normalizeManagerJiraAccountId(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (!/^[A-Za-z0-9:-]+$/.test(trimmed)) {
+    throw new Error("managerJiraAccountId must use a valid Jira account id");
+  }
+  return trimmed;
 }
 
 export function createConfigRouter(syncEngine?: SyncEngine, backupService?: BackupService): Router {
@@ -70,7 +91,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
       const jiraBaseUrl = (await getConfigValue("jira_base_url")) ?? config.JIRA_BASE_URL ?? "";
       const jiraEmail = (await getConfigValue("jira_email")) ?? config.JIRA_EMAIL ?? "";
       const jiraProjectKey = (await getConfigValue("jira_project_key")) ?? config.JIRA_PROJECT_KEY ?? "";
-      const jiraLeadAccountId = (await getConfigValue("jira_lead_account_id")) ?? "";
+      const managerJiraAccountId = await getStoredManagerJiraAccountId();
       const jiraApiToken = (await getStoredJiraApiToken()) || getJiraApiToken() || config.JIRA_API_TOKEN || "";
       const syncIntervalMs = Number((await getConfigValue("sync_interval_ms")) ?? "300000");
       const staleThresholdHours = Number((await getConfigValue("stale_threshold_hours")) ?? "48");
@@ -90,7 +111,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
         jiraBaseUrl,
         jiraEmail,
         jiraProjectKey,
-        jiraLeadAccountId,
+        managerJiraAccountId,
         jiraApiToken: jiraApiToken ? "****" : "",
         syncIntervalMs,
         staleThresholdHours,
@@ -105,7 +126,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
         jiraSyncJql,
         jiraDevDueDateField,
         jiraAspenSeverityField,
-        isConfigured: Boolean(jiraBaseUrl && jiraEmail && jiraProjectKey && jiraLeadAccountId && jiraApiToken),
+        isConfigured: Boolean(jiraBaseUrl && jiraEmail && jiraProjectKey && jiraApiToken),
       });
     } catch (error) {
       next(error);
@@ -114,25 +135,10 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
 
   router.put("/", validate(configSchema), async (req, res, next) => {
     try {
-      let jiraLeadAccountId = req.body.jiraLeadAccountId;
       const syncIntervalMs = req.body.syncIntervalMs ?? 300000;
       const staleThresholdHours = req.body.staleThresholdHours ?? 48;
       const tokenForLookup = req.body.jiraApiToken ?? (await getStoredJiraApiToken()) ?? getJiraApiToken() ?? config.JIRA_API_TOKEN;
-
-      // If lead account id is not provided by client, derive it from Jira /myself.
-      if (!jiraLeadAccountId) {
-        if (!tokenForLookup) {
-          res.status(400).json({
-            error: "jiraLeadAccountId is required when jiraApiToken is not provided",
-            status: 400,
-          });
-          return;
-        }
-
-        const client = new JiraClient(req.body.jiraBaseUrl, req.body.jiraEmail, tokenForLookup);
-        const me = await client.getCurrentUser();
-        jiraLeadAccountId = me.accountId;
-      }
+      const managerJiraAccountId = normalizeManagerJiraAccountId(req.body.managerJiraAccountId);
 
       if (req.body.jiraApiToken) {
         await upsertConfig("jira_api_token", req.body.jiraApiToken);
@@ -142,7 +148,14 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
       await upsertConfig("jira_base_url", req.body.jiraBaseUrl);
       await upsertConfig("jira_email", req.body.jiraEmail);
       await upsertConfig("jira_project_key", req.body.jiraProjectKey);
-      await upsertConfig("jira_lead_account_id", jiraLeadAccountId);
+      if ("managerJiraAccountId" in req.body) {
+        if (managerJiraAccountId) {
+          await upsertConfig("manager_jira_account_id", managerJiraAccountId);
+        } else {
+          await deleteConfigValue("manager_jira_account_id");
+        }
+        await deleteConfigValue("jira_lead_account_id");
+      }
       await upsertConfig("sync_interval_ms", String(syncIntervalMs));
       await upsertConfig("stale_threshold_hours", String(staleThresholdHours));
       if (req.body.jiraSyncJql !== undefined) {
@@ -232,6 +245,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
       jiraSyncJql: z.string().optional(),
       jiraDevDueDateField: z.string().optional(),
       jiraAspenSeverityField: z.string().optional(),
+      managerJiraAccountId: z.string().trim().optional(),
     }),
     params: z.any().optional(),
     query: z.any().optional(),
@@ -247,6 +261,15 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
       }
       if (req.body.jiraAspenSeverityField !== undefined) {
         await upsertConfig("jira_aspen_severity_field", req.body.jiraAspenSeverityField);
+      }
+      if ("managerJiraAccountId" in req.body) {
+        const managerJiraAccountId = normalizeManagerJiraAccountId(req.body.managerJiraAccountId);
+        if (managerJiraAccountId) {
+          await upsertConfig("manager_jira_account_id", managerJiraAccountId);
+        } else {
+          await deleteConfigValue("manager_jira_account_id");
+        }
+        await deleteConfigValue("jira_lead_account_id");
       }
       res.json({ success: true });
     } catch (error) {

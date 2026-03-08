@@ -42,12 +42,14 @@ describe('Header', () => {
     });
   });
 
-  it('shows only dashboard, team tracker, and manager desk in the shared navigation for managers', () => {
+  it('keeps settings out of the main navigation while exposing the top-right gear for managers', () => {
     render(<Header activeView="dashboard" onViewChange={vi.fn()} />);
 
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(screen.getByText('Team Tracker')).toBeInTheDocument();
     expect(screen.getByText('Manager Desk')).toBeInTheDocument();
     expect(screen.queryByText('My Day')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /open settings/i })).toBeInTheDocument();
+    expect(screen.queryByText('Settings')).not.toBeInTheDocument();
   });
 });

@@ -121,7 +121,8 @@ export interface DashboardConfig {
   jiraBaseUrl: string;
   jiraEmail: string;
   jiraProjectKey: string;
-  jiraLeadAccountId: string;
+  managerJiraAccountId: string;
+  jiraApiToken: string;
   syncIntervalMs: number;
   staleThresholdHours: number;
   backupEnabled: boolean;
@@ -186,6 +187,11 @@ export interface AuthUser {
 
 export interface AuthSessionResponse {
   user: AuthUser;
+}
+
+export interface AuthBootstrapResponse {
+  bootstrapOpen: boolean;
+  userCount: number;
 }
 
 // ── My Day types ────────────────────────────────────────

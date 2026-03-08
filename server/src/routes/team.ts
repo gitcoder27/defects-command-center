@@ -57,43 +57,6 @@ async function normalizeLegacyDevelopers(): Promise<void> {
   // Remove deprecated placeholder developer records from legacy setup flows.
   await db.delete(componentMap).where(eq(componentMap.accountId, "dev-1"));
   await db.delete(developersTable).where(eq(developersTable.accountId, "dev-1"));
-
-  const leadAccountId = await getConfigValue("jira_lead_account_id");
-  if (!leadAccountId) {
-    return;
-  }
-
-  const currentLead = await db
-    .select()
-    .from(developersTable)
-    .where(eq(developersTable.accountId, leadAccountId))
-    .limit(1);
-
-  const fallbackLeadName = await db
-    .select({ assigneeName: issues.assigneeName })
-    .from(issues)
-    .where(eq(issues.assigneeId, leadAccountId))
-    .limit(1);
-
-  const leadDisplayName = fallbackLeadName[0]?.assigneeName?.trim() || currentLead[0]?.displayName || "Lead";
-
-  await db
-    .insert(developersTable)
-    .values({
-      accountId: leadAccountId,
-      displayName: leadDisplayName,
-      email: currentLead[0]?.email ?? null,
-      avatarUrl: currentLead[0]?.avatarUrl ?? null,
-      isActive: 1,
-    })
-    .onConflictDoUpdate({
-      target: developersTable.accountId,
-      set: {
-        displayName: leadDisplayName,
-        isActive: 1,
-      },
-    });
-
   await db.delete(componentMap).where(eq(componentMap.accountId, "lead-1"));
   await db.delete(developersTable).where(eq(developersTable.accountId, "lead-1"));
 }

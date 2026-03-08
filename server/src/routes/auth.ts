@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import type { AuthSessionResponse, AuthUser } from "shared/types";
+import type { AuthBootstrapResponse, AuthSessionResponse, AuthUser } from "shared/types";
 import { validate } from "../middleware/validate";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireManager } from "../middleware/auth";
 import { AuthService, clearSessionCookie, serializeSessionCookie } from "../services/auth.service";
 
 const loginSchema = z.object({
@@ -29,6 +29,19 @@ const registerSchema = z.object({
 export function createAuthRouter(authService: AuthService): Router {
   const router = Router();
 
+  router.get("/bootstrap", async (_req, res, next) => {
+    try {
+      const userCount = await authService.getUserCount();
+      const response: AuthBootstrapResponse = {
+        bootstrapOpen: userCount === 0,
+        userCount,
+      };
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.post("/login", validate(loginSchema), async (req, res, next) => {
     try {
       const { username, password } = req.body;
@@ -47,9 +60,15 @@ export function createAuthRouter(authService: AuthService): Router {
   router.post("/register", validate(registerSchema), async (req, res, next) => {
     try {
       const userCount = await authService.getUserCount();
+      const isBootstrap = userCount === 0;
 
-      // If users already exist, only a logged-in manager can create new users
-      if (userCount > 0) {
+      if (isBootstrap && req.body.role !== "manager") {
+        res.status(403).json({ error: "The first account must be a manager", status: 403 });
+        return;
+      }
+
+      // If users already exist, only a logged-in manager can create new users.
+      if (!isBootstrap) {
         const cookies = parseCookieHeader(req.headers.cookie);
         const sessionId = cookies["dcc_session"];
         if (!sessionId) {
@@ -71,18 +90,23 @@ export function createAuthRouter(authService: AuthService): Router {
         role,
         developerAccountId,
       });
+
+      if (isBootstrap && role === "manager") {
+        const result = await authService.authenticate(username, password);
+        res.setHeader(
+          "Set-Cookie",
+          serializeSessionCookie(result.sessionId, authService.sessionMaxAgeSeconds)
+        );
+      }
+
       res.status(201).json({ user });
     } catch (error) {
       next(error);
     }
   });
 
-  router.get("/users", requireAuth(authService), async (req, res, next) => {
+  router.get("/users", requireManager(authService), async (_req, res, next) => {
     try {
-      if (req.auth!.user.role !== "manager") {
-        res.status(403).json({ error: "Manager access required", status: 403 });
-        return;
-      }
       const users = await authService.listUsers();
       res.json({ users });
     } catch (error) {

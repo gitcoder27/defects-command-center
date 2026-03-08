@@ -34,8 +34,14 @@ export class SettingsService {
     return (await this.getConfigValue("jira_project_key")) ?? config.JIRA_PROJECT_KEY;
   }
 
+  async getManagerJiraAccountId(): Promise<string> {
+    return (await this.getConfigValue("manager_jira_account_id")) ??
+      (await this.getConfigValue("jira_lead_account_id")) ??
+      "";
+  }
+
   async getJiraLeadAccountId(): Promise<string> {
-    return (await this.getConfigValue("jira_lead_account_id")) ?? "";
+    return this.getManagerJiraAccountId();
   }
 
   async getJiraToken(): Promise<string | undefined> {

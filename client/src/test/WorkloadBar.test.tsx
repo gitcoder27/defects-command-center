@@ -81,6 +81,19 @@ describe('WorkloadBar', () => {
     expect(onDeveloperClick).toHaveBeenCalledWith('alice-1');
   });
 
+  it('expands when the collapsed header empty space is clicked', () => {
+    render(
+      <TestWrapper>
+        <WorkloadBar onDeveloperClick={onDeveloperClick} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByTestId('workload-bar-header'));
+
+    expect(screen.getByText('Team capacity radar')).toBeInTheDocument();
+    expect(onDeveloperClick).not.toHaveBeenCalled();
+  });
+
   it('clears the developer filter when the active pill is clicked again', () => {
     render(
       <TestWrapper>

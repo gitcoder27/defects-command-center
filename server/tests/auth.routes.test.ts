@@ -21,6 +21,33 @@ describe("auth routes", () => {
     await resetDatabase();
   });
 
+  it("GET /api/auth/bootstrap reports whether bootstrap registration is still open", async () => {
+    const app = createTestApp();
+
+    const before = await invoke(app, {
+      method: "GET",
+      url: "/api/auth/bootstrap",
+    });
+
+    expect(before.status).toBe(200);
+    expect(before.body).toEqual({ bootstrapOpen: true, userCount: 0 });
+
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
+
+    const after = await invoke(app, {
+      method: "GET",
+      url: "/api/auth/bootstrap",
+    });
+
+    expect(after.status).toBe(200);
+    expect(after.body).toEqual({ bootstrapOpen: false, userCount: 1 });
+  });
+
   it("POST /api/auth/login creates a session and returns the authenticated user", async () => {
     await authService.createUser({
       username: "alice",
@@ -50,6 +77,100 @@ describe("auth routes", () => {
     });
     expect(res.headers["set-cookie"]).toContain("dcc_session=");
     expect(res.headers["set-cookie"]).toContain("HttpOnly");
+  });
+
+  it("POST /api/auth/register only allows a manager for the bootstrap account and auto-signs them in", async () => {
+    const app = createTestApp();
+
+    const rejected = await invoke(app, {
+      method: "POST",
+      url: "/api/auth/register",
+      body: {
+        username: "dev",
+        displayName: "Developer",
+        password: "secret123",
+        role: "developer",
+        developerAccountId: "dev-1",
+      },
+    });
+
+    expect(rejected.status).toBe(403);
+    expect(rejected.body?.error).toBe("The first account must be a manager");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/auth/register",
+      body: {
+        username: "manager",
+        displayName: "Manager",
+        password: "secret123",
+        role: "manager",
+      },
+    });
+
+    expect(created.status).toBe(201);
+    expect(created.body?.user).toMatchObject({
+      username: "manager",
+      role: "manager",
+    });
+    expect(created.headers["set-cookie"]).toContain("dcc_session=");
+  });
+
+  it("POST /api/auth/register requires a manager session after bootstrap", async () => {
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
+    await authService.createUser({
+      username: "dev",
+      displayName: "Developer",
+      password: "secret123",
+      role: "developer",
+      developerAccountId: "dev-1",
+    });
+
+    const app = createTestApp();
+    const devLogin = await invoke(app, {
+      method: "POST",
+      url: "/api/auth/login",
+      body: {
+        username: "dev",
+        password: "secret123",
+      },
+    });
+
+    const unauthenticated = await invoke(app, {
+      method: "POST",
+      url: "/api/auth/register",
+      body: {
+        username: "new-dev",
+        displayName: "New Developer",
+        password: "secret123",
+        role: "developer",
+        developerAccountId: "dev-2",
+      },
+    });
+    expect(unauthenticated.status).toBe(401);
+
+    const forbidden = await invoke(app, {
+      method: "POST",
+      url: "/api/auth/register",
+      headers: {
+        cookie: devLogin.headers["set-cookie"],
+      },
+      body: {
+        username: "new-dev",
+        displayName: "New Developer",
+        password: "secret123",
+        role: "developer",
+        developerAccountId: "dev-2",
+      },
+    });
+
+    expect(forbidden.status).toBe(403);
+    expect(forbidden.body?.error).toBe("Only managers can create users");
   });
 
   it("GET /api/auth/me rejects unauthenticated requests", async () => {

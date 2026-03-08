@@ -30,7 +30,7 @@ export class IssueService {
   async getAll(query: IssueQuery = {}): Promise<SharedIssue[]> {
     const rows: Array<typeof issues.$inferSelect> = await db.select().from(issues).orderBy(desc(issues.updatedAt));
     const tagMap = await this.getTagMapForAll();
-    const leadId = await this.settings.getJiraLeadAccountId();
+    const managerJiraAccountId = await this.settings.getManagerJiraAccountId();
     const staleThresholdHours = await this.settings.getStaleThresholdHours();
     const now = new Date();
     const today = todayIsoDate(now);
@@ -39,7 +39,7 @@ export class IssueService {
 
     let result: SharedIssue[] = rows.map((row: typeof issues.$inferSelect) => this.toSharedIssue(row, tagMap.get(row.jiraKey) ?? []));
     result = this.applyIssueQuery(result, query, {
-      leadId,
+      managerJiraAccountId,
       staleThresholdHours,
       now,
       today,
@@ -141,7 +141,7 @@ export class IssueService {
   async getOverviewCounts(): Promise<OverviewCounts> {
     const rows: Array<typeof issues.$inferSelect> = await db.select().from(issues);
     const all = rows.map((row) => this.toSharedIssue(row));
-    const leadId = await this.settings.getJiraLeadAccountId();
+    const managerJiraAccountId = await this.settings.getManagerJiraAccountId();
     const staleThresholdHours = await this.settings.getStaleThresholdHours();
     const now = new Date();
     const today = todayIsoDate(now);
@@ -149,7 +149,7 @@ export class IssueService {
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
     const latest = await db.select().from(syncLog).orderBy(desc(syncLog.id)).limit(1);
-    const filterContext = { leadId, staleThresholdHours, now, today, weekEnd, dayAgo };
+    const filterContext = { managerJiraAccountId, staleThresholdHours, now, today, weekEnd, dayAgo };
 
     return {
       new: this.applyIssueQuery(all, { filter: "new" }, filterContext).length,
@@ -191,7 +191,7 @@ export class IssueService {
     issuesList: SharedIssue[],
     query: Pick<IssueQuery, "filter" | "assignee" | "priority" | "status" | "tagIds" | "noTags">,
     context: {
-      leadId: string;
+      managerJiraAccountId: string;
       staleThresholdHours: number;
       now: Date;
       today: string;
@@ -234,7 +234,9 @@ export class IssueService {
       case "reopened":
         return activeTeamIssues().filter((issue) => this.hasStatusName(issue, "Reopened"));
       case "unassigned":
-        return activeTeamIssues().filter((issue) => issue.assigneeId === context.leadId || issue.teamScopeState === "unassigned");
+        return activeTeamIssues().filter(
+          (issue) => issue.assigneeId === context.managerJiraAccountId || issue.teamScopeState === "unassigned"
+        );
       case "dueToday":
         return activeTeamIssues().filter((issue) => getEffectiveDueDate(issue) === context.today);
       case "dueThisWeek":

@@ -8,13 +8,12 @@ import { formatRelativeTime } from '@/lib/utils';
 import type { AppView } from '@/App';
 
 interface HeaderProps {
-  onOpenSettings?: () => void;
   onOpenMobileSidebar?: () => void;
   activeView?: AppView;
   onViewChange?: (view: AppView) => void;
 }
 
-export function Header({ onOpenSettings, onOpenMobileSidebar, activeView, onViewChange }: HeaderProps) {
+export function Header({ onOpenMobileSidebar, activeView, onViewChange }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const { data: sync } = useSyncStatus();
@@ -168,14 +167,21 @@ export function Header({ onOpenSettings, onOpenMobileSidebar, activeView, onView
               )}
             </button>
 
-            {onOpenSettings && (
+            {user?.role === 'manager' && onViewChange && (
               <button
-                onClick={onOpenSettings}
+                onClick={() => onViewChange('settings')}
                 className="h-8 w-8 rounded-lg transition-colors duration-150 flex items-center justify-center"
-                style={{ background: 'transparent' }}
+                style={{
+                  background: activeView === 'settings' ? 'var(--bg-elevated)' : 'transparent',
+                  boxShadow: activeView === 'settings' ? 'var(--soft-shadow)' : 'none',
+                }}
                 title="Settings"
+                aria-label="Open settings"
               >
-                <Settings size={16} style={{ color: 'var(--text-secondary)' }} />
+                <Settings
+                  size={16}
+                  style={{ color: activeView === 'settings' ? 'var(--accent)' : 'var(--text-secondary)' }}
+                />
               </button>
             )}
           </div>

@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import App from '@/App';
 
+const useBootstrapStateMock = vi.fn();
 const useConfigMock = vi.fn();
 const useAuthMock = vi.fn();
 
+vi.mock('@/hooks/useBootstrapState', () => ({
+  useBootstrapState: () => useBootstrapStateMock(),
+}));
+
 vi.mock('@/hooks/useConfig', () => ({
-  useConfig: () => useConfigMock(),
+  useConfig: (...args: unknown[]) => useConfigMock(...args),
 }));
 
 vi.mock('@/context/AuthContext', () => ({
@@ -35,32 +40,47 @@ vi.mock('@/components/my-day/MyDayPage', () => ({
 }));
 
 vi.mock('@/components/my-day/LoginPage', () => ({
-  LoginPage: () => <div>Login page</div>,
-}));
-
-vi.mock('@/components/my-day/ManagerMyDayLanding', () => ({
-  ManagerMyDayLanding: () => <div>Manager my day redirect</div>,
+  LoginPage: ({ role }: { role?: 'manager' | 'developer' }) => <div>{role === 'manager' ? 'Manager login' : 'Developer login'}</div>,
 }));
 
 vi.mock('@/components/manager-desk', () => ({
   ManagerDeskPage: () => <div>Manager desk loaded</div>,
 }));
 
+vi.mock('@/components/settings/SettingsPanel', () => ({
+  SettingsPage: () => <div>Settings loaded</div>,
+}));
+
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.history.pushState(null, '', '/');
+
+    useBootstrapStateMock.mockReturnValue({
+      data: { bootstrapOpen: false, userCount: 1 },
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+
+    useConfigMock.mockReturnValue({
+      data: { isConfigured: true, jiraApiToken: '****' },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
     useAuthMock.mockReturnValue({
       user: null,
       isLoading: false,
       isAuthenticated: false,
       login: vi.fn(),
       logout: vi.fn(),
+      refreshSession: vi.fn(),
     });
   });
 
-  it('shows loading while checking configuration state', () => {
-    useConfigMock.mockReturnValue({
+  it('shows loading while bootstrap state is loading', () => {
+    useBootstrapStateMock.mockReturnValue({
       data: undefined,
       isLoading: true,
       refetch: vi.fn(),
@@ -70,9 +90,9 @@ describe('App', () => {
     expect(screen.getByText('Loading…')).toBeInTheDocument();
   });
 
-  it('renders setup wizard when config is not yet configured', async () => {
-    useConfigMock.mockReturnValue({
-      data: { isConfigured: false },
+  it('renders setup wizard when bootstrap registration is still open', async () => {
+    useBootstrapStateMock.mockReturnValue({
+      data: { bootstrapOpen: true, userCount: 0 },
       isLoading: false,
       refetch: vi.fn(),
     });
@@ -81,56 +101,85 @@ describe('App', () => {
     expect(await screen.findByText('Setup wizard')).toBeInTheDocument();
   });
 
-  it('renders dashboard layout once setup is complete', () => {
-    useConfigMock.mockReturnValue({
-      data: { isConfigured: true },
-      isLoading: false,
-      refetch: vi.fn(),
-    });
-
+  it('renders manager login on / when bootstrap is closed and the user is unauthenticated', async () => {
     render(<App />);
-    expect(screen.getByText('Dashboard loaded')).toBeInTheDocument();
+    expect(await screen.findByText('Manager login')).toBeInTheDocument();
   });
 
-  it('renders manager desk inside the shared shell for manager users', async () => {
-    window.history.pushState(null, '', '/manager-desk');
-    useConfigMock.mockReturnValue({
-      data: { isConfigured: true },
-      isLoading: false,
-      refetch: vi.fn(),
-    });
-    useAuthMock.mockReturnValue({
-      user: { role: 'manager' },
-      isLoading: false,
-      isAuthenticated: true,
-      login: vi.fn(),
-      logout: vi.fn(),
-    });
-
-    render(<App />);
-
-    expect(screen.getByText('Shared header')).toBeInTheDocument();
-    expect(await screen.findByText('Manager desk loaded')).toBeInTheDocument();
-  });
-
-  it('shows the manager my day redirect screen outside the shared shell', async () => {
+  it('renders developer login on /my-day when bootstrap is closed and the user is unauthenticated', async () => {
     window.history.pushState(null, '', '/my-day');
-    useConfigMock.mockReturnValue({
-      data: { isConfigured: true },
+    render(<App />);
+    expect(await screen.findByText('Developer login')).toBeInTheDocument();
+  });
+
+  it('redirects authenticated developers from / to /my-day', async () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'developer', developerAccountId: 'dev-1' },
       isLoading: false,
-      refetch: vi.fn(),
+      isAuthenticated: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshSession: vi.fn(),
     });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/my-day');
+    });
+  });
+
+  it('redirects authenticated managers from /my-day to /', async () => {
+    window.history.pushState(null, '', '/my-day');
     useAuthMock.mockReturnValue({
       user: { role: 'manager' },
       isLoading: false,
       isAuthenticated: true,
       login: vi.fn(),
       logout: vi.fn(),
+      refreshSession: vi.fn(),
     });
 
     render(<App />);
 
-    expect(await screen.findByText('Manager my day redirect')).toBeInTheDocument();
-    expect(screen.queryByText('Shared header')).not.toBeInTheDocument();
+    expect(await screen.findByText('Dashboard loaded')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/');
+  });
+
+  it('renders setup wizard for an authenticated manager when Jira connection is not configured', async () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'manager' },
+      isLoading: false,
+      isAuthenticated: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshSession: vi.fn(),
+    });
+    useConfigMock.mockReturnValue({
+      data: { isConfigured: false, jiraApiToken: '' },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    render(<App />);
+    expect(await screen.findByText('Setup wizard')).toBeInTheDocument();
+  });
+
+  it('renders the dedicated settings page for authenticated managers on /settings', async () => {
+    window.history.pushState(null, '', '/settings');
+    useAuthMock.mockReturnValue({
+      user: { role: 'manager' },
+      isLoading: false,
+      isAuthenticated: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshSession: vi.fn(),
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('Shared header')).toBeInTheDocument();
+    expect(screen.getByText('Settings loaded')).toBeInTheDocument();
   });
 });

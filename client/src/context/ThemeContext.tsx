@@ -13,9 +13,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     try {
       const stored = localStorage.getItem('theme');
-      return stored === 'light' ? 'light' : 'dark';
-    } catch {
+      if (stored === 'light' || stored === 'dark') {
+        return stored;
+      }
+      if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+        return 'light';
+      }
       return 'dark';
+    } catch {
+      return 'light';
     }
   });
 

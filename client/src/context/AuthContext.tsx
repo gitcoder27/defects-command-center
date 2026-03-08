@@ -8,6 +8,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshSession: () => Promise<AuthUser | null>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -16,19 +17,27 @@ const AuthContext = createContext<AuthContextValue>({
   isAuthenticated: false,
   login: async () => {},
   logout: async () => {},
+  refreshSession: async () => null,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    api
-      .get<AuthSessionResponse>('/auth/me')
-      .then((res) => setUser(res.user))
-      .catch(() => setUser(null))
-      .finally(() => setIsLoading(false));
+  const refreshSession = useCallback(async () => {
+    try {
+      const res = await api.get<AuthSessionResponse>('/auth/me');
+      setUser(res.user);
+      return res.user;
+    } catch {
+      setUser(null);
+      return null;
+    }
   }, []);
+
+  useEffect(() => {
+    refreshSession().finally(() => setIsLoading(false));
+  }, [refreshSession]);
 
   const login = useCallback(async (username: string, password: string) => {
     const res = await api.post<AuthSessionResponse>('/auth/login', { username, password });
@@ -51,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: user !== null,
         login,
         logout,
+        refreshSession,
       }}
     >
       {children}
