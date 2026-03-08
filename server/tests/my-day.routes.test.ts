@@ -5,6 +5,7 @@ import { notFoundHandler, errorHandler } from "../src/middleware/errorHandler";
 import { AuthService, serializeSessionCookie } from "../src/services/auth.service";
 import { MyDayService } from "../src/services/my-day.service";
 import { TeamTrackerService } from "../src/services/team-tracker.service";
+import { IssueService } from "../src/services/issue.service";
 import { resetDatabase, db } from "./helpers/db";
 import { developers, issues } from "../src/db/schema";
 import { invoke } from "./helpers/http";
@@ -12,6 +13,7 @@ import { invoke } from "./helpers/http";
 const authService = new AuthService();
 const trackerService = new TeamTrackerService();
 const myDayService = new MyDayService(trackerService);
+const issueService = new IssueService();
 
 async function seedDevelopers() {
   await db.insert(developers).values([
@@ -58,7 +60,7 @@ async function loginCookie(username: string, password: string): Promise<string> 
 
 function createTestApp() {
   const app = express();
-  app.use("/api/my-day", createMyDayRouter(myDayService, authService));
+  app.use("/api/my-day", createMyDayRouter(myDayService, authService, issueService));
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;
@@ -191,6 +193,27 @@ describe("my day routes", () => {
       jiraPriorityName: "High",
       jiraDueDate: "2026-03-08",
       title: "Linked Jira task",
+    });
+  });
+
+  it("GET /api/my-day/issues returns only Jira issues assigned to the authenticated developer", async () => {
+    await seedIssue("AM-123", "dev-1", "Alice Smith");
+    await seedIssue("AM-456", "dev-2", "Bob Jones");
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/my-day/issues",
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.issues).toHaveLength(1);
+    expect(res.body?.issues[0]).toMatchObject({
+      jiraKey: "AM-123",
+      assigneeId: "dev-1",
     });
   });
 });

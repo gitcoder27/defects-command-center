@@ -77,7 +77,7 @@ export function createApp(services: AppServices) {
     requireManager(services.authService),
     createTeamTrackerRouter(services.teamTrackerService)
   );
-  app.use("/api/my-day", createMyDayRouter(services.myDayService, services.authService));
+  app.use("/api/my-day", createMyDayRouter(services.myDayService, services.authService, services.issueService));
   app.use(
     "/api/manager-desk",
     createManagerDeskRouter(services.managerDeskService, services.authService)

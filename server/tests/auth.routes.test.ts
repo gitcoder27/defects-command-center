@@ -173,6 +173,104 @@ describe("auth routes", () => {
     expect(forbidden.body?.error).toBe("Only managers can create users");
   });
 
+  it("DELETE /api/auth/users/:username removes a developer account and invalidates its sessions", async () => {
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
+    await authService.createUser({
+      username: "dev",
+      displayName: "Developer",
+      password: "secret123",
+      role: "developer",
+      developerAccountId: "dev-1",
+    });
+
+    const app = createTestApp();
+    const managerLogin = await invoke(app, {
+      method: "POST",
+      url: "/api/auth/login",
+      body: {
+        username: "manager",
+        password: "secret123",
+      },
+    });
+    const devLogin = await invoke(app, {
+      method: "POST",
+      url: "/api/auth/login",
+      body: {
+        username: "dev",
+        password: "secret123",
+      },
+    });
+
+    const removed = await invoke(app, {
+      method: "DELETE",
+      url: "/api/auth/users/dev",
+      headers: {
+        cookie: managerLogin.headers["set-cookie"],
+      },
+    });
+
+    expect(removed.status).toBe(200);
+    expect(removed.body).toEqual({ ok: true });
+
+    const users = await invoke(app, {
+      method: "GET",
+      url: "/api/auth/users",
+      headers: {
+        cookie: managerLogin.headers["set-cookie"],
+      },
+    });
+
+    expect(users.status).toBe(200);
+    expect(users.body?.users).toHaveLength(1);
+    expect(users.body?.users[0]?.username).toBe("manager");
+
+    const deletedUserSession = await invoke(app, {
+      method: "GET",
+      url: "/api/auth/me",
+      headers: {
+        cookie: devLogin.headers["set-cookie"],
+      },
+    });
+
+    expect(deletedUserSession.status).toBe(401);
+    expect(deletedUserSession.body?.error).toBe("Authentication required");
+  });
+
+  it("DELETE /api/auth/users/:username rejects deleting manager accounts", async () => {
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
+
+    const app = createTestApp();
+    const managerLogin = await invoke(app, {
+      method: "POST",
+      url: "/api/auth/login",
+      body: {
+        username: "manager",
+        password: "secret123",
+      },
+    });
+
+    const removed = await invoke(app, {
+      method: "DELETE",
+      url: "/api/auth/users/manager",
+      headers: {
+        cookie: managerLogin.headers["set-cookie"],
+      },
+    });
+
+    expect(removed.status).toBe(400);
+    expect(removed.body?.error).toBe("Only developer accounts can be deleted from settings");
+  });
+
   it("GET /api/auth/me rejects unauthenticated requests", async () => {
     const app = createTestApp();
 

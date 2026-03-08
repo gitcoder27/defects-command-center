@@ -75,6 +75,13 @@ describe('SettingsPage', () => {
               displayName: 'Morgan Manager',
               role: 'manager',
             },
+            {
+              username: 'taylor.dev',
+              accountId: 'dev-1',
+              developerAccountId: 'dev-1',
+              displayName: 'Taylor Dev',
+              role: 'developer',
+            },
           ],
         };
       }
@@ -110,6 +117,8 @@ describe('SettingsPage', () => {
 
       return {};
     });
+
+    mockDelete.mockResolvedValue({ ok: true });
   });
 
   it('does not trigger sync when saving settings fails', async () => {
@@ -190,6 +199,26 @@ describe('SettingsPage', () => {
         managerJiraAccountId: 'manager-2',
       }));
       expect(mockRefetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('deletes a developer account after confirmation', async () => {
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    await screen.findByRole('button', { name: /delete account for taylor dev/i });
+
+    fireEvent.click(screen.getByRole('button', { name: /delete account for taylor dev/i }));
+    expect(screen.getByText('Delete access?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /confirm delete account for taylor dev/i }));
+
+    await waitFor(() => {
+      expect(mockDelete).toHaveBeenCalledWith('/auth/users/taylor.dev');
+      expect(screen.queryByRole('button', { name: /delete account for taylor dev/i })).not.toBeInTheDocument();
     });
   });
 });

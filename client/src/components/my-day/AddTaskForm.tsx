@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Link, FileText, Search } from 'lucide-react';
 import type { TrackerItemType } from '@/types';
-import { useIssuesWithOptions } from '@/hooks/useIssues';
+import { useMyDayIssues } from '@/hooks/useIssues';
 import { formatDate } from '@/lib/utils';
 
 interface AddTaskFormProps {
@@ -17,7 +17,7 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
   const [jiraSearch, setJiraSearch] = useState('');
   const [selectedIssue, setSelectedIssue] = useState<{ jiraKey: string; summary: string } | null>(null);
 
-  const { data: issues } = useIssuesWithOptions(undefined, undefined, undefined, undefined, mode === 'jira');
+  const { data: issues } = useMyDayIssues(mode === 'jira');
 
   const resetForm = () => {
     setTitle('');

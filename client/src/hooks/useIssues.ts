@@ -37,3 +37,15 @@ export function useIssuesWithOptions(
     enabled,
   });
 }
+
+export function useMyDayIssues(enabled = true) {
+  return useQuery<Issue[]>({
+    queryKey: ['my-day-issues'],
+    queryFn: async () => {
+      const res = await api.get<IssuesResponse>('/my-day/issues');
+      return res.issues;
+    },
+    refetchInterval: enabled ? 30_000 : false,
+    enabled,
+  });
+}

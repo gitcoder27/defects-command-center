@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireDeveloper } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { AuthService } from "../services/auth.service";
+import { IssueService } from "../services/issue.service";
 import { MyDayService } from "../services/my-day.service";
 
 const dateQuerySchema = z.object({
@@ -89,11 +90,22 @@ const addCheckInSchema = z.object({
 
 export function createMyDayRouter(
   myDayService: MyDayService,
-  authService: AuthService
+  authService: AuthService,
+  issueService: IssueService
 ): Router {
   const router = Router();
 
   router.use(requireDeveloper(authService));
+
+  router.get("/issues", async (req, res, next) => {
+    try {
+      const accountId = req.auth!.user.developerAccountId!;
+      const issues = await issueService.getAll({ assignee: accountId });
+      res.json({ issues });
+    } catch (error) {
+      next(error);
+    }
+  });
 
   router.get("/", validate(dateQuerySchema), async (req, res, next) => {
     try {

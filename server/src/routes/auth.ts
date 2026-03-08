@@ -26,6 +26,14 @@ const registerSchema = z.object({
   query: z.any().optional(),
 });
 
+const deleteUserSchema = z.object({
+  body: z.any().optional(),
+  params: z.object({
+    username: z.string().min(1).max(100),
+  }),
+  query: z.any().optional(),
+});
+
 export function createAuthRouter(authService: AuthService): Router {
   const router = Router();
 
@@ -109,6 +117,15 @@ export function createAuthRouter(authService: AuthService): Router {
     try {
       const users = await authService.listUsers();
       res.json({ users });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.delete("/users/:username", requireManager(authService), validate(deleteUserSchema), async (req, res, next) => {
+    try {
+      await authService.deleteUser(req.params.username);
+      res.json({ ok: true });
     } catch (error) {
       next(error);
     }

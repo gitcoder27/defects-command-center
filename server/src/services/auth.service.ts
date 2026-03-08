@@ -236,4 +236,29 @@ export class AuthService {
       })
     );
   }
+
+  async deleteUser(username: string): Promise<void> {
+    const normalizedUsername = normalizeUsername(username);
+    if (!normalizedUsername) {
+      throw new HttpError(400, "username is required");
+    }
+
+    const rows = await db
+      .select()
+      .from(appUsers)
+      .where(and(eq(appUsers.username, normalizedUsername), eq(appUsers.isActive, 1)))
+      .limit(1);
+
+    const row = rows[0];
+    if (!row) {
+      throw new HttpError(404, "User not found");
+    }
+
+    if (row.role !== "developer") {
+      throw new HttpError(400, "Only developer accounts can be deleted from settings");
+    }
+
+    await db.delete(appSessions).where(eq(appSessions.userId, row.id));
+    await db.delete(appUsers).where(eq(appUsers.id, row.id));
+  }
 }

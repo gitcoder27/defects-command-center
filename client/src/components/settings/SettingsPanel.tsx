@@ -89,6 +89,8 @@ export function SettingsPage() {
   const [newRole, setNewRole] = useState<UserRole>('developer');
   const [newDevAccountId, setNewDevAccountId] = useState('');
   const [creatingUser, setCreatingUser] = useState(false);
+  const [confirmDeleteUsername, setConfirmDeleteUsername] = useState<string | null>(null);
+  const [deletingUsername, setDeletingUsername] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
   const activeMemberIds = useMemo(() => new Set(developers.map((developer) => developer.accountId)), [developers]);
@@ -174,6 +176,28 @@ export function SettingsPage() {
       setTimeout(() => setCopiedLink(false), 2000);
     });
   };
+
+  const handleDeleteUser = useCallback(async (user: AuthUser) => {
+    setDeletingUsername(user.username);
+    try {
+      await api.delete<{ ok: true }>(`/auth/users/${encodeURIComponent(user.username)}`);
+      setAppUsers((prev) => prev.filter((entry) => entry.username !== user.username));
+      setConfirmDeleteUsername((current) => (current === user.username ? null : current));
+      addToast({
+        type: 'success',
+        title: 'Developer account deleted',
+        message: `Removed "${user.displayName}" from app access.`,
+      });
+    } catch (err) {
+      addToast({
+        type: 'error',
+        title: 'Failed to delete account',
+        message: err instanceof Error ? err.message : 'Request failed',
+      });
+    } finally {
+      setDeletingUsername(null);
+    }
+  }, [addToast]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -1371,39 +1395,77 @@ export function SettingsPage() {
                             appUsers.map((user, index) => (
                               <div
                                 key={user.username}
-                                className="flex items-center gap-3 px-4 py-3"
+                                className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
                                 style={{
                                   background: index % 2 === 0 ? 'var(--settings-row-even-bg)' : 'var(--settings-row-odd-bg)',
                                   borderTop: index > 0 ? 'var(--settings-row-divider)' : 'none',
                                 }}
                               >
-                                <div
-                                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[11px] font-bold"
-                                  style={{
-                                    background: user.role === 'manager' ? 'var(--settings-warning-soft-bg)' : 'var(--settings-accent-soft-bg)',
-                                    color: user.role === 'manager' ? 'var(--warning)' : 'var(--accent)',
-                                  }}
-                                >
-                                  {user.displayName.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <p className="truncate text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                                      {user.displayName}
+                                <div className="flex min-w-0 flex-1 items-center gap-3">
+                                  <div
+                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[11px] font-bold"
+                                    style={{
+                                      background: user.role === 'manager' ? 'var(--settings-warning-soft-bg)' : 'var(--settings-accent-soft-bg)',
+                                      color: user.role === 'manager' ? 'var(--warning)' : 'var(--accent)',
+                                    }}
+                                  >
+                                    {user.displayName.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <p className="truncate text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                                        {user.displayName}
+                                      </p>
+                                      <span
+                                        className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
+                                        style={{
+                                          background: user.role === 'manager' ? 'var(--settings-warning-soft-bg)' : 'var(--settings-accent-soft-bg)',
+                                          color: user.role === 'manager' ? 'var(--warning)' : 'var(--accent)',
+                                        }}
+                                      >
+                                        {user.role}
+                                      </span>
+                                      {user.developerAccountId ? (
+                                        <span
+                                          className="rounded-full px-2 py-1 text-[10px] font-medium"
+                                          style={{
+                                            background: 'var(--settings-neutral-chip-bg)',
+                                            color: 'var(--text-muted)',
+                                            border: '1px solid var(--border-strong)',
+                                          }}
+                                        >
+                                          Jira linked
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <p className="truncate text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                                      @{user.username}
+                                      {user.developerAccountId ? ` • ${user.developerAccountId}` : ''}
                                     </p>
-                                    <span
-                                      className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
+                                  </div>
+                                </div>
+                                <div className="sm:ml-auto">
+                                  {user.role === 'developer' ? (
+                                    <UserAccountDeleteAction
+                                      user={user}
+                                      confirming={confirmDeleteUsername === user.username}
+                                      deleting={deletingUsername === user.username}
+                                      onStartConfirm={() => setConfirmDeleteUsername(user.username)}
+                                      onCancel={() => setConfirmDeleteUsername((current) => (current === user.username ? null : current))}
+                                      onConfirm={() => void handleDeleteUser(user)}
+                                    />
+                                  ) : (
+                                    <div
+                                      className="rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
                                       style={{
-                                        background: user.role === 'manager' ? 'var(--settings-warning-soft-bg)' : 'var(--settings-accent-soft-bg)',
-                                        color: user.role === 'manager' ? 'var(--warning)' : 'var(--accent)',
+                                        background: 'var(--settings-warning-soft-bg)',
+                                        color: 'var(--warning)',
+                                        border: 'var(--settings-warning-soft-border)',
                                       }}
                                     >
-                                      {user.role}
-                                    </span>
-                                  </div>
-                                  <p className="truncate text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                                    @{user.username}
-                                  </p>
+                                      Manager access
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             ))
@@ -1597,6 +1659,88 @@ export function SettingsPage() {
 }
 
 export const SettingsPanel = SettingsPage;
+
+function UserAccountDeleteAction({
+  user,
+  confirming,
+  deleting,
+  onStartConfirm,
+  onCancel,
+  onConfirm,
+}: {
+  user: AuthUser;
+  confirming: boolean;
+  deleting: boolean;
+  onStartConfirm: () => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (confirming) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center gap-2"
+      >
+        <span className="text-[11px] font-medium" style={{ color: 'var(--danger-muted)' }}>
+          Delete access?
+        </span>
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={deleting}
+          className="rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
+          style={{
+            background: 'var(--settings-danger-soft-bg)',
+            color: 'var(--danger-muted)',
+            border: 'var(--settings-danger-soft-border)',
+          }}
+          aria-label={`Confirm delete account for ${user.displayName}`}
+        >
+          {deleting ? (
+            <span className="flex items-center gap-1.5">
+              <Loader2 size={12} className="animate-spin" />
+              Deleting…
+            </span>
+          ) : (
+            'Confirm'
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={deleting}
+          className="rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
+          style={{
+            background: 'var(--settings-neutral-chip-bg)',
+            color: 'var(--text-secondary)',
+            border: '1px solid var(--border-strong)',
+          }}
+          aria-label={`Cancel deleting account for ${user.displayName}`}
+        >
+          Cancel
+        </button>
+      </motion.div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onStartConfirm}
+      className="flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors"
+      style={{
+        background: 'var(--settings-danger-soft-bg)',
+        color: 'var(--danger-muted)',
+        border: 'var(--settings-danger-soft-border)',
+      }}
+      aria-label={`Delete account for ${user.displayName}`}
+    >
+      <UserMinus size={12} />
+      Delete
+    </button>
+  );
+}
 
 function SectionCard({
   icon,
