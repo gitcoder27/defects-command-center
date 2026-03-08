@@ -15,6 +15,10 @@ import {
   ChevronDown,
   Copy,
   CheckCircle2,
+  Dices,
+  Eye,
+  EyeOff,
+  RefreshCcw,
 } from 'lucide-react';
 import { useConfig } from '@/hooks/useConfig';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
@@ -96,6 +100,14 @@ export function SettingsPage() {
   const [deletingUsername, setDeletingUsername] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showPasswordGen, setShowPasswordGen] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(true);
+  const [copiedPw, setCopiedPw] = useState(false);
+  const [pwLength, setPwLength] = useState(12);
+  const [pwUppercase, setPwUppercase] = useState(true);
+  const [pwLowercase, setPwLowercase] = useState(true);
+  const [pwDigits, setPwDigits] = useState(true);
+  const [pwSymbols, setPwSymbols] = useState(true);
 
   const activeMemberIds = useMemo(() => new Set(developers.map((developer) => developer.accountId)), [developers]);
 
@@ -1501,7 +1513,13 @@ export function SettingsPage() {
                       {!showCreateUser ? (
                         <button
                           type="button"
-                          onClick={() => setShowCreateUser(true)}
+                          onClick={() => {
+                            setShowCreateUser(true);
+                            setNewPassword(generateStrongPassword(pwLength, pwUppercase, pwLowercase, pwDigits, pwSymbols));
+                            setShowNewPw(true);
+                            setCopiedPw(false);
+                            setShowPasswordGen(false);
+                          }}
                           className="flex items-center justify-center gap-2 rounded-[24px] px-4 py-4 text-[13px] font-semibold transition-colors"
                           style={{
                             background: 'var(--settings-accent-soft-bg)',
@@ -1548,14 +1566,151 @@ export function SettingsPage() {
                             <TextInput label="Display Name" value={newDisplayName} onChange={setNewDisplayName} placeholder="Morgan Smith" />
                           </div>
                           <div className="mt-3">
-                            <TextInput
-                              label="Password"
-                              value={newPassword}
-                              onChange={setNewPassword}
-                              placeholder="Password (min 6 characters)"
-                              type="password"
-                              autoComplete="new-password"
-                            />
+                            <div className="block">
+                              <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
+                                Password
+                              </span>
+                              <div className="relative">
+                                <input
+                                  type={showNewPw ? 'text' : 'password'}
+                                  value={newPassword}
+                                  onChange={(e) => { setNewPassword(e.target.value); setCopiedPw(false); }}
+                                  placeholder="Password (min 6 characters)"
+                                  autoComplete="new-password"
+                                  className="w-full rounded-[20px] px-4 py-3 pr-28 text-[13px] font-mono outline-none transition-colors"
+                                  style={{
+                                    background: 'var(--settings-input-bg)',
+                                    color: 'var(--text-primary)',
+                                    border: 'var(--settings-input-border)',
+                                  }}
+                                />
+                                <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const pw = generateStrongPassword(pwLength, pwUppercase, pwLowercase, pwDigits, pwSymbols);
+                                      setNewPassword(pw);
+                                      setShowNewPw(true);
+                                      setCopiedPw(false);
+                                    }}
+                                    className="rounded-full p-1.5 transition-colors hover:opacity-80"
+                                    style={{ color: 'var(--accent)' }}
+                                    aria-label="Generate new password"
+                                    title="Generate new password"
+                                  >
+                                    <Dices size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowNewPw((v) => !v)}
+                                    className="rounded-full p-1.5 transition-colors hover:opacity-80"
+                                    style={{ color: 'var(--text-muted)' }}
+                                    aria-label={showNewPw ? 'Hide password' : 'Show password'}
+                                    title={showNewPw ? 'Hide password' : 'Show password'}
+                                  >
+                                    {showNewPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                                  </button>
+                                  {newPassword && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(newPassword);
+                                        setCopiedPw(true);
+                                        setTimeout(() => setCopiedPw(false), 2000);
+                                      }}
+                                      className="rounded-full p-1.5 transition-colors hover:opacity-80"
+                                      style={{ color: copiedPw ? 'var(--success)' : 'var(--text-muted)' }}
+                                      aria-label={copiedPw ? 'Copied!' : 'Copy password'}
+                                      title={copiedPw ? 'Copied!' : 'Copy password'}
+                                    >
+                                      {copiedPw ? <CheckCircle2 size={14} /> : <Copy size={14} />}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="mt-2 flex items-center gap-3">
+                                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                                  Auto-generated · {pwLength} chars
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPasswordGen((v) => !v)}
+                                  className="text-[11px] font-medium transition-colors hover:underline"
+                                  style={{ color: 'var(--accent)' }}
+                                >
+                                  {showPasswordGen ? 'Hide options' : 'Customize'}
+                                </button>
+                              </div>
+                              {showPasswordGen && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                                  className="mt-3 overflow-hidden rounded-[16px] p-4"
+                                  style={{
+                                    background: 'var(--settings-inset-bg)',
+                                    border: 'var(--settings-inset-border)',
+                                  }}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--accent)' }}>
+                                      Generator options
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const pw = generateStrongPassword(pwLength, pwUppercase, pwLowercase, pwDigits, pwSymbols);
+                                        setNewPassword(pw);
+                                        setShowNewPw(true);
+                                        setCopiedPw(false);
+                                      }}
+                                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all hover:opacity-90"
+                                      style={{
+                                        background: 'var(--settings-cta-bg)',
+                                        color: 'var(--settings-cta-text)',
+                                        border: 'var(--settings-cta-border)',
+                                      }}
+                                    >
+                                      <RefreshCcw size={12} />
+                                      Regenerate
+                                    </button>
+                                  </div>
+
+                                  <div className="mt-4">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>Length</span>
+                                      <span className="min-w-[2ch] text-center text-[13px] font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{pwLength}</span>
+                                    </div>
+                                    <input
+                                      type="range"
+                                      min={8}
+                                      max={32}
+                                      value={pwLength}
+                                      onChange={(e) => {
+                                        const len = Number(e.target.value);
+                                        setPwLength(len);
+                                        setNewPassword(generateStrongPassword(len, pwUppercase, pwLowercase, pwDigits, pwSymbols));
+                                        setShowNewPw(true);
+                                        setCopiedPw(false);
+                                      }}
+                                      className="mt-1.5 w-full accent-[var(--accent)]"
+                                    />
+                                    <div className="flex justify-between text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                      <span>8</span>
+                                      <span>32</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-3 grid grid-cols-2 gap-2">
+                                    <ToggleChip label="Uppercase (A–Z)" checked={pwUppercase} onChange={(v) => { setPwUppercase(v); setNewPassword(generateStrongPassword(pwLength, v, pwLowercase, pwDigits, pwSymbols)); setCopiedPw(false); }} disabled={!pwLowercase && !pwDigits && !pwSymbols} />
+                                    <ToggleChip label="Lowercase (a–z)" checked={pwLowercase} onChange={(v) => { setPwLowercase(v); setNewPassword(generateStrongPassword(pwLength, pwUppercase, v, pwDigits, pwSymbols)); setCopiedPw(false); }} disabled={!pwUppercase && !pwDigits && !pwSymbols} />
+                                    <ToggleChip label="Digits (0–9)" checked={pwDigits} onChange={(v) => { setPwDigits(v); setNewPassword(generateStrongPassword(pwLength, pwUppercase, pwLowercase, v, pwSymbols)); setCopiedPw(false); }} disabled={!pwUppercase && !pwLowercase && !pwSymbols} />
+                                    <ToggleChip label="Symbols (!@#$)" checked={pwSymbols} onChange={(v) => { setPwSymbols(v); setNewPassword(generateStrongPassword(pwLength, pwUppercase, pwLowercase, pwDigits, v)); setCopiedPw(false); }} disabled={!pwUppercase && !pwLowercase && !pwDigits} />
+                                  </div>
+                                </motion.div>
+                              )}
+                            </div>
                           </div>
                           <div className="mt-3 grid gap-3 md:grid-cols-2">
                             <SelectField
@@ -2132,5 +2287,99 @@ function IdentityAvatar({
     >
       {user.displayName.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'U'}
     </div>
+  );
+}
+
+function generateStrongPassword(
+  length: number,
+  uppercase: boolean,
+  lowercase: boolean,
+  digits: boolean,
+  symbols: boolean,
+): string {
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const digit = '0123456789';
+  const symbol = '!@#$%^&*_+-=?';
+
+  let pool = '';
+  const required: string[] = [];
+
+  if (uppercase) { pool += upper; required.push(upper); }
+  if (lowercase) { pool += lower; required.push(lower); }
+  if (digits) { pool += digit; required.push(digit); }
+  if (symbols) { pool += symbol; required.push(symbol); }
+
+  if (!pool) { pool = lower + digit; required.push(lower, digit); }
+
+  const arr = new Uint32Array(length);
+  crypto.getRandomValues(arr);
+
+  const chars: string[] = [];
+  for (let i = 0; i < length; i++) {
+    chars.push(pool.charAt(arr[i]! % pool.length));
+  }
+
+  // Ensure at least one character from each required set
+  for (let i = 0; i < required.length && i < length; i++) {
+    const rng = new Uint32Array(2);
+    crypto.getRandomValues(rng);
+    const reqSet = required[i]!;
+    chars[i] = reqSet.charAt(rng[0]! % reqSet.length);
+  }
+
+  // Fisher–Yates shuffle (so guaranteed chars aren't always at the front)
+  for (let i = chars.length - 1; i > 0; i--) {
+    const rng = new Uint32Array(1);
+    crypto.getRandomValues(rng);
+    const j = rng[0]! % (i + 1);
+    const tmp = chars[i]!;
+    chars[i] = chars[j]!;
+    chars[j] = tmp;
+  }
+
+  return chars.join('');
+}
+
+function ToggleChip({
+  label,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => { if (!disabled) onChange(!checked); }}
+      className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[11px] font-medium transition-all"
+      style={{
+        background: checked
+          ? 'color-mix(in srgb, var(--accent) 14%, transparent)'
+          : 'var(--settings-neutral-chip-bg)',
+        color: checked ? 'var(--accent)' : 'var(--text-muted)',
+        border: checked
+          ? '1px solid color-mix(in srgb, var(--accent) 28%, transparent)'
+          : '1px solid var(--border-strong)',
+        opacity: disabled ? 0.4 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+      }}
+    >
+      <span
+        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] text-[10px] transition-colors"
+        style={{
+          background: checked ? 'var(--accent)' : 'transparent',
+          border: checked ? 'none' : '1.5px solid var(--border-strong)',
+          color: checked ? '#fff' : 'transparent',
+        }}
+      >
+        {checked ? '✓' : ''}
+      </span>
+      {label}
+    </button>
   );
 }
