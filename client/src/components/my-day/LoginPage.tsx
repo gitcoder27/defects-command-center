@@ -24,7 +24,7 @@ const ROLE_COPY = {
   developer: {
     eyebrow: 'Developer Workspace',
     tagline: 'Start your day.',
-    note: 'No account yet? Contact your manager to get access.',
+    note: 'No account yet? Contact your Lead to get access.',
     accent: 'var(--accent)',
     glow: 'rgba(6, 182, 212, 0.18)',
     orbGlow: 'rgba(6, 182, 212, 0.06)',
