@@ -1,19 +1,50 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { ToastProvider } from '@/context/ToastContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/hooks/useConfig';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { TeamTrackerPage } from '@/components/team-tracker/TeamTrackerPage';
-import { SetupWizard } from '@/components/setup/SetupWizard';
 import { Header } from '@/components/layout/Header';
-import { MyDayPage } from '@/components/my-day/MyDayPage';
-import { LoginPage } from '@/components/my-day/LoginPage';
-import { ManagerMyDayLanding } from '@/components/my-day/ManagerMyDayLanding';
-import { ManagerDeskPage } from '@/components/manager-desk';
 
 export type AppView = 'dashboard' | 'team-tracker' | 'my-day' | 'manager-desk';
+
+const loadTeamTrackerPage = () => import('@/components/team-tracker/TeamTrackerPage');
+const loadSetupWizard = () => import('@/components/setup/SetupWizard');
+const loadMyDayPage = () => import('@/components/my-day/MyDayPage');
+const loadLoginPage = () => import('@/components/my-day/LoginPage');
+const loadManagerMyDayLanding = () => import('@/components/my-day/ManagerMyDayLanding');
+const loadManagerDeskPage = () => import('@/components/manager-desk');
+
+const TeamTrackerPage = lazy(async () => {
+  const module = await loadTeamTrackerPage();
+  return { default: module.TeamTrackerPage };
+});
+
+const SetupWizard = lazy(async () => {
+  const module = await loadSetupWizard();
+  return { default: module.SetupWizard };
+});
+
+const MyDayPage = lazy(async () => {
+  const module = await loadMyDayPage();
+  return { default: module.MyDayPage };
+});
+
+const LoginPage = lazy(async () => {
+  const module = await loadLoginPage();
+  return { default: module.LoginPage };
+});
+
+const ManagerMyDayLanding = lazy(async () => {
+  const module = await loadManagerMyDayLanding();
+  return { default: module.ManagerMyDayLanding };
+});
+
+const ManagerDeskPage = lazy(async () => {
+  const module = await loadManagerDeskPage();
+  return { default: module.ManagerDeskPage };
+});
 
 function pathToView(pathname: string): AppView | null {
   if (pathname === '/my-day' || pathname === '/my-day/') return 'my-day';
@@ -38,6 +69,51 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function preloadView(view: AppView) {
+  switch (view) {
+    case 'team-tracker':
+      void loadTeamTrackerPage();
+      break;
+    case 'my-day':
+      void loadMyDayPage();
+      void loadManagerMyDayLanding();
+      break;
+    case 'manager-desk':
+      void loadManagerDeskPage();
+      break;
+    default:
+      break;
+  }
+}
+
+function FullPageLoading() {
+  return (
+    <div className="h-full flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
+      <div className="flex flex-col items-center gap-3">
+        <div
+          className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
+          style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }}
+        />
+        <span className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>Loading…</span>
+      </div>
+    </div>
+  );
+}
+
+function PanelLoading() {
+  return (
+    <div className="h-full flex items-center justify-center" style={{ background: 'transparent' }}>
+      <div className="flex flex-col items-center gap-3">
+        <div
+          className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
+          style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }}
+        />
+        <span className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>Loading…</span>
+      </div>
+    </div>
+  );
+}
 
 interface WorkspaceShellProps {
   activeView: AppView;
@@ -76,6 +152,7 @@ function AppContent() {
 
   // Sync browser URL when view changes
   const handleViewChange = useCallback((view: AppView) => {
+    preloadView(view);
     setActiveView(view);
     const target = viewToPath(view);
     if (window.location.pathname !== target) {
@@ -94,38 +171,53 @@ function AppContent() {
   }, []);
 
   if (isLoading || authLoading) {
-    return (
-      <div className="h-full flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
-          <span className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>Loading…</span>
-        </div>
-      </div>
-    );
+    return <FullPageLoading />;
   }
 
   // Manager Desk — manager-only route
   if (activeView === 'manager-desk') {
-    if (!isAuthenticated) return <LoginPage />;
+    if (!isAuthenticated) {
+      return (
+        <Suspense fallback={<FullPageLoading />}>
+          <LoginPage />
+        </Suspense>
+      );
+    }
     if (user?.role !== 'manager') {
       handleViewChange('my-day');
       return null;
     }
     return (
       <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
-        <ManagerDeskPage />
+        <Suspense fallback={<PanelLoading />}>
+          <ManagerDeskPage />
+        </Suspense>
       </WorkspaceShell>
     );
   }
 
   // If the URL is /my-day, always show the my-day experience
   if (activeView === 'my-day') {
-    if (!isAuthenticated) return <LoginPage />;
+    if (!isAuthenticated) {
+      return (
+        <Suspense fallback={<FullPageLoading />}>
+          <LoginPage />
+        </Suspense>
+      );
+    }
     // Managers see a landing page since My Day API requires developer role
     if (user?.role === 'manager') {
-      return <ManagerMyDayLanding onGoToDashboard={() => handleViewChange('dashboard')} />;
+      return (
+        <Suspense fallback={<FullPageLoading />}>
+          <ManagerMyDayLanding onGoToDashboard={() => handleViewChange('dashboard')} />
+        </Suspense>
+      );
     }
-    return <MyDayPage />;
+    return (
+      <Suspense fallback={<FullPageLoading />}>
+        <MyDayPage />
+      </Suspense>
+    );
   }
 
   // Developers always get redirected to /my-day
@@ -135,13 +227,19 @@ function AppContent() {
   }
 
   if (config && !config.isConfigured) {
-    return <SetupWizard onComplete={() => refetch()} />;
+    return (
+      <Suspense fallback={<FullPageLoading />}>
+        <SetupWizard onComplete={() => refetch()} />
+      </Suspense>
+    );
   }
 
   if (activeView === 'team-tracker') {
     return (
       <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
-        <TeamTrackerPage />
+        <Suspense fallback={<PanelLoading />}>
+          <TeamTrackerPage />
+        </Suspense>
       </WorkspaceShell>
     );
   }

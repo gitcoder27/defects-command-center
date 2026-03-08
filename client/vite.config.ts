@@ -10,6 +10,24 @@ export default defineConfig({
       'shared/types': path.resolve(__dirname, '../shared/types'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react/jsx-runtime'],
+          query: ['@tanstack/react-query', '@tanstack/react-table'],
+          motion: ['framer-motion', 'lucide-react'],
+          radix: [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-popover',
+            '@radix-ui/react-select',
+            '@radix-ui/react-switch',
+            '@radix-ui/react-tooltip',
+          ],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {

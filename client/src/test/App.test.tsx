@@ -70,7 +70,7 @@ describe('App', () => {
     expect(screen.getByText('Loading…')).toBeInTheDocument();
   });
 
-  it('renders setup wizard when config is not yet configured', () => {
+  it('renders setup wizard when config is not yet configured', async () => {
     useConfigMock.mockReturnValue({
       data: { isConfigured: false },
       isLoading: false,
@@ -78,7 +78,7 @@ describe('App', () => {
     });
 
     render(<App />);
-    expect(screen.getByText('Setup wizard')).toBeInTheDocument();
+    expect(await screen.findByText('Setup wizard')).toBeInTheDocument();
   });
 
   it('renders dashboard layout once setup is complete', () => {
@@ -92,7 +92,7 @@ describe('App', () => {
     expect(screen.getByText('Dashboard loaded')).toBeInTheDocument();
   });
 
-  it('renders manager desk inside the shared shell for manager users', () => {
+  it('renders manager desk inside the shared shell for manager users', async () => {
     window.history.pushState(null, '', '/manager-desk');
     useConfigMock.mockReturnValue({
       data: { isConfigured: true },
@@ -110,10 +110,10 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByText('Shared header')).toBeInTheDocument();
-    expect(screen.getByText('Manager desk loaded')).toBeInTheDocument();
+    expect(await screen.findByText('Manager desk loaded')).toBeInTheDocument();
   });
 
-  it('shows the manager my day redirect screen outside the shared shell', () => {
+  it('shows the manager my day redirect screen outside the shared shell', async () => {
     window.history.pushState(null, '', '/my-day');
     useConfigMock.mockReturnValue({
       data: { isConfigured: true },
@@ -130,7 +130,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(screen.getByText('Manager my day redirect')).toBeInTheDocument();
+    expect(await screen.findByText('Manager my day redirect')).toBeInTheDocument();
     expect(screen.queryByText('Shared header')).not.toBeInTheDocument();
   });
 });

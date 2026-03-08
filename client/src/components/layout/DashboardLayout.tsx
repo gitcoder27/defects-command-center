@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { lazy, Suspense, useState, useCallback, useEffect, useRef } from 'react';
 import { Header } from './Header';
 import { OverviewCards } from '@/components/overview/OverviewCards';
 import { AlertBanner } from '@/components/alerts/AlertBanner';
@@ -7,11 +7,15 @@ import { FilterSidebar } from '@/components/filters/FilterSidebar';
 import { DefectTable, useTableIssueKeys } from '@/components/table/DefectTable';
 import { TriagePanel } from '@/components/triage/TriagePanel';
 import { WorkloadBar } from '@/components/workload/WorkloadBar';
-import { SettingsPanel } from '@/components/settings/SettingsPanel';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { FilterType, Alert } from '@/types';
 import type { AppView } from '@/App';
+
+const SettingsPanel = lazy(async () => {
+  const module = await import('@/components/settings/SettingsPanel');
+  return { default: module.SettingsPanel };
+});
 
 interface DashboardLayoutProps {
   activeView?: AppView;
@@ -267,7 +271,11 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
         </div>
       </div>
 
-      <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }
