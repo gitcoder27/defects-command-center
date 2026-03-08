@@ -144,7 +144,12 @@ export function createAuthRouter(authService: AuthService): Router {
 
   router.delete("/users/:username", requireManager(authService), validate(deleteUserSchema), async (req, res, next) => {
     try {
-      await authService.deleteUser(req.params.username);
+      const username = req.params.username;
+      if (!username) {
+        res.status(400).json({ error: "username is required", status: 400 });
+        return;
+      }
+      await authService.deleteUser(username);
       res.json({ ok: true });
     } catch (error) {
       next(error);

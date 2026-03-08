@@ -27,6 +27,7 @@ import { WorkloadService } from "./services/workload.service";
 import { TagService } from "./services/tag.service";
 import { TeamTrackerService } from "./services/team-tracker.service";
 import { SyncEngine } from "./sync/engine";
+import { resolveWorkspaceRoot } from "./db/paths";
 
 export interface AppServices {
   issueService: IssueService;
@@ -84,7 +85,7 @@ export function createApp(services: AppServices) {
   );
 
   if (process.env.NODE_ENV === "production") {
-    const clientDistPath = path.resolve(process.cwd(), "client", "dist");
+    const clientDistPath = path.resolve(resolveWorkspaceRoot(), "client", "dist");
     if (existsSync(clientDistPath)) {
       app.use(express.static(clientDistPath));
       app.get(/^\/(?!api).*/, (_req, res) => {
