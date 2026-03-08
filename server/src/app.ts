@@ -13,12 +13,14 @@ import { createTagsRouter } from "./routes/tags";
 import { createTeamTrackerRouter } from "./routes/team-tracker";
 import { createAuthRouter } from "./routes/auth";
 import { createMyDayRouter } from "./routes/my-day";
+import { createManagerDeskRouter } from "./routes/manager-desk";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { AlertService } from "./services/alert.service";
 import { AutomationService } from "./services/automation.service";
 import { AuthService } from "./services/auth.service";
 import { BackupService } from "./services/backup.service";
 import { IssueService } from "./services/issue.service";
+import { ManagerDeskService } from "./services/manager-desk.service";
 import { MyDayService } from "./services/my-day.service";
 import { WorkloadService } from "./services/workload.service";
 import { TagService } from "./services/tag.service";
@@ -36,6 +38,7 @@ export interface AppServices {
   teamTrackerService: TeamTrackerService;
   authService: AuthService;
   myDayService: MyDayService;
+  managerDeskService: ManagerDeskService;
 }
 
 export function createApp(services: AppServices) {
@@ -58,6 +61,10 @@ export function createApp(services: AppServices) {
   app.use("/api/auth", createAuthRouter(services.authService));
   app.use("/api/team-tracker", createTeamTrackerRouter(services.teamTrackerService));
   app.use("/api/my-day", createMyDayRouter(services.myDayService, services.authService));
+  app.use(
+    "/api/manager-desk",
+    createManagerDeskRouter(services.managerDeskService, services.authService)
+  );
 
   if (process.env.NODE_ENV === "production") {
     const clientDistPath = path.resolve(process.cwd(), "client", "dist");

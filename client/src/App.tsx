@@ -11,18 +11,21 @@ import { Header } from '@/components/layout/Header';
 import { MyDayPage } from '@/components/my-day/MyDayPage';
 import { LoginPage } from '@/components/my-day/LoginPage';
 import { ManagerMyDayLanding } from '@/components/my-day/ManagerMyDayLanding';
+import { ManagerDeskPage } from '@/components/manager-desk';
 
-export type AppView = 'dashboard' | 'team-tracker' | 'my-day';
+export type AppView = 'dashboard' | 'team-tracker' | 'my-day' | 'manager-desk';
 
 function pathToView(pathname: string): AppView | null {
   if (pathname === '/my-day' || pathname === '/my-day/') return 'my-day';
   if (pathname === '/team-tracker' || pathname === '/team-tracker/') return 'team-tracker';
+  if (pathname === '/manager-desk' || pathname === '/manager-desk/') return 'manager-desk';
   return null;
 }
 
 function viewToPath(view: AppView): string {
   if (view === 'my-day') return '/my-day';
   if (view === 'team-tracker') return '/team-tracker';
+  if (view === 'manager-desk') return '/manager-desk';
   return '/';
 }
 
@@ -73,6 +76,16 @@ function AppContent() {
         </div>
       </div>
     );
+  }
+
+  // Manager Desk — manager-only route
+  if (activeView === 'manager-desk') {
+    if (!isAuthenticated) return <LoginPage />;
+    if (user?.role !== 'manager') {
+      handleViewChange('my-day');
+      return null;
+    }
+    return <ManagerDeskPage />;
   }
 
   // If the URL is /my-day, always show the my-day experience

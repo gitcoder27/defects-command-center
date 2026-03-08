@@ -138,3 +138,44 @@ export const teamTrackerCheckIns = sqliteTable("team_tracker_checkins", {
   authorAccountId: text("author_account_id"),
   createdAt: text("created_at").notNull(),
 });
+
+// ── Manager Desk tables ────────────────────────────────
+
+export const managerDeskDays = sqliteTable("manager_desk_days", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  date: text("date").notNull(),
+  managerAccountId: text("manager_account_id").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const managerDeskItems = sqliteTable("manager_desk_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  dayId: integer("day_id").notNull(),
+  sourceItemId: integer("source_item_id"),
+  title: text("title").notNull(),
+  kind: text("kind").notNull(),
+  category: text("category").notNull(),
+  status: text("status").notNull().default("inbox"),
+  priority: text("priority").notNull().default("medium"),
+  participants: text("participants"),
+  contextNote: text("context_note"),
+  nextAction: text("next_action"),
+  outcome: text("outcome"),
+  plannedStartAt: text("planned_start_at"),
+  plannedEndAt: text("planned_end_at"),
+  followUpAt: text("follow_up_at"),
+  completedAt: text("completed_at"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const managerDeskLinks = sqliteTable("manager_desk_links", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  itemId: integer("item_id").notNull(),
+  linkType: text("link_type").notNull(),
+  issueKey: text("issue_key"),
+  developerAccountId: text("developer_account_id"),
+  externalLabel: text("external_label"),
+  createdAt: text("created_at").notNull(),
+});

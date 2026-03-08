@@ -1,0 +1,318 @@
+import { Router } from "express";
+import { z } from "zod";
+import { requireManager } from "../middleware/auth";
+import { validate } from "../middleware/validate";
+import { AuthService } from "../services/auth.service";
+import { ManagerDeskService } from "../services/manager-desk.service";
+
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const isoDateTimeSchema = z.string().datetime({ offset: true });
+
+const managerDeskEnums = {
+  kind: z.enum(["action", "meeting", "decision", "waiting"]),
+  category: z.enum([
+    "analysis",
+    "design",
+    "team_management",
+    "cross_team",
+    "follow_up",
+    "escalation",
+    "admin",
+    "planning",
+    "other",
+  ]),
+  status: z.enum(["inbox", "planned", "in_progress", "waiting", "done", "cancelled"]),
+  priority: z.enum(["low", "medium", "high", "critical"]),
+  linkType: z.enum(["issue", "developer", "external_group"]),
+};
+
+const managerDeskLinkSchema = z
+  .object({
+    linkType: managerDeskEnums.linkType,
+    issueKey: z.string().trim().min(1).max(100).optional(),
+    developerAccountId: z.string().trim().min(1).max(200).optional(),
+    externalLabel: z.string().trim().min(1).max(300).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.linkType === "issue") {
+      if (!value.issueKey) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["issueKey"],
+          message: "issueKey is required for issue links",
+        });
+      }
+      if (value.developerAccountId || value.externalLabel) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["linkType"],
+          message: "Issue links may only include issueKey",
+        });
+      }
+    }
+
+    if (value.linkType === "developer") {
+      if (!value.developerAccountId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["developerAccountId"],
+          message: "developerAccountId is required for developer links",
+        });
+      }
+      if (value.issueKey || value.externalLabel) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["linkType"],
+          message: "Developer links may only include developerAccountId",
+        });
+      }
+    }
+
+    if (value.linkType === "external_group") {
+      if (!value.externalLabel) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["externalLabel"],
+          message: "externalLabel is required for external_group links",
+        });
+      }
+      if (value.issueKey || value.developerAccountId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["linkType"],
+          message: "External group links may only include externalLabel",
+        });
+      }
+    }
+  });
+
+const dateQuerySchema = z.object({
+  query: z.object({
+    date: z.string().regex(dateRegex, "date must be YYYY-MM-DD"),
+  }),
+  params: z.any().optional(),
+  body: z.any().optional(),
+});
+
+const createItemSchema = z.object({
+  body: z
+    .object({
+      date: z.string().regex(dateRegex, "date must be YYYY-MM-DD"),
+      title: z.string().min(1).max(500),
+      kind: managerDeskEnums.kind.optional(),
+      category: managerDeskEnums.category.optional(),
+      status: managerDeskEnums.status.optional(),
+      priority: managerDeskEnums.priority.optional(),
+      participants: z.string().max(500).nullable().optional(),
+      contextNote: z.string().max(5000).nullable().optional(),
+      nextAction: z.string().max(2000).nullable().optional(),
+      outcome: z.string().max(5000).nullable().optional(),
+      plannedStartAt: isoDateTimeSchema.nullable().optional(),
+      plannedEndAt: isoDateTimeSchema.nullable().optional(),
+      followUpAt: isoDateTimeSchema.nullable().optional(),
+      links: z.array(managerDeskLinkSchema).optional(),
+    })
+    .superRefine((value, ctx) => {
+      if (value.plannedStartAt && value.plannedEndAt) {
+        if (new Date(value.plannedEndAt).getTime() < new Date(value.plannedStartAt).getTime()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["plannedEndAt"],
+            message: "plannedEndAt must be greater than or equal to plannedStartAt",
+          });
+        }
+      }
+    }),
+  params: z.any().optional(),
+  query: z.any().optional(),
+});
+
+const itemIdParamSchema = z.object({
+  params: z.object({
+    itemId: z.string().regex(/^\d+$/, "Invalid item id"),
+  }),
+  body: z.any().optional(),
+  query: z.any().optional(),
+});
+
+const updateItemSchema = z.object({
+  params: z.object({
+    itemId: z.string().regex(/^\d+$/, "Invalid item id"),
+  }),
+  body: z
+    .object({
+      title: z.string().min(1).max(500).optional(),
+      kind: managerDeskEnums.kind.optional(),
+      category: managerDeskEnums.category.optional(),
+      status: managerDeskEnums.status.optional(),
+      priority: managerDeskEnums.priority.optional(),
+      participants: z.string().max(500).nullable().optional(),
+      contextNote: z.string().max(5000).nullable().optional(),
+      nextAction: z.string().max(2000).nullable().optional(),
+      outcome: z.string().max(5000).nullable().optional(),
+      plannedStartAt: isoDateTimeSchema.nullable().optional(),
+      plannedEndAt: isoDateTimeSchema.nullable().optional(),
+      followUpAt: isoDateTimeSchema.nullable().optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, {
+      message: "At least one field is required",
+    })
+    .superRefine((value, ctx) => {
+      if (value.plannedStartAt && value.plannedEndAt) {
+        if (new Date(value.plannedEndAt).getTime() < new Date(value.plannedStartAt).getTime()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["plannedEndAt"],
+            message: "plannedEndAt must be greater than or equal to plannedStartAt",
+          });
+        }
+      }
+    }),
+  query: z.any().optional(),
+});
+
+const linkSchema = z.object({
+  params: z.object({
+    itemId: z.string().regex(/^\d+$/, "Invalid item id"),
+  }),
+  body: managerDeskLinkSchema,
+  query: z.any().optional(),
+});
+
+const deleteLinkSchema = z.object({
+  params: z.object({
+    itemId: z.string().regex(/^\d+$/, "Invalid item id"),
+    linkId: z.string().regex(/^\d+$/, "Invalid link id"),
+  }),
+  body: z.any().optional(),
+  query: z.any().optional(),
+});
+
+const carryForwardSchema = z.object({
+  body: z.object({
+    fromDate: z.string().regex(dateRegex, "fromDate must be YYYY-MM-DD"),
+    toDate: z.string().regex(dateRegex, "toDate must be YYYY-MM-DD"),
+    itemIds: z.array(z.number().int().positive()).optional(),
+  }),
+  params: z.any().optional(),
+  query: z.any().optional(),
+});
+
+const lookupSchema = z.object({
+  query: z.object({
+    q: z.string().max(200),
+  }),
+  params: z.any().optional(),
+  body: z.any().optional(),
+});
+
+export function createManagerDeskRouter(
+  managerDeskService: ManagerDeskService,
+  authService: AuthService
+): Router {
+  const router = Router();
+
+  router.use(requireManager(authService));
+
+  router.get("/", validate(dateQuerySchema), async (req, res, next) => {
+    try {
+      const day = await managerDeskService.getDay(req.auth!.user.accountId, req.query.date as string);
+      res.json(day);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/items", validate(createItemSchema), async (req, res, next) => {
+    try {
+      const item = await managerDeskService.createItem(req.auth!.user.accountId, req.body);
+      res.status(201).json(item);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.patch("/items/:itemId", validate(updateItemSchema), async (req, res, next) => {
+    try {
+      const item = await managerDeskService.updateItem(
+        req.auth!.user.accountId,
+        parseInt(req.params.itemId as string, 10),
+        req.body
+      );
+      res.json(item);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.delete("/items/:itemId", validate(itemIdParamSchema), async (req, res, next) => {
+    try {
+      await managerDeskService.deleteItem(
+        req.auth!.user.accountId,
+        parseInt(req.params.itemId as string, 10)
+      );
+      res.json({ deleted: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/items/:itemId/links", validate(linkSchema), async (req, res, next) => {
+    try {
+      const link = await managerDeskService.addLink(
+        req.auth!.user.accountId,
+        parseInt(req.params.itemId as string, 10),
+        req.body
+      );
+      res.status(201).json(link);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.delete(
+    "/items/:itemId/links/:linkId",
+    validate(deleteLinkSchema),
+    async (req, res, next) => {
+      try {
+        await managerDeskService.deleteLink(
+          req.auth!.user.accountId,
+          parseInt(req.params.itemId as string, 10),
+          parseInt(req.params.linkId as string, 10)
+        );
+        res.json({ deleted: true });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.post("/carry-forward", validate(carryForwardSchema), async (req, res, next) => {
+    try {
+      const created = await managerDeskService.carryForward(req.auth!.user.accountId, req.body);
+      res.json({ created });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/lookups/issues", validate(lookupSchema), async (req, res, next) => {
+    try {
+      const items = await managerDeskService.lookupIssues(req.query.q as string);
+      res.json({ items });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/lookups/developers", validate(lookupSchema), async (req, res, next) => {
+    try {
+      const items = await managerDeskService.lookupDevelopers(req.query.q as string);
+      res.json({ items });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  return router;
+}

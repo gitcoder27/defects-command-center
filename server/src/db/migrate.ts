@@ -152,6 +152,49 @@ CREATE TABLE IF NOT EXISTS team_tracker_checkins (
   FOREIGN KEY (day_id) REFERENCES team_tracker_days(id)
 );
 
+CREATE TABLE IF NOT EXISTS manager_desk_days (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  date               TEXT NOT NULL,
+  manager_account_id TEXT NOT NULL,
+  created_at         TEXT NOT NULL,
+  updated_at         TEXT NOT NULL,
+  UNIQUE(date, manager_account_id)
+);
+
+CREATE TABLE IF NOT EXISTS manager_desk_items (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  day_id           INTEGER NOT NULL,
+  source_item_id   INTEGER,
+  title            TEXT NOT NULL,
+  kind             TEXT NOT NULL,
+  category         TEXT NOT NULL,
+  status           TEXT NOT NULL DEFAULT 'inbox',
+  priority         TEXT NOT NULL DEFAULT 'medium',
+  participants     TEXT,
+  context_note     TEXT,
+  next_action      TEXT,
+  outcome          TEXT,
+  planned_start_at TEXT,
+  planned_end_at   TEXT,
+  follow_up_at     TEXT,
+  completed_at     TEXT,
+  created_at       TEXT NOT NULL,
+  updated_at       TEXT NOT NULL,
+  FOREIGN KEY (day_id) REFERENCES manager_desk_days(id),
+  FOREIGN KEY (source_item_id) REFERENCES manager_desk_items(id)
+);
+
+CREATE TABLE IF NOT EXISTS manager_desk_links (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id              INTEGER NOT NULL,
+  link_type            TEXT NOT NULL,
+  issue_key            TEXT,
+  developer_account_id TEXT,
+  external_label       TEXT,
+  created_at           TEXT NOT NULL,
+  FOREIGN KEY (item_id) REFERENCES manager_desk_items(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_app_users_username ON app_users(username);
 CREATE INDEX IF NOT EXISTS idx_app_users_dev_account ON app_users(developer_account_id);
 CREATE INDEX IF NOT EXISTS idx_app_sessions_user ON app_sessions(user_id);
@@ -160,6 +203,14 @@ CREATE INDEX IF NOT EXISTS idx_tracker_days_date ON team_tracker_days(date);
 CREATE INDEX IF NOT EXISTS idx_tracker_days_dev ON team_tracker_days(developer_account_id);
 CREATE INDEX IF NOT EXISTS idx_tracker_items_day ON team_tracker_items(day_id);
 CREATE INDEX IF NOT EXISTS idx_tracker_checkins_day ON team_tracker_checkins(day_id);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_days_manager_date ON manager_desk_days(manager_account_id, date);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_items_day ON manager_desk_items(day_id);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_items_status ON manager_desk_items(status);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_items_follow_up_at ON manager_desk_items(follow_up_at);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_items_source_item_id ON manager_desk_items(source_item_id);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_links_item ON manager_desk_links(item_id);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_links_issue_key ON manager_desk_links(issue_key);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_links_developer_account_id ON manager_desk_links(developer_account_id);
 `;
 
 const alterStatements = [
@@ -178,6 +229,15 @@ const alterStatements = [
   "ALTER TABLE issues ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE team_tracker_checkins ADD COLUMN author_type TEXT NOT NULL DEFAULT 'manager'",
   "ALTER TABLE team_tracker_checkins ADD COLUMN author_account_id TEXT",
+  "ALTER TABLE manager_desk_items ADD COLUMN source_item_id INTEGER",
+  "CREATE INDEX IF NOT EXISTS idx_manager_desk_days_manager_date ON manager_desk_days(manager_account_id, date)",
+  "CREATE INDEX IF NOT EXISTS idx_manager_desk_items_day ON manager_desk_items(day_id)",
+  "CREATE INDEX IF NOT EXISTS idx_manager_desk_items_status ON manager_desk_items(status)",
+  "CREATE INDEX IF NOT EXISTS idx_manager_desk_items_follow_up_at ON manager_desk_items(follow_up_at)",
+  "CREATE INDEX IF NOT EXISTS idx_manager_desk_items_source_item_id ON manager_desk_items(source_item_id)",
+  "CREATE INDEX IF NOT EXISTS idx_manager_desk_links_item ON manager_desk_links(item_id)",
+  "CREATE INDEX IF NOT EXISTS idx_manager_desk_links_issue_key ON manager_desk_links(issue_key)",
+  "CREATE INDEX IF NOT EXISTS idx_manager_desk_links_developer_account_id ON manager_desk_links(developer_account_id)",
 ];
 
 export function migrate(sqlite: BetterSqlite3.Database): void {

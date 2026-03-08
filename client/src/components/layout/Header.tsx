@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
-import { RefreshCw, Moon, Sun, PanelLeftOpen, Radar, Settings, Users, UserCircle } from 'lucide-react';
+import { RefreshCw, Moon, Sun, PanelLeftOpen, Radar, Settings, Users, UserCircle, Briefcase } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { formatRelativeTime } from '@/lib/utils';
@@ -15,6 +16,7 @@ interface HeaderProps {
 
 export function Header({ onOpenSettings, onOpenMobileSidebar, activeView, onViewChange }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
   const { data: sync } = useSyncStatus();
   const triggerSync = useTriggerSync();
 
@@ -99,6 +101,20 @@ export function Header({ onOpenSettings, onOpenMobileSidebar, activeView, onView
                 <UserCircle size={12} />
                 My Day
               </button>
+              {user?.role === 'manager' && (
+                <button
+                  onClick={() => onViewChange('manager-desk')}
+                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors"
+                  style={{
+                    background: activeView === 'manager-desk' ? 'var(--bg-elevated)' : 'transparent',
+                    color: activeView === 'manager-desk' ? 'var(--md-accent)' : 'var(--text-muted)',
+                    boxShadow: activeView === 'manager-desk' ? 'var(--soft-shadow)' : 'none',
+                  }}
+                >
+                  <Briefcase size={12} />
+                  Manager Desk
+                </button>
+              )}
             </div>
           )}
         </div>

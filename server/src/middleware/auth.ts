@@ -69,3 +69,20 @@ export function requireDeveloper(authService: AuthService) {
     }
   };
 }
+
+export function requireManager(authService: AuthService) {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await loadRequestAuth(req, authService);
+      if (!req.auth) {
+        throw new HttpError(401, "Authentication required");
+      }
+      if (req.auth.user.role !== "manager") {
+        throw new HttpError(403, "Manager access required");
+      }
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}

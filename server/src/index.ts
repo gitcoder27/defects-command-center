@@ -12,6 +12,7 @@ import { BackupService } from "./services/backup.service";
 import { IssueService } from "./services/issue.service";
 import { SettingsService } from "./services/settings.service";
 import { AuthService } from "./services/auth.service";
+import { ManagerDeskService } from "./services/manager-desk.service";
 import { MyDayService } from "./services/my-day.service";
 import { WorkloadService } from "./services/workload.service";
 import { TagService } from "./services/tag.service";
@@ -67,6 +68,7 @@ async function bootstrap(): Promise<void> {
   const teamTrackerService = new TeamTrackerService();
   const authService = new AuthService();
   const myDayService = new MyDayService(teamTrackerService);
+  const managerDeskService = new ManagerDeskService();
 
   const app = createApp({
     issueService,
@@ -79,6 +81,7 @@ async function bootstrap(): Promise<void> {
     teamTrackerService,
     authService,
     myDayService,
+    managerDeskService,
   });
 
   await backupService.initialize();

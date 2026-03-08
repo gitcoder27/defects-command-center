@@ -276,3 +276,101 @@ export interface TrackerBoardSummary {
   noCurrent: number;
   doneForToday: number;
 }
+
+// ── Manager Desk types ─────────────────────────────────
+
+export type ManagerDeskItemKind =
+  | "action"
+  | "meeting"
+  | "decision"
+  | "waiting";
+
+export type ManagerDeskCategory =
+  | "analysis"
+  | "design"
+  | "team_management"
+  | "cross_team"
+  | "follow_up"
+  | "escalation"
+  | "admin"
+  | "planning"
+  | "other";
+
+export type ManagerDeskStatus =
+  | "inbox"
+  | "planned"
+  | "in_progress"
+  | "waiting"
+  | "done"
+  | "cancelled";
+
+export type ManagerDeskPriority = "low" | "medium" | "high" | "critical";
+
+export type ManagerDeskLinkType =
+  | "issue"
+  | "developer"
+  | "external_group";
+
+export interface ManagerDeskLink {
+  id: number;
+  itemId: number;
+  linkType: ManagerDeskLinkType;
+  issueKey?: string;
+  developerAccountId?: string;
+  externalLabel?: string;
+  displayLabel: string;
+  createdAt: string;
+}
+
+export interface ManagerDeskItem {
+  id: number;
+  dayId: number;
+  title: string;
+  kind: ManagerDeskItemKind;
+  category: ManagerDeskCategory;
+  status: ManagerDeskStatus;
+  priority: ManagerDeskPriority;
+  participants?: string;
+  contextNote?: string;
+  nextAction?: string;
+  outcome?: string;
+  plannedStartAt?: string;
+  plannedEndAt?: string;
+  followUpAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  links: ManagerDeskLink[];
+}
+
+export interface ManagerDeskSummary {
+  totalOpen: number;
+  inbox: number;
+  planned: number;
+  inProgress: number;
+  waiting: number;
+  overdueFollowUps: number;
+  meetings: number;
+  completed: number;
+}
+
+export interface ManagerDeskDayResponse {
+  date: string;
+  items: ManagerDeskItem[];
+  summary: ManagerDeskSummary;
+}
+
+export interface ManagerDeskIssueLookupItem {
+  jiraKey: string;
+  summary: string;
+  priorityName: string;
+  statusName: string;
+  assigneeName?: string;
+}
+
+export interface ManagerDeskDeveloperLookupItem {
+  accountId: string;
+  displayName: string;
+  email?: string;
+  avatarUrl?: string;
+}

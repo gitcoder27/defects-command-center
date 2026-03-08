@@ -1,0 +1,564 @@
+import { beforeEach, describe, expect, it } from "vitest";
+import express from "express";
+import { createManagerDeskRouter } from "../src/routes/manager-desk";
+import { errorHandler, notFoundHandler } from "../src/middleware/errorHandler";
+import { AuthService, serializeSessionCookie } from "../src/services/auth.service";
+import { ManagerDeskService } from "../src/services/manager-desk.service";
+import { resetDatabase, db } from "./helpers/db";
+import { developers, issues } from "../src/db/schema";
+import { invoke } from "./helpers/http";
+
+const authService = new AuthService();
+const managerDeskService = new ManagerDeskService();
+
+async function seedDevelopers() {
+  await db.insert(developers).values([
+    {
+      accountId: "dev-1",
+      displayName: "Alice Smith",
+      email: "alice@example.com",
+      avatarUrl: null,
+      isActive: 1,
+    },
+    {
+      accountId: "dev-2",
+      displayName: "Rahul Sharma",
+      email: "rahul@example.com",
+      avatarUrl: "https://example.com/rahul.png",
+      isActive: 1,
+    },
+  ]);
+}
+
+async function seedIssues() {
+  await db.insert(issues).values([
+    {
+      jiraKey: "PROJ-221",
+      summary: "Rahul blocker on review flow",
+      description: null,
+      aspenSeverity: null,
+      priorityName: "High",
+      priorityId: "1",
+      statusName: "In Progress",
+      statusCategory: "indeterminate",
+      assigneeId: "dev-2",
+      assigneeName: "Rahul Sharma",
+      teamScopeState: "in_team",
+      syncScopeState: "active",
+      reporterName: "Lead",
+      component: null,
+      labels: JSON.stringify([]),
+      dueDate: "2026-03-10",
+      developmentDueDate: "2026-03-09",
+      flagged: 0,
+      createdAt: "2026-03-07T08:00:00.000Z",
+      updatedAt: "2026-03-07T08:00:00.000Z",
+      syncedAt: "2026-03-07T08:00:00.000Z",
+      lastSeenInScopedSyncAt: "2026-03-07T08:00:00.000Z",
+      lastReconciledAt: "2026-03-07T08:00:00.000Z",
+      scopeChangedAt: null,
+      analysisNotes: null,
+      excluded: 0,
+    },
+    {
+      jiraKey: "PROJ-321",
+      summary: "Investigate design gap in review flow",
+      description: null,
+      aspenSeverity: null,
+      priorityName: "Medium",
+      priorityId: "2",
+      statusName: "To Do",
+      statusCategory: "new",
+      assigneeId: "dev-1",
+      assigneeName: "Alice Smith",
+      teamScopeState: "in_team",
+      syncScopeState: "active",
+      reporterName: "Lead",
+      component: null,
+      labels: JSON.stringify([]),
+      dueDate: "2026-03-12",
+      developmentDueDate: null,
+      flagged: 0,
+      createdAt: "2026-03-07T08:00:00.000Z",
+      updatedAt: "2026-03-08T08:00:00.000Z",
+      syncedAt: "2026-03-08T08:00:00.000Z",
+      lastSeenInScopedSyncAt: "2026-03-08T08:00:00.000Z",
+      lastReconciledAt: "2026-03-08T08:00:00.000Z",
+      scopeChangedAt: null,
+      analysisNotes: null,
+      excluded: 0,
+    },
+  ]);
+}
+
+async function loginCookie(username: string, password: string): Promise<string> {
+  const { sessionId } = await authService.authenticate(username, password);
+  return serializeSessionCookie(sessionId, authService.sessionMaxAgeSeconds);
+}
+
+function createTestApp() {
+  const app = express();
+  app.use(
+    "/api/manager-desk",
+    createManagerDeskRouter(managerDeskService, authService)
+  );
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+  return app;
+}
+
+describe("manager desk routes", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    await seedDevelopers();
+    await seedIssues();
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager One",
+      password: "secret123",
+      role: "manager",
+    });
+    await authService.createUser({
+      username: "developer",
+      displayName: "Developer One",
+      password: "secret123",
+      role: "developer",
+      developerAccountId: "dev-1",
+    });
+  });
+
+  it("GET /api/manager-desk returns an empty manager day for managers", async () => {
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk?date=2026-03-08",
+      headers: {
+        cookie: await loginCookie("manager", "secret123"),
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      date: "2026-03-08",
+      items: [],
+      summary: {
+        totalOpen: 0,
+        inbox: 0,
+        planned: 0,
+        inProgress: 0,
+        waiting: 0,
+        overdueFollowUps: 0,
+        meetings: 0,
+        completed: 0,
+      },
+    });
+  });
+
+  it("developer-role users receive 403 on manager desk routes", async () => {
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk?date=2026-03-08",
+      headers: {
+        cookie: await loginCookie("developer", "secret123"),
+      },
+    });
+
+    expect(res.status).toBe(403);
+    expect(res.body?.error).toBe("Manager access required");
+  });
+
+  it("POST /api/manager-desk/items quick-captures an inbox item with defaults", async () => {
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: {
+        cookie: await loginCookie("manager", "secret123"),
+      },
+      body: {
+        date: "2026-03-08",
+        title: " Follow up with Rahul on blocker ",
+      },
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      title: "Follow up with Rahul on blocker",
+      kind: "action",
+      category: "other",
+      status: "inbox",
+      priority: "medium",
+      links: [],
+    });
+
+    const day = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk?date=2026-03-08",
+      headers: {
+        cookie: await loginCookie("manager", "secret123"),
+      },
+    });
+
+    expect(day.body?.summary).toMatchObject({
+      totalOpen: 1,
+      inbox: 1,
+    });
+  });
+
+  it("POST /api/manager-desk/items supports structured create with validated links", async () => {
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: {
+        cookie: await loginCookie("manager", "secret123"),
+      },
+      body: {
+        date: "2026-03-08",
+        title: "Prepare discussion points for design sync",
+        kind: "meeting",
+        category: "design",
+        status: "planned",
+        priority: "high",
+        participants: "Onshore Design Team",
+        contextNote: "Need alignment on API edge cases before implementation starts.",
+        nextAction: "Review open assumptions from yesterday.",
+        plannedStartAt: "2026-03-08T15:00:00.000Z",
+        plannedEndAt: "2026-03-08T15:30:00.000Z",
+        followUpAt: "2026-03-08T17:00:00.000Z",
+        links: [
+          { linkType: "issue", issueKey: "proj-321" },
+          { linkType: "developer", developerAccountId: "dev-2" },
+        ],
+      },
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      title: "Prepare discussion points for design sync",
+      kind: "meeting",
+      category: "design",
+      status: "planned",
+      priority: "high",
+      participants: "Onshore Design Team",
+      contextNote: "Need alignment on API edge cases before implementation starts.",
+      nextAction: "Review open assumptions from yesterday.",
+      plannedStartAt: "2026-03-08T15:00:00.000Z",
+      plannedEndAt: "2026-03-08T15:30:00.000Z",
+      followUpAt: "2026-03-08T17:00:00.000Z",
+      links: [
+        expect.objectContaining({
+          linkType: "issue",
+          issueKey: "PROJ-321",
+          displayLabel: "PROJ-321",
+        }),
+        expect.objectContaining({
+          linkType: "developer",
+          developerAccountId: "dev-2",
+          displayLabel: "Rahul Sharma",
+        }),
+      ],
+    });
+  });
+
+  it("PATCH /api/manager-desk/items/:itemId manages done transitions and clearing optional fields", async () => {
+    const app = createTestApp();
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: {
+        cookie: await loginCookie("manager", "secret123"),
+      },
+      body: {
+        date: "2026-03-08",
+        title: "Analyze PROJ-221 root cause",
+        status: "in_progress",
+        contextNote: "Initial notes",
+      },
+    });
+
+    const completed = await invoke(app, {
+      method: "PATCH",
+      url: `/api/manager-desk/items/${created.body.id}`,
+      headers: {
+        cookie: await loginCookie("manager", "secret123"),
+      },
+      body: {
+        status: "done",
+        outcome: "Shared root cause and next steps.",
+      },
+    });
+
+    expect(completed.status).toBe(200);
+    expect(completed.body?.status).toBe("done");
+    expect(completed.body?.completedAt).toBeDefined();
+    expect(completed.body?.outcome).toBe("Shared root cause and next steps.");
+
+    const reopened = await invoke(app, {
+      method: "PATCH",
+      url: `/api/manager-desk/items/${created.body.id}`,
+      headers: {
+        cookie: await loginCookie("manager", "secret123"),
+      },
+      body: {
+        status: "planned",
+        contextNote: null,
+      },
+    });
+
+    expect(reopened.status).toBe(200);
+    expect(reopened.body?.status).toBe("planned");
+    expect("completedAt" in reopened.body).toBe(false);
+    expect("contextNote" in reopened.body).toBe(false);
+  });
+
+  it("POST /api/manager-desk/items/:itemId/links adds issue, developer, and external links and rejects duplicates", async () => {
+    const app = createTestApp();
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: {
+        cookie: await loginCookie("manager", "secret123"),
+      },
+      body: {
+        date: "2026-03-08",
+        title: "Cross-team follow-up",
+      },
+    });
+
+    const itemId = created.body.id;
+
+    const issueLink = await invoke(app, {
+      method: "POST",
+      url: `/api/manager-desk/items/${itemId}/links`,
+      headers: {
+        cookie: await loginCookie("manager", "secret123"),
+      },
+      body: {
+        linkType: "issue",
+        issueKey: "PROJ-221",
+      },
+    });
+    expect(issueLink.status).toBe(201);
+
+    const developerLink = await invoke(app, {
+      method: "POST",
+      url: `/api/manager-desk/items/${itemId}/links`,
+      headers: {
+        cookie: await loginCookie("manager", "secret123"),
+      },
+      body: {
+        linkType: "developer",
+        developerAccountId: "dev-2",
+      },
+    });
+    expect(developerLink.status).toBe(201);
+    expect(developerLink.body?.displayLabel).toBe("Rahul Sharma");
+
+    const externalLink = await invoke(app, {
+      method: "POST",
+      url: `/api/manager-desk/items/${itemId}/links`,
+      headers: {
+        cookie: await loginCookie("manager", "secret123"),
+      },
+      body: {
+        linkType: "external_group",
+        externalLabel: "Onshore Design Team",
+      },
+    });
+    expect(externalLink.status).toBe(201);
+    expect(externalLink.body?.displayLabel).toBe("Onshore Design Team");
+
+    const duplicate = await invoke(app, {
+      method: "POST",
+      url: `/api/manager-desk/items/${itemId}/links`,
+      headers: {
+        cookie: await loginCookie("manager", "secret123"),
+      },
+      body: {
+        linkType: "issue",
+        issueKey: "PROJ-221",
+      },
+    });
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body?.error).toBe("Identical link already exists for this item");
+  });
+
+  it("rejects invalid link payloads", async () => {
+    const app = createTestApp();
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: {
+        cookie: await loginCookie("manager", "secret123"),
+      },
+      body: {
+        date: "2026-03-08",
+        title: "Waiting on response",
+      },
+    });
+
+    const res = await invoke(app, {
+      method: "POST",
+      url: `/api/manager-desk/items/${created.body.id}/links`,
+      headers: {
+        cookie: await loginCookie("manager", "secret123"),
+      },
+      body: {
+        linkType: "developer",
+      },
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body?.error).toContain("developerAccountId is required for developer links");
+  });
+
+  it("lookup endpoints return lightweight issue and developer results", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const issueLookup = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk/lookups/issues?q=design",
+      headers: {
+        cookie,
+      },
+    });
+
+    expect(issueLookup.status).toBe(200);
+    expect(issueLookup.body?.items).toEqual([
+      {
+        jiraKey: "PROJ-321",
+        summary: "Investigate design gap in review flow",
+        priorityName: "Medium",
+        statusName: "To Do",
+        assigneeName: "Alice Smith",
+      },
+    ]);
+
+    const developerLookup = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk/lookups/developers?q=rahul",
+      headers: {
+        cookie,
+      },
+    });
+
+    expect(developerLookup.status).toBe(200);
+    expect(developerLookup.body?.items).toEqual([
+      {
+        accountId: "dev-2",
+        displayName: "Rahul Sharma",
+        email: "rahul@example.com",
+        avatarUrl: "https://example.com/rahul.png",
+      },
+    ]);
+  });
+
+  it("carry-forward copies unfinished items with links and skips duplicates on repeat runs", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: {
+        cookie,
+      },
+      body: {
+        date: "2026-03-08",
+        title: "Follow up with Rahul on blocker",
+        kind: "waiting",
+        category: "follow_up",
+        status: "waiting",
+        priority: "high",
+        followUpAt: "2026-03-08T15:00:00.000Z",
+        links: [
+          { linkType: "developer", developerAccountId: "dev-2" },
+          { linkType: "issue", issueKey: "PROJ-221" },
+        ],
+      },
+    });
+
+    const active = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: {
+        cookie,
+      },
+      body: {
+        date: "2026-03-08",
+        title: "Continue design review",
+        kind: "action",
+        category: "design",
+        status: "in_progress",
+      },
+    });
+
+    const carryForward = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/carry-forward",
+      headers: {
+        cookie,
+      },
+      body: {
+        fromDate: "2026-03-08",
+        toDate: "2026-03-09",
+        itemIds: [created.body.id, active.body.id],
+      },
+    });
+
+    expect(carryForward.status).toBe(200);
+    expect(carryForward.body).toEqual({ created: 2 });
+
+    const nextDay = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk?date=2026-03-09",
+      headers: {
+        cookie,
+      },
+    });
+
+    expect(nextDay.status).toBe(200);
+    expect(nextDay.body?.items).toHaveLength(2);
+    expect(nextDay.body?.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Follow up with Rahul on blocker",
+          status: "waiting",
+          links: expect.arrayContaining([
+            expect.objectContaining({
+              linkType: "developer",
+              developerAccountId: "dev-2",
+            }),
+            expect.objectContaining({
+              linkType: "issue",
+              issueKey: "PROJ-221",
+            }),
+          ]),
+        }),
+        expect.objectContaining({
+          title: "Continue design review",
+          status: "planned",
+        }),
+      ])
+    );
+
+    const repeat = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/carry-forward",
+      headers: {
+        cookie,
+      },
+      body: {
+        fromDate: "2026-03-08",
+        toDate: "2026-03-09",
+        itemIds: [created.body.id, active.body.id],
+      },
+    });
+
+    expect(repeat.status).toBe(200);
+    expect(repeat.body).toEqual({ created: 0 });
+  });
+});
