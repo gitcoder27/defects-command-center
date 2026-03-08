@@ -127,6 +127,7 @@ export interface DashboardConfig {
   backupEnabled: boolean;
   backupIntervalMinutes: number;
   backupRetentionDays: number;
+  backupMaxScheduledSnapshots: number;
   backupDirectory: string;
   backupOnStartup: boolean;
   backupStartupMaxAgeHours: number;

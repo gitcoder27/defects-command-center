@@ -24,7 +24,7 @@ import { notFoundHandler, errorHandler } from "../src/middleware/errorHandler";
 import { resetDatabase } from "./helpers/db";
 import { migrate } from "../src/db/migrate";
 import { BackupService } from "../src/services/backup.service";
-import { SettingsService } from "../src/services/settings.service";
+import { DEFAULT_BACKUP_MAX_SCHEDULED_SNAPSHOTS, SettingsService } from "../src/services/settings.service";
 
 const testBackupDirectory = path.resolve("/tmp", "defects-command-center-test-config-backups");
 
@@ -150,6 +150,7 @@ describe("config routes", () => {
     expect(res.status).toBe(200);
     expect(res.body?.isConfigured).toBe(true);
     expect(res.body?.jiraApiToken).toBe("****");
+    expect(res.body?.backupMaxScheduledSnapshots).toBe(DEFAULT_BACKUP_MAX_SCHEDULED_SNAPSHOTS);
   });
 
   it("GET /api/config returns the base JQL without a manually managed assignee clause", async () => {

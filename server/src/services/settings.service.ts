@@ -11,6 +11,7 @@ export const DEFAULT_STALE_THRESHOLD_HOURS = 48;
 export const DEFAULT_BACKUP_ENABLED = true;
 export const DEFAULT_BACKUP_INTERVAL_MINUTES = 30;
 export const DEFAULT_BACKUP_RETENTION_DAYS = 14;
+export const DEFAULT_BACKUP_MAX_SCHEDULED_SNAPSHOTS = 96;
 export const DEFAULT_BACKUP_ON_STARTUP = true;
 export const DEFAULT_BACKUP_STARTUP_MAX_AGE_HOURS = 12;
 export const DEFAULT_BACKUP_BEFORE_RESET = true;
@@ -72,6 +73,10 @@ export class SettingsService {
 
   async getBackupRetentionDays(): Promise<number> {
     return this.getPositiveIntegerConfig("backup_retention_days", DEFAULT_BACKUP_RETENTION_DAYS);
+  }
+
+  async getBackupMaxScheduledSnapshots(): Promise<number> {
+    return this.getPositiveIntegerConfig("backup_max_scheduled_snapshots", DEFAULT_BACKUP_MAX_SCHEDULED_SNAPSHOTS);
   }
 
   async getBackupOnStartup(): Promise<boolean> {

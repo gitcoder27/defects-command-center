@@ -7,6 +7,16 @@ interface IssuesResponse {
 }
 
 export function useIssues(filter?: FilterType, assignee?: string, tagId?: number, noTags?: boolean) {
+  return useIssuesWithOptions(filter, assignee, tagId, noTags, true);
+}
+
+export function useIssuesWithOptions(
+  filter?: FilterType,
+  assignee?: string,
+  tagId?: number,
+  noTags?: boolean,
+  enabled = true
+) {
   const params = new URLSearchParams();
   if (filter && filter !== 'all') params.set('filter', filter);
   if (assignee) params.set('assignee', assignee);
@@ -23,6 +33,7 @@ export function useIssues(filter?: FilterType, assignee?: string, tagId?: number
       const res = await api.get<IssuesResponse>(`/issues${qs ? `?${qs}` : ''}`);
       return res.issues;
     },
-    refetchInterval: 30_000,
+    refetchInterval: enabled ? 30_000 : false,
+    enabled,
   });
 }

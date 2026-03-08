@@ -50,6 +50,7 @@ export class BackupService {
 
   async start(): Promise<void> {
     this.stop();
+    await this.pruneOldBackups();
 
     const enabled = await this.settings.getBackupEnabled();
     if (!enabled) {
@@ -221,13 +222,26 @@ export class BackupService {
     const retentionDays = await this.settings.getBackupRetentionDays();
     const cutoffMs = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
     const backups = await this.listBackups();
+    const backupsToDelete = new Set<string>();
+
+    for (const backup of backups) {
+      if (new Date(backup.createdAt).getTime() < cutoffMs) {
+        backupsToDelete.add(backup.path);
+      }
+    }
+
+    const maxScheduledSnapshots = await this.settings.getBackupMaxScheduledSnapshots();
+    const scheduledBackups = backups.filter((backup) => backup.reason === "scheduled");
+    for (const backup of scheduledBackups.slice(maxScheduledSnapshots)) {
+      backupsToDelete.add(backup.path);
+    }
 
     await Promise.all(
       backups
-        .filter((backup) => new Date(backup.createdAt).getTime() < cutoffMs)
+        .filter((backup) => backupsToDelete.has(backup.path))
         .map(async (backup) => {
           await fs.promises.unlink(backup.path);
-          logger.info({ backupPath: backup.path }, "Pruned expired backup");
+          logger.info({ backupPath: backup.path, reason: backup.reason }, "Pruned backup");
         })
     );
   }

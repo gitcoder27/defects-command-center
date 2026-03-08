@@ -25,6 +25,7 @@ const configSchema = z.object({
     backupEnabled: z.boolean().optional(),
     backupIntervalMinutes: z.number().int().positive().optional(),
     backupRetentionDays: z.number().int().positive().optional(),
+    backupMaxScheduledSnapshots: z.number().int().positive().optional(),
     backupDirectory: z.string().min(1).optional(),
     backupOnStartup: z.boolean().optional(),
     backupStartupMaxAgeHours: z.number().int().positive().optional(),
@@ -76,6 +77,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
       const backupEnabled = await settings.getBackupEnabled();
       const backupIntervalMinutes = await settings.getBackupIntervalMinutes();
       const backupRetentionDays = await settings.getBackupRetentionDays();
+      const backupMaxScheduledSnapshots = await settings.getBackupMaxScheduledSnapshots();
       const backupDirectory = await settings.getBackupDirectory();
       const backupOnStartup = await settings.getBackupOnStartup();
       const backupStartupMaxAgeHours = await settings.getBackupStartupMaxAgeHours();
@@ -95,6 +97,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
         backupEnabled,
         backupIntervalMinutes,
         backupRetentionDays,
+        backupMaxScheduledSnapshots,
         backupDirectory,
         backupOnStartup,
         backupStartupMaxAgeHours,
@@ -159,6 +162,9 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
       }
       if (req.body.backupRetentionDays !== undefined) {
         await upsertConfig("backup_retention_days", String(req.body.backupRetentionDays));
+      }
+      if (req.body.backupMaxScheduledSnapshots !== undefined) {
+        await upsertConfig("backup_max_scheduled_snapshots", String(req.body.backupMaxScheduledSnapshots));
       }
       if (req.body.backupDirectory !== undefined) {
         await upsertConfig("backup_directory", req.body.backupDirectory);

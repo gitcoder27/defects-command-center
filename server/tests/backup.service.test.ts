@@ -27,6 +27,7 @@ beforeEach(async () => {
   await upsertConfig("backup_enabled", "true");
   await upsertConfig("backup_interval_minutes", "30");
   await upsertConfig("backup_retention_days", "14");
+  await upsertConfig("backup_max_scheduled_snapshots", "96");
   await upsertConfig("backup_on_startup", "true");
   await upsertConfig("backup_startup_max_age_hours", "12");
   await upsertConfig("backup_before_reset", "true");
@@ -89,6 +90,22 @@ describe("BackupService", () => {
 
     expect(backups.some((backup) => backup.name === oldBackup.name)).toBe(false);
     expect(backups.some((backup) => backup.reason === "fresh retained")).toBe(true);
+  });
+
+  it("caps scheduled backups while keeping manual backups", async () => {
+    await upsertConfig("backup_max_scheduled_snapshots", "2");
+    const backupService = createBackupService();
+
+    await (backupService as any).createBackup({ reason: "scheduled", prune: true });
+    await (backupService as any).createBackup({ reason: "scheduled", prune: true });
+    const manualBackup = await backupService.createManualBackup("keep-me");
+    await (backupService as any).createBackup({ reason: "scheduled", prune: true });
+
+    const backups = await backupService.listBackups();
+    const scheduledBackups = backups.filter((backup) => backup.reason === "scheduled");
+
+    expect(scheduledBackups).toHaveLength(2);
+    expect(backups.some((backup) => backup.name === manualBackup.name)).toBe(true);
   });
 
   it("creates a startup backup when there is no recent snapshot", async () => {

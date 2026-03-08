@@ -5,6 +5,7 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  RefreshCw,
   CheckCircle2,
   XCircle,
   ListTodo,
@@ -53,7 +54,7 @@ export function MyDayPage() {
   const { addToast } = useToast();
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
 
-  const { data: day, isLoading, error, refetch } = useMyDay(date);
+  const { data: day, isLoading, isFetching, error, refetch } = useMyDay(date);
   const updateStatus = useUpdateMyDayStatus(date);
   const addItem = useAddMyDayItem(date);
   const updateItem = useUpdateMyDayItem(date);
@@ -118,6 +119,15 @@ export function MyDayPage() {
         onError: (err) => addToast(err.message, 'error'),
       }
     );
+  };
+
+  const handleRefresh = async () => {
+    try {
+      await refetch();
+      addToast('My Day refreshed', 'success');
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : 'Refresh failed', 'error');
+    }
   };
 
   const todayStr = isToday(new Date(date));
@@ -287,6 +297,18 @@ export function MyDayPage() {
                   className="flex items-center rounded-xl p-0.5 gap-0.5 shrink-0"
                   style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
                 >
+                  <button
+                    onClick={handleRefresh}
+                    disabled={isFetching}
+                    className="h-8 w-8 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
+                    title="Refresh"
+                  >
+                    <RefreshCw
+                      size={14}
+                      className={isFetching ? 'animate-spin' : ''}
+                      style={{ color: 'var(--text-secondary)' }}
+                    />
+                  </button>
                   <button
                     onClick={toggleTheme}
                     className="h-8 w-8 rounded-lg flex items-center justify-center transition-colors"
