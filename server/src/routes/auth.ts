@@ -26,6 +26,16 @@ const registerSchema = z.object({
   query: z.any().optional(),
 });
 
+const changePasswordSchema = z.object({
+  body: z.object({
+    username: z.string().min(1).max(100),
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(6).max(200),
+  }),
+  params: z.any().optional(),
+  query: z.any().optional(),
+});
+
 const deleteUserSchema = z.object({
   body: z.any().optional(),
   params: z.object({
@@ -108,6 +118,16 @@ export function createAuthRouter(authService: AuthService): Router {
       }
 
       res.status(201).json({ user });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/change-password", validate(changePasswordSchema), async (req, res, next) => {
+    try {
+      const { username, currentPassword, newPassword } = req.body;
+      await authService.changePassword(username, currentPassword, newPassword);
+      res.json({ ok: true });
     } catch (error) {
       next(error);
     }

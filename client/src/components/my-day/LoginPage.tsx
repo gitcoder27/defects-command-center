@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowRight, BriefcaseBusiness, Eye, EyeOff, Moon, Radar, Sun, UserRound } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight, BriefcaseBusiness, Check, Eye, EyeOff, KeyRound, Moon, Radar, Sun, UserRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { api } from '@/lib/api';
 import type { UserRole } from '@/types';
 
 interface LoginPageProps {
@@ -32,14 +33,21 @@ const ROLE_COPY = {
   },
 } as const;
 
+type ViewMode = 'login' | 'change-password';
+
 export function LoginPage({ role = 'developer' }: LoginPageProps) {
   const { login } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [mode, setMode] = useState<ViewMode>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const copy = ROLE_COPY[role];
 
@@ -59,6 +67,50 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleChangePassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!username.trim() || !password.trim() || !newPassword.trim()) {
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.post('/auth/change-password', {
+        username: username.trim(),
+        currentPassword: password.trim(),
+        newPassword: newPassword.trim(),
+      });
+      setSuccess('Password changed successfully');
+      setPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => {
+        setMode('login');
+        setSuccess('');
+      }, 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Password change failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const switchMode = (next: ViewMode) => {
+    setMode(next);
+    setError('');
+    setSuccess('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowNewPassword(false);
   };
 
   return (
@@ -170,94 +222,188 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
             style={{ background: `linear-gradient(90deg, transparent, ${copy.accent}, transparent)` }}
           />
 
-          <div
-            className="text-[11px] font-semibold uppercase tracking-[0.24em]"
-            style={{ color: copy.accent }}
-          >
-            Sign in
-          </div>
-
-          <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
-            <Field label="Username">
-              <input
-                type="text"
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                autoComplete="username"
-                autoFocus
-                placeholder={role === 'manager' ? 'manager username' : 'developer username'}
-                className="w-full rounded-[16px] border px-4 py-3 text-[14px] outline-none transition-colors"
-                style={{
-                  background: 'var(--bg-tertiary)',
-                  color: 'var(--text-primary)',
-                  borderColor: 'var(--border)',
-                }}
-              />
-            </Field>
-
-            <Field label="Password">
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  autoComplete="current-password"
-                  placeholder="your password"
-                  className="w-full rounded-[16px] border px-4 py-3 pr-12 text-[14px] outline-none transition-colors"
-                  style={{
-                    background: 'var(--bg-tertiary)',
-                    color: 'var(--text-primary)',
-                    borderColor: 'var(--border)',
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((value) => !value)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2"
-                  style={{ color: 'var(--text-muted)' }}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </Field>
-
-            {error && (
+          <AnimatePresence mode="wait">
+            {mode === 'login' ? (
               <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-[14px] border px-4 py-3 text-[13px]"
-                style={{
-                  borderColor: 'rgba(239, 68, 68, 0.35)',
-                  background: 'rgba(239, 68, 68, 0.08)',
-                  color: '#fca5a5',
-                }}
+                key="login"
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 12 }}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               >
-                {error}
+                <div
+                  className="text-[11px] font-semibold uppercase tracking-[0.24em]"
+                  style={{ color: copy.accent }}
+                >
+                  Sign in
+                </div>
+
+                <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
+                  <Field label="Username">
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(event) => setUsername(event.target.value)}
+                      autoComplete="username"
+                      autoFocus
+                      placeholder={role === 'manager' ? 'manager username' : 'developer username'}
+                      className="w-full rounded-[16px] border px-4 py-3 text-[14px] outline-none transition-colors"
+                      style={{
+                        background: 'var(--bg-tertiary)',
+                        color: 'var(--text-primary)',
+                        borderColor: 'var(--border)',
+                      }}
+                    />
+                  </Field>
+
+                  <Field label="Password">
+                    <PasswordInput
+                      value={password}
+                      onChange={setPassword}
+                      show={showPassword}
+                      onToggle={() => setShowPassword((v) => !v)}
+                      autoComplete="current-password"
+                      placeholder="your password"
+                    />
+                  </Field>
+
+                  {error && <ErrorBanner message={error} />}
+
+                  <button
+                    type="submit"
+                    disabled={!username.trim() || !password.trim() || submitting}
+                    className="flex w-full items-center justify-center gap-2 rounded-[16px] px-4 py-3.5 text-[14px] font-semibold transition-all disabled:opacity-40"
+                    style={{
+                      background: `linear-gradient(135deg, ${copy.accent}, color-mix(in srgb, ${copy.accent} 60%, white))`,
+                      color: '#111827',
+                      boxShadow: `0 4px 20px ${copy.glow}`,
+                    }}
+                  >
+                    {submitting ? 'Signing in…' : copy.submitLabel}
+                    {!submitting && <ArrowRight size={15} />}
+                  </button>
+                </form>
+
+                <div className="mt-6 flex items-center justify-between">
+                  <p className="text-[12px] leading-5" style={{ color: 'var(--text-muted)' }}>
+                    {copy.note}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('change-password')}
+                    className="ml-3 shrink-0 text-[12px] font-medium transition-colors hover:underline"
+                    style={{ color: copy.accent }}
+                  >
+                    Change password
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="change-password"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div className="flex items-center gap-2">
+                  <KeyRound size={14} style={{ color: copy.accent }} />
+                  <div
+                    className="text-[11px] font-semibold uppercase tracking-[0.24em]"
+                    style={{ color: copy.accent }}
+                  >
+                    Change password
+                  </div>
+                </div>
+
+                <form className="mt-7 space-y-5" onSubmit={handleChangePassword}>
+                  <Field label="Username">
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(event) => setUsername(event.target.value)}
+                      autoComplete="username"
+                      autoFocus
+                      placeholder={role === 'manager' ? 'manager username' : 'developer username'}
+                      className="w-full rounded-[16px] border px-4 py-3 text-[14px] outline-none transition-colors"
+                      style={{
+                        background: 'var(--bg-tertiary)',
+                        color: 'var(--text-primary)',
+                        borderColor: 'var(--border)',
+                      }}
+                    />
+                  </Field>
+
+                  <Field label="Current password">
+                    <PasswordInput
+                      value={password}
+                      onChange={setPassword}
+                      show={showPassword}
+                      onToggle={() => setShowPassword((v) => !v)}
+                      autoComplete="current-password"
+                      placeholder="current password"
+                    />
+                  </Field>
+
+                  <Field label="New password">
+                    <PasswordInput
+                      value={newPassword}
+                      onChange={setNewPassword}
+                      show={showNewPassword}
+                      onToggle={() => setShowNewPassword((v) => !v)}
+                      autoComplete="new-password"
+                      placeholder="new password (min 6 chars)"
+                    />
+                  </Field>
+
+                  <Field label="Confirm new password">
+                    <PasswordInput
+                      value={confirmPassword}
+                      onChange={setConfirmPassword}
+                      show={showNewPassword}
+                      onToggle={() => setShowNewPassword((v) => !v)}
+                      autoComplete="new-password"
+                      placeholder="confirm new password"
+                    />
+                  </Field>
+
+                  {error && <ErrorBanner message={error} />}
+                  {success && <SuccessBanner message={success} />}
+
+                  <button
+                    type="submit"
+                    disabled={
+                      !username.trim() ||
+                      !password.trim() ||
+                      !newPassword.trim() ||
+                      !confirmPassword.trim() ||
+                      submitting
+                    }
+                    className="flex w-full items-center justify-center gap-2 rounded-[16px] px-4 py-3.5 text-[14px] font-semibold transition-all disabled:opacity-40"
+                    style={{
+                      background: `linear-gradient(135deg, ${copy.accent}, color-mix(in srgb, ${copy.accent} 60%, white))`,
+                      color: '#111827',
+                      boxShadow: `0 4px 20px ${copy.glow}`,
+                    }}
+                  >
+                    {submitting ? 'Updating…' : 'Update password'}
+                    {!submitting && <ArrowRight size={15} />}
+                  </button>
+                </form>
+
+                <div className="mt-6 text-center">
+                  <button
+                    type="button"
+                    onClick={() => switchMode('login')}
+                    className="text-[12px] font-medium transition-colors hover:underline"
+                    style={{ color: copy.accent }}
+                  >
+                    ← Back to sign in
+                  </button>
+                </div>
               </motion.div>
             )}
-
-            <button
-              type="submit"
-              disabled={!username.trim() || !password.trim() || submitting}
-              className="flex w-full items-center justify-center gap-2 rounded-[16px] px-4 py-3.5 text-[14px] font-semibold transition-all disabled:opacity-40"
-              style={{
-                background: `linear-gradient(135deg, ${copy.accent}, color-mix(in srgb, ${copy.accent} 60%, white))`,
-                color: '#111827',
-                boxShadow: `0 4px 20px ${copy.glow}`,
-              }}
-            >
-              {submitting ? 'Signing in…' : copy.submitLabel}
-              {!submitting && <ArrowRight size={15} />}
-            </button>
-          </form>
-
-          <p
-            className="mt-6 text-center text-[12px] leading-5"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            {copy.note}
-          </p>
+          </AnimatePresence>
         </motion.section>
       </div>
     </div>
@@ -272,5 +418,83 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       </span>
       {children}
     </label>
+  );
+}
+
+function PasswordInput({
+  value,
+  onChange,
+  show,
+  onToggle,
+  autoComplete,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggle: () => void;
+  autoComplete: string;
+  placeholder: string;
+}) {
+  return (
+    <div className="relative">
+      <input
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        className="w-full rounded-[16px] border px-4 py-3 pr-12 text-[14px] outline-none transition-colors"
+        style={{
+          background: 'var(--bg-tertiary)',
+          color: 'var(--text-primary)',
+          borderColor: 'var(--border)',
+        }}
+      />
+      <button
+        type="button"
+        onClick={onToggle}
+        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2"
+        style={{ color: 'var(--text-muted)' }}
+        aria-label={show ? 'Hide password' : 'Show password'}
+      >
+        {show ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </div>
+  );
+}
+
+function ErrorBanner({ message }: { message: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-[14px] border px-4 py-3 text-[13px]"
+      style={{
+        borderColor: 'rgba(239, 68, 68, 0.35)',
+        background: 'rgba(239, 68, 68, 0.08)',
+        color: '#fca5a5',
+      }}
+    >
+      {message}
+    </motion.div>
+  );
+}
+
+function SuccessBanner({ message }: { message: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-2 rounded-[14px] border px-4 py-3 text-[13px]"
+      style={{
+        borderColor: 'rgba(16, 185, 129, 0.35)',
+        background: 'rgba(16, 185, 129, 0.08)',
+        color: '#6ee7b7',
+      }}
+    >
+      <Check size={14} />
+      {message}
+    </motion.div>
   );
 }

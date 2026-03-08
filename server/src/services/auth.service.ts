@@ -237,6 +237,32 @@ export class AuthService {
     );
   }
 
+  async changePassword(username: string, currentPassword: string, newPassword: string): Promise<void> {
+    const normalizedUsername = normalizeUsername(username);
+    if (!normalizedUsername) {
+      throw new HttpError(400, "username is required");
+    }
+    if (!newPassword || newPassword.length < 6) {
+      throw new HttpError(400, "New password must be at least 6 characters");
+    }
+
+    const rows = await db
+      .select()
+      .from(appUsers)
+      .where(and(eq(appUsers.username, normalizedUsername), eq(appUsers.isActive, 1)))
+      .limit(1);
+
+    const row = rows[0];
+    if (!row || !verifyPassword(currentPassword, row.passwordHash)) {
+      throw new HttpError(401, "Invalid username or current password");
+    }
+
+    await db
+      .update(appUsers)
+      .set({ passwordHash: hashPassword(newPassword), updatedAt: nowIso() })
+      .where(eq(appUsers.id, row.id));
+  }
+
   async deleteUser(username: string): Promise<void> {
     const normalizedUsername = normalizeUsername(username);
     if (!normalizedUsername) {
