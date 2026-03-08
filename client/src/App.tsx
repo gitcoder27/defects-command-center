@@ -10,6 +10,7 @@ import { SetupWizard } from '@/components/setup/SetupWizard';
 import { Header } from '@/components/layout/Header';
 import { MyDayPage } from '@/components/my-day/MyDayPage';
 import { LoginPage } from '@/components/my-day/LoginPage';
+import { ManagerMyDayLanding } from '@/components/my-day/ManagerMyDayLanding';
 
 export type AppView = 'dashboard' | 'team-tracker' | 'my-day';
 
@@ -77,6 +78,10 @@ function AppContent() {
   // If the URL is /my-day, always show the my-day experience
   if (activeView === 'my-day') {
     if (!isAuthenticated) return <LoginPage />;
+    // Managers see a landing page since My Day API requires developer role
+    if (user?.role === 'manager') {
+      return <ManagerMyDayLanding onGoToDashboard={() => handleViewChange('dashboard')} />;
+    }
     return <MyDayPage />;
   }
 
