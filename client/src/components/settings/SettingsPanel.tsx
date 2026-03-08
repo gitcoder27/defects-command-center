@@ -7,6 +7,7 @@ import {
   Search,
   AlertTriangle,
   Loader2,
+  LogOut,
   UserPlus,
   UserMinus,
   Users,
@@ -18,6 +19,7 @@ import {
 import { useConfig } from '@/hooks/useConfig';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { useToast } from '@/context/ToastContext';
+import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import { useDevelopers } from '@/hooks/useDevelopers';
 import type { AuthUser, UserRole } from '@/types';
@@ -48,6 +50,7 @@ type FieldPickerTarget = 'dueDate' | 'aspenSeverity';
 export function SettingsPage() {
   const DISCOVER_PAGE_SIZE = 50;
   const DISCOVER_SEARCH_DEBOUNCE_MS = 350;
+  const { user, logout } = useAuth();
   const { data: config, refetch: refetchConfig } = useConfig();
   const triggerSync = useTriggerSync();
   const { addToast } = useToast();
@@ -92,6 +95,7 @@ export function SettingsPage() {
   const [confirmDeleteUsername, setConfirmDeleteUsername] = useState<string | null>(null);
   const [deletingUsername, setDeletingUsername] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const activeMemberIds = useMemo(() => new Set(developers.map((developer) => developer.accountId)), [developers]);
 
@@ -277,6 +281,23 @@ export function SettingsPage() {
       setResetting(false);
     }
   };
+
+  const handleManagerLogout = useCallback(async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+      queryClient.clear();
+      window.history.replaceState(null, '', '/');
+      window.location.reload();
+    } catch (err) {
+      setLoggingOut(false);
+      addToast({
+        type: 'error',
+        title: 'Failed to log out',
+        message: err instanceof Error ? err.message : 'Request failed',
+      });
+    }
+  }, [addToast, logout, queryClient]);
 
   const filteredFields = fields.filter(
     (field) =>
@@ -1606,10 +1627,30 @@ export function SettingsPage() {
               }}
             >
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                  Save stages settings only. Save & Sync persists them and immediately starts a Jira refresh without leaving this page.
+                <div className="space-y-1">
+                  <div className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+                    Signed in as {user?.displayName || 'Manager'}{user?.username ? ` (@${user.username})` : ''}.
+                  </div>
+                  <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                    Save stages settings only. Save & Sync persists them and immediately starts a Jira refresh without leaving this page.
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleManagerLogout()}
+                    disabled={hasChanges || loggingOut}
+                    className="flex items-center gap-2 rounded-2xl px-4 py-2.5 text-[13px] font-medium transition-colors disabled:opacity-50"
+                    style={{
+                      background: 'linear-gradient(135deg, color-mix(in srgb, var(--danger) 12%, var(--bg-primary)), color-mix(in srgb, var(--warning) 10%, var(--bg-primary)))',
+                      color: 'var(--danger-muted)',
+                      border: 'var(--settings-danger-soft-border)',
+                    }}
+                    aria-label="Log out manager session"
+                  >
+                    {loggingOut ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
+                    {loggingOut ? 'Logging out…' : 'Logout'}
+                  </button>
                   <button
                     type="button"
                     onClick={handleResetConfig}

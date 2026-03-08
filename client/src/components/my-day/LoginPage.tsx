@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, BriefcaseBusiness, Eye, EyeOff, KeyRound, Moon, Radar, ShieldCheck, Sun, UserRound } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, Eye, EyeOff, Moon, Radar, Sun, UserRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import type { UserRole } from '@/types';
@@ -12,25 +12,21 @@ interface LoginPageProps {
 const ROLE_COPY = {
   manager: {
     eyebrow: 'Manager Workspace',
-    title: 'Run the desk, not the detour.',
-    description:
-      'Use this entry to access the dashboard, team tracker, manager desk, Jira connection, and team administration.',
-    badge: 'Manager-first surface',
-    note: 'Managers can create developer accounts and share the /my-day link from settings after setup.',
+    tagline: 'Run the desk.',
+    note: 'Create developer accounts and manage your team after signing in.',
     accent: 'var(--warning)',
     glow: 'rgba(245, 158, 11, 0.18)',
+    orbGlow: 'rgba(245, 158, 11, 0.06)',
     icon: BriefcaseBusiness,
     submitLabel: 'Enter Manager Workspace',
   },
   developer: {
     eyebrow: 'Developer Workspace',
-    title: 'Sign in to My Day.',
-    description:
-      'This surface is only for individual developer check-ins, planned work, and daily updates. Accounts are created by your manager.',
-    badge: 'Developer-only surface',
-    note: 'If you do not have an account yet, contact your manager instead of trying to register here.',
+    tagline: 'Start your day.',
+    note: 'No account yet? Contact your manager to get access.',
     accent: 'var(--accent)',
     glow: 'rgba(6, 182, 212, 0.18)',
+    orbGlow: 'rgba(6, 182, 212, 0.06)',
     icon: UserRound,
     submitLabel: 'Open My Day',
   },
@@ -46,7 +42,6 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
   const [error, setError] = useState('');
 
   const copy = ROLE_COPY[role];
-  const RoleIcon = copy.icon;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -68,181 +63,121 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
 
   return (
     <div
-      className="min-h-full overflow-y-auto px-4 py-8 md:px-8"
+      className="relative flex min-h-full items-center justify-center overflow-hidden px-4 py-8"
       style={{
-        background: `radial-gradient(circle at top left, ${copy.glow}, transparent 38%), radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.24), transparent 40%), var(--bg-canvas)`,
+        background: `radial-gradient(circle at 30% 20%, ${copy.glow}, transparent 40%), radial-gradient(circle at 70% 80%, rgba(15, 23, 42, 0.18), transparent 50%), var(--bg-canvas)`,
       }}
     >
-      <div className="mx-auto grid min-h-full max-w-6xl items-center gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="lg:col-span-2 flex justify-end">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-semibold transition-colors"
-            style={{
-              background: 'color-mix(in srgb, var(--bg-primary) 88%, transparent)',
-              color: 'var(--text-primary)',
-              borderColor: 'var(--border-strong)',
-            }}
-            aria-label="Toggle theme"
-            title="Toggle theme"
-          >
-            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-          </button>
-        </div>
-        <motion.section
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          className="relative overflow-hidden rounded-[32px] border px-6 py-8 md:px-10 md:py-12"
-          style={{
-            borderColor: 'var(--border-strong)',
-            background:
-              'linear-gradient(145deg, color-mix(in srgb, var(--bg-primary) 94%, transparent), color-mix(in srgb, var(--bg-secondary) 88%, transparent))',
-            boxShadow: 'var(--panel-shadow)',
-          }}
-        >
-          <div
-            className="absolute inset-x-10 top-0 h-px"
-            style={{ background: `linear-gradient(90deg, transparent, ${copy.accent}, transparent)` }}
-          />
+      {/* Ambient floating orbs */}
+      <motion.div
+        className="pointer-events-none absolute rounded-full blur-3xl"
+        style={{
+          width: 500,
+          height: 500,
+          top: '-10%',
+          left: '-8%',
+          background: `radial-gradient(circle, ${copy.orbGlow}, transparent 70%)`,
+        }}
+        animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
+        transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="pointer-events-none absolute rounded-full blur-3xl"
+        style={{
+          width: 400,
+          height: 400,
+          bottom: '-10%',
+          right: '-5%',
+          background: `radial-gradient(circle, ${copy.orbGlow}, transparent 70%)`,
+        }}
+        animate={{ x: [0, -30, 0], y: [0, -40, 0] }}
+        transition={{ duration: 25, repeat: Infinity, ease: 'easeInOut' }}
+      />
 
-          <div className="flex items-center gap-3">
+      {/* Theme toggle */}
+      <button
+        type="button"
+        onClick={toggleTheme}
+        className="absolute right-5 top-5 z-20 inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-semibold transition-colors"
+        style={{
+          background: 'color-mix(in srgb, var(--bg-primary) 88%, transparent)',
+          color: 'var(--text-primary)',
+          borderColor: 'var(--border-strong)',
+        }}
+        aria-label="Toggle theme"
+        title="Toggle theme"
+      >
+        {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+        {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+      </button>
+
+      {/* Centered content */}
+      <div className="relative z-10 w-full max-w-[420px]">
+        {/* Branding */}
+        <motion.div
+          className="mb-10 text-center"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div className="mb-4 inline-flex items-center gap-3">
             <div
-              className="flex h-14 w-14 items-center justify-center rounded-[20px]"
+              className="flex h-10 w-10 items-center justify-center rounded-[14px]"
               style={{
                 background: copy.glow,
                 color: copy.accent,
-                boxShadow: `0 0 32px ${copy.glow}`,
+                boxShadow: `0 0 24px ${copy.glow}`,
               }}
             >
-              <Radar size={24} />
+              <Radar size={18} />
             </div>
-            <div>
+            <div className="text-left">
               <div
-                className="text-[11px] font-semibold uppercase tracking-[0.3em]"
+                className="text-[10px] font-semibold uppercase tracking-[0.3em]"
                 style={{ color: copy.accent }}
               >
                 {copy.eyebrow}
               </div>
-              <div className="text-[14px]" style={{ color: 'var(--text-secondary)' }}>
+              <div className="text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
                 Defect Command Center
               </div>
             </div>
           </div>
 
-          <div className="mt-10 max-w-xl space-y-5">
-            <span
-              className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]"
-              style={{
-                background: 'color-mix(in srgb, var(--bg-tertiary) 72%, transparent)',
-                color: copy.accent,
-                border: `1px solid color-mix(in srgb, ${copy.accent} 26%, var(--border))`,
-              }}
-            >
-              <RoleIcon size={14} />
-              {copy.badge}
-            </span>
+          <h1
+            className="text-[32px] font-semibold leading-tight tracking-tight md:text-[38px]"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {copy.tagline}
+          </h1>
+        </motion.div>
 
-            <h1
-              className="max-w-lg text-[34px] font-semibold leading-[1.02] md:text-[48px]"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              {copy.title}
-            </h1>
-
-            <p className="max-w-xl text-[15px] leading-7" style={{ color: 'var(--text-secondary)' }}>
-              {copy.description}
-            </p>
-          </div>
-
-          <div className="mt-10 grid gap-3 md:grid-cols-3">
-            {[
-              {
-                icon: ShieldCheck,
-                label: role === 'manager' ? 'Admin controls' : 'Personal workspace',
-                text:
-                  role === 'manager'
-                    ? 'Protect configuration, sync scope, team roster, and developer access behind manager auth.'
-                    : 'Keep check-ins, current work, and daily planning separate from the manager desk.',
-              },
-              {
-                icon: KeyRound,
-                label: role === 'manager' ? 'Bootstrap-safe' : 'No public signup',
-                text:
-                  role === 'manager'
-                    ? 'The first manager can bootstrap the system here, then ongoing access stays manager-controlled.'
-                    : 'Access accounts are created for you. This surface no longer exposes self-service registration.',
-              },
-              {
-                icon: RoleIcon,
-                label: role === 'manager' ? 'Manager-first routing' : 'Developer-first routing',
-                text:
-                  role === 'manager'
-                    ? 'Developers are redirected away from this surface so the main desk stays manager-focused.'
-                    : 'Managers are redirected away from this surface so My Day stays quiet and focused.',
-              },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <div
-                  key={item.label}
-                  className="rounded-[20px] border p-4"
-                  style={{
-                    borderColor: 'var(--border)',
-                    background: 'color-mix(in srgb, var(--bg-tertiary) 70%, transparent)',
-                  }}
-                >
-                  <div className="flex items-center gap-2 text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                    <Icon size={14} style={{ color: copy.accent }} />
-                    {item.label}
-                  </div>
-                  <p className="mt-2 text-[12px] leading-6" style={{ color: 'var(--text-secondary)' }}>
-                    {item.text}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </motion.section>
-
+        {/* Sign-in card */}
         <motion.section
-          initial={{ opacity: 0, y: 18 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.06, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          className="rounded-[32px] border p-6 md:p-8"
+          transition={{ delay: 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="relative overflow-hidden rounded-[28px] border p-7 md:p-9"
           style={{
             borderColor: 'var(--border-strong)',
-            background: 'color-mix(in srgb, var(--bg-primary) 95%, transparent)',
+            background: 'color-mix(in srgb, var(--bg-primary) 92%, transparent)',
             boxShadow: 'var(--panel-shadow)',
+            backdropFilter: 'blur(20px)',
           }}
         >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-[12px] font-semibold uppercase tracking-[0.24em]" style={{ color: copy.accent }}>
-                Sign In
-              </div>
-              <h2 className="mt-3 text-[24px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {role === 'manager' ? 'Manager access' : 'Developer access'}
-              </h2>
-            </div>
-            <div
-              className="rounded-full px-3 py-1 text-[11px] font-semibold"
-              style={{
-                background: copy.glow,
-                color: copy.accent,
-              }}
-            >
-              {role}
-            </div>
+          <div
+            className="absolute inset-x-8 top-0 h-px"
+            style={{ background: `linear-gradient(90deg, transparent, ${copy.accent}, transparent)` }}
+          />
+
+          <div
+            className="text-[11px] font-semibold uppercase tracking-[0.24em]"
+            style={{ color: copy.accent }}
+          >
+            Sign in
           </div>
 
-          <p className="mt-3 text-[13px] leading-6" style={{ color: 'var(--text-secondary)' }}>
-            {copy.note}
-          </p>
-
-          <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+          <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
             <Field label="Username">
               <input
                 type="text"
@@ -251,7 +186,7 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
                 autoComplete="username"
                 autoFocus
                 placeholder={role === 'manager' ? 'manager username' : 'developer username'}
-                className="w-full rounded-[18px] border px-4 py-3 text-[14px] outline-none transition-colors"
+                className="w-full rounded-[16px] border px-4 py-3 text-[14px] outline-none transition-colors"
                 style={{
                   background: 'var(--bg-tertiary)',
                   color: 'var(--text-primary)',
@@ -268,7 +203,7 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
                   onChange={(event) => setPassword(event.target.value)}
                   autoComplete="current-password"
                   placeholder="your password"
-                  className="w-full rounded-[18px] border px-4 py-3 pr-12 text-[14px] outline-none transition-colors"
+                  className="w-full rounded-[16px] border px-4 py-3 pr-12 text-[14px] outline-none transition-colors"
                   style={{
                     background: 'var(--bg-tertiary)',
                     color: 'var(--text-primary)',
@@ -288,31 +223,41 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
             </Field>
 
             {error && (
-              <div
-                className="rounded-[18px] border px-4 py-3 text-[13px]"
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-[14px] border px-4 py-3 text-[13px]"
                 style={{
                   borderColor: 'rgba(239, 68, 68, 0.35)',
-                  background: 'rgba(239, 68, 68, 0.1)',
+                  background: 'rgba(239, 68, 68, 0.08)',
                   color: '#fca5a5',
                 }}
               >
                 {error}
-              </div>
+              </motion.div>
             )}
 
             <button
               type="submit"
               disabled={!username.trim() || !password.trim() || submitting}
-              className="flex w-full items-center justify-center gap-2 rounded-[20px] px-4 py-3 text-[14px] font-semibold transition-all disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-[16px] px-4 py-3.5 text-[14px] font-semibold transition-all disabled:opacity-40"
               style={{
-                background: `linear-gradient(135deg, ${copy.accent}, color-mix(in srgb, ${copy.accent} 58%, white))`,
+                background: `linear-gradient(135deg, ${copy.accent}, color-mix(in srgb, ${copy.accent} 60%, white))`,
                 color: '#111827',
+                boxShadow: `0 4px 20px ${copy.glow}`,
               }}
             >
               {submitting ? 'Signing in…' : copy.submitLabel}
               {!submitting && <ArrowRight size={15} />}
             </button>
           </form>
+
+          <p
+            className="mt-6 text-center text-[12px] leading-5"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            {copy.note}
+          </p>
         </motion.section>
       </div>
     </div>
