@@ -9,7 +9,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { useState } from 'react';
-import { ArrowUpDown, Ban, Search, X } from 'lucide-react';
+import { ArrowUpDown, Ban, Search, X, XCircle } from 'lucide-react';
 import { PriorityCell } from './PriorityCell';
 import { StatusBadge } from './StatusBadge';
 import { AssigneeCell } from './AssigneeCell';
@@ -53,6 +53,7 @@ interface DefectTableProps {
   hasAnimated: boolean;
   tagId?: number;
   noTags?: boolean;
+  onClearFilters: () => void;
 }
 
 export function DefectTable({
@@ -65,6 +66,7 @@ export function DefectTable({
   hasAnimated,
   tagId,
   noTags,
+  onClearFilters,
 }: DefectTableProps) {
   const { data: issues, isLoading } = useIssues(filter, assigneeFilter, tagId, noTags);
   const { data: config } = useConfig();
@@ -366,6 +368,12 @@ export function DefectTable({
   );
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
+  const hasActiveFilters =
+    filter !== 'all' ||
+    Boolean(assigneeFilter) ||
+    tagId !== undefined ||
+    Boolean(noTags) ||
+    Boolean(normalizedSearch);
   const baseIssues = issues ?? [];
   const filteredIssues = useMemo(() => {
     if (!normalizedSearch) {
@@ -390,6 +398,11 @@ export function DefectTable({
     setSearchQuery('');
     setSearchOpen(false);
   }, []);
+
+  const handleClearFilters = useCallback(() => {
+    closeSearch();
+    onClearFilters();
+  }, [closeSearch, onClearFilters]);
 
   useEffect(() => {
     if (!searchOpen) {
@@ -437,7 +450,99 @@ export function DefectTable({
     );
   }
 
-  if (!baseIssues.length) {
+  const toolbar = (
+    <div
+      ref={searchContainerRef}
+      className="px-2 py-1.5 border-b flex items-center justify-between gap-2"
+      style={{ borderColor: 'var(--border)' }}
+    >
+      <div className="min-w-0 flex items-center gap-2">
+        <div className="text-[13px] font-medium whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
+          Defects
+        </div>
+        <div className="h-4 w-px" style={{ background: 'var(--border)' }} />
+        <div className="text-[12px] truncate" style={{ color: 'var(--text-secondary)' }}>
+          {filteredIssues.length} visible defect{filteredIssues.length !== 1 ? 's' : ''}{normalizedSearch ? ' after search' : ''}.
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end gap-2 min-w-0 md:min-w-[280px]">
+        <button
+          type="button"
+          onClick={handleClearFilters}
+          disabled={!hasActiveFilters}
+          className="h-9 rounded-2xl px-3 flex items-center justify-center transition-colors gap-2 disabled:cursor-not-allowed"
+          style={{
+            color: hasActiveFilters ? 'var(--text-secondary)' : 'var(--text-muted)',
+            background: 'var(--bg-tertiary)',
+            opacity: hasActiveFilters ? 1 : 0.6,
+          }}
+          aria-label="Clear all defect filters"
+          title="Clear all filters"
+        >
+          <XCircle size={15} />
+          <span className="text-[12px] font-medium hidden sm:inline">Clear filters</span>
+        </button>
+
+        {!searchOpen ? (
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="h-9 rounded-2xl px-3 flex items-center justify-center transition-colors hover:bg-[var(--bg-tertiary)] gap-2"
+            style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}
+            aria-label="Open defect search"
+            title="Search defects"
+          >
+            <Search size={15} />
+            <span className="text-[12px] font-medium hidden sm:inline">Search</span>
+          </button>
+        ) : (
+          <div
+            className="h-9 w-[320px] max-w-full rounded-2xl border px-3 flex items-center gap-2"
+            style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)' }}
+          >
+            <Search size={14} style={{ color: 'var(--text-muted)' }} />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by ID or title..."
+              className="flex-1 text-[12px] bg-transparent outline-none"
+              style={{ color: 'var(--text-primary)' }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  closeSearch();
+                }
+              }}
+              onBlur={(e) => {
+                if (searchQuery.trim()) {
+                  return;
+                }
+                const nextFocused = e.relatedTarget;
+                if (nextFocused && searchContainerRef.current?.contains(nextFocused)) {
+                  return;
+                }
+                setSearchOpen(false);
+              }}
+              aria-label="Search defects by ID or title"
+            />
+            <button
+              type="button"
+              onClick={closeSearch}
+              className="h-7 w-7 rounded-lg flex items-center justify-center transition-colors hover:bg-[var(--bg-tertiary)]"
+              style={{ color: 'var(--text-muted)' }}
+              aria-label="Clear defect search"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (!baseIssues.length && !hasActiveFilters) {
     return (
       <div className="flex-1 min-w-0 min-h-0 p-1 md:p-1.5">
         <div className="dashboard-panel rounded-[14px] h-full flex items-center justify-center p-4 text-center" style={{ borderColor: 'var(--border-strong)' }}>
@@ -453,81 +558,30 @@ export function DefectTable({
     );
   }
 
+  if (!baseIssues.length) {
+    return (
+      <div className="flex-1 min-w-0 min-h-0 p-1 md:p-1.5">
+        <div className="dashboard-panel rounded-[14px] h-full min-w-0 min-h-0 flex flex-col overflow-hidden" style={{ borderColor: 'var(--border-strong)' }}>
+          {toolbar}
+          <div className="flex-1 flex items-center justify-center px-6">
+            <div className="text-center">
+              <div className="text-[11px] uppercase font-semibold" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
+                Filter State
+              </div>
+              <p className="text-[14px] mt-2" style={{ color: 'var(--text-secondary)' }}>
+                No defects match the current filters.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 min-w-0 min-h-0 p-1 md:p-1.5">
       <div className="dashboard-panel rounded-[14px] h-full min-w-0 min-h-0 flex flex-col overflow-hidden" style={{ borderColor: 'var(--border-strong)' }}>
-        <div
-          ref={searchContainerRef}
-          className="px-2 py-1.5 border-b flex items-center justify-between gap-2"
-          style={{ borderColor: 'var(--border)' }}
-        >
-          <div className="min-w-0 flex items-center gap-2">
-            <div className="text-[13px] font-medium whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
-              Defects
-            </div>
-            <div className="h-4 w-px" style={{ background: 'var(--border)' }} />
-            <div className="text-[12px] truncate" style={{ color: 'var(--text-secondary)' }}>
-              {filteredIssues.length} visible defect{filteredIssues.length !== 1 ? 's' : ''}{normalizedSearch ? ' after search' : ''}.
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 min-w-0 md:min-w-[280px]">
-            {!searchOpen ? (
-              <button
-                type="button"
-                onClick={() => setSearchOpen(true)}
-                className="h-9 rounded-2xl px-3 flex items-center justify-center transition-colors hover:bg-[var(--bg-tertiary)] gap-2"
-                style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}
-                aria-label="Open defect search"
-                title="Search defects"
-              >
-                <Search size={15} />
-                <span className="text-[12px] font-medium hidden sm:inline">Search</span>
-              </button>
-            ) : (
-              <div
-                className="h-9 w-[320px] max-w-full rounded-2xl border px-3 flex items-center gap-2"
-                style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)' }}
-              >
-                <Search size={14} style={{ color: 'var(--text-muted)' }} />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by ID or title..."
-                  className="flex-1 text-[12px] bg-transparent outline-none"
-                  style={{ color: 'var(--text-primary)' }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      closeSearch();
-                    }
-                  }}
-                  onBlur={(e) => {
-                    if (searchQuery.trim()) {
-                      return;
-                    }
-                    const nextFocused = e.relatedTarget;
-                    if (nextFocused && searchContainerRef.current?.contains(nextFocused)) {
-                      return;
-                    }
-                    setSearchOpen(false);
-                  }}
-                  aria-label="Search defects by ID or title"
-                />
-                <button
-                  type="button"
-                  onClick={closeSearch}
-                  className="h-7 w-7 rounded-lg flex items-center justify-center transition-colors hover:bg-[var(--bg-tertiary)]"
-                  style={{ color: 'var(--text-muted)' }}
-                  aria-label="Clear defect search"
-                >
-                  <X size={13} />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        {toolbar}
 
         <div
           className="flex-1 min-w-0 overflow-auto px-1 pb-1"

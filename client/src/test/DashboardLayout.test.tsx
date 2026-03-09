@@ -46,9 +46,14 @@ vi.mock('@/components/filters/FilterSidebar', () => ({
 }));
 
 vi.mock('@/components/table/DefectTable', () => ({
-  DefectTable: (props: unknown) => {
+  DefectTable: (props: { onClearFilters?: () => void }) => {
     defectTableSpy(props);
-    return <div>Defect Table</div>;
+    return (
+      <div>
+        <div>Defect Table</div>
+        <button onClick={props.onClearFilters}>Clear Table Filters</button>
+      </div>
+    );
   },
   useTableIssueKeys: () => [],
 }));
@@ -131,5 +136,25 @@ describe('DashboardLayout', () => {
     expect(lastCall.isMobile).toBe(true);
     expect(lastCall.open).toBe(true);
     expect(lastCall.collapsed).toBe(false);
+  });
+
+  it('clears active dashboard filters from the defect table toolbar action', () => {
+    render(<DashboardLayout />);
+
+    fireEvent.click(screen.getByText('New Card'));
+    fireEvent.click(screen.getByText('Select Developer'));
+    fireEvent.click(screen.getByText('Clear Table Filters'));
+
+    const lastSidebarCall = filterSidebarSpy.mock.calls.at(-1)?.[0] as { activeFilter: string; activeDeveloper?: string; selectedTagId?: number; noTagsFilter: boolean };
+    const lastTableCall = defectTableSpy.mock.calls.at(-1)?.[0] as { filter: string; assigneeFilter?: string; tagId?: number; noTags?: boolean };
+
+    expect(lastSidebarCall.activeFilter).toBe('all');
+    expect(lastSidebarCall.activeDeveloper).toBeUndefined();
+    expect(lastSidebarCall.selectedTagId).toBeUndefined();
+    expect(lastSidebarCall.noTagsFilter).toBe(false);
+    expect(lastTableCall.filter).toBe('all');
+    expect(lastTableCall.assigneeFilter).toBeUndefined();
+    expect(lastTableCall.tagId).toBeUndefined();
+    expect(lastTableCall.noTags).toBe(false);
   });
 });

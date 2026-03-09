@@ -96,6 +96,15 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
     closeSidebarOnCompact();
   }, [closeSidebarOnCompact]);
 
+  const handleClearAllFilters = useCallback(() => {
+    setActiveFilter('all');
+    setActiveDeveloper(undefined);
+    setSelectedTagId(undefined);
+    setNoTagsFilter(false);
+    setSelectedIssueKey(undefined);
+    setFocusedIndex(-1);
+  }, []);
+
   const handleSelectIssue = useCallback((key: string) => {
     setSelectedIssueKey((prev) => (prev === key ? undefined : key));
   }, []);
@@ -244,6 +253,7 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
               hasAnimated={hasAnimated}
               tagId={selectedTagId}
               noTags={noTagsFilter}
+              onClearFilters={handleClearAllFilters}
             />
 
             {/* Triage panel always overlays the table */}

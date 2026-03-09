@@ -77,17 +77,20 @@ vi.mock('@/hooks/useTags', () => ({
 describe('DefectTable', () => {
   const onSelectIssue = vi.fn();
   const onFocusedIndexChange = vi.fn();
+  const onClearFilters = vi.fn();
   const defaultProps = {
     filter: 'all' as const,
     onSelectIssue,
     focusedIndex: -1,
     onFocusedIndexChange,
     hasAnimated: true,
+    onClearFilters,
   };
 
   beforeEach(() => {
     onSelectIssue.mockClear();
     onFocusedIndexChange.mockClear();
+    onClearFilters.mockClear();
     mockCreateTagMutate.mockClear();
     mockSetIssueTagsMutate.mockClear();
   });
@@ -244,6 +247,22 @@ describe('DefectTable', () => {
     expect(screen.getByText('PROJ-103')).toBeInTheDocument();
     expect(screen.queryByText('PROJ-101')).not.toBeInTheDocument();
     expect(screen.queryByText('PROJ-102')).not.toBeInTheDocument();
+  });
+
+  it('clears dashboard filters and local search from the toolbar action', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} filter="blocked" assigneeFilter="alice-1" tagId={1} noTags />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByLabelText('Open defect search'));
+    fireEvent.change(screen.getByLabelText('Search defects by ID or title'), { target: { value: 'PROJ-102' } });
+    fireEvent.click(screen.getByLabelText('Clear all defect filters'));
+
+    expect(onClearFilters).toHaveBeenCalled();
+    expect(screen.queryByLabelText('Search defects by ID or title')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Open defect search')).toBeInTheDocument();
   });
 
   it('auto-hides search on blur when query is empty', () => {
