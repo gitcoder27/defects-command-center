@@ -26,15 +26,20 @@ export function TagFilterSection({
 }: TagFilterSectionProps) {
   const hasActiveFilters = selectedTagId !== undefined || noTagsFilter;
 
-  const sortedTags = [...tags].sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-  );
+  const tagCountById = new Map(tagCounts?.counts.map((count) => [count.tagId, count.count]) ?? []);
 
   function getTagCount(tagId: number): number {
-    if (!tagCounts) return 0;
-    const entry = tagCounts.counts.find((c) => c.tagId === tagId);
-    return entry?.count ?? 0;
+    return tagCountById.get(tagId) ?? 0;
   }
+
+  const sortedTags = [...tags].sort((a, b) => {
+    const countDifference = getTagCount(b.id) - getTagCount(a.id);
+    if (countDifference !== 0) {
+      return countDifference;
+    }
+
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  });
 
   return (
     <section

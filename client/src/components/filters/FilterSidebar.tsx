@@ -44,6 +44,8 @@ interface FilterSidebarProps {
   onExpand: () => void;
 }
 
+type SidebarSectionKey = 'filters' | 'tags' | 'developers';
+
 const FILTER_COUNT_MAP: Record<string, keyof OverviewCounts> = {
   unassigned: 'unassigned',
   outOfTeam: 'outOfTeam',
@@ -154,6 +156,13 @@ export function FilterSidebar({
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [tagsOpen, setTagsOpen] = useState(true);
   const [developersOpen, setDevelopersOpen] = useState(true);
+
+  function expandSection(section: SidebarSectionKey) {
+    setFiltersOpen(section === 'filters');
+    setTagsOpen(section === 'tags');
+    setDevelopersOpen(section === 'developers');
+    onExpand();
+  }
 
   function getCount(key: FilterType): number {
     if (!overview) return 0;
@@ -360,10 +369,7 @@ export function FilterSidebar({
               <div className="w-8 h-px" style={{ background: 'var(--border)' }} />
 
               <button
-                onClick={() => {
-                  setFiltersOpen(true);
-                  onExpand();
-                }}
+                onClick={() => expandSection('filters')}
                 className="relative h-8 w-8 rounded-xl flex items-center justify-center transition-colors"
                 style={{ background: activeFilter !== 'all' ? 'var(--accent-glow)' : 'var(--bg-tertiary)' }}
                 title="Expand filters"
@@ -373,10 +379,7 @@ export function FilterSidebar({
               </button>
 
               <button
-                onClick={() => {
-                  setTagsOpen(true);
-                  onExpand();
-                }}
+                onClick={() => expandSection('tags')}
                 className="h-8 w-8 rounded-xl flex items-center justify-center transition-colors"
                 style={{ background: selectedTagId !== undefined || noTagsFilter ? 'var(--accent-glow)' : 'var(--bg-tertiary)' }}
                 title="Expand tags"
@@ -386,10 +389,7 @@ export function FilterSidebar({
               </button>
 
               <button
-                onClick={() => {
-                  setDevelopersOpen(true);
-                  onExpand();
-                }}
+                onClick={() => expandSection('developers')}
                 className="h-8 w-8 rounded-xl flex items-center justify-center transition-colors"
                 style={{ background: activeDeveloper ? 'var(--accent-glow)' : 'var(--bg-tertiary)' }}
                 title="Expand developers"

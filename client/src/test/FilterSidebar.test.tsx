@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { useState } from 'react';
 import { FilterSidebar } from '@/components/filters/FilterSidebar';
 import { TestWrapper } from '@/test/wrapper';
 import type { OverviewCounts, DeveloperWorkload } from '@/types';
@@ -87,6 +88,20 @@ describe('FilterSidebar', () => {
     onExpand,
   };
 
+  function InteractiveSidebar(props: Partial<typeof defaultProps>) {
+    const [collapsed, setCollapsed] = useState(true);
+
+    return (
+      <FilterSidebar
+        {...defaultProps}
+        {...props}
+        collapsed={collapsed}
+        onCollapse={() => setCollapsed(true)}
+        onExpand={() => setCollapsed(false)}
+      />
+    );
+  }
+
   beforeEach(() => {
     onFilterChange.mockClear();
     onDeveloperChange.mockClear();
@@ -162,6 +177,21 @@ describe('FilterSidebar', () => {
     expect(screen.getByText('No tags')).toBeInTheDocument();
   });
 
+  it('sorts tags by defect count before name', () => {
+    render(
+      <TestWrapper>
+        <FilterSidebar {...defaultProps} />
+      </TestWrapper>
+    );
+
+    const analysisButton = screen.getByText('ANALYSIS').closest('button');
+    const amarButton = screen.getByText('AMAR').closest('button');
+
+    expect(analysisButton).not.toBeNull();
+    expect(amarButton).not.toBeNull();
+    expect(analysisButton?.compareDocumentPosition(amarButton as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('calls onTagToggle when a tag is clicked', () => {
     render(
       <TestWrapper>
@@ -195,6 +225,34 @@ describe('FilterSidebar', () => {
 
     fireEvent.click(screen.getByLabelText('Expand tags'));
     expect(onExpand).toHaveBeenCalled();
+  });
+
+  it('expands only the tags section when the tags rail button is clicked', () => {
+    render(
+      <TestWrapper>
+        <InteractiveSidebar />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByLabelText('Expand tags'));
+
+    expect(screen.queryByText('All')).not.toBeInTheDocument();
+    expect(screen.getByText('ANALYSIS')).toBeInTheDocument();
+    expect(screen.queryByText('Alice')).not.toBeInTheDocument();
+  });
+
+  it('expands only the developers section when the developers rail button is clicked', () => {
+    render(
+      <TestWrapper>
+        <InteractiveSidebar />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByLabelText('Expand developers'));
+
+    expect(screen.queryByText('All')).not.toBeInTheDocument();
+    expect(screen.queryByText('ANALYSIS')).not.toBeInTheDocument();
+    expect(screen.getByText('Alice')).toBeInTheDocument();
   });
 
   it('keeps the all filter active while a developer filter is also active', () => {
