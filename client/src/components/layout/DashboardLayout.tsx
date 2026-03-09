@@ -298,7 +298,11 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
             )}
             <div className="absolute right-0 top-0 bottom-0 z-50 pointer-events-none">
               <div className="pointer-events-auto h-full">
-                <TriagePanel issueKey={selectedIssueKey} onClose={handleClosePanel} />
+                <TriagePanel
+                  issueKey={selectedIssueKey}
+                  onClose={handleClosePanel}
+                  onOpenManagerDesk={onViewChange ? () => onViewChange('manager-desk') : undefined}
+                />
               </div>
             </div>
           </div>

@@ -344,7 +344,7 @@ function AppContent() {
     return (
       <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
         <Suspense fallback={<PanelLoading />}>
-          <TeamTrackerPage />
+          <TeamTrackerPage onViewChange={handleViewChange} />
         </Suspense>
       </WorkspaceShell>
     );

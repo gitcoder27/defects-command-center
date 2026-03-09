@@ -15,6 +15,7 @@ import { useIssues } from '@/hooks/useIssues';
 import { TrackerSummaryStrip, type SummaryFilter } from './TrackerSummaryStrip';
 import { TrackerBoard } from './TrackerBoard';
 import { DeveloperTrackerDrawer } from './DeveloperTrackerDrawer';
+import type { AppView } from '@/App';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -54,7 +55,11 @@ function writeCarryForwardPromptState(date: string): void {
   }
 }
 
-export function TeamTrackerPage() {
+interface TeamTrackerPageProps {
+  onViewChange?: (view: AppView) => void;
+}
+
+export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   const [date, setDate] = useState(todayIso);
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
   const [drawerAccountId, setDrawerAccountId] = useState<string | undefined>();
@@ -348,6 +353,7 @@ export function TeamTrackerPage() {
         onDropItem={handleDropItem}
         onDeleteItem={(id) => deleteItem.mutate(id)}
         onAddCheckIn={(params) => addCheckIn.mutate(params)}
+        onOpenManagerDesk={onViewChange ? () => onViewChange('manager-desk') : undefined}
         issues={issues}
         isAddItemPending={addItem.isPending}
       />

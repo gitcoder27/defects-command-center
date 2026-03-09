@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ExternalLink, Plus, Tag, FileText, Check } from 'lucide-react';
+import { X, ExternalLink, Plus, Tag, FileText, Check, Briefcase } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useIssueDetail } from '@/hooks/useIssueDetail';
 import { useUpdateIssue } from '@/hooks/useUpdateIssue';
@@ -17,10 +17,12 @@ import { PRIORITY_OPTIONS } from '@/lib/constants';
 import { formatIssueDescription } from '@/lib/issue-description';
 import { formatDate, formatRelativeTime, priorityColor } from '@/lib/utils';
 import type { Developer } from '@/types';
+import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
 
 interface TriagePanelProps {
   issueKey?: string;
   onClose: () => void;
+  onOpenManagerDesk?: () => void;
 }
 
 function todayIso(): string {
@@ -73,7 +75,7 @@ function PropertyCard({
   );
 }
 
-export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
+export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePanelProps) {
   const { data: issue, isLoading } = useIssueDetail(issueKey);
   const { data: developers } = useDevelopers();
   const trackerDate = todayIso();
@@ -93,6 +95,7 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
   const [notesSaved, setNotesSaved] = useState(true);
   const [trackerAccountId, setTrackerAccountId] = useState<string | undefined>();
   const [trackerAddedAccountId, setTrackerAddedAccountId] = useState<string | undefined>();
+  const [deskCaptureOpen, setDeskCaptureOpen] = useState(false);
   const notesTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const renderedDescription = useMemo(() => formatIssueDescription(issue?.description), [issue?.description]);
   const selectedTrackerDeveloper = useMemo(
@@ -548,6 +551,71 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
                 </div>
               </div>
 
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold uppercase flex items-center gap-1.5" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+                    <Briefcase size={12} /> Manager Desk
+                  </span>
+                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    Today
+                  </span>
+                </div>
+                <div
+                  className="rounded-xl px-3 py-3"
+                  style={{
+                    background: 'linear-gradient(135deg, color-mix(in srgb, var(--md-accent-glow) 72%, var(--bg-tertiary) 28%), var(--bg-tertiary))',
+                    border: '1px solid rgba(217,169,78,0.18)',
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                        Capture a manager follow-up from this issue
+                      </div>
+                      <div className="mt-1 text-[11px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+                        The issue link is attached automatically so it lands in your desk with source context intact.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDeskCaptureOpen(true)}
+                      className="shrink-0 rounded-lg px-3 py-2 text-[12px] font-medium transition-colors"
+                      style={{
+                        background: 'rgba(217,169,78,0.16)',
+                        color: 'var(--md-accent)',
+                        border: '1px solid rgba(217,169,78,0.24)',
+                      }}
+                    >
+                      Add to Manager Desk
+                    </button>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <span
+                      className="rounded-full px-2.5 py-1 text-[11px] font-medium"
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        color: 'var(--md-accent)',
+                        border: '1px solid rgba(217,169,78,0.16)',
+                      }}
+                    >
+                      Issue {issue.jiraKey}
+                    </span>
+                    {issue.assigneeName && (
+                      <span
+                        className="rounded-full px-2.5 py-1 text-[11px] font-medium"
+                        style={{
+                          background: 'rgba(16,185,129,0.1)',
+                          color: 'var(--success)',
+                          border: '1px solid rgba(16,185,129,0.18)',
+                        }}
+                      >
+                        {issue.assigneeName}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Triage properties */}
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -715,6 +783,21 @@ export function TriagePanel({ issueKey, onClose }: TriagePanelProps) {
             </div>
           ) : null}
         </motion.div>
+      )}
+      {deskCaptureOpen && issue && (
+        <ManagerDeskCaptureDialog
+          onClose={() => setDeskCaptureOpen(false)}
+          onOpenManagerDesk={onOpenManagerDesk}
+          heading="Add Issue Follow-Up"
+          description="Capture a manager task from the current Jira issue without leaving triage."
+          initialTitle={issue.summary}
+          initialCategory="analysis"
+          initialLinks={[{ linkType: 'issue', issueKey: issue.jiraKey }]}
+          contextChips={[
+            { label: 'Issue', value: issue.jiraKey, tone: 'issue' },
+            ...(issue.assigneeName ? [{ label: 'Owner', value: issue.assigneeName, tone: 'developer' as const }] : []),
+          ]}
+        />
       )}
     </AnimatePresence>
   );

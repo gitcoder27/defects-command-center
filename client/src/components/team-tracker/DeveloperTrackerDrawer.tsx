@@ -1,12 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { X, MessageSquare, Save } from 'lucide-react';
+import { X, MessageSquare, Save, Briefcase } from 'lucide-react';
 import type { TrackerDeveloperDay, TrackerDeveloperStatus, Issue } from '@/types';
 import type { TrackerWorkItem } from '@/types';
 import { TrackerStatusPill } from './TrackerStatusPill';
 import { TrackerItemRow } from './TrackerItemRow';
 import { AddTrackerItemForm } from './AddTrackerItemForm';
 import { formatRelativeTime } from '@/lib/utils';
+import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
 
 interface DeveloperTrackerDrawerProps {
   day: TrackerDeveloperDay | undefined;
@@ -22,6 +23,7 @@ interface DeveloperTrackerDrawerProps {
   onDropItem: (itemId: number) => void;
   onDeleteItem: (itemId: number) => void;
   onAddCheckIn: (params: { accountId: string; summary: string; status?: TrackerDeveloperStatus }) => void;
+  onOpenManagerDesk?: () => void;
   issues?: Issue[];
   isAddItemPending?: boolean;
 }
@@ -42,6 +44,7 @@ export function DeveloperTrackerDrawer({
   onDropItem,
   onDeleteItem,
   onAddCheckIn,
+  onOpenManagerDesk,
   issues,
   isAddItemPending,
 }: DeveloperTrackerDrawerProps) {
@@ -49,6 +52,7 @@ export function DeveloperTrackerDrawer({
   const [notesText, setNotesText] = useState('');
   const [notesEditing, setNotesEditing] = useState(false);
   const [localPlannedItems, setLocalPlannedItems] = useState<TrackerWorkItem[]>([]);
+  const [deskCaptureOpen, setDeskCaptureOpen] = useState(false);
   const isDraggingRef = useRef(false);
 
   // Sync local planned items from server data when not actively dragging
@@ -298,6 +302,51 @@ export function DeveloperTrackerDrawer({
                 </div>
               )}
 
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                    Manager Desk
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDeskCaptureOpen(true)}
+                    className="text-[10px] font-medium"
+                    style={{ color: 'var(--md-accent)' }}
+                  >
+                    Capture Follow-Up
+                  </button>
+                </div>
+                <div
+                  className="rounded-xl px-3 py-3"
+                  style={{
+                    background: 'linear-gradient(135deg, color-mix(in srgb, var(--md-accent-glow) 72%, var(--bg-tertiary) 28%), var(--bg-tertiary))',
+                    border: '1px solid rgba(217,169,78,0.16)',
+                  }}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+                      style={{ background: 'rgba(217,169,78,0.14)', color: 'var(--md-accent)' }}
+                    >
+                      <Briefcase size={14} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                        Keep your own follow-ups separate from the team queue
+                      </div>
+                      <div className="mt-1 text-[11px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+                        This capture links {day.developer.displayName} automatically and drops the task into today&apos;s Manager Desk inbox.
+                      </div>
+                      {day.currentItem?.jiraKey && (
+                        <div className="mt-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                          Current tracker context: <span style={{ color: 'var(--text-primary)' }}>{day.currentItem.jiraKey}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Manager notes */}
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -405,6 +454,28 @@ export function DeveloperTrackerDrawer({
             </div>
           </motion.div>
         </>
+      )}
+      {deskCaptureOpen && day && (
+        <ManagerDeskCaptureDialog
+          onClose={() => setDeskCaptureOpen(false)}
+          onOpenManagerDesk={onOpenManagerDesk}
+          heading="Capture Developer Follow-Up"
+          description="Create a manager task from this tracker view while keeping the developer linked."
+          initialTitle={`Follow up with ${day.developer.displayName}`}
+          initialCategory="team_management"
+          initialContextNote={
+            day.currentItem?.jiraKey
+              ? `Current tracker context: ${day.currentItem.jiraKey} - ${day.currentItem.title}`
+              : ''
+          }
+          initialLinks={[{ linkType: 'developer', developerAccountId: day.developer.accountId }]}
+          contextChips={[
+            { label: 'Developer', value: day.developer.displayName, tone: 'developer' },
+            ...(day.currentItem?.jiraKey
+              ? [{ label: 'Current', value: day.currentItem.jiraKey, tone: 'issue' as const }]
+              : []),
+          ]}
+        />
       )}
     </AnimatePresence>
   );

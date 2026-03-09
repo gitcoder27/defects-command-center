@@ -190,7 +190,10 @@ describe('FilterSidebar', () => {
 
     expect(analysisButton).not.toBeNull();
     expect(amarButton).not.toBeNull();
-    expect(analysisButton?.compareDocumentPosition(amarButton as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      (analysisButton as HTMLElement).compareDocumentPosition(amarButton as HTMLElement) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   it('calls onTagToggle when a tag is clicked', () => {
