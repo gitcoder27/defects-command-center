@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, ArrowRight, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Calendar, ArrowRight, ChevronLeft, ChevronRight, RefreshCw, X } from 'lucide-react';
 import { useTeamTracker, useCarryForwardPreview } from '@/hooks/useTeamTracker';
 import {
   useUpdateDay,
@@ -60,7 +60,12 @@ export function TeamTrackerPage() {
   const [drawerAccountId, setDrawerAccountId] = useState<string | undefined>();
   const [carryPromptDismissed, setCarryPromptDismissed] = useState(() => readCarryForwardPromptState(todayIso()));
 
-  const { data: board, isLoading } = useTeamTracker(date);
+  const {
+    data: board,
+    isLoading,
+    isFetching: isBoardFetching,
+    refetch: refetchBoard,
+  } = useTeamTracker(date);
   const { data: issues } = useIssues('all');
   const previousDate = useMemo(() => shiftIsoDate(date, -1), [date]);
   const carryForwardPreview = useCarryForwardPreview(previousDate, date, !carryPromptDismissed);
@@ -119,12 +124,20 @@ export function TeamTrackerPage() {
     );
   }, [carryForward, date, dismissCarryForwardPrompt, previousDate]);
 
+  const handleRefresh = useCallback(() => {
+    void refetchBoard();
+    if (!carryPromptDismissed) {
+      void carryForwardPreview.refetch();
+    }
+  }, [carryForwardPreview, carryPromptDismissed, refetchBoard]);
+
   useEffect(() => {
     setCarryPromptDismissed(readCarryForwardPromptState(date));
   }, [date]);
 
   const isToday = date === todayIso();
   const carryableFromPreviousDay = carryForwardPreview.data ?? 0;
+  const isRefreshing = isBoardFetching || carryForwardPreview.isFetching;
   const showCarryForwardPrompt =
     !carryPromptDismissed &&
     !carryForwardPreview.isLoading &&
@@ -158,6 +171,22 @@ export function TeamTrackerPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50"
+              style={{
+                background: 'var(--bg-tertiary)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+              }}
+              aria-label="Refresh team tracker"
+              title="Refresh team tracker"
+            >
+              <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
+              Refresh
+            </button>
             {!isToday && (
               <button
                 onClick={handleCarryForward}

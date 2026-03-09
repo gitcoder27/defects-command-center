@@ -6,6 +6,8 @@ import type { TeamTrackerBoardResponse, TrackerDeveloperDay, Issue } from '@/typ
 const mockCarryForwardMutate = vi.fn();
 const mockUpdateTrackerItemMutate = vi.fn();
 const mockAddTrackerItemMutate = vi.fn();
+const mockRefetchBoard = vi.fn();
+const mockRefetchCarryForwardPreview = vi.fn();
 let mockCarryForwardPreviewValue = 0;
 let mockIssues: Issue[] = [];
 
@@ -82,11 +84,18 @@ const mockBoard: TeamTrackerBoardResponse = {
 };
 
 vi.mock('@/hooks/useTeamTracker', () => ({
-  useTeamTracker: () => ({ data: mockBoard, isLoading: false }),
+  useTeamTracker: () => ({
+    data: mockBoard,
+    isLoading: false,
+    isFetching: false,
+    refetch: mockRefetchBoard,
+  }),
   useCarryForwardPreview: () => ({
     data: mockCarryForwardPreviewValue,
     isLoading: false,
     isError: false,
+    isFetching: false,
+    refetch: mockRefetchCarryForwardPreview,
   }),
 }));
 
@@ -122,6 +131,8 @@ describe('TeamTrackerPage', () => {
     mockCarryForwardMutate.mockReset();
     mockUpdateTrackerItemMutate.mockReset();
     mockAddTrackerItemMutate.mockReset();
+    mockRefetchBoard.mockReset();
+    mockRefetchCarryForwardPreview.mockReset();
     mockCarryForwardPreviewValue = 0;
     mockIssues = [];
     window.sessionStorage.clear();
@@ -180,6 +191,19 @@ describe('TeamTrackerPage', () => {
     );
     expect(screen.getByText('AM-123')).toBeInTheDocument();
     expect(screen.getByText('Fix login bug')).toBeInTheDocument();
+  });
+
+  it('manually refreshes only team tracker queries from the page header', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /refresh team tracker/i }));
+
+    expect(mockRefetchBoard).toHaveBeenCalled();
+    expect(mockRefetchCarryForwardPreview).toHaveBeenCalled();
   });
 
   it('shows "No current item" warning for developer without active work', () => {
