@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import App from '@/App';
 
 const useBootstrapStateMock = vi.fn();
 const useConfigMock = vi.fn();
 const useAuthMock = vi.fn();
+const dashboardLayoutSpy = vi.fn();
 
 vi.mock('@/hooks/useBootstrapState', () => ({
   useBootstrapState: () => useBootstrapStateMock(),
@@ -20,11 +21,51 @@ vi.mock('@/context/AuthContext', () => ({
 }));
 
 vi.mock('@/components/layout/DashboardLayout', () => ({
-  DashboardLayout: () => <div>Dashboard loaded</div>,
+  DEFAULT_DASHBOARD_FILTER_STATE: {
+    activeFilter: 'all',
+    activeDeveloper: undefined,
+    selectedTagId: undefined,
+    noTagsFilter: false,
+  },
+  DashboardLayout: (props: {
+    onViewChange?: (view: 'team-tracker') => void;
+    filterState?: { activeFilter: string };
+    onFilterStateChange?: (state: {
+      activeFilter: string;
+      activeDeveloper?: string;
+      selectedTagId?: number;
+      noTagsFilter: boolean;
+    }) => void;
+  }) => {
+    dashboardLayoutSpy(props);
+
+    return (
+      <div>
+        <div>Dashboard loaded</div>
+        <div>Dashboard filter: {props.filterState?.activeFilter ?? 'missing'}</div>
+        <button
+          onClick={() => props.onFilterStateChange?.({
+            activeFilter: 'blocked',
+            activeDeveloper: 'dev-1',
+            selectedTagId: 2,
+            noTagsFilter: false,
+          })}
+        >
+          Apply dashboard filter
+        </button>
+        <button onClick={() => props.onViewChange?.('team-tracker')}>Open Team Tracker</button>
+      </div>
+    );
+  },
 }));
 
 vi.mock('@/components/layout/Header', () => ({
-  Header: () => <div>Shared header</div>,
+  Header: ({ onViewChange }: { onViewChange?: (view: 'dashboard') => void }) => (
+    <div>
+      <div>Shared header</div>
+      {onViewChange && <button onClick={() => onViewChange('dashboard')}>Open Dashboard</button>}
+    </div>
+  ),
 }));
 
 vi.mock('@/components/team-tracker/TeamTrackerPage', () => ({
@@ -181,5 +222,31 @@ describe('App', () => {
 
     expect(await screen.findByText('Shared header')).toBeInTheDocument();
     expect(screen.getByText('Settings loaded')).toBeInTheDocument();
+  });
+
+  it('preserves dashboard filters when switching away and back without refreshing', async () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'manager' },
+      isLoading: false,
+      isAuthenticated: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshSession: vi.fn(),
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('Dashboard filter: all')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Apply dashboard filter'));
+    expect(screen.getByText('Dashboard filter: blocked')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Open Team Tracker'));
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/team-tracker');
+    });
+
+    fireEvent.click(screen.getByText('Open Dashboard'));
+    expect(await screen.findByText('Dashboard filter: blocked')).toBeInTheDocument();
   });
 });

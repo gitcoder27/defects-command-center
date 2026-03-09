@@ -12,16 +12,29 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { FilterType, Alert } from '@/types';
 import type { AppView } from '@/App';
 
+export interface DashboardFilterState {
+  activeFilter: FilterType;
+  activeDeveloper?: string;
+  selectedTagId?: number;
+  noTagsFilter: boolean;
+}
+
+export const DEFAULT_DASHBOARD_FILTER_STATE: DashboardFilterState = {
+  activeFilter: 'all',
+  activeDeveloper: undefined,
+  selectedTagId: undefined,
+  noTagsFilter: false,
+};
+
 interface DashboardLayoutProps {
   activeView?: AppView;
   onViewChange?: (view: AppView) => void;
+  filterState?: DashboardFilterState;
+  onFilterStateChange?: (state: DashboardFilterState) => void;
 }
 
-export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutProps) {
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-  const [activeDeveloper, setActiveDeveloper] = useState<string | undefined>();
-  const [selectedTagId, setSelectedTagId] = useState<number | undefined>();
-  const [noTagsFilter, setNoTagsFilter] = useState(false);
+export function DashboardLayout({ activeView, onViewChange, filterState, onFilterStateChange }: DashboardLayoutProps) {
+  const [internalFilterState, setInternalFilterState] = useState<DashboardFilterState>(DEFAULT_DASHBOARD_FILTER_STATE);
   const [selectedIssueKey, setSelectedIssueKey] = useState<string | undefined>();
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(false);
@@ -31,6 +44,20 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
   const triggerSync = useTriggerSync();
 
   const isCompact = useMediaQuery('(max-width: 1023px)');
+  const isControlled = filterState !== undefined && onFilterStateChange !== undefined;
+  const resolvedFilterState = filterState ?? internalFilterState;
+  const { activeFilter, activeDeveloper, selectedTagId, noTagsFilter } = resolvedFilterState;
+
+  const setFilterState = useCallback((updater: DashboardFilterState | ((prev: DashboardFilterState) => DashboardFilterState)) => {
+    const nextState = typeof updater === 'function' ? updater(resolvedFilterState) : updater;
+
+    if (isControlled) {
+      onFilterStateChange(nextState);
+      return;
+    }
+
+    setInternalFilterState(nextState);
+  }, [isControlled, onFilterStateChange, resolvedFilterState]);
 
   useEffect(() => {
     if (!isCompact) {
@@ -59,51 +86,57 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
   }, [isCompact]);
 
   const handleFilterChange = useCallback((filter: FilterType) => {
-    setActiveFilter(filter);
+    setFilterState((prev) => ({ ...prev, activeFilter: filter }));
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
     closeSidebarOnCompact();
-  }, [closeSidebarOnCompact]);
+  }, [closeSidebarOnCompact, setFilterState]);
 
   const handleDeveloperChange = useCallback((accountId?: string) => {
-    setActiveDeveloper(accountId);
+    setFilterState((prev) => ({ ...prev, activeDeveloper: accountId }));
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
     closeSidebarOnCompact();
-  }, [closeSidebarOnCompact]);
+  }, [closeSidebarOnCompact, setFilterState]);
 
   const handleTagToggle = useCallback((tagId: number) => {
-    setNoTagsFilter(false);
-    setSelectedTagId((prev) => (prev === tagId ? undefined : tagId));
+    setFilterState((prev) => ({
+      ...prev,
+      noTagsFilter: false,
+      selectedTagId: prev.selectedTagId === tagId ? undefined : tagId,
+    }));
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
     closeSidebarOnCompact();
-  }, [closeSidebarOnCompact]);
+  }, [closeSidebarOnCompact, setFilterState]);
 
   const handleNoTagsToggle = useCallback(() => {
-    setNoTagsFilter((prev) => !prev);
-    setSelectedTagId(undefined);
+    setFilterState((prev) => ({
+      ...prev,
+      noTagsFilter: !prev.noTagsFilter,
+      selectedTagId: undefined,
+    }));
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
     closeSidebarOnCompact();
-  }, [closeSidebarOnCompact]);
+  }, [closeSidebarOnCompact, setFilterState]);
 
   const handleClearTagFilters = useCallback(() => {
-    setSelectedTagId(undefined);
-    setNoTagsFilter(false);
+    setFilterState((prev) => ({
+      ...prev,
+      selectedTagId: undefined,
+      noTagsFilter: false,
+    }));
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
     closeSidebarOnCompact();
-  }, [closeSidebarOnCompact]);
+  }, [closeSidebarOnCompact, setFilterState]);
 
   const handleClearAllFilters = useCallback(() => {
-    setActiveFilter('all');
-    setActiveDeveloper(undefined);
-    setSelectedTagId(undefined);
-    setNoTagsFilter(false);
+    setFilterState(DEFAULT_DASHBOARD_FILTER_STATE);
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
-  }, []);
+  }, [setFilterState]);
 
   const handleSelectIssue = useCallback((key: string) => {
     setSelectedIssueKey((prev) => (prev === key ? undefined : key));
@@ -117,9 +150,9 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
     if (alert.issueKey) {
       setSelectedIssueKey(alert.issueKey);
     } else if (alert.developerAccountId) {
-      setActiveDeveloper(alert.developerAccountId);
+      setFilterState((prev) => ({ ...prev, activeDeveloper: alert.developerAccountId }));
     }
-  }, []);
+  }, [setFilterState]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -152,42 +185,42 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
           break;
         case '0':
           e.preventDefault();
-          setActiveFilter('all');
+          setFilterState((prev) => ({ ...prev, activeFilter: 'all' }));
           setFocusedIndex(-1);
           break;
         case '1':
           e.preventDefault();
-          setActiveFilter('all');
+          setFilterState((prev) => ({ ...prev, activeFilter: 'all' }));
           setFocusedIndex(-1);
           break;
         case '2':
           e.preventDefault();
-          setActiveFilter('unassigned');
+          setFilterState((prev) => ({ ...prev, activeFilter: 'unassigned' }));
           setFocusedIndex(-1);
           break;
         case '3':
           e.preventDefault();
-          setActiveFilter('dueToday');
+          setFilterState((prev) => ({ ...prev, activeFilter: 'dueToday' }));
           setFocusedIndex(-1);
           break;
         case '4':
           e.preventDefault();
-          setActiveFilter('dueThisWeek');
+          setFilterState((prev) => ({ ...prev, activeFilter: 'dueThisWeek' }));
           setFocusedIndex(-1);
           break;
         case '5':
           e.preventDefault();
-          setActiveFilter('overdue');
+          setFilterState((prev) => ({ ...prev, activeFilter: 'overdue' }));
           setFocusedIndex(-1);
           break;
         case '6':
           e.preventDefault();
-          setActiveFilter('blocked');
+          setFilterState((prev) => ({ ...prev, activeFilter: 'blocked' }));
           setFocusedIndex(-1);
           break;
         case '7':
           e.preventDefault();
-          setActiveFilter('stale');
+          setFilterState((prev) => ({ ...prev, activeFilter: 'stale' }));
           setFocusedIndex(-1);
           break;
         case 'Escape':
@@ -198,7 +231,7 @@ export function DashboardLayout({ activeView, onViewChange }: DashboardLayoutPro
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [triggerSync, issues, focusedIndex]);
+  }, [triggerSync, issues, focusedIndex, setFilterState]);
 
   const handleToggleSidebar = useCallback(() => {
     if (isCompact) {

@@ -5,7 +5,11 @@ import { ToastProvider } from '@/context/ToastContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useBootstrapState } from '@/hooks/useBootstrapState';
 import { useConfig } from '@/hooks/useConfig';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import {
+  DashboardLayout,
+  DEFAULT_DASHBOARD_FILTER_STATE,
+  type DashboardFilterState,
+} from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
 
 export type AppView = 'dashboard' | 'team-tracker' | 'my-day' | 'manager-desk' | 'settings';
@@ -194,6 +198,7 @@ function AppContent() {
   const bootstrapState = bootstrapQuery.data;
 
   const [activeView, setActiveView] = useState<AppView>(() => pathToView(window.location.pathname));
+  const [dashboardFilterState, setDashboardFilterState] = useState<DashboardFilterState>(DEFAULT_DASHBOARD_FILTER_STATE);
 
   const shouldLoadManagerConfig = Boolean(
     bootstrapState &&
@@ -355,7 +360,14 @@ function AppContent() {
     );
   }
 
-  return <DashboardLayout activeView={activeView} onViewChange={handleViewChange} />;
+  return (
+    <DashboardLayout
+      activeView={activeView}
+      onViewChange={handleViewChange}
+      filterState={dashboardFilterState}
+      onFilterStateChange={setDashboardFilterState}
+    />
+  );
 }
 
 export default function App() {
