@@ -251,6 +251,19 @@ describe("team tracker routes", () => {
     });
   });
 
+  it("GET /api/team-tracker/issues/:jiraKey/assignment returns null when no assignment exists", async () => {
+    await seedIssue("AM-35627");
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/team-tracker/issues/AM-35627/assignment?date=2026-03-09",
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ assignment: null });
+  });
+
   it("GET /api/team-tracker/carry-forward-preview reports remaining carryable items", async () => {
     await seedIssue();
     await trackerService.addItem("dev-1", "2026-03-06", {

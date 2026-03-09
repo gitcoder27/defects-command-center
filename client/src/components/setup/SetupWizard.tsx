@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   ArrowRight,
   BriefcaseBusiness,
+  Check,
   CheckCircle2,
+  Eye,
+  EyeOff,
   Loader2,
   Moon,
   PlugZap,
+  Radar,
   Search,
   ShieldPlus,
   Sun,
@@ -52,32 +56,32 @@ const STEP_ORDER: Exclude<WizardStep, 'syncing'>[] = [
 const STEP_COPY: Record<Exclude<WizardStep, 'syncing'>, { label: string; title: string; description: string; icon: typeof BriefcaseBusiness }> = {
   'manager-account': {
     label: '1',
-    title: 'Create the first manager account',
-    description: 'Bootstrap the app identity first. Jira mapping comes later and stays optional.',
+    title: 'Create Manager Account',
+    description: 'Bootstrap the app identity first. Jira mapping comes later.',
     icon: BriefcaseBusiness,
   },
   'jira-connection': {
     label: '2',
     title: 'Connect Jira',
-    description: 'Use any Jira account or service account with enough access to sync the project.',
+    description: 'Use any Jira account with enough access to sync the project.',
     icon: PlugZap,
   },
   'manager-mapping': {
     label: '3',
-    title: 'Optionally include the manager in sync scope',
-    description: 'Only map a Jira identity here if the manager wants their own assignments included.',
+    title: 'Manager Sync Scope',
+    description: 'Map a Jira identity if the manager wants assignments tracked.',
     icon: UserCog,
   },
   'team-members': {
     label: '4',
-    title: 'Select tracked developers',
-    description: 'Choose which Jira assignees belong in the team roster and sync scope.',
+    title: 'Select Team Members',
+    description: 'Choose which Jira assignees belong in the team roster.',
     icon: Users,
   },
   'developer-access': {
     label: '5',
-    title: 'Optionally create developer access',
-    description: 'Create app accounts for tracked developers now, or skip and do it later from settings.',
+    title: 'Developer Access',
+    description: 'Create app accounts for tracked developers, or skip for later.',
     icon: ShieldPlus,
   },
 };
@@ -418,236 +422,549 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     }
   };
 
-  const stepContent = (() => {
-    switch (step) {
-      case 'manager-account':
-        return (
-          <div className="space-y-5">
-            <Field label="Username">
-              <input
-                value={managerUsername}
-                onChange={(event) => setManagerUsername(event.target.value)}
-                placeholder="manager"
-                className={fieldClassName}
-                style={fieldStyle}
-              />
-            </Field>
-            <Field label="Display name">
-              <input
-                value={managerDisplayName}
-                onChange={(event) => setManagerDisplayName(event.target.value)}
-                placeholder="Taylor Morgan"
-                className={fieldClassName}
-                style={fieldStyle}
-              />
-            </Field>
-            <Field label="Password">
-              <input
-                type="password"
-                value={managerPassword}
-                onChange={(event) => setManagerPassword(event.target.value)}
-                placeholder="At least 6 characters"
-                className={fieldClassName}
-                style={fieldStyle}
-              />
-            </Field>
-            <FooterActions
-              primaryLabel={creatingManager ? 'Creating…' : 'Create Manager Account'}
-              primaryIcon={creatingManager ? Loader2 : ArrowRight}
-              primaryDisabled={!managerUsername.trim() || !managerDisplayName.trim() || managerPassword.length < 6 || creatingManager}
-              onPrimary={handleCreateManager}
-            />
+  const activeStepKey: Exclude<WizardStep, 'syncing'> = step === 'syncing' ? 'developer-access' : step;
+  const activeStepMeta = STEP_COPY[activeStepKey];
+
+  /* ── Syncing overlay ─────────────────────────────── */
+  if (step === 'syncing') {
+    return (
+      <div
+        className="relative flex min-h-full items-center justify-center overflow-hidden px-4 py-8"
+        style={{
+          background: `radial-gradient(circle at 30% 20%, rgba(245, 158, 11, 0.18), transparent 40%), radial-gradient(circle at 70% 80%, rgba(6, 182, 212, 0.14), transparent 50%), var(--bg-canvas)`,
+        }}
+      >
+        <OrbDecoration />
+        <motion.div
+          className="relative z-10 text-center"
+          initial={{ opacity: 0, scale: 0.92 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div
+            className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-[22px]"
+            style={{
+              background: 'rgba(245, 158, 11, 0.14)',
+              boxShadow: '0 0 40px rgba(245, 158, 11, 0.12)',
+            }}
+          >
+            <Loader2 size={28} className="animate-spin" style={{ color: '#fbbf24' }} />
           </div>
-        );
-      case 'jira-connection':
-        return (
-          <div className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Jira base URL">
-                <input
-                  value={jiraBaseUrl}
-                  onChange={(event) => {
-                    setJiraBaseUrl(event.target.value);
-                    setConnectionValidated(false);
-                  }}
-                  placeholder="https://tenant.atlassian.net"
-                  className={fieldClassName}
-                  style={fieldStyle}
-                />
-              </Field>
-              <Field label="Jira project key">
-                <input
-                  value={jiraProjectKey}
-                  onChange={(event) => {
-                    setJiraProjectKey(event.target.value.toUpperCase());
-                    setConnectionValidated(false);
-                  }}
-                  placeholder="AM"
-                  className={fieldClassName}
-                  style={fieldStyle}
-                />
-              </Field>
-            </div>
-            <Field label="Jira email">
-              <input
-                type="email"
-                value={jiraEmail}
-                onChange={(event) => {
-                  setJiraEmail(event.target.value);
-                  setConnectionValidated(false);
-                }}
-                placeholder="jira-sync@example.com"
-                className={fieldClassName}
-                style={fieldStyle}
-              />
-            </Field>
-            <Field label="Jira API token">
-              <input
-                type="password"
-                value={jiraApiToken}
-                onChange={(event) => {
-                  setJiraApiToken(event.target.value);
-                  setConnectionValidated(false);
-                }}
-                placeholder={configQuery.data?.jiraApiToken ? 'Leave blank to keep the saved token' : 'Paste API token'}
-                className={fieldClassName}
-                style={fieldStyle}
-              />
-            </Field>
-            <div className="grid gap-3 md:grid-cols-2">
-              <button
-                onClick={handleTestConnection}
-                disabled={!jiraBaseUrl || !jiraEmail || !jiraProjectKey || (!jiraApiToken && !configQuery.data?.jiraApiToken) || testingConnection}
-                className={secondaryButtonClassName}
-                style={secondaryButtonStyle}
-              >
-                {testingConnection ? <Loader2 size={15} className="animate-spin" /> : <PlugZap size={15} />}
-                {connectionValidated ? 'Connection confirmed' : 'Test connection'}
-              </button>
-              <button
-                onClick={handleSaveConnection}
-                disabled={!jiraBaseUrl || !jiraEmail || !jiraProjectKey || (!jiraApiToken && !configQuery.data?.jiraApiToken) || savingConnection}
-                className={primaryButtonClassName}
-                style={primaryButtonStyle}
-              >
-                {savingConnection ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} />}
-                Save Jira connection
-              </button>
-            </div>
-          </div>
-        );
-      case 'manager-mapping':
-        return (
-          <div className="space-y-5">
+          <h2 className="text-[26px] font-semibold tracking-tight md:text-[32px]" style={{ color: 'var(--text-primary)' }}>
+            Syncing your workspace
+          </h2>
+          <p className="mx-auto mt-4 max-w-sm text-[14px] leading-7" style={{ color: 'var(--text-secondary)' }}>
+            Pulling Jira data into the manager surface. This usually takes a moment.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="relative flex min-h-full items-center justify-center overflow-hidden px-4 py-8"
+      style={{
+        background: `radial-gradient(circle at 30% 20%, rgba(245, 158, 11, 0.18), transparent 40%), radial-gradient(circle at 70% 80%, rgba(6, 182, 212, 0.14), transparent 50%), var(--bg-canvas)`,
+      }}
+    >
+      <OrbDecoration />
+
+      {/* Theme toggle */}
+      <button
+        type="button"
+        onClick={toggleTheme}
+        className="absolute right-5 top-5 z-20 inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-semibold transition-colors"
+        style={{
+          background: 'color-mix(in srgb, var(--bg-primary) 88%, transparent)',
+          color: 'var(--text-primary)',
+          borderColor: 'var(--border-strong)',
+        }}
+        aria-label="Toggle theme"
+        title="Toggle theme"
+      >
+        {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+        {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+      </button>
+
+      {/* Centered wizard content */}
+      <div className="relative z-10 flex w-full max-w-[540px] flex-col" style={{ maxHeight: 'calc(100vh - 64px)' }}>
+        {/* Branding header */}
+        <motion.div
+          className="mb-6 text-center"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div className="mb-4 inline-flex items-center gap-3">
             <div
-              className="rounded-[22px] border p-4"
+              className="flex h-10 w-10 items-center justify-center rounded-[14px]"
               style={{
-                borderColor: 'var(--border)',
-                background: 'color-mix(in srgb, var(--bg-tertiary) 72%, transparent)',
+                background: 'rgba(245, 158, 11, 0.18)',
+                color: '#fbbf24',
+                boxShadow: '0 0 24px rgba(245, 158, 11, 0.14)',
               }}
             >
-              <label className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={includeManagerJira}
-                  onChange={(event) => {
-                    setIncludeManagerJira(event.target.checked);
-                    if (!event.target.checked) {
-                      setSelectedManagerJiraAccountId('');
-                    }
-                  }}
-                  className="mt-1"
-                />
-                <span>
-                  <span className="block text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                    Include the manager&apos;s own Jira assignments
-                  </span>
-                  <span className="mt-1 block text-[13px] leading-6" style={{ color: 'var(--text-secondary)' }}>
-                    Leave this off if Jira is connected with a service account or if the manager should stay outside the
-                    tracked assignment scope.
-                  </span>
-                </span>
-              </label>
+              <Radar size={18} />
             </div>
-
-            {includeManagerJira && (
-              <>
-                <button
-                  onClick={() => void loadDiscoverableUsers()}
-                  disabled={discoveringUsers}
-                  className={secondaryButtonClassName}
-                  style={secondaryButtonStyle}
-                >
-                  {discoveringUsers ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
-                  Refresh Jira users
-                </button>
-                <div className="space-y-2">
-                  {discoveredUsers.map((candidate) => (
-                    <button
-                      key={candidate.accountId}
-                      onClick={() => setSelectedManagerJiraAccountId(candidate.accountId)}
-                      className="flex w-full items-center justify-between rounded-[18px] border px-4 py-3 text-left transition-colors"
-                      style={{
-                        borderColor:
-                          selectedManagerJiraAccountId === candidate.accountId ? 'var(--warning)' : 'var(--border)',
-                        background:
-                          selectedManagerJiraAccountId === candidate.accountId
-                            ? 'rgba(245, 158, 11, 0.12)'
-                            : 'var(--bg-tertiary)',
-                      }}
-                    >
-                      <div>
-                        <div className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                          {candidate.displayName}
-                        </div>
-                        <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
-                          {candidate.email || candidate.accountId}
-                        </div>
-                      </div>
-                      {selectedManagerJiraAccountId === candidate.accountId && (
-                        <CheckCircle2 size={16} style={{ color: 'var(--warning)' }} />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-
-            <FooterActions
-              secondaryLabel="Back"
-              secondaryIcon={ArrowLeft}
-              onSecondary={() => goToStep('jira-connection')}
-              primaryLabel="Continue to team selection"
-              primaryIcon={ArrowRight}
-              onPrimary={handleSaveManagerMapping}
-            />
+            <div className="text-left">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.3em]" style={{ color: '#fbbf24' }}>
+                Workspace Setup
+              </div>
+              <div className="text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Defect Command Center
+              </div>
+            </div>
           </div>
-        );
-      case 'team-members':
-        return (
-          <div className="space-y-5">
-            <div className="relative">
-              <Search
-                size={14}
-                className="absolute left-4 top-1/2 -translate-y-1/2"
-                style={{ color: 'var(--text-muted)' }}
-              />
+        </motion.div>
+
+        {/* Step progress indicator */}
+        <motion.div
+          className="mb-5"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div className="flex items-center justify-center gap-2">
+            {STEP_ORDER.map((stepKey, index) => {
+              const meta = STEP_COPY[stepKey];
+              const Icon = meta.icon;
+              const isActive = stepKey === activeStepKey;
+              const isComplete = index < currentStepIndex;
+
+              return (
+                <div key={stepKey} className="flex items-center gap-2">
+                  <div
+                    className="flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-semibold transition-all duration-300"
+                    style={{
+                      borderColor: isActive
+                        ? 'rgba(251, 191, 36, 0.5)'
+                        : isComplete
+                          ? 'rgba(34, 197, 94, 0.35)'
+                          : 'var(--border)',
+                      background: isActive
+                        ? 'rgba(251, 191, 36, 0.12)'
+                        : isComplete
+                          ? 'rgba(34, 197, 94, 0.08)'
+                          : 'transparent',
+                      color: isActive
+                        ? '#fbbf24'
+                        : isComplete
+                          ? '#4ade80'
+                          : 'var(--text-muted)',
+                    }}
+                    title={meta.title}
+                  >
+                    {isComplete ? <Check size={11} /> : <Icon size={11} />}
+                    <span className="hidden sm:inline">{meta.label}</span>
+                  </div>
+                  {index < STEP_ORDER.length - 1 && (
+                    <div
+                      className="h-px w-4 transition-colors duration-300"
+                      style={{
+                        background: index < currentStepIndex
+                          ? 'rgba(34, 197, 94, 0.4)'
+                          : 'var(--border)',
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Main card */}
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border"
+          style={{
+            borderColor: 'var(--border-strong)',
+            background: 'color-mix(in srgb, var(--bg-primary) 92%, transparent)',
+            boxShadow: 'var(--panel-shadow)',
+            backdropFilter: 'blur(20px)',
+          }}
+        >
+          {/* Accent line */}
+          <div
+            className="absolute inset-x-8 top-0 h-px"
+            style={{ background: 'linear-gradient(90deg, transparent, #fbbf24, transparent)' }}
+          />
+
+          {/* Step header — always visible */}
+          <div className="shrink-0 px-7 pb-0 pt-7 md:px-9 md:pt-9">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em]" style={{ color: '#fbbf24' }}>
+              Step {activeStepMeta.label} of {STEP_ORDER.length}
+            </div>
+            <h2 className="mt-2 text-[24px] font-semibold leading-tight tracking-tight md:text-[28px]" style={{ color: 'var(--text-primary)' }}>
+              {activeStepMeta.title}
+            </h2>
+            <p className="mt-2 text-[13px] leading-6" style={{ color: 'var(--text-secondary)' }}>
+              {activeStepMeta.description}
+            </p>
+
+            {errorMessage && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 rounded-[14px] border px-4 py-3 text-[13px]"
+                style={{
+                  borderColor: 'rgba(239, 68, 68, 0.35)',
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  color: '#fca5a5',
+                }}
+              >
+                {errorMessage}
+              </motion.div>
+            )}
+          </div>
+
+          {/* Scrollable step content */}
+          <div className="min-h-0 flex-1 overflow-y-auto px-7 py-6 md:px-9">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -16 }}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <StepContent
+                  step={step}
+                  managerUsername={managerUsername}
+                  setManagerUsername={setManagerUsername}
+                  managerDisplayName={managerDisplayName}
+                  setManagerDisplayName={setManagerDisplayName}
+                  managerPassword={managerPassword}
+                  setManagerPassword={setManagerPassword}
+                  creatingManager={creatingManager}
+                  handleCreateManager={handleCreateManager}
+                  jiraBaseUrl={jiraBaseUrl}
+                  setJiraBaseUrl={setJiraBaseUrl}
+                  jiraProjectKey={jiraProjectKey}
+                  setJiraProjectKey={setJiraProjectKey}
+                  jiraEmail={jiraEmail}
+                  setJiraEmail={setJiraEmail}
+                  jiraApiToken={jiraApiToken}
+                  setJiraApiToken={setJiraApiToken}
+                  configQuery={configQuery}
+                  setConnectionValidated={setConnectionValidated}
+                  connectionValidated={connectionValidated}
+                  testingConnection={testingConnection}
+                  handleTestConnection={handleTestConnection}
+                  savingConnection={savingConnection}
+                  handleSaveConnection={handleSaveConnection}
+                  includeManagerJira={includeManagerJira}
+                  setIncludeManagerJira={setIncludeManagerJira}
+                  selectedManagerJiraAccountId={selectedManagerJiraAccountId}
+                  setSelectedManagerJiraAccountId={setSelectedManagerJiraAccountId}
+                  discoveredUsers={discoveredUsers}
+                  discoveringUsers={discoveringUsers}
+                  loadDiscoverableUsers={loadDiscoverableUsers}
+                  discoverQuery={discoverQuery}
+                  setDiscoverQuery={setDiscoverQuery}
+                  filteredDiscoveredUsers={filteredDiscoveredUsers}
+                  selectedDeveloperIds={selectedDeveloperIds}
+                  setSelectedDeveloperIds={setSelectedDeveloperIds}
+                  savingDevelopers={savingDevelopers}
+                  newAccountUsername={newAccountUsername}
+                  setNewAccountUsername={setNewAccountUsername}
+                  newAccountDisplayName={newAccountDisplayName}
+                  setNewAccountDisplayName={setNewAccountDisplayName}
+                  newAccountPassword={newAccountPassword}
+                  setNewAccountPassword={setNewAccountPassword}
+                  newAccountDeveloperId={newAccountDeveloperId}
+                  setNewAccountDeveloperId={setNewAccountDeveloperId}
+                  trackedDevelopers={trackedDevelopers}
+                  eligibleDeveloperAccounts={eligibleDeveloperAccounts}
+                  creatingDeveloperAccess={creatingDeveloperAccess}
+                  handleCreateDeveloperAccount={handleCreateDeveloperAccount}
+                  appUsers={appUsers}
+                  loadingUsers={loadingUsers}
+                />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Fixed footer with navigation — always visible */}
+          <StepFooter
+            step={step}
+            goToStep={goToStep}
+            creatingManager={creatingManager}
+            handleCreateManager={handleCreateManager}
+            managerUsername={managerUsername}
+            managerDisplayName={managerDisplayName}
+            managerPassword={managerPassword}
+            savingConnection={savingConnection}
+            handleSaveConnection={handleSaveConnection}
+            jiraBaseUrl={jiraBaseUrl}
+            jiraEmail={jiraEmail}
+            jiraProjectKey={jiraProjectKey}
+            jiraApiToken={jiraApiToken}
+            configQuery={configQuery}
+            handleSaveManagerMapping={handleSaveManagerMapping}
+            savingDevelopers={savingDevelopers}
+            handleSaveTrackedDevelopers={handleSaveTrackedDevelopers}
+            handleFinish={handleFinish}
+            triggerSyncPending={triggerSync.isPending}
+          />
+        </motion.section>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   Sub-components
+   ══════════════════════════════════════════════════════ */
+
+function OrbDecoration() {
+  return (
+    <>
+      <motion.div
+        className="pointer-events-none absolute rounded-full blur-3xl"
+        style={{
+          width: 500,
+          height: 500,
+          top: '-10%',
+          left: '-8%',
+          background: 'radial-gradient(circle, rgba(245, 158, 11, 0.06), transparent 70%)',
+        }}
+        animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
+        transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="pointer-events-none absolute rounded-full blur-3xl"
+        style={{
+          width: 400,
+          height: 400,
+          bottom: '-10%',
+          right: '-5%',
+          background: 'radial-gradient(circle, rgba(6, 182, 212, 0.06), transparent 70%)',
+        }}
+        animate={{ x: [0, -30, 0], y: [0, -40, 0] }}
+        transition={{ duration: 25, repeat: Infinity, ease: 'easeInOut' }}
+      />
+    </>
+  );
+}
+
+/* ── Step content (form body only — no footer buttons) ── */
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function StepContent(props: any) {
+  const { step } = props;
+
+  switch (step) {
+    case 'manager-account':
+      return (
+        <div className="space-y-5">
+          <Field label="Username">
+            <input
+              value={props.managerUsername}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => props.setManagerUsername(e.target.value)}
+              placeholder="manager"
+              autoFocus
+              className={fieldClassName}
+              style={fieldStyle}
+            />
+          </Field>
+          <Field label="Display name">
+            <input
+              value={props.managerDisplayName}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => props.setManagerDisplayName(e.target.value)}
+              placeholder="Taylor Morgan"
+              className={fieldClassName}
+              style={fieldStyle}
+            />
+          </Field>
+          <Field label="Password">
+            <PasswordInput
+              value={props.managerPassword}
+              onChange={props.setManagerPassword}
+              placeholder="At least 6 characters"
+            />
+          </Field>
+        </div>
+      );
+
+    case 'jira-connection':
+      return (
+        <div className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Jira base URL">
               <input
-                value={discoverQuery}
-                onChange={(event) => setDiscoverQuery(event.target.value)}
-                placeholder="Search Jira users"
-                className={`${fieldClassName} pl-10`}
+                value={props.jiraBaseUrl}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  props.setJiraBaseUrl(e.target.value);
+                  props.setConnectionValidated(false);
+                }}
+                placeholder="https://tenant.atlassian.net"
+                className={fieldClassName}
                 style={fieldStyle}
               />
-            </div>
-            <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
-              {filteredDiscoveredUsers.map((candidate) => {
-                const selected = selectedDeveloperIds.has(candidate.accountId);
+            </Field>
+            <Field label="Project key">
+              <input
+                value={props.jiraProjectKey}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  props.setJiraProjectKey(e.target.value.toUpperCase());
+                  props.setConnectionValidated(false);
+                }}
+                placeholder="AM"
+                className={fieldClassName}
+                style={fieldStyle}
+              />
+            </Field>
+          </div>
+          <Field label="Jira email">
+            <input
+              type="email"
+              value={props.jiraEmail}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                props.setJiraEmail(e.target.value);
+                props.setConnectionValidated(false);
+              }}
+              placeholder="jira-sync@example.com"
+              className={fieldClassName}
+              style={fieldStyle}
+            />
+          </Field>
+          <Field label="API token">
+            <PasswordInput
+              value={props.jiraApiToken}
+              onChange={(v: string) => {
+                props.setJiraApiToken(v);
+                props.setConnectionValidated(false);
+              }}
+              placeholder={props.configQuery.data?.jiraApiToken ? 'Leave blank to keep saved token' : 'Paste API token'}
+            />
+          </Field>
+          <button
+            type="button"
+            onClick={props.handleTestConnection}
+            disabled={!props.jiraBaseUrl || !props.jiraEmail || !props.jiraProjectKey || (!props.jiraApiToken && !props.configQuery.data?.jiraApiToken) || props.testingConnection}
+            className={secondaryBtnClassName}
+            style={secondaryBtnStyle}
+          >
+            {props.testingConnection ? <Loader2 size={14} className="animate-spin" /> : <PlugZap size={14} />}
+            {props.connectionValidated ? 'Connection confirmed' : 'Test connection'}
+            {props.connectionValidated && <Check size={14} style={{ color: '#4ade80' }} />}
+          </button>
+        </div>
+      );
+
+    case 'manager-mapping':
+      return (
+        <div className="space-y-5">
+          <label
+            className="flex cursor-pointer items-start gap-3 rounded-[16px] border p-4 transition-colors"
+            style={{
+              borderColor: props.includeManagerJira ? 'rgba(251, 191, 36, 0.4)' : 'var(--border)',
+              background: props.includeManagerJira ? 'rgba(251, 191, 36, 0.06)' : 'var(--bg-tertiary)',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={props.includeManagerJira}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                props.setIncludeManagerJira(e.target.checked);
+                if (!e.target.checked) props.setSelectedManagerJiraAccountId('');
+              }}
+              className="mt-0.5 accent-amber-400"
+            />
+            <span>
+              <span className="block text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Include manager&apos;s Jira assignments
+              </span>
+              <span className="mt-1 block text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+                Leave off if using a service account or if the manager stays outside tracked scope.
+              </span>
+            </span>
+          </label>
+
+          {props.includeManagerJira && (
+            <>
+              <button
+                type="button"
+                onClick={() => void props.loadDiscoverableUsers()}
+                disabled={props.discoveringUsers}
+                className={secondaryBtnClassName}
+                style={secondaryBtnStyle}
+              >
+                {props.discoveringUsers ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                Refresh Jira users
+              </button>
+              <div className="max-h-[240px] space-y-2 overflow-y-auto rounded-[14px] pr-1">
+                {props.discoveredUsers.map((candidate: DiscoveredUser) => {
+                  const selected = props.selectedManagerJiraAccountId === candidate.accountId;
+                  return (
+                    <UserRow
+                      key={candidate.accountId}
+                      user={candidate}
+                      selected={selected}
+                      accent="amber"
+                      onClick={() => props.setSelectedManagerJiraAccountId(candidate.accountId)}
+                    />
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      );
+
+    case 'team-members':
+      return (
+        <div className="flex flex-col gap-4">
+          {/* Search */}
+          <div className="relative">
+            <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+            <input
+              value={props.discoverQuery}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => props.setDiscoverQuery(e.target.value)}
+              placeholder="Search Jira users…"
+              className={`${fieldClassName} pl-10`}
+              style={fieldStyle}
+            />
+          </div>
+
+          {/* Selection counter badge */}
+          <div
+            className="flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-semibold"
+            style={{
+              background: props.selectedDeveloperIds.size > 0 ? 'rgba(6, 182, 212, 0.1)' : 'var(--bg-tertiary)',
+              color: props.selectedDeveloperIds.size > 0 ? 'var(--accent)' : 'var(--text-muted)',
+              border: `1px solid ${props.selectedDeveloperIds.size > 0 ? 'rgba(6, 182, 212, 0.3)' : 'var(--border)'}`,
+              alignSelf: 'flex-start',
+            }}
+          >
+            <Users size={12} />
+            {props.selectedDeveloperIds.size} selected
+          </div>
+
+          {/* Scrollable user list — key fix: constrained height with proper overflow */}
+          <div
+            className="space-y-2 overflow-y-auto pr-1"
+            style={{ maxHeight: 'calc(100vh - 540px)', minHeight: 160 }}
+          >
+            {props.filteredDiscoveredUsers.length === 0 ? (
+              <div className="py-8 text-center text-[13px]" style={{ color: 'var(--text-muted)' }}>
+                {props.discoverQuery ? 'No matching users found.' : 'No Jira users discovered yet.'}
+              </div>
+            ) : (
+              props.filteredDiscoveredUsers.map((candidate: DiscoveredUser) => {
+                const selected = props.selectedDeveloperIds.has(candidate.accountId);
                 return (
-                  <button
+                  <UserRow
                     key={candidate.accountId}
+                    user={candidate}
+                    selected={selected}
+                    accent="cyan"
                     onClick={() => {
-                      setSelectedDeveloperIds((current) => {
+                      props.setSelectedDeveloperIds((current: Set<string>) => {
                         const next = new Set(current);
                         if (next.has(candidate.accountId)) {
                           next.delete(candidate.accountId);
@@ -657,347 +974,283 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                         return next;
                       });
                     }}
-                    className="flex w-full items-center justify-between rounded-[18px] border px-4 py-3 text-left transition-colors"
-                    style={{
-                      borderColor: selected ? 'var(--accent)' : 'var(--border)',
-                      background: selected ? 'rgba(6, 182, 212, 0.12)' : 'var(--bg-tertiary)',
-                    }}
-                  >
-                    <div>
-                      <div className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        {candidate.displayName}
-                      </div>
-                      <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
-                        {candidate.email || candidate.accountId}
-                      </div>
-                    </div>
-                    {selected && <CheckCircle2 size={16} style={{ color: 'var(--accent)' }} />}
-                  </button>
+                  />
                 );
-              })}
-            </div>
-            <div className="rounded-[18px] border px-4 py-3 text-[13px]" style={{ borderColor: 'var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
-              {selectedDeveloperIds.size} tracked developer{selectedDeveloperIds.size === 1 ? '' : 's'} selected.
-            </div>
-            <FooterActions
-              secondaryLabel="Back"
-              secondaryIcon={ArrowLeft}
-              onSecondary={() => goToStep('manager-mapping')}
-              primaryLabel={savingDevelopers ? 'Saving team…' : 'Save tracked developers'}
-              primaryIcon={savingDevelopers ? Loader2 : ArrowRight}
-              primaryDisabled={savingDevelopers}
-              onPrimary={handleSaveTrackedDevelopers}
-            />
+              })
+            )}
           </div>
-        );
-      case 'developer-access':
-        return (
-          <div className="space-y-5">
-            <div
-              className="rounded-[22px] border p-4"
-              style={{
-                borderColor: 'var(--border)',
-                background: 'color-mix(in srgb, var(--bg-tertiary) 72%, transparent)',
-              }}
-            >
-              <div className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                Developer login link
-              </div>
-              <div className="mt-1 text-[13px] leading-6" style={{ color: 'var(--text-secondary)' }}>
-                Share <span className="font-mono">{`${window.location.origin}/my-day`}</span> with developers after their
-                accounts are created.
-              </div>
-            </div>
+        </div>
+      );
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Username">
-                <input
-                  value={newAccountUsername}
-                  onChange={(event) => setNewAccountUsername(event.target.value)}
-                  placeholder="jamie"
-                  className={fieldClassName}
-                  style={fieldStyle}
-                />
-              </Field>
-              <Field label="Display name">
-                <input
-                  value={newAccountDisplayName}
-                  onChange={(event) => setNewAccountDisplayName(event.target.value)}
-                  placeholder="Jamie Chen"
-                  className={fieldClassName}
-                  style={fieldStyle}
-                />
-              </Field>
+    case 'developer-access':
+      return (
+        <div className="space-y-5">
+          <div
+            className="rounded-[14px] border p-4"
+            style={{
+              borderColor: 'rgba(6, 182, 212, 0.25)',
+              background: 'rgba(6, 182, 212, 0.05)',
+            }}
+          >
+            <div className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Developer login link
             </div>
-            <div className="grid gap-4 md:grid-cols-[1fr_1.1fr]">
-              <Field label="Password">
-                <input
-                  type="password"
-                  value={newAccountPassword}
-                  onChange={(event) => setNewAccountPassword(event.target.value)}
-                  placeholder="Temporary password"
-                  className={fieldClassName}
-                  style={fieldStyle}
-                />
-              </Field>
-              <Field label="Tracked developer">
-                <select
-                  value={newAccountDeveloperId}
-                  onChange={(event) => {
-                    const nextDeveloperId = event.target.value;
-                    setNewAccountDeveloperId(nextDeveloperId);
-                    const matchedDeveloper = trackedDevelopers.find((candidate) => candidate.accountId === nextDeveloperId);
-                    if (matchedDeveloper && !newAccountDisplayName) {
-                      setNewAccountDisplayName(matchedDeveloper.displayName);
-                    }
-                  }}
-                  className={fieldClassName}
-                  style={fieldStyle}
-                >
-                  <option value="">Select tracked developer</option>
-                  {eligibleDeveloperAccounts.map((candidate) => (
-                    <option key={candidate.accountId} value={candidate.accountId}>
-                      {candidate.displayName}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+            <div className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+              Share <span className="rounded-md px-1.5 py-0.5 font-mono text-[11px]" style={{ background: 'var(--bg-tertiary)' }}>{`${window.location.origin}/my-day`}</span> with developers after accounts are created.
             </div>
-            <button
-              onClick={handleCreateDeveloperAccount}
-              disabled={!newAccountUsername.trim() || !newAccountDisplayName.trim() || !newAccountPassword.trim() || !newAccountDeveloperId || creatingDeveloperAccess}
-              className={primaryButtonClassName}
-              style={primaryButtonStyle}
-            >
-              {creatingDeveloperAccess ? <Loader2 size={15} className="animate-spin" /> : <ShieldPlus size={15} />}
-              Create developer access
-            </button>
+          </div>
 
-            <div className="rounded-[22px] border" style={{ borderColor: 'var(--border)' }}>
-              <div className="border-b px-4 py-3 text-[13px] font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                Existing app accounts
-              </div>
-              <div className="px-4 py-3">
-                {loadingUsers ? (
-                  <div className="flex items-center gap-2 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-                    <Loader2 size={14} className="animate-spin" />
-                    Loading accounts…
-                  </div>
-                ) : appUsers.length === 0 ? (
-                  <div className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-                    No app users found yet.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {appUsers.map((account) => (
-                      <div
-                        key={account.username}
-                        className="flex items-center justify-between rounded-[16px] px-3 py-2"
-                        style={{ background: 'var(--bg-tertiary)' }}
-                      >
-                        <div>
-                          <div className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                            {account.displayName}
-                          </div>
-                          <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
-                            @{account.username} {account.developerAccountId ? `• ${account.developerAccountId}` : '• manager'}
-                          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Username">
+              <input
+                value={props.newAccountUsername}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => props.setNewAccountUsername(e.target.value)}
+                placeholder="jamie"
+                className={fieldClassName}
+                style={fieldStyle}
+              />
+            </Field>
+            <Field label="Display name">
+              <input
+                value={props.newAccountDisplayName}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => props.setNewAccountDisplayName(e.target.value)}
+                placeholder="Jamie Chen"
+                className={fieldClassName}
+                style={fieldStyle}
+              />
+            </Field>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Password">
+              <PasswordInput
+                value={props.newAccountPassword}
+                onChange={props.setNewAccountPassword}
+                placeholder="Temporary password"
+              />
+            </Field>
+            <Field label="Tracked developer">
+              <select
+                value={props.newAccountDeveloperId}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                  const id = e.target.value;
+                  props.setNewAccountDeveloperId(id);
+                  const matched = props.trackedDevelopers.find((c: DiscoveredUser) => c.accountId === id);
+                  if (matched && !props.newAccountDisplayName) {
+                    props.setNewAccountDisplayName(matched.displayName);
+                  }
+                }}
+                className={fieldClassName}
+                style={fieldStyle}
+              >
+                <option value="">Select developer</option>
+                {props.eligibleDeveloperAccounts.map((c: DiscoveredUser) => (
+                  <option key={c.accountId} value={c.accountId}>{c.displayName}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <button
+            type="button"
+            onClick={props.handleCreateDeveloperAccount}
+            disabled={!props.newAccountUsername.trim() || !props.newAccountDisplayName.trim() || !props.newAccountPassword.trim() || !props.newAccountDeveloperId || props.creatingDeveloperAccess}
+            className={primaryBtnClassName}
+            style={primaryBtnStyle}
+          >
+            {props.creatingDeveloperAccess ? <Loader2 size={14} className="animate-spin" /> : <ShieldPlus size={14} />}
+            Create developer access
+          </button>
+
+          {/* Existing accounts list */}
+          <div className="rounded-[16px] border" style={{ borderColor: 'var(--border)' }}>
+            <div className="border-b px-4 py-2.5 text-[12px] font-semibold uppercase tracking-wider" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+              Existing accounts
+            </div>
+            <div className="max-h-[180px] overflow-y-auto p-3">
+              {props.loadingUsers ? (
+                <div className="flex items-center gap-2 py-3 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
+                  <Loader2 size={14} className="animate-spin" /> Loading…
+                </div>
+              ) : props.appUsers.length === 0 ? (
+                <div className="py-3 text-center text-[13px]" style={{ color: 'var(--text-muted)' }}>No accounts yet.</div>
+              ) : (
+                <div className="space-y-1.5">
+                  {props.appUsers.map((account: import('@/types').AuthUser) => (
+                    <div
+                      key={account.username}
+                      className="flex items-center justify-between rounded-[12px] px-3 py-2"
+                      style={{ background: 'var(--bg-tertiary)' }}
+                    >
+                      <div>
+                        <div className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                          {account.displayName}
                         </div>
-                        <span
-                          className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase"
-                          style={{
-                            background: account.role === 'manager' ? 'rgba(245, 158, 11, 0.14)' : 'rgba(6, 182, 212, 0.14)',
-                            color: account.role === 'manager' ? 'var(--warning)' : 'var(--accent)',
-                          }}
-                        >
-                          {account.role}
-                        </span>
+                        <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                          @{account.username} {account.developerAccountId ? `· ${account.developerAccountId}` : '· manager'}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <FooterActions
-              secondaryLabel="Back"
-              secondaryIcon={ArrowLeft}
-              onSecondary={() => goToStep('team-members')}
-              tertiaryLabel="Skip for now"
-              onTertiary={handleFinish}
-              primaryLabel="Finish and sync"
-              primaryIcon={ArrowRight}
-              primaryDisabled={triggerSync.isPending}
-              onPrimary={handleFinish}
-            />
-          </div>
-        );
-      case 'syncing':
-        return (
-          <div className="flex min-h-[320px] items-center justify-center">
-            <div className="text-center">
-              <Loader2 size={32} className="mx-auto animate-spin" style={{ color: 'var(--accent)' }} />
-              <h2 className="mt-6 text-[22px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                Syncing the initial workspace
-              </h2>
-              <p className="mt-3 text-[14px] leading-7" style={{ color: 'var(--text-secondary)' }}>
-                Jira data is being pulled into the manager surface. This usually takes a moment.
-              </p>
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
+                        style={{
+                          background: account.role === 'manager' ? 'rgba(245, 158, 11, 0.14)' : 'rgba(6, 182, 212, 0.14)',
+                          color: account.role === 'manager' ? 'var(--warning)' : 'var(--accent)',
+                        }}
+                      >
+                        {account.role}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        );
-    }
-  })();
+        </div>
+      );
 
-  const activeStepKey: Exclude<WizardStep, 'syncing'> = step === 'syncing' ? 'developer-access' : step;
-  const activeStepMeta = STEP_COPY[activeStepKey];
+    default:
+      return null;
+  }
+}
+
+/* ── Persistent footer with nav buttons ──────────── */
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function StepFooter(props: any) {
+  const { step } = props;
+
+  let backAction: (() => void) | undefined;
+  let backLabel: string | undefined;
+  let primaryAction: () => void;
+  let primaryLabel: string;
+  let primaryDisabled = false;
+  let primaryLoading = false;
+  let tertiaryAction: (() => void) | undefined;
+  let tertiaryLabel: string | undefined;
+
+  switch (step) {
+    case 'manager-account':
+      primaryLabel = props.creatingManager ? 'Creating…' : 'Create Account';
+      primaryLoading = props.creatingManager;
+      primaryDisabled = !props.managerUsername.trim() || !props.managerDisplayName.trim() || props.managerPassword.length < 6 || props.creatingManager;
+      primaryAction = props.handleCreateManager;
+      break;
+    case 'jira-connection':
+      primaryLabel = props.savingConnection ? 'Saving…' : 'Save & Continue';
+      primaryLoading = props.savingConnection;
+      primaryDisabled = !props.jiraBaseUrl || !props.jiraEmail || !props.jiraProjectKey || (!props.jiraApiToken && !props.configQuery.data?.jiraApiToken) || props.savingConnection;
+      primaryAction = props.handleSaveConnection;
+      break;
+    case 'manager-mapping':
+      backLabel = 'Back';
+      backAction = () => props.goToStep('jira-connection');
+      primaryLabel = 'Continue';
+      primaryAction = props.handleSaveManagerMapping;
+      break;
+    case 'team-members':
+      backLabel = 'Back';
+      backAction = () => props.goToStep('manager-mapping');
+      primaryLabel = props.savingDevelopers ? 'Saving…' : 'Save Team';
+      primaryLoading = props.savingDevelopers;
+      primaryDisabled = props.savingDevelopers;
+      primaryAction = props.handleSaveTrackedDevelopers;
+      break;
+    case 'developer-access':
+      backLabel = 'Back';
+      backAction = () => props.goToStep('team-members');
+      tertiaryLabel = 'Skip for now';
+      tertiaryAction = props.handleFinish;
+      primaryLabel = 'Finish & Sync';
+      primaryDisabled = props.triggerSyncPending;
+      primaryAction = props.handleFinish;
+      break;
+    default:
+      primaryLabel = 'Continue';
+      primaryAction = () => {};
+  }
 
   return (
     <div
-      className="min-h-full overflow-y-auto px-4 py-6 md:px-8 md:py-8"
+      className="shrink-0 border-t px-7 py-4 md:px-9"
       style={{
-        background:
-          'radial-gradient(circle at top left, rgba(245, 158, 11, 0.12), transparent 28%), radial-gradient(circle at bottom right, rgba(6, 182, 212, 0.12), transparent 30%), var(--bg-canvas)',
+        borderColor: 'var(--border)',
+        background: 'color-mix(in srgb, var(--bg-primary) 96%, transparent)',
       }}
     >
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-4 flex justify-end">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-semibold transition-colors"
-            style={{
-              background: 'color-mix(in srgb, var(--bg-primary) 88%, transparent)',
-              color: 'var(--text-primary)',
-              borderColor: 'var(--border-strong)',
-            }}
-            aria-label="Toggle theme"
-            title="Toggle theme"
-          >
-            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-          </button>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          {backLabel && backAction && (
+            <button type="button" onClick={backAction} className={secondaryBtnClassName} style={secondaryBtnStyle}>
+              <ArrowLeft size={14} />
+              {backLabel}
+            </button>
+          )}
+          {tertiaryLabel && tertiaryAction && (
+            <button
+              type="button"
+              onClick={tertiaryAction}
+              className="rounded-[14px] px-3.5 py-2.5 text-[13px] font-medium transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              {tertiaryLabel}
+            </button>
+          )}
         </div>
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          className="grid gap-6 lg:grid-cols-[0.88fr_1.12fr]"
+        <button
+          type="button"
+          onClick={primaryAction}
+          disabled={primaryDisabled}
+          className={primaryBtnClassName}
+          style={primaryBtnStyle}
         >
-          <aside
-            className="rounded-[32px] border px-6 py-7 md:px-8 md:py-9"
-            style={{
-              borderColor: 'var(--border-strong)',
-              background: 'linear-gradient(160deg, color-mix(in srgb, var(--bg-secondary) 92%, var(--warning) 8%), color-mix(in srgb, var(--bg-primary) 86%, var(--bg-secondary) 14%))',
-              color: 'var(--text-primary)',
-              boxShadow: 'var(--panel-shadow)',
-            }}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className="flex h-14 w-14 items-center justify-center rounded-[20px]"
-                style={{ background: 'rgba(245, 158, 11, 0.14)', color: '#fbbf24' }}
-              >
-                <BriefcaseBusiness size={24} />
-              </div>
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: '#fbbf24' }}>
-                  First-Run Bootstrap
-                </div>
-                <div className="mt-1 text-[14px]" style={{ color: 'var(--text-secondary)' }}>Manager-first onboarding</div>
-              </div>
-            </div>
-
-            <h1 className="mt-10 text-[34px] font-semibold leading-[1.02] md:text-[42px]">
-              Build the manager surface in the right order.
-            </h1>
-            <p className="mt-4 text-[14px] leading-7" style={{ color: 'var(--text-secondary)' }}>
-              App identity comes first. Jira connection comes second. Team scope and developer access only happen after
-              those two foundations are in place.
-            </p>
-
-            <div className="mt-10 space-y-3">
-              {STEP_ORDER.map((stepKey, index) => {
-                const meta = STEP_COPY[stepKey];
-                const Icon = meta.icon;
-                const isActive = stepKey === activeStepKey;
-                const isComplete = index < currentStepIndex;
-
-                return (
-                  <div
-                    key={stepKey}
-                    className="rounded-[22px] border px-4 py-4"
-                    style={{
-                      borderColor: isActive ? 'rgba(251, 191, 36, 0.36)' : 'rgba(148, 163, 184, 0.22)',
-                      background: isActive ? 'rgba(251, 191, 36, 0.08)' : 'rgba(15, 23, 42, 0.28)',
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-semibold"
-                        style={{
-                          background: isComplete ? 'rgba(34, 197, 94, 0.18)' : isActive ? 'rgba(251, 191, 36, 0.18)' : 'rgba(148, 163, 184, 0.14)',
-                          color: isComplete ? '#4ade80' : isActive ? '#fbbf24' : '#cbd5e1',
-                        }}
-                      >
-                        {isComplete ? <CheckCircle2 size={16} /> : meta.label}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 text-[13px] font-semibold">
-                          <Icon size={14} />
-                          {meta.title}
-                        </div>
-                        <p className="mt-1 text-[12px] leading-6" style={{ color: 'var(--text-secondary)' }}>{meta.description}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </aside>
-
-          <section
-            className="rounded-[32px] border px-6 py-7 md:px-8 md:py-9"
-            style={{
-              borderColor: 'var(--border-strong)',
-              background: 'color-mix(in srgb, var(--bg-primary) 95%, transparent)',
-              boxShadow: 'var(--panel-shadow)',
-            }}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-[12px] font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--warning)' }}>
-                  Step {STEP_COPY[activeStepKey].label}
-                </div>
-                <h2 className="mt-3 text-[28px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  {activeStepMeta.title}
-                </h2>
-                <p className="mt-3 max-w-2xl text-[14px] leading-7" style={{ color: 'var(--text-secondary)' }}>
-                  {activeStepMeta.description}
-                </p>
-              </div>
-            </div>
-
-            {errorMessage && (
-              <div
-                className="mt-6 rounded-[20px] border px-4 py-3 text-[13px]"
-                style={{
-                  borderColor: 'rgba(239, 68, 68, 0.35)',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  color: '#fca5a5',
-                }}
-              >
-                {errorMessage}
-              </div>
-            )}
-
-            <div className="mt-8">{stepContent}</div>
-          </section>
-        </motion.div>
+          {primaryLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+          {primaryLabel}
+          {!primaryLoading && <ArrowRight size={14} />}
+        </button>
       </div>
     </div>
   );
 }
+
+/* ── Reusable user row ────────────────────────────── */
+
+function UserRow({
+  user,
+  selected,
+  accent,
+  onClick,
+}: {
+  user: DiscoveredUser;
+  selected: boolean;
+  accent: 'amber' | 'cyan';
+  onClick: () => void;
+}) {
+  const colors = accent === 'amber'
+    ? { border: 'rgba(251, 191, 36, 0.45)', bg: 'rgba(251, 191, 36, 0.1)', check: '#fbbf24' }
+    : { border: 'rgba(6, 182, 212, 0.45)', bg: 'rgba(6, 182, 212, 0.1)', check: 'var(--accent)' };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center justify-between rounded-[14px] border px-4 py-3 text-left transition-all duration-200"
+      style={{
+        borderColor: selected ? colors.border : 'var(--border)',
+        background: selected ? colors.bg : 'var(--bg-tertiary)',
+      }}
+    >
+      <div className="min-w-0">
+        <div className="truncate text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+          {user.displayName}
+        </div>
+        <div className="truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+          {user.email || user.accountId}
+        </div>
+      </div>
+      {selected && <CheckCircle2 size={16} className="ml-2 shrink-0" style={{ color: colors.check }} />}
+    </button>
+  );
+}
+
+/* ── Shared small components ─────────────────────── */
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -1010,69 +1263,57 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function FooterActions({
-  secondaryLabel,
-  secondaryIcon: SecondaryIcon,
-  onSecondary,
-  tertiaryLabel,
-  onTertiary,
-  primaryLabel,
-  primaryIcon: PrimaryIcon,
-  primaryDisabled,
-  onPrimary,
+function PasswordInput({
+  value,
+  onChange,
+  placeholder,
 }: {
-  secondaryLabel?: string;
-  secondaryIcon?: typeof ArrowLeft;
-  onSecondary?: () => void;
-  tertiaryLabel?: string;
-  onTertiary?: () => void;
-  primaryLabel: string;
-  primaryIcon: typeof ArrowRight | typeof Loader2;
-  primaryDisabled?: boolean;
-  onPrimary: () => void;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
 }) {
+  const [show, setShow] = useState(false);
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-      <div className="flex flex-wrap items-center gap-3">
-        {secondaryLabel && onSecondary && SecondaryIcon && (
-          <button onClick={onSecondary} className={secondaryButtonClassName} style={secondaryButtonStyle}>
-            <SecondaryIcon size={15} />
-            {secondaryLabel}
-          </button>
-        )}
-        {tertiaryLabel && onTertiary && (
-          <button
-            onClick={onTertiary}
-            className="rounded-[18px] px-4 py-3 text-[13px] font-semibold transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            {tertiaryLabel}
-          </button>
-        )}
-      </div>
-      <button onClick={onPrimary} disabled={primaryDisabled} className={primaryButtonClassName} style={primaryButtonStyle}>
-        <PrimaryIcon size={15} className={PrimaryIcon === Loader2 ? 'animate-spin' : undefined} />
-        {primaryLabel}
+    <div className="relative">
+      <input
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={`${fieldClassName} pr-12`}
+        style={fieldStyle}
+      />
+      <button
+        type="button"
+        onClick={() => setShow((v) => !v)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5"
+        style={{ color: 'var(--text-muted)' }}
+        aria-label={show ? 'Hide' : 'Show'}
+      >
+        {show ? <EyeOff size={15} /> : <Eye size={15} />}
       </button>
     </div>
   );
 }
 
-const fieldClassName = 'w-full rounded-[18px] border px-4 py-3 text-[14px] outline-none transition-colors';
+/* ── Style constants ─────────────────────────────── */
+
+const fieldClassName = 'w-full rounded-[16px] border px-4 py-3 text-[14px] outline-none transition-colors';
 const fieldStyle = {
   background: 'var(--bg-tertiary)',
   color: 'var(--text-primary)',
   borderColor: 'var(--border)',
 };
 
-const primaryButtonClassName = 'inline-flex items-center justify-center gap-2 rounded-[18px] px-4 py-3 text-[13px] font-semibold transition-all disabled:opacity-50';
-const primaryButtonStyle = {
-  background: 'linear-gradient(135deg, var(--warning), #facc15)',
+const primaryBtnClassName = 'inline-flex items-center justify-center gap-2 rounded-[16px] px-5 py-3 text-[13px] font-semibold transition-all disabled:opacity-40';
+const primaryBtnStyle = {
+  background: 'linear-gradient(135deg, var(--warning), color-mix(in srgb, var(--warning) 60%, white))',
   color: '#111827',
+  boxShadow: '0 4px 20px rgba(245, 158, 11, 0.18)',
 };
 
-const secondaryButtonClassName = 'inline-flex items-center justify-center gap-2 rounded-[18px] px-4 py-3 text-[13px] font-semibold transition-colors disabled:opacity-50';
-const secondaryButtonStyle = {
+const secondaryBtnClassName = 'inline-flex items-center justify-center gap-2 rounded-[16px] px-4 py-3 text-[13px] font-semibold transition-colors disabled:opacity-40';
+const secondaryBtnStyle = {
   background: 'var(--bg-tertiary)',
   color: 'var(--text-primary)',
   border: '1px solid var(--border)',

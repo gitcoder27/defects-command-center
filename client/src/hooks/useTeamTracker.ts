@@ -7,7 +7,7 @@ interface CarryForwardPreviewResponse {
 }
 
 interface TrackerIssueAssignmentResponse {
-  assignment?: TrackerIssueAssignment;
+  assignment: TrackerIssueAssignment | null;
 }
 
 export function useTeamTracker(date: string) {
@@ -34,14 +34,14 @@ export function useCarryForwardPreview(fromDate: string, toDate: string, enabled
 }
 
 export function useTrackerIssueAssignment(jiraKey?: string, date?: string) {
-  return useQuery<TrackerIssueAssignment | undefined>({
+  return useQuery<TrackerIssueAssignment | null>({
     queryKey: ['team-tracker', 'issue-assignment', date, jiraKey],
     queryFn: async () => {
       const params = new URLSearchParams({ date: date! });
       const res = await api.get<TrackerIssueAssignmentResponse>(
         `/team-tracker/issues/${encodeURIComponent(jiraKey!)}/assignment?${params.toString()}`
       );
-      return res.assignment;
+      return res.assignment ?? null;
     },
     enabled: Boolean(jiraKey && date),
     staleTime: 0,

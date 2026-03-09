@@ -7,6 +7,9 @@ export function useIssueDetail(key?: string) {
     queryKey: ['issue', key],
     queryFn: () => api.get(`/issues/${key}`),
     enabled: !!key,
-    refetchOnWindowFocus: true,
+    // The dashboard already refreshes issue lists on an interval; avoid an extra
+    // focus refetch when the user returns from Jira, which can make the panel feel janky.
+    refetchOnWindowFocus: false,
+    staleTime: 30_000,
   });
 }

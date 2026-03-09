@@ -154,7 +154,7 @@ export function createTeamTrackerRouter(
         const jiraKey = req.params.jiraKey as string;
         const date = req.query.date as string;
         const assignment = await trackerService.getIssueAssignment(jiraKey, date);
-        res.json({ assignment });
+        res.json({ assignment: assignment ?? null });
       } catch (error) {
         next(error);
       }
