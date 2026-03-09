@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import type { FilterType, Issue as SharedIssue, IssueUpdate, LocalTag, OverviewCounts } from "shared/types";
 import { db } from "../db/connection";
-import { configTable, developers, issues, issueTags, localTags, syncLog } from "../db/schema";
+import { configTable, developers, issueScopeHistory, issues, issueTags, localTags, syncLog } from "../db/schema";
 import { JiraClient } from "../jira/client";
 import { endOfWeekIsoDate, todayIsoDate } from "../utils/date";
 import { getEffectiveDueDate, isActiveTeamIssue, isOutOfTeamIssue, isStaleIssue } from "./issue-rules";
@@ -36,6 +36,7 @@ export class IssueService {
     const today = todayIsoDate(now);
     const weekEnd = endOfWeekIsoDate(now);
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const recentlyAssignedIssueKeys = await this.getRecentlyAssignedIssueKeys(dayAgo);
 
     let result: SharedIssue[] = rows.map((row: typeof issues.$inferSelect) => this.toSharedIssue(row, tagMap.get(row.jiraKey) ?? []));
     result = this.applyIssueQuery(result, query, {
@@ -45,6 +46,7 @@ export class IssueService {
       today,
       weekEnd,
       dayAgo,
+      recentlyAssignedIssueKeys,
     });
 
 
@@ -61,6 +63,12 @@ export class IssueService {
   }
 
   async update(jiraKey: string, payload: IssueUpdate): Promise<SharedIssue> {
+    const existing = await db.select().from(issues).where(eq(issues.jiraKey, jiraKey)).limit(1);
+    const existingRow = existing[0];
+    if (!existingRow) {
+      throw new Error("Issue not found");
+    }
+
     const jiraFields: Record<string, unknown> = {};
     const devDueDateField = await this.settings.getJiraDevDueDateField();
     const updatedAt = new Date().toISOString();
@@ -118,6 +126,19 @@ export class IssueService {
       .set({ ...localUpdate, updatedAt })
       .where(eq(issues.jiraKey, jiraKey));
 
+    if (
+      payload.assigneeId !== undefined &&
+      (existingRow.assigneeId !== localUpdate.assigneeId ||
+        existingRow.teamScopeState !== localUpdate.teamScopeState ||
+        existingRow.syncScopeState !== localUpdate.syncScopeState)
+    ) {
+      await this.recordScopeHistory(existingRow, {
+        ...existingRow,
+        ...localUpdate,
+        updatedAt,
+      }, updatedAt);
+    }
+
     const updated = await this.getById(jiraKey);
     if (!updated) {
       throw new Error("Issue not found after update");
@@ -147,12 +168,14 @@ export class IssueService {
     const today = todayIsoDate(now);
     const weekEnd = endOfWeekIsoDate(now);
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const recentlyAssignedIssueKeys = await this.getRecentlyAssignedIssueKeys(dayAgo);
 
     const latest = await db.select().from(syncLog).orderBy(desc(syncLog.id)).limit(1);
-    const filterContext = { managerJiraAccountId, staleThresholdHours, now, today, weekEnd, dayAgo };
+    const filterContext = { managerJiraAccountId, staleThresholdHours, now, today, weekEnd, dayAgo, recentlyAssignedIssueKeys };
 
     return {
       new: this.applyIssueQuery(all, { filter: "new" }, filterContext).length,
+      recentlyAssigned: this.applyIssueQuery(all, { filter: "recentlyAssigned" }, filterContext).length,
       unassigned: this.applyIssueQuery(all, { filter: "unassigned" }, filterContext).length,
       dueToday: this.applyIssueQuery(all, { filter: "dueToday" }, filterContext).length,
       dueThisWeek: this.applyIssueQuery(all, { filter: "dueThisWeek" }, filterContext).length,
@@ -197,6 +220,7 @@ export class IssueService {
       today: string;
       weekEnd: string;
       dayAgo: Date;
+      recentlyAssignedIssueKeys: Set<string>;
     }
   ): SharedIssue[] {
     let result = [...issuesList];
@@ -229,6 +253,8 @@ export class IssueService {
     switch (query.filter) {
       case "new":
         return activeTeamIssues().filter((issue) => new Date(issue.createdAt).getTime() >= context.dayAgo.getTime());
+      case "recentlyAssigned":
+        return activeTeamIssues().filter((issue) => context.recentlyAssignedIssueKeys.has(issue.jiraKey));
       case "inProgress":
         return activeTeamIssues().filter((issue) => this.hasAnyStatusName(issue, ["In Progress", "Work in Progress"]));
       case "reopened":
@@ -273,6 +299,20 @@ export class IssueService {
     const rows = await db.select().from(developers).where(eq(developers.isActive, 1));
     const activeTeamIds = new Set(rows.map((row) => row.accountId));
     return activeTeamIds.has(assigneeId) ? "in_team" : "out_of_team";
+  }
+
+  private async getRecentlyAssignedIssueKeys(dayAgo: Date): Promise<Set<string>> {
+    const rows = await db.select().from(issueScopeHistory);
+    const cutoff = dayAgo.getTime();
+
+    return new Set(
+      rows
+        .filter((row) => {
+          const observedAt = new Date(row.observedAt).getTime();
+          return !Number.isNaN(observedAt) && observedAt >= cutoff && this.isRecentlyAssignedScopeEvent(row);
+        })
+        .map((row) => row.jiraKey)
+    );
   }
 
   private sortIssues(issuesList: SharedIssue[], sort: NonNullable<IssueQuery["sort"]>, order: NonNullable<IssueQuery["order"]>): SharedIssue[] {
@@ -335,6 +375,59 @@ export class IssueService {
   private hasAnyStatusName(issue: SharedIssue, statusNames: string[]): boolean {
     const normalizedStatus = issue.statusName.trim().toLowerCase();
     return statusNames.some((statusName) => normalizedStatus === statusName.trim().toLowerCase());
+  }
+
+  private isRecentlyAssignedScopeEvent(row: typeof issueScopeHistory.$inferSelect): boolean {
+    if (row.changeType === "entered_team_scope" || row.changeType === "returned_to_team_scope" || row.changeType === "reassigned") {
+      return true;
+    }
+
+    return row.changeType === "team_scope_changed" && row.toTeamScopeState === "unassigned";
+  }
+
+  private async recordScopeHistory(
+    previous: typeof issues.$inferSelect,
+    next: Partial<typeof issues.$inferInsert> & typeof issues.$inferSelect,
+    observedAt: string
+  ): Promise<void> {
+    await db.insert(issueScopeHistory).values({
+      jiraKey: previous.jiraKey,
+      observedAt,
+      changeType: this.getScopeChangeType(previous, next),
+      fromAssigneeId: previous.assigneeId,
+      toAssigneeId: next.assigneeId ?? null,
+      fromTeamScopeState: previous.teamScopeState,
+      toTeamScopeState: next.teamScopeState ?? previous.teamScopeState,
+      fromSyncScopeState: previous.syncScopeState,
+      toSyncScopeState: next.syncScopeState ?? previous.syncScopeState,
+      fromStatusCategory: previous.statusCategory,
+      toStatusCategory: next.statusCategory ?? previous.statusCategory,
+    });
+  }
+
+  private getScopeChangeType(
+    previous: typeof issues.$inferSelect,
+    next: Partial<typeof issues.$inferInsert> & typeof issues.$inferSelect
+  ): string {
+    if (previous.statusCategory !== next.statusCategory && next.statusCategory === "done") {
+      return "resolved";
+    }
+    if (previous.teamScopeState !== next.teamScopeState) {
+      if (next.teamScopeState === "out_of_team") {
+        return "left_team_scope";
+      }
+      if (next.teamScopeState === "in_team") {
+        return "returned_to_team_scope";
+      }
+      return "team_scope_changed";
+    }
+    if (previous.syncScopeState !== next.syncScopeState) {
+      return next.syncScopeState === "inaccessible" ? "issue_unreachable" : "sync_scope_restored";
+    }
+    if (previous.assigneeId !== next.assigneeId) {
+      return "reassigned";
+    }
+    return "issue_updated";
   }
 
   private async getTagsForIssue(jiraKey: string): Promise<LocalTag[]> {

@@ -13,6 +13,7 @@ export const PRIORITY_OPTIONS = ['Highest', 'High', 'Medium', 'Low', 'Lowest'];
 export const FILTER_LABELS: Record<FilterType, string> = {
   all: 'All',
   new: 'New (24h)',
+  recentlyAssigned: 'New to Team (24h)',
   inProgress: 'In Progress',
   reopened: 'Reopened',
   unassigned: 'Unassigned',
@@ -39,9 +40,9 @@ export const FILTER_KEYS: FilterType[] = [
 
 export const CARD_CONFIGS = [
   { key: 'total' as const, label: 'Total Defects', color: '#06B6D4', filter: 'all' as FilterType },
-  { key: 'new' as const, label: 'New (24h)', color: '#8B5CF6', filter: 'new' as FilterType },
+  { key: 'recentlyAssigned' as const, label: 'New to Team (24h)', color: '#F59E0B', filter: 'recentlyAssigned' as FilterType },
   { key: 'dueToday' as const, label: 'Due Today', color: '#F97316', filter: 'dueToday' as FilterType },
   { key: 'overdue' as const, label: 'Overdue', color: '#EF4444', filter: 'overdue' as FilterType },
   { key: 'inProgress' as const, label: 'In Progress', color: '#10B981', filter: 'inProgress' as FilterType },
-  { key: 'reopened' as const, label: 'Reopened', color: '#F59E0B', filter: 'reopened' as FilterType },
+  { key: 'new' as const, label: 'New (24h)', color: '#8B5CF6', filter: 'new' as FilterType },
 ];

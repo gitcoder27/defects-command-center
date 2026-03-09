@@ -87,6 +87,7 @@ export function DefectTable({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const suppressNextRowSelectRef = useRef(false);
+  const clearVisitedHighlightTimeoutRef = useRef<number | null>(null);
   const [openTagEditors, setOpenTagEditors] = useState<Set<string>>(new Set());
   const [lastVisitedKey, setLastVisitedKey] = useState<string | null>(null);
 
@@ -96,16 +97,43 @@ export function DefectTable({
     }
   }, [searchOpen]);
 
-  // Clear visited-link highlight on any interaction outside the Jira link
+  const scheduleVisitedHighlightClear = useCallback(() => {
+    if (clearVisitedHighlightTimeoutRef.current !== null) {
+      window.clearTimeout(clearVisitedHighlightTimeoutRef.current);
+    }
+
+    clearVisitedHighlightTimeoutRef.current = window.setTimeout(() => {
+      clearVisitedHighlightTimeoutRef.current = null;
+      setLastVisitedKey(null);
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (clearVisitedHighlightTimeoutRef.current !== null) {
+        window.clearTimeout(clearVisitedHighlightTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Clear visited-link highlight after the outside click completes so the clicked control still runs.
   useEffect(() => {
     if (!lastVisitedKey) return;
-    const handleInteraction = (e: MouseEvent) => {
-      if ((e.target as HTMLElement).closest('[data-jira-link]')) return;
-      setLastVisitedKey(null);
+    const handleInteraction = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      if (target.closest('[data-jira-link]')) {
+        return;
+      }
+
+      scheduleVisitedHighlightClear();
     };
-    document.addEventListener('mousedown', handleInteraction);
-    return () => document.removeEventListener('mousedown', handleInteraction);
-  }, [lastVisitedKey]);
+    window.addEventListener('click', handleInteraction, true);
+    return () => window.removeEventListener('click', handleInteraction, true);
+  }, [lastVisitedKey, scheduleVisitedHighlightClear]);
 
   const onTagEditorOpenChange = useCallback((issueKey: string, isOpen: boolean) => {
     setOpenTagEditors((prev) => {

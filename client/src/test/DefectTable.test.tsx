@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { DefectTable } from '@/components/table/DefectTable';
 import { TestWrapper } from '@/test/wrapper';
 import type { Issue } from '@/types';
@@ -147,6 +147,33 @@ describe('DefectTable', () => {
     expect(link101).toHaveAttribute('href', 'https://test.atlassian.net/browse/PROJ-101');
     expect(link101).toHaveAttribute('target', '_blank');
     expect(link101).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('keeps the first follow-up interaction working after a Jira link is highlighted', async () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    const jiraLink = screen.getByText('PROJ-101').closest('a');
+    expect(jiraLink).toBeTruthy();
+    if (!jiraLink) {
+      throw new Error('Expected Jira link for PROJ-101');
+    }
+
+    fireEvent.click(jiraLink);
+    expect(screen.getByLabelText('Row indicator: Last opened in Jira')).toBeInTheDocument();
+
+    const openSearchButton = screen.getByLabelText('Open defect search');
+    fireEvent.mouseDown(openSearchButton);
+    expect(screen.getByLabelText('Row indicator: Last opened in Jira')).toBeInTheDocument();
+
+    fireEvent.click(openSearchButton);
+    expect(screen.getByLabelText('Search defects by ID or title')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Row indicator: Last opened in Jira')).not.toBeInTheDocument();
+    });
   });
 
   it('renders stale row in the table', () => {

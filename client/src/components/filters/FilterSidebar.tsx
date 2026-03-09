@@ -60,6 +60,7 @@ const FILTER_COUNT_MAP: Record<string, keyof OverviewCounts> = {
 const FILTER_ICON_MAP: Record<FilterType, LucideIcon> = {
   all: Filter,
   new: Filter,
+  recentlyAssigned: Users,
   inProgress: Filter,
   reopened: Filter,
   unassigned: UserX,

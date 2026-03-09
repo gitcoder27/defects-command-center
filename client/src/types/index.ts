@@ -5,6 +5,7 @@ export type SyncScopeState = 'active' | 'inaccessible';
 export type FilterType =
   | 'all'
   | 'new'
+  | 'recentlyAssigned'
   | 'inProgress'
   | 'reopened'
   | 'unassigned'
@@ -71,6 +72,7 @@ export interface DeveloperWorkload {
 
 export interface OverviewCounts {
   new: number;
+  recentlyAssigned: number;
   unassigned: number;
   dueToday: number;
   dueThisWeek: number;

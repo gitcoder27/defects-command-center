@@ -6,6 +6,7 @@ import type { OverviewCounts } from '@/types';
 
 const mockOverview: OverviewCounts = {
   new: 3,
+  recentlyAssigned: 4,
   reopened: 1,
   unassigned: 5,
   dueToday: 2,
@@ -38,11 +39,11 @@ describe('OverviewCards', () => {
     );
 
     expect(screen.getByText('Total Defects')).toBeInTheDocument();
-    expect(screen.getByText('New (24h)')).toBeInTheDocument();
+    expect(screen.getByText('New to Team (24h)')).toBeInTheDocument();
     expect(screen.getByText('Due Today')).toBeInTheDocument();
     expect(screen.getByText('Overdue')).toBeInTheDocument();
     expect(screen.getByText('In Progress')).toBeInTheDocument();
-    expect(screen.getByText('Reopened')).toBeInTheDocument();
+    expect(screen.getByText('New (24h)')).toBeInTheDocument();
   });
 
   it('calls filter callback when a card is clicked', () => {
@@ -52,8 +53,8 @@ describe('OverviewCards', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByText('Reopened'));
-    expect(onFilterChange).toHaveBeenCalledWith('reopened');
+    fireEvent.click(screen.getByText('New to Team (24h)'));
+    expect(onFilterChange).toHaveBeenCalledWith('recentlyAssigned');
   });
 
   it('calls filter with "new" when New card is clicked', () => {

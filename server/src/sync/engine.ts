@@ -289,7 +289,9 @@ export class SyncEngine {
       .limit(1);
 
     if (existing.length === 0) {
-      await db.insert(issues).values(this.compactRow(row));
+      const compactedRow = this.compactRow(row);
+      await db.insert(issues).values(compactedRow);
+      await this.recordInitialScopeHistory(compactedRow);
       return;
     }
 
@@ -462,6 +464,22 @@ export class SyncEngine {
       toSyncScopeState: next.syncScopeState ?? previous.syncScopeState,
       fromStatusCategory: previous.statusCategory,
       toStatusCategory: next.statusCategory ?? previous.statusCategory,
+    });
+  }
+
+  private async recordInitialScopeHistory(row: typeof issues.$inferInsert): Promise<void> {
+    await db.insert(issueScopeHistory).values({
+      jiraKey: row.jiraKey,
+      observedAt: row.lastReconciledAt ?? row.syncedAt ?? row.createdAt,
+      changeType: "entered_team_scope",
+      fromAssigneeId: null,
+      toAssigneeId: row.assigneeId ?? null,
+      fromTeamScopeState: null,
+      toTeamScopeState: row.teamScopeState ?? "in_team",
+      fromSyncScopeState: null,
+      toSyncScopeState: row.syncScopeState ?? "active",
+      fromStatusCategory: null,
+      toStatusCategory: row.statusCategory,
     });
   }
 

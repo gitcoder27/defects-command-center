@@ -7,6 +7,7 @@ import type { OverviewCounts, DeveloperWorkload } from '@/types';
 
 const mockOverview: OverviewCounts = {
   new: 3,
+  recentlyAssigned: 4,
   reopened: 1,
   unassigned: 5,
   dueToday: 2,

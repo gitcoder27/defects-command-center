@@ -133,10 +133,42 @@ const mockedIssueTags = [
   { jiraKey: "PROJ-4", id: 20, name: "AMAR", color: "#ec4899" },
 ];
 
+const mockedIssueScopeHistory = [
+  {
+    jiraKey: "PROJ-2",
+    observedAt: "2026-03-05T06:00:00.000Z",
+    changeType: "reassigned",
+    fromAssigneeId: "lead-1",
+    toAssigneeId: "dev-1",
+    fromTeamScopeState: "in_team",
+    toTeamScopeState: "in_team",
+    fromSyncScopeState: "active",
+    toSyncScopeState: "active",
+    fromStatusCategory: "new",
+    toStatusCategory: "indeterminate",
+  },
+  {
+    jiraKey: "PROJ-4",
+    observedAt: "2026-03-04T06:00:00.000Z",
+    changeType: "reassigned",
+    fromAssigneeId: "dev-2",
+    toAssigneeId: "dev-1",
+    fromTeamScopeState: "in_team",
+    toTeamScopeState: "in_team",
+    fromSyncScopeState: "active",
+    toSyncScopeState: "active",
+    fromStatusCategory: "indeterminate",
+    toStatusCategory: "indeterminate",
+  },
+];
+
 vi.mock("../src/db/connection", () => {
   const db = {
     select: () => ({
       from: (table: any) => {
+        if (table?.observedAt && table?.changeType) {
+          return Promise.resolve(mockedIssueScopeHistory);
+        }
         // issueTags table (has tagId but no summary)
         if (table?.tagId && !table?.summary) {
           return {
@@ -237,6 +269,7 @@ describe("IssueService", () => {
     const overview = await service.getOverviewCounts();
     expect(overview.total).toBe(3);
     expect(overview.new).toBe(1);
+    expect(overview.recentlyAssigned).toBe(1);
     expect(overview.unassigned).toBe(1);
     expect(overview.dueToday).toBe(1);
     expect(overview.overdue).toBe(1);
@@ -250,6 +283,7 @@ describe("IssueService", () => {
 
     expect((await service.getAll({ filter: "all" })).length).toBe(overview.total);
     expect((await service.getAll({ filter: "new" })).length).toBe(overview.new);
+    expect((await service.getAll({ filter: "recentlyAssigned" })).length).toBe(overview.recentlyAssigned);
     expect((await service.getAll({ filter: "unassigned" })).length).toBe(overview.unassigned);
     expect((await service.getAll({ filter: "dueToday" })).length).toBe(overview.dueToday);
     expect((await service.getAll({ filter: "overdue" })).length).toBe(overview.overdue);
@@ -288,6 +322,12 @@ describe("IssueService", () => {
 
     expect(await strictService.getAll({ filter: "stale" })).toHaveLength(0);
     expect((await strictService.getOverviewCounts()).stale).toBe(0);
+  });
+
+  it("filters defects that entered the team bucket in the last 24 hours", async () => {
+    const result = await service.getAll({ filter: "recentlyAssigned" });
+
+    expect(result.map((issue) => issue.jiraKey)).toEqual(["PROJ-2"]);
   });
 
   it("does not cache the Jira mutation client", async () => {
