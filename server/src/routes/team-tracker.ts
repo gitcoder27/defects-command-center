@@ -22,6 +22,7 @@ const updateDaySchema = z.object({
     status: z
       .enum(["on_track", "at_risk", "blocked", "waiting", "done_for_today"])
       .optional(),
+    capacityUnits: z.number().int().min(1).nullable().optional(),
     managerNotes: z.string().optional(),
   }),
   query: z.any().optional(),
@@ -168,9 +169,10 @@ export function createTeamTrackerRouter(
     async (req, res, next) => {
       try {
         const accountId = req.params.accountId as string;
-        const { date, status, managerNotes } = req.body;
+        const { date, status, capacityUnits, managerNotes } = req.body;
         const day = await trackerService.updateDay(accountId, date, {
           status,
+          capacityUnits,
           managerNotes,
         });
         res.json(day);

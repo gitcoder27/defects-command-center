@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { TestWrapper } from '@/test/wrapper';
 import type { TeamTrackerBoardResponse, TrackerDeveloperDay, Issue } from '@/types';
 
 const mockCarryForwardMutate = vi.fn();
+const mockUpdateDayMutate = vi.fn();
 const mockUpdateTrackerItemMutate = vi.fn();
 const mockAddTrackerItemMutate = vi.fn();
 const mockRefetchBoard = vi.fn();
@@ -34,6 +35,7 @@ const mockBoard: TeamTrackerBoardResponse = {
       id: 2,
       developer: { accountId: 'dev-2', displayName: 'Bob Jones', isActive: true },
       status: 'blocked',
+      capacityUnits: 4,
       isStale: true,
       currentItem: {
         id: 10,
@@ -100,7 +102,7 @@ vi.mock('@/hooks/useTeamTracker', () => ({
 }));
 
 vi.mock('@/hooks/useTeamTrackerMutations', () => ({
-  useUpdateDay: () => ({ mutate: vi.fn() }),
+  useUpdateDay: () => ({ mutate: mockUpdateDayMutate }),
   useAddTrackerItem: () => ({ mutate: mockAddTrackerItemMutate, isPending: false }),
   useSetCurrentItem: () => ({ mutate: vi.fn() }),
   useUpdateTrackerItem: () => ({ mutate: mockUpdateTrackerItemMutate }),
@@ -129,6 +131,7 @@ describe('TeamTrackerPage', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-07T12:00:00.000Z'));
     mockCarryForwardMutate.mockReset();
+    mockUpdateDayMutate.mockReset();
     mockUpdateTrackerItemMutate.mockReset();
     mockAddTrackerItemMutate.mockReset();
     mockRefetchBoard.mockReset();
@@ -396,6 +399,25 @@ describe('TeamTrackerPage', () => {
     expect(dragHandles.length).toBe(2);
   });
 
+  it('saves daily capacity from the drawer', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByText('Bob Jones'));
+    fireEvent.change(screen.getByDisplayValue('4'), {
+      target: { value: '5' },
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]!);
+
+    expect(mockUpdateDayMutate).toHaveBeenCalledWith({
+      accountId: 'dev-2',
+      capacityUnits: 5,
+    });
+  });
+
   it('updates an existing item note from the drawer', () => {
     render(
       <TestWrapper>
@@ -410,7 +432,7 @@ describe('TeamTrackerPage', () => {
     fireEvent.change(noteEditor!, {
       target: { value: 'Needs a tighter ETA' },
     });
-    const saveButton = screen.getAllByText('Save').find((element) => !element.hasAttribute('disabled'));
+    const saveButton = within(noteEditor!.parentElement as HTMLElement).getByText('Save');
     expect(saveButton).toBeDefined();
     fireEvent.click(saveButton!);
 

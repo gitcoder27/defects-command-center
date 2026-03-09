@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { workloadColor } from '@/lib/utils';
+import { workloadAccent, workloadAssignedLabel } from '@/lib/utils';
 import type { DeveloperWorkload } from '@/types';
 
 interface DeveloperCardProps {
@@ -12,8 +12,15 @@ interface DeveloperCardProps {
 export function DeveloperCard({ dev, expanded, active = false, onClick }: DeveloperCardProps) {
   const maxScore = 20;
   const fillPercent = Math.min((dev.score / maxScore) * 100, 100);
-  const isIdle = dev.activeDefects === 0;
-  const color = isIdle ? 'var(--text-muted)' : workloadColor(dev.level);
+  const assignedLabel = workloadAssignedLabel(dev);
+  const color = workloadAccent(dev);
+  const isIdle = dev.activeDefects === 0 && (dev.assignedTodayCount ?? 0) === 0;
+  const statItems = [
+    { label: 'Active', value: dev.activeDefects },
+    { label: 'Assigned', value: dev.assignedTodayCount ?? 0 },
+    { label: 'Done', value: dev.completedTodayCount ?? 0 },
+    { label: 'Blocked', value: dev.blocked },
+  ];
 
   return (
     <button
@@ -42,9 +49,22 @@ export function DeveloperCard({ dev, expanded, active = false, onClick }: Develo
           <span className="text-[13px] font-medium truncate block" style={{ color: 'var(--text-primary)' }}>
             {dev.developer.displayName}
           </span>
-          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-            {expanded ? 'Developer workload profile' : 'Queue pressure'}
-          </span>
+          <div className="mt-1 flex items-center gap-1.5 text-[10px]">
+            <span
+              className="rounded-full px-1.5 py-0.5 font-mono"
+              style={{ color, background: `${color}14` }}
+            >
+              {assignedLabel}
+            </span>
+            <span className="font-mono" style={{ color: 'var(--text-muted)' }}>
+              S{dev.score}
+            </span>
+            {dev.trackerStatus && (
+              <span className="uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                {dev.trackerStatus.replace(/_/g, ' ')}
+              </span>
+            )}
+          </div>
         </div>
         {isIdle && (
           <span className="text-[10px] animate-glow-idle" style={{ color: 'var(--warning)' }}>
@@ -63,21 +83,46 @@ export function DeveloperCard({ dev, expanded, active = false, onClick }: Develo
         />
       </div>
 
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-[18px] font-semibold tabular-nums" style={{ color }}>
-          {dev.score}
-        </span>
-        <span className="text-[11px] uppercase rounded-full px-2 py-1" style={{ color, background: `${color}14`, letterSpacing: '0.08em' }}>
-          {dev.level}
-        </span>
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <span className="font-mono text-[20px] font-semibold tabular-nums" style={{ color }}>
+            {assignedLabel}
+          </span>
+          <span className="ml-2 font-mono text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            S{dev.score}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {dev.signals?.overCapacity && (
+            <span className="text-[10px] uppercase rounded-full px-2 py-1" style={{ color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.10)', letterSpacing: '0.08em' }}>
+              Over
+            </span>
+          )}
+          <span className="text-[11px] uppercase rounded-full px-2 py-1" style={{ color, background: `${color}14`, letterSpacing: '0.08em' }}>
+            {dev.level}
+          </span>
+        </div>
       </div>
 
       {expanded && (
-        <div className="grid grid-cols-3 gap-2 text-[11px] mt-1">
-          <span className="rounded-xl px-2 py-2" style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}>Active: {dev.activeDefects}</span>
-          <span className="rounded-xl px-2 py-2" style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}>Due: {dev.dueToday}</span>
-          <span className="rounded-xl px-2 py-2" style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}>Blocked: {dev.blocked}</span>
-          {isIdle && <span style={{ color: 'var(--warning)' }}>No active defects</span>}
+        <div className="grid grid-cols-2 gap-2 text-[11px] mt-1">
+          {statItems.map((stat) => (
+            <span
+              key={stat.label}
+              className="rounded-xl px-2 py-2"
+              style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}
+            >
+              {stat.label}: <span className="font-mono">{stat.value}</span>
+            </span>
+          ))}
+          {dev.capacityUnits && (
+            <span className="rounded-xl px-2 py-2" style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}>
+              Capacity: <span className="font-mono">{dev.capacityUnits}</span>
+            </span>
+          )}
+          <span className="rounded-xl px-2 py-2" style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}>
+            Due: <span className="font-mono">{dev.dueToday}</span>
+          </span>
         </div>
       )}
     </button>

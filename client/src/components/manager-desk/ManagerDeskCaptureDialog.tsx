@@ -14,6 +14,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { useToast } from '@/context/ToastContext';
 import { useCreateManagerDeskItem } from '@/hooks/useManagerDesk';
+import { getLocalIsoDate } from '@/lib/utils';
 import type {
   ManagerDeskCategory,
   ManagerDeskCreateItemPayload,
@@ -56,10 +57,6 @@ const categoryOptions: ManagerDeskCategory[] = [
   'other',
 ];
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function chipAccent(tone: ContextChip['tone']) {
   if (tone === 'issue') {
     return {
@@ -100,7 +97,7 @@ export function ManagerDeskCaptureDialog({
   contextChips = [],
   date,
 }: ManagerDeskCaptureDialogProps) {
-  const captureDate = date ?? todayIso();
+  const captureDate = date ?? getLocalIsoDate();
   const createItem = useCreateManagerDeskItem(captureDate);
   const { addToast } = useToast();
   const titleRef = useRef<HTMLInputElement>(null);

@@ -12,20 +12,11 @@ import {
   useCarryForward,
 } from '@/hooks/useTeamTrackerMutations';
 import { useIssues } from '@/hooks/useIssues';
+import { getLocalIsoDate, shiftLocalIsoDate } from '@/lib/utils';
 import { TrackerSummaryStrip, type SummaryFilter } from './TrackerSummaryStrip';
 import { TrackerBoard } from './TrackerBoard';
 import { DeveloperTrackerDrawer } from './DeveloperTrackerDrawer';
 import type { AppView } from '@/App';
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function shiftIsoDate(date: string, days: number): string {
-  const shifted = new Date(`${date}T00:00:00.000Z`);
-  shifted.setUTCDate(shifted.getUTCDate() + days);
-  return shifted.toISOString().slice(0, 10);
-}
 
 function getCarryForwardPromptKey(date: string): string {
   return `team-tracker:carry-forward-prompt:${date}`;
@@ -60,10 +51,10 @@ interface TeamTrackerPageProps {
 }
 
 export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
-  const [date, setDate] = useState(todayIso);
+  const [date, setDate] = useState(getLocalIsoDate);
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
   const [drawerAccountId, setDrawerAccountId] = useState<string | undefined>();
-  const [carryPromptDismissed, setCarryPromptDismissed] = useState(() => readCarryForwardPromptState(todayIso()));
+  const [carryPromptDismissed, setCarryPromptDismissed] = useState(() => readCarryForwardPromptState(getLocalIsoDate()));
 
   const {
     data: board,
@@ -72,7 +63,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
     refetch: refetchBoard,
   } = useTeamTracker(date);
   const { data: issues } = useIssues('all');
-  const previousDate = useMemo(() => shiftIsoDate(date, -1), [date]);
+  const previousDate = useMemo(() => shiftLocalIsoDate(date, -1), [date]);
   const carryForwardPreview = useCarryForwardPreview(previousDate, date, !carryPromptDismissed);
 
   const updateDay = useUpdateDay(date);
@@ -110,7 +101,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   );
 
   const handleCarryForward = useCallback(() => {
-    carryForward.mutate({ fromDate: date, toDate: shiftIsoDate(date, 1) });
+    carryForward.mutate({ fromDate: date, toDate: shiftLocalIsoDate(date, 1) });
   }, [carryForward, date]);
 
   const dismissCarryForwardPrompt = useCallback(() => {
@@ -140,7 +131,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
     setCarryPromptDismissed(readCarryForwardPromptState(date));
   }, [date]);
 
-  const isToday = date === todayIso();
+  const isToday = date === getLocalIsoDate();
   const carryableFromPreviousDay = carryForwardPreview.data ?? 0;
   const isRefreshing = isBoardFetching || carryForwardPreview.isFetching;
   const showCarryForwardPrompt =
@@ -212,7 +203,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
               style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
             >
               <button
-                onClick={() => setDate(shiftIsoDate(date, -1))}
+                onClick={() => setDate(shiftLocalIsoDate(date, -1))}
                 className="h-7 w-7 rounded-lg flex items-center justify-center transition-colors hover:brightness-125"
                 style={{ color: 'var(--text-secondary)' }}
                 aria-label="Previous day"
@@ -230,7 +221,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
                 />
               </div>
               <button
-                onClick={() => setDate(shiftIsoDate(date, 1))}
+                onClick={() => setDate(shiftLocalIsoDate(date, 1))}
                 disabled={isToday}
                 className="h-7 w-7 rounded-lg flex items-center justify-center transition-colors hover:brightness-125 disabled:opacity-30"
                 style={{ color: 'var(--text-secondary)' }}
@@ -241,7 +232,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
             </div>
             {!isToday && (
               <button
-                onClick={() => setDate(todayIso())}
+                onClick={() => setDate(getLocalIsoDate())}
                 className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium"
                 style={{
                   background: 'var(--bg-tertiary)',

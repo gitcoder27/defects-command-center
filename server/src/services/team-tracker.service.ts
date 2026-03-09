@@ -180,6 +180,7 @@ export class TeamTrackerService {
     date: string,
     updates: {
       status?: TrackerDeveloperStatus;
+      capacityUnits?: number | null;
       managerNotes?: string;
     }
   ): Promise<typeof teamTrackerDays.$inferSelect> {
@@ -190,6 +191,9 @@ export class TeamTrackerService {
       .update(teamTrackerDays)
       .set({
         ...(updates.status !== undefined && { status: updates.status }),
+        ...(updates.capacityUnits !== undefined && {
+          capacityUnits: updates.capacityUnits,
+        }),
         ...(updates.managerNotes !== undefined && {
           managerNotes: updates.managerNotes,
         }),
@@ -646,6 +650,7 @@ export class TeamTrackerService {
       date,
       developer,
       status: day.status as TrackerDeveloperStatus,
+      capacityUnits: day.capacityUnits ?? undefined,
       managerNotes: day.managerNotes ?? undefined,
       lastCheckInAt: day.lastCheckInAt ?? undefined,
       currentItem,

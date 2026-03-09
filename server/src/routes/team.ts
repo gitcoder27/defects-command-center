@@ -15,6 +15,14 @@ const paramsSchema = z.object({
   query: z.any().optional(),
 });
 
+const workloadQuerySchema = z.object({
+  query: z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  }).optional(),
+  body: z.any().optional(),
+  params: z.any().optional(),
+});
+
 const saveDevelopersSchema = z.object({
   body: z.object({
     developers: z.array(
@@ -64,10 +72,10 @@ async function normalizeLegacyDevelopers(): Promise<void> {
 export function createTeamRouter(workloadService: WorkloadService): Router {
   const router = Router();
 
-  router.get("/workload", async (_req, res, next) => {
+  router.get("/workload", validate(workloadQuerySchema), async (req, res, next) => {
     try {
       await normalizeLegacyDevelopers();
-      const workloads = await workloadService.getTeamWorkload();
+      const workloads = await workloadService.getTeamWorkload(req.query.date as string | undefined);
       res.json({ developers: workloads });
     } catch (error) {
       next(error);

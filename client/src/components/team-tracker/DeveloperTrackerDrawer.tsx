@@ -13,7 +13,7 @@ interface DeveloperTrackerDrawerProps {
   day: TrackerDeveloperDay | undefined;
   open: boolean;
   onClose: () => void;
-  onUpdateDay: (params: { accountId: string; status?: TrackerDeveloperStatus; managerNotes?: string }) => void;
+  onUpdateDay: (params: { accountId: string; status?: TrackerDeveloperStatus; capacityUnits?: number | null; managerNotes?: string }) => void;
   onAddItem: (params: { accountId: string; itemType: 'jira' | 'custom'; jiraKey?: string; title: string; note?: string }) => void;
   onReorderPlannedItem: (params: { itemId: number; position: number }) => void;
   onUpdateItemNote: (params: { itemId: number; note?: string }) => void;
@@ -50,10 +50,14 @@ export function DeveloperTrackerDrawer({
 }: DeveloperTrackerDrawerProps) {
   const [checkInText, setCheckInText] = useState('');
   const [notesText, setNotesText] = useState('');
+  const [capacityText, setCapacityText] = useState('');
   const [notesEditing, setNotesEditing] = useState(false);
   const [localPlannedItems, setLocalPlannedItems] = useState<TrackerWorkItem[]>([]);
   const [deskCaptureOpen, setDeskCaptureOpen] = useState(false);
   const isDraggingRef = useRef(false);
+  const assignedTodayCount = (day?.currentItem ? 1 : 0) + (day?.plannedItems.length ?? 0);
+  const loadLabel = day?.capacityUnits ? `${assignedTodayCount}/${day.capacityUnits}` : `${assignedTodayCount}`;
+  const isOverCapacity = day?.capacityUnits !== undefined && assignedTodayCount > day.capacityUnits;
 
   // Sync local planned items from server data when not actively dragging
   useEffect(() => {
@@ -61,6 +65,12 @@ export function DeveloperTrackerDrawer({
       setLocalPlannedItems(day.plannedItems);
     }
   }, [day?.plannedItems]);
+
+  useEffect(() => {
+    if (day) {
+      setCapacityText(day.capacityUnits ? String(day.capacityUnits) : '');
+    }
+  }, [day?.id, day?.capacityUnits]);
 
   const handleDragReorder = useCallback(
     (newOrder: TrackerWorkItem[]) => {
@@ -99,6 +109,23 @@ export function DeveloperTrackerDrawer({
     if (!day || !checkInText.trim()) return;
     onAddCheckIn({ accountId: day.developer.accountId, summary: checkInText.trim() });
     setCheckInText('');
+  };
+
+  const handleSaveCapacity = () => {
+    if (!day) return;
+
+    const trimmed = capacityText.trim();
+    if (!trimmed) {
+      onUpdateDay({ accountId: day.developer.accountId, capacityUnits: null });
+      return;
+    }
+
+    const nextValue = Number.parseInt(trimmed, 10);
+    if (Number.isNaN(nextValue) || nextValue < 1) {
+      return;
+    }
+
+    onUpdateDay({ accountId: day.developer.accountId, capacityUnits: nextValue });
   };
 
   const issueList = issues?.map((i) => ({
@@ -190,6 +217,80 @@ export function DeveloperTrackerDrawer({
                       <TrackerStatusPill status={s} size="md" />
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                  Today
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-xl px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
+                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Load</div>
+                    <div className="mt-0.5 font-mono text-[13px] font-semibold" style={{ color: isOverCapacity ? 'var(--danger)' : 'var(--text-primary)' }}>
+                      {loadLabel}
+                    </div>
+                  </div>
+                  <div className="rounded-xl px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
+                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Done</div>
+                    <div className="mt-0.5 font-mono text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {day.completedItems.length}
+                    </div>
+                  </div>
+                  <div className="rounded-xl px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
+                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Dropped</div>
+                    <div className="mt-0.5 font-mono text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {day.droppedItems.length}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                    Capacity
+                  </div>
+                  {day.capacityUnits !== undefined && (
+                    <span className="font-mono text-[10px]" style={{ color: isOverCapacity ? 'var(--danger)' : 'var(--text-muted)' }}>
+                      {loadLabel}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    inputMode="numeric"
+                    value={capacityText}
+                    onChange={(e) => setCapacityText(e.target.value)}
+                    placeholder="Add"
+                    className="w-20 rounded-lg px-2 py-1.5 text-[12px] outline-none"
+                    style={{
+                      background: 'var(--bg-tertiary)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border)',
+                    }}
+                  />
+                  <button
+                    onClick={handleSaveCapacity}
+                    className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium"
+                    style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
+                  >
+                    Save
+                  </button>
+                  {day.capacityUnits !== undefined && (
+                    <button
+                      onClick={() => {
+                        setCapacityText('');
+                        onUpdateDay({ accountId: day.developer.accountId, capacityUnits: null });
+                      }}
+                      className="text-[11px]"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
               </div>
 

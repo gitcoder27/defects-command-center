@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { formatDistanceToNowStrict, isToday, isBefore, startOfDay } from 'date-fns';
+import { addDays, format, formatDistanceToNowStrict, isToday, isBefore, parseISO, startOfDay } from 'date-fns';
+import type { DeveloperWorkload } from '@/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -12,6 +13,14 @@ export function formatRelativeTime(dateStr: string): string {
   } catch {
     return dateStr;
   }
+}
+
+export function getLocalIsoDate(date: Date = new Date()): string {
+  return format(date, 'yyyy-MM-dd');
+}
+
+export function shiftLocalIsoDate(dateStr: string, days: number): string {
+  return format(addDays(parseISO(dateStr), days), 'yyyy-MM-dd');
 }
 
 export function isDueToday(dateStr?: string): boolean {
@@ -68,4 +77,25 @@ export function workloadColor(level: string): string {
     case 'heavy': return 'var(--danger)';
     default: return 'var(--text-muted)';
   }
+}
+
+export function workloadAssignedLabel(workload: Pick<DeveloperWorkload, 'assignedTodayCount' | 'capacityUnits' | 'activeDefects'>): string {
+  const assigned = workload.assignedTodayCount ?? workload.activeDefects;
+  return workload.capacityUnits ? `${assigned}/${workload.capacityUnits}` : `${assigned}`;
+}
+
+export function workloadAccent(workload: Pick<DeveloperWorkload, 'activeDefects' | 'blocked' | 'level' | 'trackerStatus' | 'isTrackerStale' | 'signals' | 'assignedTodayCount'>): string {
+  if (workload.trackerStatus === 'blocked' || workload.blocked > 0 || workload.signals?.overCapacity) {
+    return 'var(--danger)';
+  }
+
+  if (workload.signals?.noCurrentItem || workload.isTrackerStale) {
+    return 'var(--warning)';
+  }
+
+  if ((workload.assignedTodayCount ?? 0) === 0 && workload.activeDefects === 0) {
+    return 'var(--text-muted)';
+  }
+
+  return workloadColor(workload.level);
 }

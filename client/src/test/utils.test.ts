@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { isStale, isOverdue, isDueToday, formatDate } from '@/lib/utils';
+import {
+  formatDate,
+  getLocalIsoDate,
+  isDueToday,
+  isOverdue,
+  isStale,
+  shiftLocalIsoDate,
+} from '@/lib/utils';
 
 describe('isStale', () => {
   it('returns true for issue updated more than 48 hours ago', () => {
@@ -31,12 +38,23 @@ describe('isOverdue', () => {
 
 describe('isDueToday', () => {
   it('returns true for today', () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getLocalIsoDate();
     expect(isDueToday(today)).toBe(true);
   });
 
   it('returns false for undefined', () => {
     expect(isDueToday(undefined)).toBe(false);
+  });
+});
+
+describe('local date helpers', () => {
+  it('formats today using local calendar date', () => {
+    expect(getLocalIsoDate(new Date('2026-03-10T01:30:00-05:00'))).toBe('2026-03-10');
+  });
+
+  it('shifts local iso dates without UTC rollover issues', () => {
+    expect(shiftLocalIsoDate('2026-03-10', -1)).toBe('2026-03-09');
+    expect(shiftLocalIsoDate('2026-03-10', 1)).toBe('2026-03-11');
   });
 });
 

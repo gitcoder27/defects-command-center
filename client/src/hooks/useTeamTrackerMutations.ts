@@ -20,14 +20,19 @@ export function useUpdateDay(date: string) {
     mutationFn: (params: {
       accountId: string;
       status?: TrackerDeveloperStatus;
+      capacityUnits?: number | null;
       managerNotes?: string;
     }) =>
       api.patch(`/team-tracker/${params.accountId}/day`, {
         date,
         status: params.status,
+        capacityUnits: params.capacityUnits,
         managerNotes: params.managerNotes,
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['team-tracker', date] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
+    },
   });
 }
 
@@ -50,6 +55,7 @@ export function useAddTrackerItem(date: string) {
       }),
     onSuccess: (_data, params) => {
       qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
       if (params.jiraKey) {
         qc.invalidateQueries({
@@ -75,6 +81,7 @@ export function useUpdateTrackerItem(date: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
     },
   });
@@ -87,6 +94,7 @@ export function useDeleteTrackerItem(date: string) {
       api.delete(`/team-tracker/items/${itemId}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
     },
   });
@@ -99,6 +107,7 @@ export function useSetCurrentItem(date: string) {
       api.post<TrackerWorkItem>(`/team-tracker/items/${itemId}/set-current`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
     },
   });
@@ -117,7 +126,10 @@ export function useAddCheckIn(date: string) {
         summary: params.summary,
         status: params.status,
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['team-tracker', date] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
+    },
   });
 }
 
@@ -126,6 +138,9 @@ export function useCarryForward() {
   return useMutation({
     mutationFn: (params: { fromDate: string; toDate: string }) =>
       api.post<{ carried: number }>('/team-tracker/carry-forward', params),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['team-tracker'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
+    },
   });
 }

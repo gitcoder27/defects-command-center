@@ -49,6 +49,7 @@ const mockDayResponse: ManagerDeskDayResponse = {
 let currentMockDay: ManagerDeskDayResponse | undefined = mockDayResponse;
 let mockIsLoading = false;
 let mockError: Error | null = null;
+const mockRefetch = vi.fn();
 
 const mockCreateMutate = vi.fn();
 const mockUpdateMutate = vi.fn();
@@ -61,8 +62,9 @@ vi.mock('@/hooks/useManagerDesk', () => ({
   useManagerDesk: () => ({
     data: currentMockDay,
     isLoading: mockIsLoading,
+    isFetching: false,
     error: mockError,
-    refetch: vi.fn(),
+    refetch: mockRefetch,
   }),
   useCreateManagerDeskItem: () => ({
     mutate: mockCreateMutate,
@@ -139,6 +141,7 @@ describe('ManagerDeskPage', () => {
     mockUpdateMutate.mockReset();
     mockDeleteMutate.mockReset();
     mockCarryForwardMutate.mockReset();
+    mockRefetch.mockReset();
   });
 
   afterEach(() => {
@@ -273,5 +276,17 @@ describe('ManagerDeskPage', () => {
     fireEvent.click(filterBtn);
     // Filter bar should now show filter labels
     expect(screen.getByText('Filters')).toBeInTheDocument();
+  });
+
+  it('manually refreshes only the manager desk query from the page header', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /refresh manager desk/i }));
+
+    expect(mockRefetch).toHaveBeenCalled();
   });
 });

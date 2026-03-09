@@ -157,6 +157,22 @@ describe("team tracker routes", () => {
     expect(res.body?.developers[0]?.developer.accountId).toBe("dev-1");
   });
 
+  it("PATCH /api/team-tracker/:accountId/day updates capacity", async () => {
+    const app = createTestApp();
+
+    const res = await invoke(app, {
+      method: "PATCH",
+      url: "/api/team-tracker/dev-1/day",
+      body: {
+        date: "2026-03-07",
+        capacityUnits: 4,
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.capacityUnits).toBe(4);
+  });
+
   it("POST /api/team-tracker/:accountId/items rejects Jira items without jiraKey", async () => {
     const app = createTestApp();
 

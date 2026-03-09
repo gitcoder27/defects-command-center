@@ -332,6 +332,19 @@ describe("TeamTrackerService", () => {
       expect(devDay.status).toBe("at_risk");
       expect(devDay.managerNotes).toBe("Needs help with deployment");
     });
+
+    it("stores daily capacity when provided", async () => {
+      await service.updateDay("dev-1", "2026-03-07", {
+        capacityUnits: 5,
+      });
+
+      const board = await service.getBoard("2026-03-07");
+      const devDay = board.developers.find(
+        (d) => d.developer.accountId === "dev-1"
+      )!;
+
+      expect(devDay.capacityUnits).toBe(5);
+    });
   });
 
   describe("carryForward", () => {

@@ -110,6 +110,7 @@ export const teamTrackerDays = sqliteTable("team_tracker_days", {
   date: text("date").notNull(),
   developerAccountId: text("developer_account_id").notNull(),
   status: text("status").notNull().default("on_track"),
+  capacityUnits: integer("capacity_units"),
   managerNotes: text("manager_notes"),
   lastCheckInAt: text("last_check_in_at"),
   createdAt: text("created_at").notNull(),

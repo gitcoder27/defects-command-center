@@ -20,6 +20,8 @@ export function DeveloperTrackerCard({
   onSetCurrent,
   onMarkDone,
 }: DeveloperTrackerCardProps) {
+  const assignedTodayCount = (day.currentItem ? 1 : 0) + day.plannedItems.length;
+  const loadLabel = day.capacityUnits ? `${assignedTodayCount}/${day.capacityUnits}` : `${assignedTodayCount}`;
   const initials = day.developer.displayName
     .split(' ')
     .map((n) => n[0])
@@ -75,6 +77,9 @@ export function DeveloperTrackerCard({
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
             <TrackerStatusPill status={day.status} />
+            <span className="text-[10px] font-mono" style={{ color: day.capacityUnits && assignedTodayCount > day.capacityUnits ? 'var(--danger)' : 'var(--text-muted)' }}>
+              {loadLabel} load
+            </span>
             {day.completedItems.length > 0 && (
               <span className="text-[10px] font-mono" style={{ color: 'var(--success)' }}>
                 {day.completedItems.length} done

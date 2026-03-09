@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Briefcase,
   ArrowRightFromLine,
+  RefreshCw,
   Filter,
   X,
 } from 'lucide-react';
@@ -57,7 +58,7 @@ export function ManagerDeskPage() {
   const [filters, setFilters] = useState<FilterState>({ kind: null, category: null, status: null });
   const [showFilters, setShowFilters] = useState(false);
 
-  const { data: day, isLoading, error, refetch } = useManagerDesk(date);
+  const { data: day, isLoading, isFetching, error, refetch } = useManagerDesk(date);
   const createItem = useCreateManagerDeskItem(date);
   const updateItem = useUpdateManagerDeskItem(date);
   const deleteItem = useDeleteManagerDeskItem(date);
@@ -291,6 +292,23 @@ export function ManagerDeskPage() {
 
           {/* Right: actions */}
           <div className="flex items-center gap-1.5 self-start lg:self-auto">
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              disabled={isFetching}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50"
+              style={{
+                background: 'var(--bg-tertiary)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+              }}
+              aria-label="Refresh manager desk"
+              title="Refresh manager desk"
+            >
+              <RefreshCw size={12} className={isFetching ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+
             {carryableItems.length > 0 && (
               <button
                 onClick={() => setShowCarryForward(true)}

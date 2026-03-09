@@ -12,6 +12,9 @@ const mockWorkload: DeveloperWorkload[] = [
     blocked: 0,
     score: 9,
     level: 'medium',
+    assignedTodayCount: 2,
+    completedTodayCount: 1,
+    capacityUnits: 5,
   },
   {
     developer: { accountId: 'eve-5', displayName: 'Eve', isActive: true },
@@ -20,6 +23,7 @@ const mockWorkload: DeveloperWorkload[] = [
     blocked: 0,
     score: 0,
     level: 'light',
+    assignedTodayCount: 0,
   },
 ];
 
@@ -58,15 +62,15 @@ describe('WorkloadBar', () => {
     expect(warnings.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('displays scores', () => {
+  it('displays load and score labels', () => {
     render(
       <TestWrapper>
         <WorkloadBar onDeveloperClick={onDeveloperClick} />
       </TestWrapper>
     );
 
-    expect(screen.getByText('9')).toBeInTheDocument();
-    expect(screen.getByText('0')).toBeInTheDocument();
+    expect(screen.getByText('2/5')).toBeInTheDocument();
+    expect(screen.getByText('S9')).toBeInTheDocument();
   });
 
   it('applies a developer filter when a collapsed pill is clicked', () => {

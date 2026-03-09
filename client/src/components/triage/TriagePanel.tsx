@@ -15,7 +15,7 @@ import { SuggestionBar } from './SuggestionBar';
 import { CommentForm } from './CommentForm';
 import { PRIORITY_OPTIONS } from '@/lib/constants';
 import { formatIssueDescription } from '@/lib/issue-description';
-import { formatDate, formatRelativeTime, priorityColor } from '@/lib/utils';
+import { formatDate, formatRelativeTime, getLocalIsoDate, priorityColor } from '@/lib/utils';
 import type { Developer } from '@/types';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
 
@@ -23,10 +23,6 @@ interface TriagePanelProps {
   issueKey?: string;
   onClose: () => void;
   onOpenManagerDesk?: () => void;
-}
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function firstName(name: string): string {
@@ -78,7 +74,7 @@ function PropertyCard({
 export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePanelProps) {
   const { data: issue, isLoading } = useIssueDetail(issueKey);
   const { data: developers } = useDevelopers();
-  const trackerDate = todayIso();
+  const trackerDate = getLocalIsoDate();
   const addTrackerItem = useAddTrackerItem(trackerDate);
   const trackerAssignment = useTrackerIssueAssignment(issue?.jiraKey, trackerDate);
   const { data: config } = useConfig();

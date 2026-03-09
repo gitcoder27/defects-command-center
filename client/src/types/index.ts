@@ -68,6 +68,23 @@ export interface DeveloperWorkload {
   blocked: number;
   score: number;
   level: WorkloadLevel;
+  currentCount?: 0 | 1;
+  plannedCount?: number;
+  assignedTodayCount?: number;
+  completedTodayCount?: number;
+  droppedTodayCount?: number;
+  trackerStatus?: TrackerDeveloperStatus;
+  isTrackerStale?: boolean;
+  hasCurrentItem?: boolean;
+  capacityUnits?: number;
+  capacityUsed?: number;
+  capacityRemaining?: number;
+  capacityUtilization?: number;
+  signals?: {
+    noCurrentItem: boolean;
+    overCapacity: boolean;
+    backlogTrackerMismatch: boolean;
+  };
 }
 
 export interface OverviewCounts {
@@ -202,6 +219,7 @@ export interface MyDayResponse {
   date: string;
   developer: Developer;
   status: TrackerDeveloperStatus;
+  capacityUnits?: number;
   lastCheckInAt?: string;
   currentItem?: TrackerWorkItem;
   plannedItems: TrackerWorkItem[];
@@ -253,6 +271,7 @@ export interface TrackerDeveloperDay {
   date: string;
   developer: Developer;
   status: TrackerDeveloperStatus;
+  capacityUnits?: number;
   managerNotes?: string;
   lastCheckInAt?: string;
   currentItem?: TrackerWorkItem;

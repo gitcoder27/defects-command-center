@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronUp, ChevronDown, Users } from 'lucide-react';
 import { useWorkload } from '@/hooks/useWorkload';
 import { DeveloperCard } from './DeveloperCard';
-import { workloadColor } from '@/lib/utils';
+import { workloadAccent, workloadAssignedLabel } from '@/lib/utils';
 
 interface WorkloadBarProps {
   activeDeveloper?: string;
@@ -86,9 +86,9 @@ export function WorkloadBar({ activeDeveloper, onDeveloperClick }: WorkloadBarPr
             {!expanded && (
               <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto no-scrollbar">
                 {workload.map((dev) => {
-                  const isIdle = dev.activeDefects === 0;
-                  const color = isIdle ? 'var(--text-muted)' : workloadColor(dev.level);
+                  const color = workloadAccent(dev);
                   const isActive = activeDeveloper === dev.developer.accountId;
+                  const loadLabel = workloadAssignedLabel(dev);
                   return (
                     <button
                       key={dev.developer.accountId}
@@ -125,7 +125,10 @@ export function WorkloadBar({ activeDeveloper, onDeveloperClick }: WorkloadBarPr
                         {dev.developer.displayName.split(' ')[0]}
                       </span>
                       <span className="font-mono text-[11px] font-semibold tabular-nums" style={{ color: isActive ? 'var(--accent)' : color }}>
-                        {dev.score}
+                        {loadLabel}
+                      </span>
+                      <span className="font-mono text-[10px]" style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}>
+                        S{dev.score}
                       </span>
                     </button>
                   );
