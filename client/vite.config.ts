@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
+const apiProxyTarget = process.env.VITE_API_PROXY_TARGET?.trim() || 'http://localhost:3001';
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -31,7 +33,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:3001',
+      '/api': apiProxyTarget,
     },
   },
   // All non-API paths fall back to index.html for client-side routing
