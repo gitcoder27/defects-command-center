@@ -111,6 +111,35 @@ describe("my day routes", () => {
     expect("managerNotes" in res.body).toBe(false);
   });
 
+  it("GET /api/my-day includes task notes updated through team tracker", async () => {
+    const item = await trackerService.addItem("dev-1", "2026-03-07", {
+      title: "Investigate login issue",
+    });
+    await trackerService.updateItem(item.id, {
+      note: "Manager context note",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/my-day?date=2026-03-07",
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.plannedItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: item.id,
+          title: "Investigate login issue",
+          note: "Manager context note",
+        }),
+      ])
+    );
+  });
+
   it("GET /api/my-day rejects unauthenticated requests", async () => {
     const app = createTestApp();
     const res = await invoke(app, {

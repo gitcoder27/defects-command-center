@@ -43,6 +43,13 @@ export function CompletedWork({ items }: CompletedWorkProps) {
                   </span>
                 </div>
               )}
+              {item.note && (
+                <div className="mt-1">
+                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    {item.note}
+                  </span>
+                </div>
+              )}
             </div>
             {item.completedAt && (
               <span className="text-[10px] shrink-0" style={{ color: 'var(--text-muted)' }}>

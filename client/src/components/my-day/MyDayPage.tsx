@@ -104,6 +104,26 @@ export function MyDayPage() {
     );
   };
 
+  const handleUpdateItemNote = (itemId: number, note?: string) => {
+    updateItem.mutate(
+      { itemId, note },
+      {
+        onSuccess: () => addToast('Task note updated', 'success'),
+        onError: (err) => addToast(err.message, 'error'),
+      }
+    );
+  };
+
+  const handleUpdateItemTitle = (itemId: number, title: string) => {
+    updateItem.mutate(
+      { itemId, title },
+      {
+        onSuccess: () => addToast('Task updated', 'success'),
+        onError: (err) => addToast(err.message, 'error'),
+      }
+    );
+  };
+
   const handleAddItem = (params: { title: string; jiraKey?: string; note?: string }) => {
     addItem.mutate(params, {
       onSuccess: () => addToast('Task added', 'success'),
@@ -400,6 +420,8 @@ export function MyDayPage() {
               item={day?.currentItem}
               onMarkDone={handleMarkDone}
               onDrop={handleDrop}
+              onUpdateNote={handleUpdateItemNote}
+              onUpdateTitle={handleUpdateItemTitle}
               hasPlannedItems={(day?.plannedItems.length ?? 0) > 0}
             />
           </motion.section>
@@ -417,6 +439,8 @@ export function MyDayPage() {
               onMarkDone={handleMarkDone}
               onDrop={handleDrop}
               onReorder={handleReorder}
+              onUpdateNote={handleUpdateItemNote}
+              onUpdateTitle={handleUpdateItemTitle}
             />
           </motion.section>
 

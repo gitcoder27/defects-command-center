@@ -1,0 +1,248 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, within } from '@testing-library/react';
+import { MyDayPage } from '@/components/my-day/MyDayPage';
+import { TestWrapper } from '@/test/wrapper';
+import type { MyDayResponse, TrackerWorkItem } from '@/types';
+
+const mockRefetch = vi.fn();
+const mockLogout = vi.fn();
+const mockAddToast = vi.fn();
+const mockUpdateStatusMutate = vi.fn();
+const mockAddItemMutate = vi.fn();
+const mockUpdateItemMutate = vi.fn();
+const mockSetCurrentMutate = vi.fn();
+const mockAddCheckInMutate = vi.fn();
+
+let mockDay: MyDayResponse;
+
+function createItem(overrides: Partial<TrackerWorkItem>): TrackerWorkItem {
+  return {
+    id: 1,
+    dayId: 10,
+    itemType: 'custom',
+    title: 'Task title',
+    state: 'planned',
+    position: 0,
+    createdAt: '2026-03-10T09:00:00.000Z',
+    updatedAt: '2026-03-10T09:00:00.000Z',
+    ...overrides,
+  };
+}
+
+vi.mock('@/context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { displayName: 'Alice Smith', role: 'developer', developerAccountId: 'dev-1' },
+    logout: mockLogout,
+  }),
+}));
+
+vi.mock('@/context/ThemeContext', () => ({
+  useTheme: () => ({
+    theme: 'light',
+    toggleTheme: vi.fn(),
+  }),
+}));
+
+vi.mock('@/context/ToastContext', () => ({
+  useToast: () => ({
+    addToast: mockAddToast,
+  }),
+}));
+
+vi.mock('@/hooks/useMyDay', () => ({
+  useMyDay: () => ({
+    data: mockDay,
+    isLoading: false,
+    isFetching: false,
+    error: null,
+    refetch: mockRefetch,
+  }),
+  useUpdateMyDayStatus: () => ({ mutate: mockUpdateStatusMutate, isPending: false }),
+  useAddMyDayItem: () => ({ mutate: mockAddItemMutate, isPending: false }),
+  useUpdateMyDayItem: () => ({ mutate: mockUpdateItemMutate, isPending: false }),
+  useSetMyDayCurrent: () => ({ mutate: mockSetCurrentMutate, isPending: false }),
+  useAddMyDayCheckIn: () => ({ mutate: mockAddCheckInMutate, isPending: false }),
+}));
+
+vi.mock('@/components/my-day/AddTaskForm', () => ({
+  AddTaskForm: () => <div>Add Task Form</div>,
+}));
+
+vi.mock('@/components/my-day/CheckInFeed', () => ({
+  CheckInFeed: () => <div>Check-ins</div>,
+}));
+
+vi.mock('@/components/my-day/StatusSelector', () => ({
+  StatusSelector: () => <div>Status Selector</div>,
+  getStatusInfo: () => ({
+    label: 'On Track',
+    color: 'var(--accent)',
+    bg: 'var(--accent-glow)',
+  }),
+}));
+
+vi.mock('framer-motion', async () => {
+  const React = await import('react');
+
+  function stripMotionProps<T extends Record<string, unknown>>(props: T): T {
+    const {
+      initial,
+      animate,
+      exit,
+      transition,
+      variants,
+      layout,
+      whileTap,
+      whileDrag,
+      onReorder,
+      values,
+      value,
+      as,
+      ...rest
+    } = props;
+    void initial;
+    void animate;
+    void exit;
+    void transition;
+    void variants;
+    void layout;
+    void whileTap;
+    void whileDrag;
+    void onReorder;
+    void values;
+    void value;
+    void as;
+    return rest as T;
+  }
+
+  const makeComponent = (tag: keyof JSX.IntrinsicElements) =>
+    React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>((props, ref) =>
+      React.createElement(tag, { ...stripMotionProps(props), ref }, props.children)
+    );
+
+  return {
+    motion: new Proxy(
+      {},
+      {
+        get: (_target, tag: string) => makeComponent((tag as keyof JSX.IntrinsicElements) ?? 'div'),
+      }
+    ),
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    Reorder: {
+      Group: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+        <div {...stripMotionProps(props)}>{children}</div>
+      ),
+      Item: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+        <div {...stripMotionProps(props)}>{children}</div>
+      ),
+    },
+  };
+});
+
+describe('MyDayPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDay = {
+      date: '2026-03-10',
+      developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+      status: 'on_track',
+      lastCheckInAt: '2026-03-10T08:30:00.000Z',
+      currentItem: createItem({
+        id: 101,
+        title: 'Review PR comments',
+        state: 'in_progress',
+        note: 'Focus on the auth edge cases',
+      }),
+      plannedItems: [
+        createItem({
+          id: 102,
+          title: 'Prepare release checklist',
+          position: 1,
+          note: 'Coordinate with QA before lunch',
+        }),
+      ],
+      completedItems: [
+        createItem({
+          id: 103,
+          title: 'Write incident summary',
+          state: 'done',
+          position: 2,
+          note: 'Include rollback timing',
+          completedAt: '2026-03-10T10:00:00.000Z',
+        }),
+      ],
+      droppedItems: [
+        createItem({
+          id: 104,
+          title: 'Shadow deploy follow-up',
+          state: 'dropped',
+          position: 3,
+          note: 'Waiting on staging access',
+        }),
+      ],
+      checkIns: [],
+      isStale: false,
+    };
+  });
+
+  it('shows synced task notes across current, planned, completed, and dropped work', () => {
+    render(
+      <TestWrapper>
+        <MyDayPage />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText('Focus on the auth edge cases')).toBeInTheDocument();
+    expect(screen.getByText('Coordinate with QA before lunch')).toBeInTheDocument();
+    expect(screen.getByText('Include rollback timing')).toBeInTheDocument();
+    expect(screen.getByText('Waiting on staging access')).toBeInTheDocument();
+  });
+
+  it('edits a planned task note through the shared My Day mutation', () => {
+    render(
+      <TestWrapper>
+        <MyDayPage />
+      </TestWrapper>
+    );
+
+    const upNextSection = screen.getByText('Up Next').closest('section');
+    expect(upNextSection).toBeTruthy();
+
+    fireEvent.click(within(upNextSection as HTMLElement).getByTitle('Edit note'));
+    fireEvent.change(within(upNextSection as HTMLElement).getByRole('textbox'), {
+      target: { value: 'Updated handoff note' },
+    });
+    fireEvent.click(within(upNextSection as HTMLElement).getByText('Save'));
+
+    expect(mockUpdateItemMutate).toHaveBeenCalledWith(
+      { itemId: 102, note: 'Updated handoff note' },
+      expect.objectContaining({
+        onSuccess: expect.any(Function),
+        onError: expect.any(Function),
+      })
+    );
+  });
+
+  it('edits the current task title through the shared My Day mutation', () => {
+    render(
+      <TestWrapper>
+        <MyDayPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByText('Review PR comments'));
+    const titleInput = screen.getByLabelText('Edit title');
+    fireEvent.change(titleInput, {
+      target: { value: 'Review production PR comments' },
+    });
+    fireEvent.click(screen.getByTitle('Save title'));
+
+    expect(mockUpdateItemMutate).toHaveBeenCalledWith(
+      { itemId: 101, title: 'Review production PR comments' },
+      expect.objectContaining({
+        onSuccess: expect.any(Function),
+        onError: expect.any(Function),
+      })
+    );
+  });
+});

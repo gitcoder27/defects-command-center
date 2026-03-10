@@ -1,16 +1,25 @@
 import { motion } from 'framer-motion';
-import { Play, CheckCircle2, XCircle, Zap } from 'lucide-react';
+import { Play, Zap } from 'lucide-react';
 import type { TrackerWorkItem } from '@/types';
-import { formatDate, priorityColor } from '@/lib/utils';
+import { TrackerItemRow } from '@/components/team-tracker/TrackerItemRow';
 
 interface CurrentTaskProps {
   item?: TrackerWorkItem;
   onMarkDone?: (id: number) => void;
   onDrop?: (id: number) => void;
+  onUpdateNote?: (id: number, note?: string) => void;
+  onUpdateTitle?: (id: number, title: string) => void;
   hasPlannedItems?: boolean;
 }
 
-export function CurrentTask({ item, onMarkDone, onDrop, hasPlannedItems }: CurrentTaskProps) {
+export function CurrentTask({
+  item,
+  onMarkDone,
+  onDrop,
+  onUpdateNote,
+  onUpdateTitle,
+  hasPlannedItems,
+}: CurrentTaskProps) {
   if (!item) {
     return (
       <motion.div
@@ -39,16 +48,6 @@ export function CurrentTask({ item, onMarkDone, onDrop, hasPlannedItems }: Curre
       </motion.div>
     );
   }
-
-  const jiraMeta = [
-    item.jiraPriorityName,
-    item.jiraDueDate ? `Due ${formatDate(item.jiraDueDate)}` : undefined,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-  const jiraLabel = item.jiraSummary && item.jiraSummary !== item.title
-    ? `${item.jiraKey} · ${item.jiraSummary}`
-    : item.jiraKey;
 
   return (
     <motion.div
@@ -89,85 +88,16 @@ export function CurrentTask({ item, onMarkDone, onDrop, hasPlannedItems }: Curre
               Working On
             </span>
           </div>
-
-          <h3
-            className="text-[15px] font-semibold leading-snug"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            {item.title}
-          </h3>
-
-          {item.jiraKey && (
-            <div className="mt-1.5 flex items-center gap-2">
-              <span
-                className="text-[10px] font-bold uppercase"
-                style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}
-              >
-                Linked Jira
-              </span>
-              <span
-                className="font-mono text-[11px] truncate"
-                style={{ color: 'var(--accent)' }}
-              >
-                {jiraLabel}
-              </span>
-            </div>
-          )}
-
-          {jiraMeta && (
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <span
-                className="text-[11px]"
-                style={{
-                  color: item.jiraPriorityName
-                    ? priorityColor(item.jiraPriorityName)
-                    : 'var(--text-muted)',
-                }}
-              >
-                {jiraMeta}
-              </span>
-            </div>
-          )}
-
-          {item.note && (
-            <p
-              className="text-[12px] mt-2 leading-relaxed"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              {item.note}
-            </p>
-          )}
+          <div className="mt-1 -ml-2">
+            <TrackerItemRow
+              item={item}
+              onUpdateNote={onUpdateNote}
+              onUpdateTitle={onUpdateTitle}
+              onMarkDone={onMarkDone}
+              onDrop={onDrop}
+            />
+          </div>
         </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-2 mt-4 pl-12">
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => onMarkDone?.(item.id)}
-          className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px] font-semibold transition-colors"
-          style={{
-            background: 'rgba(16, 185, 129, 0.12)',
-            color: 'var(--success)',
-            border: '1px solid rgba(16, 185, 129, 0.2)',
-          }}
-        >
-          <CheckCircle2 size={13} />
-          Mark Done
-        </motion.button>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => onDrop?.(item.id)}
-          className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px] font-medium transition-colors"
-          style={{
-            background: 'var(--bg-tertiary)',
-            color: 'var(--text-muted)',
-            border: '1px solid var(--border)',
-          }}
-        >
-          <XCircle size={13} />
-          Drop
-        </motion.button>
       </div>
     </motion.div>
   );
