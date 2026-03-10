@@ -222,6 +222,39 @@ describe('DefectTable', () => {
     expect(onSelectIssue).not.toHaveBeenCalledWith('PROJ-101');
   });
 
+  it('selects the row when clicking back into the table while the tag editor is open', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByLabelText('Manage tags for PROJ-101'));
+    expect(screen.getByPlaceholderText('Search or create tag…')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Login page crashes on submit'));
+
+    expect(onSelectIssue).toHaveBeenCalledWith('PROJ-101');
+  });
+
+  it('selects the row after triggering an inline tag update from the popover', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByLabelText('Manage tags for PROJ-101'));
+    fireEvent.change(screen.getByPlaceholderText('Search or create tag…'), { target: { value: 'Backend' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Use' }));
+
+    expect(mockSetIssueTagsMutate).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Login page crashes on submit'));
+
+    expect(onSelectIssue).toHaveBeenCalledWith('PROJ-101');
+  });
+
   it('shows subtle analysis state indicators for complete and pending rows', () => {
     render(
       <TestWrapper>

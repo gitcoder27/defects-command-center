@@ -9,10 +9,9 @@ import type { LocalTag } from '@/types';
 interface InlineEditTagsProps {
   issueKey: string;
   localTags: LocalTag[];
-  onOpenChange?: (issueKey: string, isOpen: boolean) => void;
 }
 
-export function InlineEditTags({ issueKey, localTags, onOpenChange }: InlineEditTagsProps) {
+export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
   const { allTags, assignedTagIds, isPending, toggleTag, createOrAssignTag } = useIssueTagActions({
     issueKey,
     localTags,
@@ -61,16 +60,12 @@ export function InlineEditTags({ issueKey, localTags, onOpenChange }: InlineEdit
     }
   }, [computePopoverPosition]);
 
-  const setOpenState = useCallback(
-    (nextOpen: boolean) => {
-      setIsOpen(nextOpen);
-      onOpenChange?.(issueKey, nextOpen);
-      if (!nextOpen) {
-        setPopoverPosition(null);
-      }
-    },
-    [issueKey, onOpenChange]
-  );
+  const setOpenState = useCallback((nextOpen: boolean) => {
+    setIsOpen(nextOpen);
+    if (!nextOpen) {
+      setPopoverPosition(null);
+    }
+  }, []);
 
   const toggleOpen = useCallback(() => {
     if (isOpen) {
