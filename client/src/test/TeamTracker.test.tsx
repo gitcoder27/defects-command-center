@@ -332,18 +332,21 @@ describe('TeamTrackerPage', () => {
     );
 
     fireEvent.click(screen.getByText('Bob Jones'));
-    fireEvent.click(screen.getByRole('button', { name: 'Jira' }));
-    fireEvent.change(screen.getByPlaceholderText('Search Jira issues...'), {
+    fireEvent.click(screen.getByRole('button', { name: /add task/i }));
+    fireEvent.change(screen.getByPlaceholderText('Describe the work in one line'), {
+      target: { value: 'Investigate API latency spike' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /attach jira/i }));
+    fireEvent.change(screen.getByPlaceholderText('Search Jira issues'), {
       target: { value: 'AM-456' },
     });
     fireEvent.click(screen.getByText('Investigate API latency'));
-    fireEvent.click(screen.getByRole('button', { name: /add jira item/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^add task$/i }));
 
     expect(mockAddTrackerItemMutate).toHaveBeenCalledWith({
       accountId: 'dev-2',
-      itemType: 'jira',
       jiraKey: 'AM-456',
-      title: 'Investigate API latency',
+      title: 'Investigate API latency spike',
       note: undefined,
     });
   });
@@ -506,7 +509,7 @@ describe('TrackerItemRow', () => {
     expect(screen.getByText('Highest • Due Mar 9')).toBeInTheDocument();
   });
 
-  it('renders custom item badge', async () => {
+  it('renders a task without Jira metadata', async () => {
     const { TrackerItemRow } = await import('@/components/team-tracker/TrackerItemRow');
 
     render(
@@ -523,8 +526,8 @@ describe('TrackerItemRow', () => {
         }}
       />
     );
-    expect(screen.getByText('Custom')).toBeInTheDocument();
     expect(screen.getByText('Team meeting')).toBeInTheDocument();
+    expect(screen.queryByText('Jira')).not.toBeInTheDocument();
   });
 
   it('shows line-through for done items', async () => {
@@ -639,30 +642,29 @@ describe('TrackerItemRow', () => {
 });
 
 describe('AddTrackerItemForm', () => {
-  it('creates a custom item with an optional note', async () => {
+  it('creates a descriptive task with an optional note', async () => {
     const { AddTrackerItemForm } = await import('@/components/team-tracker/AddTrackerItemForm');
     const onAdd = vi.fn();
 
     render(<AddTrackerItemForm onAdd={onAdd} />);
 
-    fireEvent.click(screen.getByText('Custom'));
-    const titleInput = screen.getByPlaceholderText('What are they working on?');
+    fireEvent.click(screen.getByText('Add Task'));
+    const titleInput = screen.getByPlaceholderText('Describe the work in one line');
     fireEvent.change(titleInput, {
       target: { value: 'Prep release notes' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Optional note'), {
+    fireEvent.change(screen.getByPlaceholderText('Optional context or handoff detail'), {
       target: { value: 'Need this before standup' },
     });
     fireEvent.keyDown(titleInput, { key: 'Enter' });
 
     expect(onAdd).toHaveBeenCalledWith({
-      itemType: 'custom',
       title: 'Prep release notes',
       note: 'Need this before standup',
     });
   });
 
-  it('creates a Jira item with an optional note', async () => {
+  it('creates a descriptive task with a linked Jira and optional note', async () => {
     const { AddTrackerItemForm } = await import('@/components/team-tracker/AddTrackerItemForm');
     const onAdd = vi.fn();
 
@@ -680,20 +682,23 @@ describe('AddTrackerItemForm', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Jira'));
-    fireEvent.change(screen.getByPlaceholderText('Search Jira issues...'), {
+    fireEvent.click(screen.getByText('Add Task'));
+    fireEvent.change(screen.getByPlaceholderText('Describe the work in one line'), {
+      target: { value: 'Fix alert rendering regression' },
+    });
+    fireEvent.click(screen.getByText('Attach Jira'));
+    fireEvent.change(screen.getByPlaceholderText('Search Jira issues'), {
       target: { value: 'AM-789' },
     });
     fireEvent.click(screen.getByText('Fix alert regression'));
-    fireEvent.change(screen.getByPlaceholderText('Optional note'), {
+    fireEvent.change(screen.getByPlaceholderText('Optional context or handoff detail'), {
       target: { value: 'Needs pairing with QA' },
     });
-    fireEvent.click(screen.getByText('Add Jira Item'));
+    fireEvent.click(screen.getByText('Add Task'));
 
     expect(onAdd).toHaveBeenCalledWith({
-      itemType: 'jira',
       jiraKey: 'AM-789',
-      title: 'Fix alert regression',
+      title: 'Fix alert rendering regression',
       note: 'Needs pairing with QA',
     });
   });

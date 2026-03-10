@@ -4,7 +4,6 @@ import type {
   TrackerWorkItem,
   TrackerCheckIn,
   TrackerDeveloperStatus,
-  TrackerItemType,
   TrackerItemState,
 } from '@/types';
 
@@ -41,14 +40,12 @@ export function useAddTrackerItem(date: string) {
   return useMutation({
     mutationFn: (params: {
       accountId: string;
-      itemType: TrackerItemType;
       jiraKey?: string;
       title: string;
       note?: string;
     }) =>
       api.post<TrackerWorkItem>(`/team-tracker/${params.accountId}/items`, {
         date,
-        itemType: params.itemType,
         jiraKey: params.jiraKey,
         title: params.title,
         note: params.note,

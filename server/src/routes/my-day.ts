@@ -26,31 +26,12 @@ const patchDaySchema = z.object({
 });
 
 const addItemSchema = z.object({
-  body: z
-    .object({
-      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      itemType: z.enum(["jira", "custom"]),
-      jiraKey: z.string().trim().optional(),
-      title: z.string().min(1).max(500),
-      note: z.string().max(2000).optional(),
-    })
-    .superRefine((body, ctx) => {
-      if (body.itemType === "jira" && !body.jiraKey) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["jiraKey"],
-          message: "jiraKey is required for Jira items",
-        });
-      }
-
-      if (body.itemType === "custom" && body.jiraKey) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["jiraKey"],
-          message: "jiraKey is only allowed for Jira items",
-        });
-      }
-    }),
+  body: z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    jiraKey: z.string().trim().optional(),
+    title: z.string().min(1).max(500),
+    note: z.string().max(2000).optional(),
+  }),
   query: z.any().optional(),
   params: z.any().optional(),
 });

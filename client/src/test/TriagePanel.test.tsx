@@ -31,7 +31,7 @@ const mockDevelopers: Developer[] = [
 ];
 
 const mockAddTrackerItemMutate = vi.fn();
-let mockTrackerAssignment: TrackerIssueAssignment | undefined;
+let mockTrackerAssignments: TrackerIssueAssignment[] = [];
 
 vi.mock('@/hooks/useIssueDetail', () => ({
   useIssueDetail: () => ({ data: mockIssue, isLoading: false }),
@@ -54,7 +54,7 @@ vi.mock('@/hooks/useDevelopers', () => ({
 }));
 
 vi.mock('@/hooks/useTeamTracker', () => ({
-  useTrackerIssueAssignment: () => ({ data: mockTrackerAssignment, isLoading: false }),
+  useTrackerIssueAssignments: () => ({ data: mockTrackerAssignments, isLoading: false }),
 }));
 
 vi.mock('@/hooks/useTeamTrackerMutations', () => ({
@@ -82,7 +82,7 @@ describe('TriagePanel', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-07T12:00:00.000Z'));
     mockAddTrackerItemMutate.mockReset();
-    mockTrackerAssignment = undefined;
+    mockTrackerAssignments = [];
     onClose.mockReset();
   });
 
@@ -180,7 +180,7 @@ describe('TriagePanel', () => {
     );
 
     expect(screen.getByText('Team Tracker')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /add to alice/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add task to alice/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /alice assigned/i })).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -191,14 +191,16 @@ describe('TriagePanel', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /add to alice/i }));
+    fireEvent.change(screen.getByLabelText('Task'), {
+      target: { value: 'Trace the login crash path' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /add task to alice/i }));
 
     expect(mockAddTrackerItemMutate).toHaveBeenCalledWith(
       {
         accountId: 'alice-1',
-        itemType: 'jira',
         jiraKey: 'PROJ-101',
-        title: 'Login page crashes on submit with special chars',
+        title: 'Trace the login crash path',
       },
       expect.objectContaining({
         onSuccess: expect.any(Function),
@@ -215,26 +217,30 @@ describe('TriagePanel', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /^bob$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /add to bob/i }));
+    fireEvent.change(screen.getByLabelText('Task'), {
+      target: { value: 'Patch the submit sanitization path' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /add task to bob/i }));
 
     expect(mockAddTrackerItemMutate).toHaveBeenCalledWith(
       expect.objectContaining({
         accountId: 'bob-2',
         jiraKey: 'PROJ-101',
+        title: 'Patch the submit sanitization path',
       }),
       expect.any(Object)
     );
   });
 
-  it('shows existing tracker ownership and blocks duplicate adds', () => {
-    mockTrackerAssignment = {
+  it('shows existing linked tasks and still allows another descriptive task', () => {
+    mockTrackerAssignments = [{
       date: '2026-03-07',
       jiraKey: 'PROJ-101',
       itemId: 44,
-      title: 'Login page crashes on submit with special chars',
+      title: 'Verify the customer reproduction steps',
       state: 'planned',
       developer: { accountId: 'bob-2', displayName: 'Bob', isActive: true },
-    };
+    }];
 
     render(
       <TestWrapper>
@@ -242,31 +248,22 @@ describe('TriagePanel', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByText('Bob • Planned')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /already in bob's plan/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /bob in tracker/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Bob • Planned • Verify the customer reproduction steps')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /bob 1 linked/i })).toBeInTheDocument();
+    expect(screen.getByText('1 linked task uses PROJ-101 today')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /^alice assigned$/i }));
-    expect(mockAddTrackerItemMutate).not.toHaveBeenCalled();
-  });
+    fireEvent.change(screen.getByLabelText('Task'), {
+      target: { value: 'Patch the submit sanitization path' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /add task to alice/i }));
 
-  it('shows done tracker state and allows adding the Jira issue again', () => {
-    mockTrackerAssignment = {
-      date: '2026-03-07',
-      jiraKey: 'PROJ-101',
-      itemId: 44,
-      title: 'Login page crashes on submit with special chars',
-      state: 'done',
-      developer: { accountId: 'bob-2', displayName: 'Bob', isActive: true },
-    };
-
-    render(
-      <TestWrapper>
-        <TriagePanel issueKey="PROJ-101" onClose={onClose} />
-      </TestWrapper>
+    expect(mockAddTrackerItemMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountId: 'alice-1',
+        jiraKey: 'PROJ-101',
+        title: 'Patch the submit sanitization path',
+      }),
+      expect.any(Object)
     );
-
-    expect(screen.getByText('Bob • Done')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /add to bob/i })).toBeEnabled();
   });
 });

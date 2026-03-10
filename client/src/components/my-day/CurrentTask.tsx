@@ -46,6 +46,9 @@ export function CurrentTask({ item, onMarkDone, onDrop, hasPlannedItems }: Curre
   ]
     .filter(Boolean)
     .join(' · ');
+  const jiraLabel = item.jiraSummary && item.jiraSummary !== item.title
+    ? `${item.jiraKey} · ${item.jiraSummary}`
+    : item.jiraKey;
 
   return (
     <motion.div
@@ -85,26 +88,6 @@ export function CurrentTask({ item, onMarkDone, onDrop, hasPlannedItems }: Curre
             >
               Working On
             </span>
-            {item.jiraKey && (
-              <span
-                className="font-mono text-[11px] font-semibold"
-                style={{ color: 'var(--accent)' }}
-              >
-                {item.jiraKey}
-              </span>
-            )}
-            {item.itemType === 'custom' && (
-              <span
-                className="text-[9px] font-bold uppercase px-1.5 rounded"
-                style={{
-                  color: 'var(--info)',
-                  background: 'rgba(139, 92, 246, 0.12)',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                Custom
-              </span>
-            )}
           </div>
 
           <h3
@@ -113,6 +96,23 @@ export function CurrentTask({ item, onMarkDone, onDrop, hasPlannedItems }: Curre
           >
             {item.title}
           </h3>
+
+          {item.jiraKey && (
+            <div className="mt-1.5 flex items-center gap-2">
+              <span
+                className="text-[10px] font-bold uppercase"
+                style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}
+              >
+                Linked Jira
+              </span>
+              <span
+                className="font-mono text-[11px] truncate"
+                style={{ color: 'var(--accent)' }}
+              >
+                {jiraLabel}
+              </span>
+            </div>
+          )}
 
           {jiraMeta && (
             <div className="mt-1.5 flex items-center gap-1.5">

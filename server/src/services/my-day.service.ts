@@ -8,7 +8,6 @@ import { TeamTrackerService } from "./team-tracker.service";
 
 interface AddMyDayItemParams {
   date: string;
-  itemType: "jira" | "custom";
   jiraKey?: string;
   title: string;
   note?: string;
@@ -54,7 +53,6 @@ export class MyDayService {
 
   async addItem(accountId: string, params: AddMyDayItemParams): Promise<TrackerWorkItem> {
     return this.trackerService.addItem(accountId, params.date, {
-      itemType: params.itemType,
       jiraKey: params.jiraKey,
       title: params.title,
       note: params.note,

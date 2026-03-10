@@ -93,11 +93,9 @@ describe("TeamTrackerService", () => {
 
     it("groups items into current/planned/completed/dropped", async () => {
       const item1 = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "custom",
         title: "Task A",
       });
       await service.addItem("dev-1", "2026-03-07", {
-        itemType: "custom",
         title: "Task B",
       });
       await service.setCurrentItem(item1.id);
@@ -117,11 +115,9 @@ describe("TeamTrackerService", () => {
       await seedIssue();
 
       const item1 = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "custom",
         title: "First",
       });
       const item2 = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "jira",
         jiraKey: "AM-123",
         title: "Second",
       });
@@ -136,54 +132,48 @@ describe("TeamTrackerService", () => {
       await seedIssue();
 
       const item = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "jira",
         jiraKey: "AM-123",
         title: "Linked Jira task",
       });
 
       expect(item.jiraPriorityName).toBe("High");
       expect(item.jiraDueDate).toBe("2026-03-08");
+      expect(item.jiraSummary).toBe("Linked Jira task");
     });
 
     it("rejects Jira-linked items whose key is not present in synced issues", async () => {
       await expect(
         service.addItem("dev-1", "2026-03-07", {
-          itemType: "jira",
           jiraKey: "AM-999",
           title: "Missing Jira task",
         })
       ).rejects.toThrow("Jira issue AM-999 is not available in synced issues");
     });
 
-    it("rejects duplicate Jira-linked planned items for the same date", async () => {
+    it("allows multiple descriptive tasks to link the same Jira issue", async () => {
       await seedIssue();
 
       await service.addItem("dev-1", "2026-03-07", {
-        itemType: "jira",
         jiraKey: "AM-123",
-        title: "Linked Jira task",
+        title: "Reproduce the customer report",
       });
 
-      await expect(
-        service.addItem("dev-1", "2026-03-07", {
-          itemType: "jira",
-          jiraKey: "AM-123",
-          title: "Linked Jira task",
-        })
-      ).rejects.toThrow(
-        "Jira issue AM-123 is already planned for Alice Smith on 2026-03-07"
-      );
+      const secondItem = await service.addItem("dev-1", "2026-03-07", {
+        jiraKey: "AM-123",
+        title: "Patch the validation path",
+      });
+
+      expect(secondItem.jiraKey).toBe("AM-123");
+      expect(secondItem.title).toBe("Patch the validation path");
     });
   });
 
   describe("setCurrentItem", () => {
     it("enforces single in_progress per day", async () => {
       const item1 = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "custom",
         title: "Task A",
       });
       const item2 = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "custom",
         title: "Task B",
       });
 
@@ -208,7 +198,6 @@ describe("TeamTrackerService", () => {
   describe("updateItem", () => {
     it("marks item as done with completedAt timestamp", async () => {
       const item = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "custom",
         title: "Do thing",
       });
       const updated = await service.updateItem(item.id, { state: "done" });
@@ -218,11 +207,9 @@ describe("TeamTrackerService", () => {
 
     it("enforces a single current item when state is updated directly to in_progress", async () => {
       const first = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "custom",
         title: "First",
       });
       const second = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "custom",
         title: "Second",
       });
 
@@ -242,15 +229,12 @@ describe("TeamTrackerService", () => {
 
     it("reorders items by normalizing sibling positions", async () => {
       const first = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "custom",
         title: "First",
       });
       const second = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "custom",
         title: "Second",
       });
       const third = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "custom",
         title: "Third",
       });
 
@@ -274,7 +258,6 @@ describe("TeamTrackerService", () => {
   describe("deleteItem", () => {
     it("removes item from database", async () => {
       const item = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "custom",
         title: "To remove",
       });
       await service.deleteItem(item.id);
@@ -350,16 +333,13 @@ describe("TeamTrackerService", () => {
   describe("carryForward", () => {
     it("previews only items that still need to be carried into the target day", async () => {
       await service.addItem("dev-1", "2026-03-06", {
-        itemType: "custom",
         title: "Unfinished task",
       });
       await service.addItem("dev-1", "2026-03-06", {
-        itemType: "custom",
         title: "Second unfinished task",
       });
 
       await service.addItem("dev-1", "2026-03-07", {
-        itemType: "custom",
         title: "Unfinished task",
       });
 
@@ -373,11 +353,9 @@ describe("TeamTrackerService", () => {
 
     it("carries unfinished items to the next day", async () => {
       await service.addItem("dev-1", "2026-03-06", {
-        itemType: "custom",
         title: "Unfinished task",
       });
       const done = await service.addItem("dev-1", "2026-03-06", {
-        itemType: "custom",
         title: "Finished task",
       });
       await service.updateItem(done.id, { state: "done" });
@@ -396,18 +374,15 @@ describe("TeamTrackerService", () => {
       await seedIssue();
 
       await service.addItem("dev-1", "2026-03-06", {
-        itemType: "custom",
         title: "Already carried",
       });
       const inProgress = await service.addItem("dev-1", "2026-03-06", {
-        itemType: "jira",
         jiraKey: "AM-123",
         title: "Needs follow-up",
       });
       await service.setCurrentItem(inProgress.id);
 
       await service.addItem("dev-1", "2026-03-07", {
-        itemType: "custom",
         title: "Already carried",
       });
 
@@ -427,46 +402,63 @@ describe("TeamTrackerService", () => {
     });
   });
 
-  describe("getIssueAssignment", () => {
-    it("returns the active assignment for a Jira issue on a given date", async () => {
+  describe("getIssueAssignments", () => {
+    it("returns the active linked tasks for a Jira issue on a given date", async () => {
       await seedIssue();
-      const item = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "jira",
+      const firstItem = await service.addItem("dev-1", "2026-03-07", {
         jiraKey: "AM-123",
-        title: "Linked Jira task",
+        title: "Reproduce the customer report",
+      });
+      const secondItem = await service.addItem("dev-1", "2026-03-07", {
+        jiraKey: "AM-123",
+        title: "Patch the validation path",
       });
 
-      const assignment = await service.getIssueAssignment("AM-123", "2026-03-07");
+      const assignments = await service.getIssueAssignments("AM-123", "2026-03-07");
 
-      expect(assignment).toEqual({
-        date: "2026-03-07",
-        jiraKey: "AM-123",
-        itemId: item.id,
-        title: "Linked Jira task",
-        state: "planned",
-        developer: {
-          accountId: "dev-1",
-          displayName: "Alice Smith",
-          email: undefined,
-          avatarUrl: undefined,
-          isActive: true,
+      expect(assignments).toEqual([
+        {
+          date: "2026-03-07",
+          jiraKey: "AM-123",
+          itemId: firstItem.id,
+          title: "Reproduce the customer report",
+          state: "planned",
+          developer: {
+            accountId: "dev-1",
+            displayName: "Alice Smith",
+            email: undefined,
+            avatarUrl: undefined,
+            isActive: true,
+          },
         },
-      });
+        {
+          date: "2026-03-07",
+          jiraKey: "AM-123",
+          itemId: secondItem.id,
+          title: "Patch the validation path",
+          state: "planned",
+          developer: {
+            accountId: "dev-1",
+            displayName: "Alice Smith",
+            email: undefined,
+            avatarUrl: undefined,
+            isActive: true,
+          },
+        },
+      ]);
     });
 
-    it("returns done when the tracker item has been completed", async () => {
+    it("omits completed tasks from the active linked task list", async () => {
       await seedIssue();
       const item = await service.addItem("dev-1", "2026-03-07", {
-        itemType: "jira",
         jiraKey: "AM-123",
         title: "Linked Jira task",
       });
       await service.updateItem(item.id, { state: "done" });
 
-      const assignment = await service.getIssueAssignment("AM-123", "2026-03-07");
+      const assignments = await service.getIssueAssignments("AM-123", "2026-03-07");
 
-      expect(assignment?.state).toBe("done");
-      expect(assignment?.developer.displayName).toBe("Alice Smith");
+      expect(assignments).toEqual([]);
     });
   });
 

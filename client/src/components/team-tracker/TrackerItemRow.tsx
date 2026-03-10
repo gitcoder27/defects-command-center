@@ -64,6 +64,9 @@ export function TrackerItemRow({
   const Icon = stateInfo.icon;
   const isActive = item.state === 'in_progress';
   const isDone = item.state === 'done' || item.state === 'dropped';
+  const jiraLabel = item.jiraSummary && item.jiraSummary !== item.title
+    ? `${item.jiraKey} · ${item.jiraSummary}`
+    : item.jiraKey;
   const jiraMeta = [
     item.jiraPriorityName,
     item.jiraDueDate ? `Due ${formatDate(item.jiraDueDate)}` : undefined,
@@ -97,26 +100,6 @@ export function TrackerItemRow({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          {item.jiraKey && (
-            <span
-              className="font-mono text-[10px] font-semibold shrink-0"
-              style={{ color: 'var(--accent)' }}
-            >
-              {item.jiraKey}
-            </span>
-          )}
-          {item.itemType === 'custom' && (
-            <span
-              className="text-[9px] font-semibold uppercase shrink-0 px-1 rounded"
-              style={{
-                color: 'var(--info)',
-                background: 'rgba(139, 92, 246, 0.12)',
-                letterSpacing: '0.06em',
-              }}
-            >
-              Custom
-            </span>
-          )}
           {titleEditing && !compact && onUpdateTitle ? (
             <div className="flex items-center gap-1 flex-1 min-w-0">
               <input
@@ -168,6 +151,16 @@ export function TrackerItemRow({
             </span>
           )}
         </div>
+        {item.jiraKey && (
+          <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
+            <span className="text-[9px] font-semibold uppercase shrink-0" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+              Jira
+            </span>
+            <span className="font-mono text-[10px] truncate" style={{ color: 'var(--accent)' }}>
+              {jiraLabel}
+            </span>
+          </div>
+        )}
         {jiraMeta && (
           <div className="mt-0.5">
             <span className="text-[10px]" style={{ color: item.jiraPriorityName ? priorityColor(item.jiraPriorityName) : 'var(--text-muted)' }}>

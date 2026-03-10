@@ -173,7 +173,7 @@ describe("team tracker routes", () => {
     expect(res.body?.capacityUnits).toBe(4);
   });
 
-  it("POST /api/team-tracker/:accountId/items rejects Jira items without jiraKey", async () => {
+  it("POST /api/team-tracker/:accountId/items supports unlinked descriptive tasks", async () => {
     const app = createTestApp();
 
     const res = await invoke(app, {
@@ -181,13 +181,15 @@ describe("team tracker routes", () => {
       url: "/api/team-tracker/dev-1/items",
       body: {
         date: "2026-03-07",
-        itemType: "jira",
-        title: "Linked Jira task",
+        title: "Investigate login regression",
       },
     });
 
-    expect(res.status).toBe(400);
-    expect(res.body?.error).toContain("jiraKey is required for Jira items");
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      itemType: "custom",
+      title: "Investigate login regression",
+    });
   });
 
   it("POST /api/team-tracker/:accountId/items rejects Jira keys missing from synced issues", async () => {
@@ -198,7 +200,6 @@ describe("team tracker routes", () => {
       url: "/api/team-tracker/dev-1/items",
       body: {
         date: "2026-03-07",
-        itemType: "jira",
         jiraKey: "AM-999",
         title: "Linked Jira task",
       },
@@ -210,12 +211,11 @@ describe("team tracker routes", () => {
     );
   });
 
-  it("POST /api/team-tracker/:accountId/items rejects duplicate Jira issues already planned for the day", async () => {
+  it("POST /api/team-tracker/:accountId/items allows multiple descriptive tasks for the same Jira issue", async () => {
     await seedIssue();
     await trackerService.addItem("dev-1", "2026-03-07", {
-      itemType: "jira",
       jiraKey: "AM-123",
-      title: "Linked Jira task",
+      title: "Reproduce the customer report",
     });
 
     const app = createTestApp();
@@ -224,24 +224,28 @@ describe("team tracker routes", () => {
       url: "/api/team-tracker/dev-1/items",
       body: {
         date: "2026-03-07",
-        itemType: "jira",
         jiraKey: "AM-123",
-        title: "Linked Jira task",
+        title: "Patch the validation path",
       },
     });
 
-    expect(res.status).toBe(409);
-    expect(res.body?.error).toBe(
-      "Jira issue AM-123 is already planned for Alice Smith on 2026-03-07"
-    );
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      jiraKey: "AM-123",
+      jiraSummary: "Linked Jira task",
+      title: "Patch the validation path",
+    });
   });
 
-  it("GET /api/team-tracker/issues/:jiraKey/assignment returns the current assignment", async () => {
+  it("GET /api/team-tracker/issues/:jiraKey/assignment returns active linked tasks", async () => {
     await seedIssue();
-    const item = await trackerService.addItem("dev-1", "2026-03-07", {
-      itemType: "jira",
+    const firstItem = await trackerService.addItem("dev-1", "2026-03-07", {
       jiraKey: "AM-123",
-      title: "Linked Jira task",
+      title: "Reproduce the customer report",
+    });
+    const secondItem = await trackerService.addItem("dev-1", "2026-03-07", {
+      jiraKey: "AM-123",
+      title: "Patch the validation path",
     });
 
     const app = createTestApp();
@@ -251,23 +255,39 @@ describe("team tracker routes", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(res.body?.assignment).toEqual({
-      date: "2026-03-07",
-      jiraKey: "AM-123",
-      itemId: item.id,
-      title: "Linked Jira task",
-      state: "planned",
-      developer: {
-        accountId: "dev-1",
-        displayName: "Alice Smith",
-        email: undefined,
-        avatarUrl: undefined,
-        isActive: true,
+    expect(res.body?.assignments).toEqual([
+      {
+        date: "2026-03-07",
+        jiraKey: "AM-123",
+        itemId: firstItem.id,
+        title: "Reproduce the customer report",
+        state: "planned",
+        developer: {
+          accountId: "dev-1",
+          displayName: "Alice Smith",
+          email: undefined,
+          avatarUrl: undefined,
+          isActive: true,
+        },
       },
-    });
+      {
+        date: "2026-03-07",
+        jiraKey: "AM-123",
+        itemId: secondItem.id,
+        title: "Patch the validation path",
+        state: "planned",
+        developer: {
+          accountId: "dev-1",
+          displayName: "Alice Smith",
+          email: undefined,
+          avatarUrl: undefined,
+          isActive: true,
+        },
+      },
+    ]);
   });
 
-  it("GET /api/team-tracker/issues/:jiraKey/assignment returns null when no assignment exists", async () => {
+  it("GET /api/team-tracker/issues/:jiraKey/assignment returns an empty list when no assignment exists", async () => {
     await seedIssue("AM-35627");
 
     const app = createTestApp();
@@ -277,22 +297,19 @@ describe("team tracker routes", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ assignment: null });
+    expect(res.body).toEqual({ assignments: [] });
   });
 
   it("GET /api/team-tracker/carry-forward-preview reports remaining carryable items", async () => {
     await seedIssue();
     await trackerService.addItem("dev-1", "2026-03-06", {
-      itemType: "jira",
       jiraKey: "AM-123",
       title: "Linked Jira task",
     });
     await trackerService.addItem("dev-1", "2026-03-06", {
-      itemType: "custom",
       title: "Write release notes",
     });
     await trackerService.addItem("dev-1", "2026-03-07", {
-      itemType: "jira",
       jiraKey: "AM-123",
       title: "Linked Jira task",
     });

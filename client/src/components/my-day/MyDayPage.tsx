@@ -104,7 +104,7 @@ export function MyDayPage() {
     );
   };
 
-  const handleAddItem = (params: { itemType: 'jira' | 'custom'; title: string; jiraKey?: string; note?: string }) => {
+  const handleAddItem = (params: { title: string; jiraKey?: string; note?: string }) => {
     addItem.mutate(params, {
       onSuccess: () => addToast('Task added', 'success'),
       onError: (err) => addToast(err.message, 'error'),

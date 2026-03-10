@@ -6,7 +6,7 @@ import { useIssueDetail } from '@/hooks/useIssueDetail';
 import { useUpdateIssue } from '@/hooks/useUpdateIssue';
 import { useDevelopers } from '@/hooks/useDevelopers';
 import { useAddTrackerItem } from '@/hooks/useTeamTrackerMutations';
-import { useTrackerIssueAssignment } from '@/hooks/useTeamTracker';
+import { useTrackerIssueAssignments } from '@/hooks/useTeamTracker';
 import { useConfig } from '@/hooks/useConfig';
 import { useIssueTagActions } from '@/hooks/useIssueTagActions';
 import { useToast } from '@/context/ToastContext';
@@ -76,7 +76,7 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
   const { data: developers } = useDevelopers();
   const trackerDate = getLocalIsoDate();
   const addTrackerItem = useAddTrackerItem(trackerDate);
-  const trackerAssignment = useTrackerIssueAssignment(issue?.jiraKey, trackerDate);
+  const trackerAssignments = useTrackerIssueAssignments(issue?.jiraKey, trackerDate);
   const { data: config } = useConfig();
   const { allTags, assignedTagIds, isPending: isTagMutationPending, toggleTag, createOrAssignTag } = useIssueTagActions({
     issueKey: issue?.jiraKey,
@@ -90,6 +90,7 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
   const [notesValue, setNotesValue] = useState('');
   const [notesSaved, setNotesSaved] = useState(true);
   const [trackerAccountId, setTrackerAccountId] = useState<string | undefined>();
+  const [trackerTaskTitle, setTrackerTaskTitle] = useState('');
   const [trackerAddedAccountId, setTrackerAddedAccountId] = useState<string | undefined>();
   const [deskCaptureOpen, setDeskCaptureOpen] = useState(false);
   const notesTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -98,16 +99,15 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
     () => developers?.find((dev) => dev.accountId === trackerAccountId),
     [developers, trackerAccountId]
   );
-  const activeTrackerAssignment = trackerAssignment.data;
-  const isAlreadyTrackedToday =
-    activeTrackerAssignment?.state === 'planned' ||
-    activeTrackerAssignment?.state === 'in_progress';
+  const activeTrackerAssignments = trackerAssignments.data ?? [];
+  const firstLinkedDeveloperAccountId = activeTrackerAssignments[0]?.developer.accountId;
 
   // Sync local notes state with issue data
   useEffect(() => {
     if (issue) {
       setNotesValue(issue.analysisNotes ?? '');
       setNotesSaved(true);
+      setTrackerTaskTitle('');
       setTrackerAddedAccountId(undefined);
     }
   }, [issue?.jiraKey, issue?.analysisNotes]);
@@ -123,17 +123,17 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
         return current;
       }
 
-      if (activeTrackerAssignment?.developer.accountId && developers.some((dev) => dev.accountId === activeTrackerAssignment.developer.accountId)) {
-        return activeTrackerAssignment.developer.accountId;
-      }
-
       if (issue?.assigneeId && developers.some((dev) => dev.accountId === issue.assigneeId)) {
         return issue.assigneeId;
       }
 
+      if (firstLinkedDeveloperAccountId && developers.some((dev) => dev.accountId === firstLinkedDeveloperAccountId)) {
+        return firstLinkedDeveloperAccountId;
+      }
+
       return developers[0]?.accountId;
     });
-  }, [activeTrackerAssignment?.developer.accountId, developers, issue?.assigneeId, issue?.jiraKey]);
+  }, [developers, firstLinkedDeveloperAccountId, issue?.assigneeId, issue?.jiraKey]);
 
   const saveNotes = useCallback(
     (value: string) => {
@@ -209,20 +209,21 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
   };
 
   const handleAddToTracker = useCallback(() => {
-    if (!issue || !selectedTrackerDeveloper || isAlreadyTrackedToday) {
+    const trimmedTitle = trackerTaskTitle.trim();
+    if (!issue || !selectedTrackerDeveloper || !trimmedTitle) {
       return;
     }
 
     addTrackerItem.mutate(
       {
         accountId: selectedTrackerDeveloper.accountId,
-        itemType: 'jira',
         jiraKey: issue.jiraKey,
-        title: issue.summary,
+        title: trimmedTitle,
       },
       {
         onSuccess: () => {
           setTrackerAddedAccountId(selectedTrackerDeveloper.accountId);
+          setTrackerTaskTitle('');
           addToast({
             type: 'success',
             title: `${issue.jiraKey} added to ${firstName(selectedTrackerDeveloper.displayName)}'s plan`,
@@ -238,7 +239,7 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
         },
       }
     );
-  }, [addToast, addTrackerItem, isAlreadyTrackedToday, issue, selectedTrackerDeveloper, trackerDate]);
+  }, [addToast, addTrackerItem, issue, selectedTrackerDeveloper, trackerDate, trackerTaskTitle]);
 
   return (
     <AnimatePresence>
@@ -440,30 +441,34 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
                 >
                   {developers && developers.length > 0 ? (
                     <>
-                      {activeTrackerAssignment && (
-                        <div
-                          className="mb-3 rounded-lg px-3 py-2 text-[12px] font-medium"
-                          style={{
-                            background: activeTrackerAssignment.state === 'in_progress'
-                              ? 'color-mix(in srgb, var(--success) 12%, var(--bg-secondary) 88%)'
-                              : activeTrackerAssignment.state === 'planned'
-                                ? 'color-mix(in srgb, var(--accent-glow) 56%, var(--bg-secondary) 44%)'
-                                : activeTrackerAssignment.state === 'done'
-                                  ? 'color-mix(in srgb, var(--success) 8%, var(--bg-secondary) 92%)'
-                                  : 'color-mix(in srgb, var(--warning) 8%, var(--bg-secondary) 92%)',
-                            border: '1px solid var(--border)',
-                            color: 'var(--text-primary)',
-                          }}
+                      <div className="mb-3">
+                        <label
+                          htmlFor="tracker-task-title"
+                          className="text-[11px] font-semibold uppercase block mb-1.5"
+                          style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}
                         >
-                          {activeTrackerAssignment.developer.displayName} • {trackerStateLabel(activeTrackerAssignment.state)}
-                        </div>
-                      )}
+                          Task
+                        </label>
+                        <input
+                          id="tracker-task-title"
+                          type="text"
+                          value={trackerTaskTitle}
+                          onChange={(event) => setTrackerTaskTitle(event.target.value)}
+                          placeholder="Describe the work for this defect"
+                          className="w-full rounded-lg px-3 py-2 text-[12px] outline-none"
+                          style={{
+                            background: 'var(--bg-secondary)',
+                            color: 'var(--text-primary)',
+                            border: '1px solid var(--border)',
+                          }}
+                        />
+                      </div>
                       <div className="flex flex-wrap gap-1.5">
                         {developers.map((dev) => {
                           const isSelected = trackerAccountId === dev.accountId;
                           const isAssigned = issue?.assigneeId === dev.accountId;
                           const wasJustAdded = trackerAddedAccountId === dev.accountId;
-                          const isTrackerOwner = activeTrackerAssignment?.developer.accountId === dev.accountId;
+                          const linkedTaskCount = activeTrackerAssignments.filter((assignment) => assignment.developer.accountId === dev.accountId).length;
 
                           return (
                             <button
@@ -494,7 +499,7 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
                                     Assigned
                                   </span>
                                 )}
-                                {isTrackerOwner && (
+                                {linkedTaskCount > 0 && (
                                   <span
                                     className="rounded-full px-1.5 py-0.5 text-[10px]"
                                     style={{
@@ -502,7 +507,7 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
                                       color: isSelected ? 'var(--accent)' : 'var(--text-muted)',
                                     }}
                                   >
-                                    In Tracker
+                                    {linkedTaskCount} linked
                                   </span>
                                 )}
                               </span>
@@ -510,18 +515,35 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
                           );
                         })}
                       </div>
+                      {activeTrackerAssignments.length > 0 && (
+                        <div
+                          className="mt-3 rounded-lg px-3 py-2"
+                          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
+                        >
+                          <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                            Linked Today
+                          </div>
+                          <div className="mt-1.5 space-y-1">
+                            {activeTrackerAssignments.map((assignment) => (
+                              <div key={assignment.itemId} className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                                {`${assignment.developer.displayName} • ${trackerStateLabel(assignment.state)} • ${assignment.title}`}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div className="mt-3 flex items-center justify-between gap-3">
                         <div className="min-w-0 text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                            {isAlreadyTrackedToday && activeTrackerAssignment
-                              ? `${issue.jiraKey} already linked to ${activeTrackerAssignment.developer.displayName}`
-                              : selectedTrackerDeveloper
-                                ? `${selectedTrackerDeveloper.displayName} for ${trackerDate}`
-                                : 'Choose a developer'}
+                          {selectedTrackerDeveloper
+                            ? activeTrackerAssignments.length > 0
+                              ? `${activeTrackerAssignments.length} linked task${activeTrackerAssignments.length === 1 ? ' uses' : 's use'} ${issue.jiraKey} today`
+                              : `${selectedTrackerDeveloper.displayName} for ${trackerDate}`
+                            : 'Choose a developer'}
                         </div>
                         <button
                           type="button"
                           onClick={handleAddToTracker}
-                          disabled={!selectedTrackerDeveloper || addTrackerItem.isPending || isAlreadyTrackedToday}
+                          disabled={!selectedTrackerDeveloper || addTrackerItem.isPending || !trackerTaskTitle.trim()}
                           className="shrink-0 rounded-lg px-3 py-2 text-[12px] font-medium disabled:opacity-40"
                           style={{
                             background: 'var(--accent-glow)',
@@ -531,11 +553,9 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
                         >
                           {addTrackerItem.isPending
                             ? 'Adding...'
-                            : isAlreadyTrackedToday && activeTrackerAssignment
-                              ? `Already in ${firstName(activeTrackerAssignment.developer.displayName)}'s plan`
-                              : selectedTrackerDeveloper
-                                ? `Add to ${firstName(selectedTrackerDeveloper.displayName)}`
-                                : 'Add to Team Tracker'}
+                            : selectedTrackerDeveloper
+                              ? `Add Task to ${firstName(selectedTrackerDeveloper.displayName)}`
+                              : 'Add to Team Tracker'}
                         </button>
                       </div>
                     </>

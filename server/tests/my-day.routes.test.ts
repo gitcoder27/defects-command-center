@@ -92,7 +92,6 @@ describe("my day routes", () => {
       managerNotes: "Private manager note",
     });
     await trackerService.addItem("dev-1", "2026-03-07", {
-      itemType: "custom",
       title: "Investigate login issue",
     });
 
@@ -125,7 +124,6 @@ describe("my day routes", () => {
 
   it("PATCH /api/my-day/items/:itemId rejects edits to another developer's item", async () => {
     const otherItem = await trackerService.addItem("dev-2", "2026-03-07", {
-      itemType: "custom",
       title: "Bob's task",
     });
 
@@ -180,9 +178,8 @@ describe("my day routes", () => {
       },
       body: {
         date: "2026-03-07",
-        itemType: "jira",
         jiraKey: "AM-123",
-        title: "Linked Jira task",
+        title: "Trace the failing login flow",
       },
     });
 
@@ -192,7 +189,8 @@ describe("my day routes", () => {
       jiraKey: "AM-123",
       jiraPriorityName: "High",
       jiraDueDate: "2026-03-08",
-      title: "Linked Jira task",
+      jiraSummary: "Linked Jira task",
+      title: "Trace the failing login flow",
     });
   });
 

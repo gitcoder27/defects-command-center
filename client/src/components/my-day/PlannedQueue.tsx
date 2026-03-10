@@ -90,6 +90,9 @@ function PlannedItemRow({
   ]
     .filter(Boolean)
     .join(' · ');
+  const jiraLabel = item.jiraSummary && item.jiraSummary !== item.title
+    ? `${item.jiraKey} · ${item.jiraSummary}`
+    : item.jiraKey;
 
   return (
     <Reorder.Item
@@ -128,26 +131,6 @@ function PlannedItemRow({
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            {item.jiraKey && (
-              <span
-                className="font-mono text-[10px] font-semibold shrink-0"
-                style={{ color: 'var(--accent)' }}
-              >
-                {item.jiraKey}
-              </span>
-            )}
-            {item.itemType === 'custom' && (
-              <span
-                className="text-[9px] font-bold uppercase px-1 rounded shrink-0"
-                style={{
-                  color: 'var(--info)',
-                  background: 'rgba(139, 92, 246, 0.12)',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                Custom
-              </span>
-            )}
             <span
               className="text-[12px] truncate"
               style={{ color: 'var(--text-primary)' }}
@@ -155,6 +138,22 @@ function PlannedItemRow({
               {item.title}
             </span>
           </div>
+          {item.jiraKey && (
+            <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
+              <span
+                className="text-[9px] font-semibold uppercase shrink-0"
+                style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}
+              >
+                Jira
+              </span>
+              <span
+                className="font-mono text-[10px] truncate"
+                style={{ color: 'var(--accent)' }}
+              >
+                {jiraLabel}
+              </span>
+            </div>
+          )}
           {jiraMeta && (
             <span
               className="text-[10px]"

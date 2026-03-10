@@ -2,7 +2,6 @@ import { and, eq, inArray } from "drizzle-orm";
 import type {
   TrackerDeveloperStatus,
   TrackerItemState,
-  TrackerItemType,
   TrackerDeveloperDay,
   TrackerWorkItem,
   TrackerCheckIn,
@@ -37,7 +36,7 @@ function isStale(lastCheckInAt: string | null, now = new Date()): boolean {
 
 type TrackerIssueContext = Pick<
   typeof issues.$inferSelect,
-  "jiraKey" | "priorityName" | "dueDate" | "developmentDueDate"
+  "jiraKey" | "summary" | "priorityName" | "dueDate" | "developmentDueDate"
 >;
 
 function mapItem(
@@ -47,8 +46,9 @@ function mapItem(
   return {
     id: row.id,
     dayId: row.dayId,
-    itemType: row.itemType as TrackerItemType,
+    itemType: row.jiraKey ? "jira" : "custom",
     jiraKey: row.jiraKey ?? undefined,
+    jiraSummary: issueContext?.summary ?? undefined,
     jiraPriorityName: issueContext?.priorityName ?? undefined,
     jiraDueDate: issueContext
       ? getEffectiveDueDate(issueContext) ?? undefined
@@ -89,15 +89,10 @@ function mapDeveloper(row: typeof developers.$inferSelect): Developer {
 function buildCarryForwardKey(
   item: Pick<
     typeof teamTrackerItems.$inferSelect,
-    "itemType" | "jiraKey" | "title" | "note"
+    "jiraKey" | "title" | "note"
   >
 ): string {
-  return JSON.stringify([
-    item.itemType,
-    item.jiraKey ?? null,
-    item.title,
-    item.note ?? null,
-  ]);
+  return JSON.stringify([item.jiraKey ?? null, item.title, item.note ?? null]);
 }
 
 export class TeamTrackerService {
@@ -213,7 +208,6 @@ export class TeamTrackerService {
     accountId: string,
     date: string,
     params: {
-      itemType: TrackerItemType;
       jiraKey?: string;
       title: string;
       note?: string;
@@ -222,11 +216,7 @@ export class TeamTrackerService {
     const day = await this.ensureDay(date, accountId);
     const normalizedJiraKey = params.jiraKey?.trim();
 
-    if (params.itemType === "jira") {
-      if (!normalizedJiraKey) {
-        throw new HttpError(400, "jiraKey is required for Jira items");
-      }
-
+    if (normalizedJiraKey) {
       const issueRows = await db
         .select({ jiraKey: issues.jiraKey })
         .from(issues)
@@ -237,22 +227,6 @@ export class TeamTrackerService {
         throw new HttpError(
           400,
           `Jira issue ${normalizedJiraKey} is not available in synced issues`
-        );
-      }
-
-      const existingAssignment = await this.getIssueAssignment(
-        normalizedJiraKey,
-        date
-      );
-
-      if (
-        existingAssignment &&
-        (existingAssignment.state === "planned" ||
-          existingAssignment.state === "in_progress")
-      ) {
-        throw new HttpError(
-          409,
-          `Jira issue ${normalizedJiraKey} is already ${existingAssignment.state === "in_progress" ? "in progress" : "planned"} for ${existingAssignment.developer.displayName} on ${date}`
         );
       }
     }
@@ -272,7 +246,7 @@ export class TeamTrackerService {
       .insert(teamTrackerItems)
       .values({
         dayId: day.id,
-        itemType: params.itemType,
+        itemType: normalizedJiraKey ? "jira" : "custom",
         jiraKey: normalizedJiraKey ?? null,
         title: params.title,
         state: "planned",
@@ -417,13 +391,13 @@ export class TeamTrackerService {
     }
   }
 
-  async getIssueAssignment(
+  async getIssueAssignments(
     jiraKey: string,
     date: string
-  ): Promise<TrackerIssueAssignment | undefined> {
+  ): Promise<TrackerIssueAssignment[]> {
     const normalizedJiraKey = jiraKey.trim();
     if (!normalizedJiraKey) {
-      return undefined;
+      return [];
     }
 
     const dayRows = await db
@@ -432,7 +406,7 @@ export class TeamTrackerService {
       .where(eq(teamTrackerDays.date, date));
 
     if (dayRows.length === 0) {
-      return undefined;
+      return [];
     }
 
     const dayIdToAccountId = new Map(
@@ -444,8 +418,12 @@ export class TeamTrackerService {
       .from(teamTrackerItems)
       .where(inArray(teamTrackerItems.dayId, activeDayIds));
 
-    const match = itemRows
-      .filter((item) => item.jiraKey === normalizedJiraKey)
+    const matches = itemRows
+      .filter(
+        (item) =>
+          item.jiraKey === normalizedJiraKey &&
+          (item.state === "planned" || item.state === "in_progress")
+      )
       .sort(
         (left, right) =>
           (left.state === "in_progress" ? 0 : left.state === "planned" ? 1 : 2) -
@@ -453,42 +431,41 @@ export class TeamTrackerService {
           left.position - right.position ||
           new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime() ||
           left.id - right.id
-      )[0];
+      );
 
-    if (!match) {
-      return undefined;
+    if (matches.length === 0) {
+      return [];
     }
-
-    const accountId = dayIdToAccountId.get(match.dayId);
-    if (!accountId) {
-      return undefined;
-    }
-
     const developerRows = await db
       .select()
       .from(developers)
-      .where(eq(developers.accountId, accountId))
-      .limit(1);
+      .where(inArray(developers.accountId, [...new Set(dayRows.map((row) => row.developerAccountId))]));
+    const developerMap = new Map(
+      developerRows.map((row) => [row.accountId, mapDeveloper(row)])
+    );
 
-    const developerRow = developerRows[0];
-    if (!developerRow) {
-      return undefined;
-    }
+    return matches.flatMap((match) => {
+      const accountId = dayIdToAccountId.get(match.dayId);
+      if (!accountId) {
+        return [];
+      }
 
-    return {
-      date,
-      jiraKey: normalizedJiraKey,
-      itemId: match.id,
-      title: match.title,
-      state: match.state as TrackerItemState,
-      developer: {
-        accountId: developerRow.accountId,
-        displayName: developerRow.displayName,
-        email: developerRow.email ?? undefined,
-        avatarUrl: developerRow.avatarUrl ?? undefined,
-        isActive: developerRow.isActive === 1,
-      },
-    };
+      const developer = developerMap.get(accountId);
+      if (!developer) {
+        return [];
+      }
+
+      return [
+        {
+          date,
+          jiraKey: normalizedJiraKey,
+          itemId: match.id,
+          title: match.title,
+          state: match.state as TrackerItemState,
+          developer,
+        },
+      ];
+    });
   }
 
   async previewCarryForward(fromDate: string, toDate: string): Promise<number> {
@@ -578,7 +555,7 @@ export class TeamTrackerService {
 
         await db.insert(teamTrackerItems).values({
           dayId: newDay.id,
-          itemType: item.itemType,
+          itemType: item.jiraKey ? "jira" : "custom",
           jiraKey: item.jiraKey,
           title: item.title,
           state: "planned",
@@ -709,6 +686,7 @@ export class TeamTrackerService {
     const rows = await db
       .select({
         jiraKey: issues.jiraKey,
+        summary: issues.summary,
         priorityName: issues.priorityName,
         dueDate: issues.dueDate,
         developmentDueDate: issues.developmentDueDate,
@@ -723,13 +701,13 @@ export class TeamTrackerService {
     sourceItems: Array<
       Pick<
         typeof teamTrackerItems.$inferSelect,
-        "itemType" | "jiraKey" | "title" | "note"
+        "jiraKey" | "title" | "note"
       >
     >,
     targetItems: Array<
       Pick<
         typeof teamTrackerItems.$inferSelect,
-        "itemType" | "jiraKey" | "title" | "note"
+        "jiraKey" | "title" | "note"
       >
     >
   ): Map<string, number> {

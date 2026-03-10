@@ -14,7 +14,7 @@ interface DeveloperTrackerDrawerProps {
   open: boolean;
   onClose: () => void;
   onUpdateDay: (params: { accountId: string; status?: TrackerDeveloperStatus; capacityUnits?: number | null; managerNotes?: string }) => void;
-  onAddItem: (params: { accountId: string; itemType: 'jira' | 'custom'; jiraKey?: string; title: string; note?: string }) => void;
+  onAddItem: (params: { accountId: string; jiraKey?: string; title: string; note?: string }) => void;
   onReorderPlannedItem: (params: { itemId: number; position: number }) => void;
   onUpdateItemNote: (params: { itemId: number; note?: string }) => void;
   onUpdateItemTitle: (params: { itemId: number; title: string }) => void;

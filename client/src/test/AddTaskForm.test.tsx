@@ -43,7 +43,8 @@ describe('AddTaskForm', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /add jira issue/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add task/i }));
+    fireEvent.click(screen.getByRole('button', { name: /attach jira/i }));
 
     await waitFor(() => {
       expect(mockGet).toHaveBeenCalledWith('/my-day/issues');

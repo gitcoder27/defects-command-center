@@ -32,31 +32,12 @@ const addItemSchema = z.object({
   params: z.object({
     accountId: z.string().regex(/^[A-Za-z0-9:_-]+$/, "Invalid account id"),
   }),
-  body: z
-    .object({
-      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      itemType: z.enum(["jira", "custom"]),
-      jiraKey: z.string().trim().optional(),
-      title: z.string().min(1).max(500),
-      note: z.string().max(2000).optional(),
-    })
-    .superRefine((body, ctx) => {
-      if (body.itemType === "jira" && !body.jiraKey) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["jiraKey"],
-          message: "jiraKey is required for Jira items",
-        });
-      }
-
-      if (body.itemType === "custom" && body.jiraKey) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["jiraKey"],
-          message: "jiraKey is only allowed for Jira items",
-        });
-      }
-    }),
+  body: z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    jiraKey: z.string().trim().optional(),
+    title: z.string().min(1).max(500),
+    note: z.string().max(2000).optional(),
+  }),
   query: z.any().optional(),
 });
 
@@ -154,8 +135,8 @@ export function createTeamTrackerRouter(
       try {
         const jiraKey = req.params.jiraKey as string;
         const date = req.query.date as string;
-        const assignment = await trackerService.getIssueAssignment(jiraKey, date);
-        res.json({ assignment: assignment ?? null });
+        const assignments = await trackerService.getIssueAssignments(jiraKey, date);
+        res.json({ assignments });
       } catch (error) {
         next(error);
       }
@@ -189,9 +170,8 @@ export function createTeamTrackerRouter(
     async (req, res, next) => {
       try {
         const accountId = req.params.accountId as string;
-        const { date, itemType, jiraKey, title, note } = req.body;
+        const { date, jiraKey, title, note } = req.body;
         const item = await trackerService.addItem(accountId, date, {
-          itemType,
           jiraKey,
           title,
           note,

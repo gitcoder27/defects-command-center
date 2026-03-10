@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
 import type { TrackerWorkItem } from '@/types';
-import { formatDate, formatRelativeTime } from '@/lib/utils';
+import { formatRelativeTime } from '@/lib/utils';
 
 interface CompletedWorkProps {
   items: TrackerWorkItem[];
@@ -27,14 +27,6 @@ export function CompletedWork({ items }: CompletedWorkProps) {
             <CheckCircle2 size={13} style={{ color: 'var(--success)', flexShrink: 0 }} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
-                {item.jiraKey && (
-                  <span
-                    className="font-mono text-[10px] font-semibold shrink-0"
-                    style={{ color: 'var(--text-muted)' }}
-                  >
-                    {item.jiraKey}
-                  </span>
-                )}
                 <span
                   className="text-[12px] truncate line-through"
                   style={{ color: 'var(--text-muted)' }}
@@ -42,6 +34,15 @@ export function CompletedWork({ items }: CompletedWorkProps) {
                   {item.title}
                 </span>
               </div>
+              {item.jiraKey && (
+                <div className="mt-0.5">
+                  <span className="font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    {item.jiraSummary && item.jiraSummary !== item.title
+                      ? `${item.jiraKey} · ${item.jiraSummary}`
+                      : item.jiraKey}
+                  </span>
+                </div>
+              )}
             </div>
             {item.completedAt && (
               <span className="text-[10px] shrink-0" style={{ color: 'var(--text-muted)' }}>

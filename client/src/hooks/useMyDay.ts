@@ -5,7 +5,6 @@ import type {
   TrackerWorkItem,
   TrackerCheckIn,
   TrackerDeveloperStatus,
-  TrackerItemType,
   TrackerItemState,
 } from '@/types';
 
@@ -34,7 +33,6 @@ export function useAddMyDayItem(date: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (params: {
-      itemType: TrackerItemType;
       jiraKey?: string;
       title: string;
       note?: string;

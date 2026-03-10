@@ -29,14 +29,6 @@ export function DroppedWork({ items }: DroppedWorkProps) {
             <XCircle size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
-                {item.jiraKey && (
-                  <span
-                    className="font-mono text-[10px] font-semibold shrink-0"
-                    style={{ color: 'var(--text-muted)' }}
-                  >
-                    {item.jiraKey}
-                  </span>
-                )}
                 <span
                   className="text-[12px] truncate line-through"
                   style={{ color: 'var(--text-muted)' }}
@@ -44,6 +36,15 @@ export function DroppedWork({ items }: DroppedWorkProps) {
                   {item.title}
                 </span>
               </div>
+              {item.jiraKey && (
+                <div className="mt-0.5">
+                  <span className="font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    {item.jiraSummary && item.jiraSummary !== item.title
+                      ? `${item.jiraKey} · ${item.jiraSummary}`
+                      : item.jiraKey}
+                  </span>
+                </div>
+              )}
             </div>
           </motion.div>
         ))}
