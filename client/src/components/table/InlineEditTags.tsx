@@ -133,7 +133,8 @@ export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
               <button
                 key={tag.id}
                 onClick={() => toggleTag(tag.id)}
-                className="text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-none whitespace-nowrap hover:opacity-80 transition-opacity"
+                disabled={isPending}
+                className="text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-none whitespace-nowrap hover:opacity-80 transition-opacity disabled:cursor-wait disabled:opacity-60"
                 style={{ background: `${tag.color}25`, color: tag.color, border: `1px solid ${tag.color}40` }}
                 title={`Remove "${tag.name}"`}
               >
@@ -256,7 +257,8 @@ export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
                       <button
                         key={tag.id}
                         onClick={() => toggleTag(tag.id)}
-                        className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 transition-opacity"
+                        disabled={isPending}
+                        className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 transition-opacity disabled:cursor-wait disabled:opacity-60"
                         style={{
                           background: isAssigned ? `${tag.color}40` : `${tag.color}15`,
                           color: tag.color,

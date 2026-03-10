@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useToast } from '@/context/ToastContext';
 import { findTagByName, normalizeTagName, pickRandomTagColor } from '@/lib/tag-utils';
 import { useCreateTag, useSetIssueTags, useTags } from '@/hooks/useTags';
@@ -14,17 +14,26 @@ export function useIssueTagActions({ issueKey, localTags }: UseIssueTagActionsOp
   const createTag = useCreateTag();
   const setIssueTags = useSetIssueTags();
   const { addToast } = useToast();
+  const currentTagIds = useMemo(() => localTags.map((tag) => tag.id), [localTags]);
+  const currentTagIdsRef = useRef<number[]>(currentTagIds);
 
-  const assignedTagIds = useMemo(() => new Set(localTags.map((tag) => tag.id)), [localTags]);
+  useEffect(() => {
+    currentTagIdsRef.current = currentTagIds;
+  }, [currentTagIds]);
 
-  const setTagIds = useCallback(
+  const assignedTagIds = useMemo(() => new Set(currentTagIds), [currentTagIds]);
+
+  const commitTagIds = useCallback(
     (tagIds: number[]) => {
       if (!issueKey) {
         return;
       }
 
+      const nextTagIds = Array.from(new Set(tagIds));
+      currentTagIdsRef.current = nextTagIds;
+
       setIssueTags.mutate(
-        { key: issueKey, tagIds },
+        { key: issueKey, tagIds: nextTagIds },
         {
           onError: (err) => {
             addToast({
@@ -41,13 +50,13 @@ export function useIssueTagActions({ issueKey, localTags }: UseIssueTagActionsOp
 
   const toggleTag = useCallback(
     (tagId: number) => {
-      const currentIds = localTags.map((tag) => tag.id);
+      const currentIds = currentTagIdsRef.current;
       const nextIds = currentIds.includes(tagId)
         ? currentIds.filter((id) => id !== tagId)
         : [...currentIds, tagId];
-      setTagIds(nextIds);
+      commitTagIds(nextIds);
     },
-    [localTags, setTagIds]
+    [commitTagIds]
   );
 
   const createOrAssignTag = useCallback(
@@ -59,8 +68,8 @@ export function useIssueTagActions({ issueKey, localTags }: UseIssueTagActionsOp
 
       const exactMatch = findTagByName(allTags, normalizedName);
       if (exactMatch) {
-        if (!assignedTagIds.has(exactMatch.id)) {
-          toggleTag(exactMatch.id);
+        if (!currentTagIdsRef.current.includes(exactMatch.id)) {
+          commitTagIds([...currentTagIdsRef.current, exactMatch.id]);
         }
         callbacks?.onSuccess?.();
         return true;
@@ -77,8 +86,7 @@ export function useIssueTagActions({ issueKey, localTags }: UseIssueTagActionsOp
         },
         {
           onSuccess: (createdTag) => {
-            const currentIds = localTags.map((tag) => tag.id);
-            setTagIds([...currentIds, createdTag.id]);
+            commitTagIds([...currentTagIdsRef.current, createdTag.id]);
             callbacks?.onSuccess?.();
           },
           onError: (err) => {
@@ -93,7 +101,7 @@ export function useIssueTagActions({ issueKey, localTags }: UseIssueTagActionsOp
 
       return true;
     },
-    [allTags, assignedTagIds, toggleTag, issueKey, createTag, localTags, setTagIds, addToast]
+    [allTags, commitTagIds, issueKey, createTag, addToast]
   );
 
   return {
