@@ -22,10 +22,11 @@ applyTo:
 
 ## API and Types
 - Use `client/src/lib/api.ts` helpers for network requests to preserve consistent error handling.
-- Keep client type usage aligned with `shared/types.ts` and existing `client/src/types/index.ts` mappings.
+- Keep client type usage aligned with `shared/types.ts` and existing `client/src/types/` mappings. `client/src/types/` holds frontend-local adaptations; prefer `shared/types.ts` directly when a shared shape already covers the need.
 
 ## UX Patterns
 - Preserve existing app-level providers and patterns in `client/src/App.tsx` (Theme, Toast, QueryClient).
+- The app uses **no React Router** — routing is handled via `window.history.pushState` and `popstate` in `App.tsx`. Add new views by extending the `AppView` union type and the view-switch logic there.
 - Follow existing filter/triage/workload UX conventions before introducing new interaction models.
 
 ## Testing

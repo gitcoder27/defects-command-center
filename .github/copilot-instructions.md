@@ -1,51 +1,66 @@
 # Project Guidelines
 
 ## Scope
-These instructions apply across the `client/`, `server/`, and `shared/` workspaces in this monorepo.
-
-## Code Style
-- Use strict TypeScript patterns already present in the repo (`tsconfig.base.json`, workspace `tsconfig.json` files).
-- Keep service and UI logic modular; prefer small functions/components with clear names.
-- Reuse shared contracts from `shared/types.ts` instead of redefining API shapes in multiple places.
-- Follow existing import aliases and file organization patterns in each workspace.
+TypeScript monorepo with three workspaces: `client/` (React + Vite SPA), `server/` (Express + SQLite backend), and `shared/` (cross-layer contracts). Authentication is cookie-based with distinct manager and developer roles. See `.github/instructions/` for focused backend and frontend rules applied automatically via `applyTo`.
 
 ## Architecture
-- Frontend: React + Vite in `client/`; server state via TanStack Query hooks in `client/src/hooks/`, UI composition in `client/src/components/`.
-- Backend: Express app in `server/src/app.ts`, route handlers in `server/src/routes/`, business logic in `server/src/services/`.
-- Persistence: SQLite via Drizzle schema in `server/src/db/schema.ts` and connection in `server/src/db/connection.ts`.
-- Sync: Jira integration and sync flow in `server/src/jira/` and `server/src/sync/engine.ts`.
-- Cross-layer contracts: `shared/types.ts` is the source of truth for shared domain types.
+- **Frontend**: Custom SPA routing in `client/src/App.tsx` via `pushState`/`popstate` — **no React Router**. Paths: `/` (dashboard), `/team-tracker`, `/my-day`, `/manager-desk`, `/settings`.
+- **UI composition**: Feature folders under `client/src/components/` — `layout/`, `overview/`, `filters/`, `table/`, `triage/`, `alerts/`, `workload/`, `team-tracker/`, `my-day/`, `manager-desk/`, `settings/`, `setup/`.
+- **State**: TanStack Query hooks in `client/src/hooks/`; centralized API client in `client/src/lib/api.ts`; frontend-local type mappings in `client/src/types/`.
+- **Backend**: Express routes in `server/src/routes/` (13 modules), business logic in `server/src/services/`, Zod validation via `server/src/middleware/validate.ts`.
+- **Database**: SQLite via Drizzle — schema in `server/src/db/schema.ts` (15 tables). Runtime DB at `data/dashboard.db` (repo root), **not** `server/data/`.
+- **Sync**: Jira client + JQL helpers in `server/src/jira/`; scheduled sync engine in `server/src/sync/engine.ts`.
+- **Contracts**: `shared/types.ts` is the source of truth for all cross-layer types (dashboard, auth, Team Tracker, My Day, Manager Desk).
 
-## Build And Test
-- Preferred on Windows: run commands through `run-node20.ps1` from repo root.
-- Install: `./run-node20.ps1 -Mode install`
-- Full local check: `./run-node20.ps1 -Mode all`
-- Backend dev: `./run-node20.ps1 -Mode dev`
-- Frontend dev: `./run-node20.ps1 -Mode client-dev`
-- Backend tests: `./run-node20.ps1 -Mode test`
-- Frontend tests: `./run-node20.ps1 -Mode client-test`
-- Root npm alternatives:
-  - `npm run dev`
-  - `npm run build`
-  - `npm run test`
-  - `npm run test:coverage`
+## Application Surfaces
+- **Manager dashboard** (`/`): overview cards, alerts, filter sidebar, defect table, triage panel, workload/capacity bar.
+- **Team Tracker** (`/team-tracker`): manager view of developer day plans, check-ins, carry-forward flows.
+- **My Day** (`/my-day`): developer daily workspace — current/planned/completed/dropped work and check-ins.
+- **Manager Desk** (`/manager-desk`): manager daily planning workspace — tasks, decisions, linked issues/developers.
+- **Settings** (`/settings`): Jira config, field discovery, backup management, team and user management.
+- **Setup Wizard**: first-run bootstrap for manager account, Jira connection, team selection, developer access.
+
+## Auth
+- Cookie: `dcc_session`. First account must be a manager; most API routes are manager-only.
+- Developer access is primarily through `/api/my-day`.
+- Jira API token stored at runtime in `server/src/runtime-credentials.ts` — separate from `.env`; never hardcode it.
+
+## Build and Test
+Run from repo root (Node 20 required):
+- `npm install` — install all workspace dependencies
+- `npm run dev` — backend + frontend concurrently (`npm run dev:server` / `npm run dev:client` individually)
+- `npm run build` — build client then server (`client/dist` is served by backend in production via `npm run start`)
+- `npm run test` — backend Vitest suite
+- `npm run test --workspace=client` — frontend Vitest suite
+- `npm run test:coverage` — backend coverage (thresholds: 80% lines/statements/functions, 70% branches for `services/`)
+- `npm run backup:restore -- <path>` — restore a SQLite backup
+- `npm run auth:create-user --workspace=server -- --username <n> --password <p> --display-name <d> --role <manager|developer>` — CLI user creation
+
+Windows: use `./run-node20.ps1` with modes `all`, `install`, `build`, `test`, `dev`, `client-dev`, `client-build`, `client-test`.
+
+## Code Style
+- Strict TypeScript throughout; reuse `shared/types.ts` contracts instead of redefining shapes locally.
+- Frontend: single quotes, `@/` import alias, `PascalCase` component files, `useX.ts` hook files.
+- Backend: double quotes. Keep routes thin; push logic into `services/`.
+- When adding a backend capability, update route + service + `shared/types.ts` together.
 
 ## Conventions
-- Validate request payloads with Zod on write endpoints (`server/src/middleware/validate.ts`).
-- Preserve backend error contract: JSON responses in `{ error, status }` shape (see `server/src/middleware/errorHandler.ts`).
-- Keep route files thin and push domain logic into services.
-- Frontend data-fetching should use existing query-hook patterns rather than ad hoc fetch calls in components.
-- In frontend tests, use the existing `client/src/test/wrapper.tsx` provider setup.
-- In backend tests, keep tests hermetic by mocking Jira/DB boundaries where possible.
+- Write endpoint payloads validated with Zod via `server/src/middleware/validate.ts`.
+- Backend error shape: `{ error, status }` — see `server/src/middleware/errorHandler.ts`.
+- Data fetching in components → use hooks from `client/src/hooks/`, not ad hoc `fetch` calls.
+- Frontend tests: wrap components with `client/src/test/wrapper.tsx` for Query context.
+- Backend tests: mock Jira/DB boundaries; do not call Jira directly from routes.
+- Manager-only and developer-only flows are intentionally separated — preserve role expectations.
 
 ## Environment Pitfalls
-- Node 20 is expected. Newer Node versions (notably v25) can fail on `better-sqlite3` native installs.
-- If native sqlite install fails for test-only validation, `npm install --ignore-scripts` can still support TypeScript and Vitest runs with mocked DB tests.
-- Jira credentials and JQL come from `.env`; do not hardcode or commit secrets.
+- **Node 20 required.** v25+ breaks `better-sqlite3` native install.
+- `npm install --ignore-scripts` skips native build — usable for TS/Vitest if DB is mocked.
+- Jira credentials in `.env`; runtime token in `server/src/runtime-credentials.ts`. Never commit secrets.
+- Runtime SQLite DB is `data/dashboard.db` at repo root, not inside `server/`.
 
 ## Key References
-- `README.md`
-- `docs/02-system-design.md`
-- `docs/04-technical-plan.md`
-- `server/tests/`
-- `client/src/test/`
+- `docs/02-system-design.md` — architecture decisions
+- `docs/04-technical-plan.md` — implementation plan
+- `server/src/db/schema.ts` — all 15 table definitions
+- `shared/types.ts` — all domain types
+- `server/tests/` and `client/src/test/` — test patterns

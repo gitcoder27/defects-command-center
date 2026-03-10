@@ -25,7 +25,9 @@ applyTo:
 
 ## Security and Config
 - Never hardcode secrets or Jira tokens; use `.env` and `server/src/config.ts`.
+- The live Jira API token is stored at runtime in `server/src/runtime-credentials.ts` — this is separate from `.env` and is managed through the config/settings flow, not hardcoded.
 - Keep logs safe by preserving token/header redaction behavior in `server/src/utils/logger.ts`.
+- The backup service (`server/src/services/backup.service.ts`) and `server/src/routes/backups.ts` manage SQLite backup operations; preserve their behavior when touching DB or config code.
 
 ## Testing
 - Prefer hermetic unit tests in `server/tests/` with mocked DB/Jira boundaries.
