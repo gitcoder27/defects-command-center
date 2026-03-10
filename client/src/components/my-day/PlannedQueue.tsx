@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Reorder } from 'framer-motion';
 import type { TrackerWorkItem } from '@/types';
 import { TrackerItemRow } from '@/components/team-tracker/TrackerItemRow';
@@ -23,21 +23,50 @@ export function PlannedQueue({
   onUpdateTitle,
 }: PlannedQueueProps) {
   const [orderedItems, setOrderedItems] = useState(items);
+  const isDraggingRef = useRef(false);
+  const dragStartItemsRef = useRef(items);
+  const draggedItemIdRef = useRef<number | null>(null);
 
-  // Sync from parent when items change
-  if (items !== orderedItems && JSON.stringify(items.map((i) => i.id)) !== JSON.stringify(orderedItems.map((i) => i.id))) {
+  useEffect(() => {
+    if (isDraggingRef.current) {
+      return;
+    }
+
     setOrderedItems(items);
-  }
+    dragStartItemsRef.current = items;
+  }, [items]);
 
-  const handleReorder = (newOrder: TrackerWorkItem[]) => {
+  const handleReorder = useCallback((newOrder: TrackerWorkItem[]) => {
     setOrderedItems(newOrder);
-    // Find which item moved and its new position
-    newOrder.forEach((item, idx) => {
-      if (items[idx]?.id !== item.id) {
-        onReorder(item.id, idx);
-      }
-    });
-  };
+  }, []);
+
+  const handleDragStart = useCallback((itemId: number) => {
+    isDraggingRef.current = true;
+    draggedItemIdRef.current = itemId;
+    dragStartItemsRef.current = orderedItems;
+  }, [orderedItems]);
+
+  const handleDragEnd = useCallback(() => {
+    isDraggingRef.current = false;
+
+    const draggedItemId = draggedItemIdRef.current;
+    draggedItemIdRef.current = null;
+
+    if (draggedItemId === null) {
+      return;
+    }
+
+    const startItems = dragStartItemsRef.current;
+    const startIndex = startItems.findIndex((item) => item.id === draggedItemId);
+    const nextIndex = orderedItems.findIndex((item) => item.id === draggedItemId);
+
+    if (startIndex === -1 || nextIndex === -1 || startIndex === nextIndex) {
+      return;
+    }
+
+    const targetPosition = startItems[nextIndex]?.position ?? nextIndex;
+    onReorder(draggedItemId, targetPosition);
+  }, [onReorder, orderedItems]);
 
   if (items.length === 0) {
     return (
@@ -61,6 +90,8 @@ export function PlannedQueue({
         <Reorder.Item
           key={item.id}
           value={item}
+          onDragStart={() => handleDragStart(item.id)}
+          onDragEnd={handleDragEnd}
           className="rounded-xl px-1"
           whileDrag={{
             scale: 1.02,
