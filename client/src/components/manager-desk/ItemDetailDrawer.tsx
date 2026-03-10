@@ -1158,7 +1158,6 @@ function FieldDatetime({
           background: 'var(--bg-tertiary)',
           color: 'var(--text-primary)',
           border: '1px solid var(--border)',
-          colorScheme: 'dark',
         }}
       />
     </div>

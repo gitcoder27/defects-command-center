@@ -217,7 +217,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   className="text-[12px] font-mono bg-transparent outline-none"
-                  style={{ color: 'var(--text-primary)', colorScheme: 'dark' }}
+                  style={{ color: 'var(--text-primary)' }}
                 />
               </div>
               <button

@@ -33,6 +33,10 @@ const ASPEN_SEVERITY_ORDER: Record<string, number> = {
   '4 - Low': 3,
 };
 
+const INITIAL_ROW_ANIMATION_DELAY = 0.4;
+const INITIAL_ROW_ANIMATION_STAGGER = 0.03;
+const INITIAL_ROW_STAGGER_CAP = 12;
+
 const columnHelper = createColumnHelper<Issue>();
 
 function hasAnalysisNotes(issue: Issue): boolean {
@@ -645,14 +649,16 @@ export function DefectTable({
               indicatorReason = 'Stale: not updated in the last 48 hours';
             }
 
-            const shouldAnimate = !hasAnimated && i < 10;
+            const shouldAnimate = !hasAnimated;
+            const animationDelay =
+              Math.min(i, INITIAL_ROW_STAGGER_CAP) * INITIAL_ROW_ANIMATION_STAGGER + INITIAL_ROW_ANIMATION_DELAY;
 
                 return (
                   <motion.tr
                     key={issue.jiraKey}
                     initial={shouldAnimate ? { opacity: 0, y: 6 } : false}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={shouldAnimate ? { duration: 0.2, delay: i * 0.03 + 0.4 } : undefined}
+                    transition={shouldAnimate ? { duration: 0.2, delay: animationDelay } : undefined}
                     onClick={() => onSelectIssue(issue.jiraKey)}
                     className="cursor-pointer transition-colors duration-150 group/row"
                     style={{

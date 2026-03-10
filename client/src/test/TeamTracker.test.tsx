@@ -154,6 +154,16 @@ describe('TeamTrackerPage', () => {
     expect(screen.getByText('Team Tracker')).toBeInTheDocument();
   });
 
+  it('does not hardcode a dark native color scheme on the board date input', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    expect(screen.getByDisplayValue('2026-03-07')).toHaveProperty('style.colorScheme', '');
+  });
+
   it('renders developer cards', () => {
     render(
       <TestWrapper>

@@ -6,6 +6,7 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
   --bg-primary:    #FAFBFC;
   --bg-secondary:  #F1F3F8;
   --bg-tertiary:   #E8ECF2;
@@ -34,7 +35,12 @@
   --md-accent-dim: rgba(184, 134, 11, 0.05);
 }
 
+.light {
+  color-scheme: light;
+}
+
 .dark {
+  color-scheme: dark;
   --bg-primary:    #09090B;
   --bg-secondary:  #0F1117;
   --bg-tertiary:   #161922;
@@ -81,6 +87,11 @@ body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+input[type='date'],
+input[type='datetime-local'] {
+  color-scheme: inherit;
 }
 
 body::after {

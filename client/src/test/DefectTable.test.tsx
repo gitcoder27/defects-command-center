@@ -1,8 +1,33 @@
+import * as React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { DefectTable } from '@/components/table/DefectTable';
 import { TestWrapper } from '@/test/wrapper';
 import type { Issue } from '@/types';
+
+vi.mock('framer-motion', () => {
+  const motion = new Proxy(
+    {},
+    {
+      get: (_target, tag: string) =>
+        React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement> & {
+          initial?: unknown;
+          animate?: unknown;
+          transition?: unknown;
+          whileHover?: unknown;
+        }>(({ children, initial, animate: _animate, transition, whileHover: _whileHover, ...props }, ref) =>
+          React.createElement(tag, {
+            ...props,
+            ref,
+            'data-motion-initial': initial === false ? 'false' : JSON.stringify(initial),
+            'data-motion-transition': transition ? JSON.stringify(transition) : '',
+          }, children)
+        ),
+    }
+  );
+
+  return { motion };
+});
 
 const mockIssues: Issue[] = [
   {
@@ -59,9 +84,27 @@ const mockIssues: Issue[] = [
 
 const mockCreateTagMutate = vi.fn();
 const mockSetIssueTagsMutate = vi.fn();
+let currentIssues = mockIssues;
+
+const animatedRows: Issue[] = Array.from({ length: 14 }, (_, index) => ({
+  jiraKey: `PROJ-${200 + index}`,
+  summary: `Animated defect ${index + 1}`,
+  aspenSeverity: '2 - Major',
+  priorityName: 'High',
+  priorityId: '2',
+  statusName: 'To Do',
+  statusCategory: 'new',
+  assigneeName: `Engineer ${index + 1}`,
+  assigneeId: `engineer-${index + 1}`,
+  labels: [],
+  flagged: false,
+  createdAt: '2026-03-03T09:00:00Z',
+  updatedAt: '2026-03-05T09:00:00Z',
+  localTags: [],
+}));
 
 vi.mock('@/hooks/useIssues', () => ({
-  useIssues: () => ({ data: mockIssues, isLoading: false }),
+  useIssues: () => ({ data: currentIssues, isLoading: false }),
 }));
 
 vi.mock('@/hooks/useConfig', () => ({
@@ -88,6 +131,7 @@ describe('DefectTable', () => {
   };
 
   beforeEach(() => {
+    currentIssues = mockIssues;
     onSelectIssue.mockClear();
     onFocusedIndexChange.mockClear();
     onClearFilters.mockClear();
@@ -187,6 +231,20 @@ describe('DefectTable', () => {
     expect(screen.getByText('PROJ-103')).toBeInTheDocument();
     expect(screen.getByText('Stale defect not updated')).toBeInTheDocument();
     expect(screen.getAllByLabelText('Row indicator: Stale: not updated in the last 48 hours').length).toBeGreaterThan(0);
+  });
+
+  it('animates rows beyond the initial viewport cutoff on first load', () => {
+    currentIssues = animatedRows;
+
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} hasAnimated={false} />
+      </TestWrapper>
+    );
+
+    const laterRow = screen.getByText('PROJ-212').closest('tr');
+    expect(laterRow).toHaveAttribute('data-motion-initial', JSON.stringify({ opacity: 0, y: 6 }));
+    expect(laterRow).toHaveAttribute('data-motion-transition', JSON.stringify({ duration: 0.2, delay: 0.76 }));
   });
 
   it('uses ASPEN Severity values for the first-column indicators', () => {

@@ -386,6 +386,18 @@ describe('ManagerDeskPage', () => {
     expect(screen.getByRole('button', { name: /carry 4 items forward/i })).toBeInTheDocument();
   });
 
+  it('does not hardcode a dark native color scheme on carry forward date inputs', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
+
+    expect(screen.getByDisplayValue('2026-03-09')).toHaveProperty('style.colorScheme', '');
+  });
+
   it('toggles all selections in the bulk carry forward dialog', () => {
     render(
       <TestWrapper>
