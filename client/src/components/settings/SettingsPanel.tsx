@@ -19,6 +19,7 @@ import {
   Eye,
   EyeOff,
   RefreshCcw,
+  Tag,
 } from 'lucide-react';
 import { useConfig } from '@/hooks/useConfig';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
@@ -26,6 +27,7 @@ import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import { useDevelopers } from '@/hooks/useDevelopers';
+import { TagManagementSection } from '@/components/settings/TagManagementSection';
 import type { AuthUser, UserRole } from '@/types';
 
 interface JiraField {
@@ -555,29 +557,6 @@ export function SettingsPage() {
     }
   }, [config?.jiraBaseUrl]);
 
-  const summaryStats = [
-    {
-      label: 'Jira workspace',
-      value: connectionLabel,
-      tone: 'neutral' as const,
-    },
-    {
-      label: 'Project',
-      value: config?.jiraProjectKey || 'Unset',
-      tone: 'neutral' as const,
-    },
-    {
-      label: 'Manager identity',
-      value: managerJiraAccountId ? 'Linked' : 'Optional',
-      tone: managerJiraAccountId ? 'good' as const : 'warn' as const,
-    },
-    {
-      label: 'Developer access',
-      value: loadingUsers ? 'Loading…' : `${appUsers.length} account${appUsers.length === 1 ? '' : 's'}`,
-      tone: 'neutral' as const,
-    },
-  ];
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -626,62 +605,29 @@ export function SettingsPage() {
       }}
     >
             <div
-              className="relative overflow-hidden border-b px-6 py-4 md:px-8"
+              className="relative overflow-hidden border-b px-4 py-3 md:px-6 lg:px-7"
               style={{ borderColor: 'var(--border-strong)' }}
             >
               <div
                 className="pointer-events-none absolute inset-0"
                 style={{
-                  background: 'radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 12%, transparent), transparent 30%), radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--warning) 10%, transparent), transparent 20%)',
+                  background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 72%, transparent) 0%, transparent 100%)',
                 }}
               />
-              <div className="relative flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="relative min-w-0">
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div
-                      className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em]"
-                      style={{
-                        background: 'var(--settings-hero-badge-bg)',
-                        color: 'var(--settings-hero-badge-text)',
-                        border: 'var(--settings-hero-badge-border)',
-                      }}
-                    >
-                      Manager Settings
-                    </div>
-                    <div
-                      className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]"
-                      style={{
-                        background: 'var(--settings-neutral-chip-bg)',
-                        color: 'var(--text-secondary)',
-                        border: '1px solid var(--border-strong)',
-                      }}
-                    >
-                      Manager-only workspace
-                    </div>
-                  </div>
-                  <h2 className="mt-2 text-[18px] font-semibold tracking-[-0.02em]" style={{ color: 'var(--text-primary)' }}>
+                  <h2 className="text-[16px] font-semibold tracking-[-0.02em] md:text-[18px]" style={{ color: 'var(--text-primary)' }}>
                     Settings
                   </h2>
-                  <p className="mt-1 text-[12px] leading-6" style={{ color: 'var(--text-secondary)' }}>
-                    Connection, sync scope, tracked team, and developer access in one place.
+                  <p className="mt-1 text-[11px] leading-5" style={{ color: 'var(--text-muted)' }}>
+                    Jira setup, team configuration, tags, and app access.
                   </p>
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2 xl:min-w-[620px] xl:grid-cols-4">
-                  {summaryStats.map((stat) => (
-                    <MetricCard
-                      key={stat.label}
-                      label={stat.label}
-                      value={stat.value}
-                      tone={stat.tone}
-                    />
-                  ))}
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-6 md:px-8">
-              <div className="flex flex-col gap-5">
+            <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-5 lg:px-7">
+              <div className="flex flex-col gap-4">
                 <SectionCard
                   icon={<Search size={16} />}
                   eyebrow="01"
@@ -690,7 +636,7 @@ export function SettingsPage() {
                 >
                   <div className="grid gap-4 lg:grid-cols-[1.05fr_1.2fr]">
                     <div
-                      className="rounded-[24px] p-5"
+                      className="rounded-[22px] p-4 lg:p-5"
                       style={{
                         background: 'var(--settings-pane-strong-bg)',
                         border: 'var(--settings-pane-border)',
@@ -718,7 +664,7 @@ export function SettingsPage() {
                     </div>
 
                     <div
-                      className="rounded-[24px] p-5"
+                      className="rounded-[22px] p-4 lg:p-5"
                       style={{
                         background: 'var(--settings-pane-bg)',
                         border: 'var(--settings-pane-border)',
@@ -873,7 +819,7 @@ export function SettingsPage() {
                 >
                   <div className="grid gap-4 lg:grid-cols-[1.2fr_0.95fr]">
                     <div
-                      className="rounded-[24px] p-5"
+                      className="rounded-[22px] p-4 lg:p-5"
                       style={{
                         background: 'var(--settings-pane-bg)',
                         border: 'var(--settings-pane-border)',
@@ -895,12 +841,12 @@ export function SettingsPage() {
                         onChange={(event) => setJql(event.target.value)}
                         rows={9}
                         spellCheck={false}
-                        className="mt-4 w-full rounded-[22px] px-4 py-4 text-[13px] leading-relaxed outline-none transition-colors"
+                        className="mt-4 w-full rounded-[18px] px-3.5 py-3 text-[12px] leading-relaxed outline-none transition-colors md:text-[13px]"
                         style={{
                           background: 'var(--settings-input-bg)',
                           color: 'var(--text-primary)',
                           border: 'var(--settings-input-border)',
-                          minHeight: '180px',
+                          minHeight: '156px',
                         }}
                         placeholder="project = PROJ AND issuetype = Bug AND statusCategory != Done"
                       />
@@ -1032,7 +978,7 @@ export function SettingsPage() {
                 >
                   <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
                     <div
-                      className="rounded-[24px] p-5"
+                      className="rounded-[22px] p-4 lg:p-5"
                       style={{
                         background: 'var(--settings-pane-bg)',
                         border: 'var(--settings-pane-border)',
@@ -1132,7 +1078,7 @@ export function SettingsPage() {
                     </div>
 
                     <div
-                      className="rounded-[24px] p-5"
+                      className="rounded-[22px] p-4 lg:p-5"
                       style={{
                         background: 'var(--settings-pane-bg)',
                         border: 'var(--settings-pane-border)',
@@ -1332,15 +1278,24 @@ export function SettingsPage() {
                 </SectionCard>
 
                 <SectionCard
-                  icon={<Shield size={16} />}
+                  icon={<Tag size={16} />}
                   eyebrow="04"
+                  title="Defect Tags"
+                  description="Review the shared tag library, inspect where tags are applied, and delete labels safely."
+                >
+                  <TagManagementSection />
+                </SectionCard>
+
+                <SectionCard
+                  icon={<Shield size={16} />}
+                  eyebrow="05"
                   title="Developer Access"
                   description="Create application accounts for the team and share the direct `/my-day` entry point with developers."
                 >
                   <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
                     <div className="grid gap-4">
                       <div
-                        className="rounded-[24px] p-5"
+                        className="rounded-[22px] p-4 lg:p-5"
                         style={{
                           background: 'var(--settings-pane-strong-bg)',
                           border: 'var(--settings-pane-border)',
@@ -1378,7 +1333,7 @@ export function SettingsPage() {
                       </div>
 
                       <div
-                        className="rounded-[24px] px-5 py-4 text-[12px] leading-relaxed"
+                        className="rounded-[22px] px-4 py-3 text-[12px] leading-relaxed lg:px-5 lg:py-4"
                         style={{
                           background: 'var(--settings-accent-soft-bg)',
                           color: 'var(--text-secondary)',
@@ -1391,7 +1346,7 @@ export function SettingsPage() {
 
                     <div className="grid gap-4">
                       <div
-                        className="rounded-[24px] p-5"
+                        className="rounded-[22px] p-4 lg:p-5"
                         style={{
                           background: 'var(--settings-pane-bg)',
                           border: 'var(--settings-pane-border)',
@@ -1520,7 +1475,7 @@ export function SettingsPage() {
                             setCopiedPw(false);
                             setShowPasswordGen(false);
                           }}
-                          className="flex items-center justify-center gap-2 rounded-[24px] px-4 py-4 text-[13px] font-semibold transition-colors"
+                          className="flex items-center justify-center gap-2 rounded-[22px] px-4 py-3 text-[12px] font-semibold transition-colors md:text-[13px]"
                           style={{
                             background: 'var(--settings-accent-soft-bg)',
                             color: 'var(--accent)',
@@ -1532,7 +1487,7 @@ export function SettingsPage() {
                         </button>
                       ) : (
                         <div
-                          className="rounded-[24px] p-5"
+                          className="rounded-[22px] p-4 lg:p-5"
                           style={{
                             background: 'var(--settings-pane-bg)',
                             border: 'var(--settings-accent-soft-border)',
@@ -1775,7 +1730,7 @@ export function SettingsPage() {
             </div>
 
             <div
-              className="border-t px-6 py-4 md:px-8"
+              className="border-t px-4 py-3 md:px-6 lg:px-7"
               style={{
                 borderColor: 'color-mix(in srgb, var(--border-strong) 84%, transparent)',
                 background: 'color-mix(in srgb, var(--bg-secondary) 88%, transparent)',
@@ -1953,17 +1908,17 @@ function SectionCard({
 }) {
   return (
     <section
-      className="rounded-[30px] p-5 sm:p-6"
+      className="rounded-[24px] p-4 sm:p-5"
       style={{
         background: 'var(--settings-shell-bg)',
         border: 'var(--settings-shell-border)',
         boxShadow: 'var(--settings-shell-shadow)',
       }}
     >
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-2.5 sm:gap-3">
           <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px]"
             style={{
               background: 'var(--settings-accent-chip-bg)',
               color: 'var(--accent)',
@@ -1976,10 +1931,10 @@ function SectionCard({
             <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--text-muted)' }}>
               Section {eyebrow}
             </div>
-            <h3 className="mt-1 text-[20px] font-semibold tracking-[-0.03em]" style={{ color: 'var(--text-primary)' }}>
+            <h3 className="mt-1 text-[18px] font-semibold tracking-[-0.03em] md:text-[19px]" style={{ color: 'var(--text-primary)' }}>
               {title}
             </h3>
-            <p className="mt-2 max-w-[560px] text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            <p className="mt-1.5 max-w-[560px] text-[12px] leading-relaxed md:text-[13px]" style={{ color: 'var(--text-secondary)' }}>
               {description}
             </p>
           </div>
@@ -1987,52 +1942,6 @@ function SectionCard({
       </div>
       {children}
     </section>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone: 'neutral' | 'good' | 'warn';
-}) {
-  const color =
-    tone === 'good'
-      ? 'var(--settings-success-soft-bg)'
-      : tone === 'warn'
-        ? 'var(--settings-warning-soft-bg)'
-        : 'var(--settings-neutral-chip-bg)';
-  const borderColor =
-    tone === 'good'
-      ? 'var(--settings-success-soft-border)'
-      : tone === 'warn'
-        ? 'var(--settings-warning-soft-border)'
-        : '1px solid var(--border-strong)';
-  const textColor =
-    tone === 'good'
-      ? 'var(--success)'
-      : tone === 'warn'
-        ? 'var(--warning)'
-        : 'var(--text-primary)';
-
-  return (
-    <div
-      className="rounded-[22px] px-4 py-3"
-        style={{
-          background: color,
-          border: borderColor,
-        }}
-    >
-      <div className="text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
-        {label}
-      </div>
-      <div className="mt-2 text-[13px] font-semibold" style={{ color: textColor }}>
-        {value}
-      </div>
-    </div>
   );
 }
 
@@ -2085,7 +1994,7 @@ function TextInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className={`w-full rounded-[20px] px-4 py-3 text-[13px] outline-none transition-colors ${mono ? 'font-mono' : ''}`}
+        className={`w-full rounded-[16px] px-3.5 py-2.5 text-[12px] outline-none transition-colors md:px-4 md:py-3 md:text-[13px] ${mono ? 'font-mono' : ''}`}
         style={{
           background: 'var(--settings-input-bg)',
           color: 'var(--text-primary)',
@@ -2116,7 +2025,7 @@ function SelectField({
         <select
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full appearance-none rounded-[20px] px-4 py-3 text-[13px] outline-none"
+          className="w-full appearance-none rounded-[16px] px-3.5 py-2.5 text-[12px] outline-none md:px-4 md:py-3 md:text-[13px]"
           style={{
             background: 'var(--settings-input-bg)',
             color: 'var(--text-primary)',
@@ -2160,7 +2069,7 @@ function FieldCard({
 }) {
   return (
     <div
-      className="rounded-[24px] p-5"
+      className="rounded-[20px] p-4 lg:p-5"
       style={{
         background: active ? 'var(--settings-accent-chip-bg)' : 'var(--settings-soft-bg)',
         border: active ? '1px solid color-mix(in srgb, var(--accent) 28%, var(--border))' : 'var(--settings-soft-border)',
@@ -2168,7 +2077,7 @@ function FieldCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <p className="text-[12px] font-semibold md:text-[13px]" style={{ color: 'var(--text-primary)' }}>
             {label}
           </p>
           <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
@@ -2178,7 +2087,7 @@ function FieldCard({
         <button
           type="button"
           onClick={onDiscover}
-          className="flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors"
+        className="flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-[10px] font-semibold transition-colors md:px-3 md:text-[11px]"
           style={{
             background: active ? 'var(--settings-accent-chip-bg)' : 'var(--settings-neutral-chip-bg)',
             color: active ? 'var(--accent)' : 'var(--text-primary)',
@@ -2194,7 +2103,7 @@ function FieldCard({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="mt-4 w-full rounded-[20px] px-4 py-3 text-[13px] font-mono outline-none"
+        className="mt-3.5 w-full rounded-[16px] px-3.5 py-2.5 text-[12px] font-mono outline-none md:px-4 md:py-3 md:text-[13px]"
         style={{
           background: 'var(--settings-input-bg)',
           color: 'var(--text-primary)',

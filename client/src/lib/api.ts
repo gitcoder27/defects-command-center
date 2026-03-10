@@ -2,6 +2,18 @@ import type { ApiErrorResponse } from '@/types';
 
 const BASE = '/api';
 
+export class ApiRequestError extends Error {
+  status: number;
+  body?: unknown;
+
+  constructor(message: string, status: number, body?: unknown) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${url}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -10,7 +22,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText, status: res.status })) as ApiErrorResponse;
-    throw new Error(body.error || `Request failed: ${res.status}`);
+    throw new ApiRequestError(body.error || `Request failed: ${res.status}`, body.status || res.status, body);
   }
 
   return res.json() as Promise<T>;

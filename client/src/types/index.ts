@@ -24,6 +24,25 @@ export interface LocalTag {
   color: string;
 }
 
+export interface TagUsageIssuePreview {
+  jiraKey: string;
+  summary: string;
+  assigneeName?: string;
+  statusName: string;
+  updatedAt: string;
+}
+
+export interface TagUsageResponse {
+  tag: LocalTag;
+  issueCount: number;
+  issues: TagUsageIssuePreview[];
+}
+
+export interface TagDeleteResponse {
+  success: true;
+  removedIssueCount: number;
+}
+
 export interface Issue {
   jiraKey: string;
   summary: string;

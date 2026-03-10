@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { TestWrapper } from '@/test/wrapper';
 import type {
   ManagerDeskDayResponse,
@@ -37,7 +37,14 @@ const mockItem = (overrides: Partial<ManagerDeskItem> = {}): ManagerDeskItem => 
 const mockDayResponse: ManagerDeskDayResponse = {
   date: '2026-03-08',
   items: [
-    mockItem({ id: 1, title: 'Analyze root cause for DEF-241', status: 'planned', priority: 'high' }),
+    mockItem({
+      id: 1,
+      title: 'Analyze root cause for DEF-241',
+      status: 'planned',
+      priority: 'high',
+      nextAction: 'Follow up with QA after design review',
+      outcome: 'Root cause and workaround captured',
+    }),
     mockItem({ id: 2, title: 'Design sync with onshore', kind: 'meeting', category: 'design', status: 'planned', participants: 'Onshore Team' }),
     mockItem({ id: 3, title: 'Waiting on QA feedback', kind: 'waiting', category: 'follow_up', status: 'waiting' }),
     mockItem({ id: 4, title: 'Quick inbox thought', status: 'inbox', priority: 'low' }),
@@ -263,6 +270,106 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
     expect(screen.getByText('Carry Forward')).toBeInTheDocument();
+  });
+
+  it('opens the item detail drawer with context expanded and the follow-through section collapsed', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+
+    expect(screen.getByLabelText('Context / Notes')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Next Action')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Outcome')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /expand action & outcome/i })).toBeInTheDocument();
+    expect(screen.getByText('Next Action saved')).toBeInTheDocument();
+    expect(screen.getByText('Outcome saved')).toBeInTheDocument();
+  });
+
+  it('debounces context note updates from the drawer', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+
+    const notesField = screen.getByLabelText('Context / Notes');
+    fireEvent.change(notesField, { target: { value: 'Capture manager context in the detail drawer' } });
+
+    expect(mockUpdateMutate).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(900);
+    });
+
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      {
+        itemId: 1,
+        contextNote: 'Capture manager context in the detail drawer',
+      },
+      expect.anything(),
+    );
+  });
+
+  it('commits next action changes on blur when the debounce has not fired yet', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+    fireEvent.click(screen.getByRole('button', { name: /expand action & outcome/i }));
+
+    const nextActionField = screen.getByLabelText('Next Action');
+    fireEvent.change(nextActionField, { target: { value: 'Schedule follow-up with QA and product' } });
+    fireEvent.blur(nextActionField);
+
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      {
+        itemId: 1,
+        nextAction: 'Schedule follow-up with QA and product',
+      },
+      expect.anything(),
+    );
+  });
+
+  it('switches the tabbed follow-through section to outcome when expanded', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+    fireEvent.click(screen.getByRole('button', { name: /expand action & outcome/i }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Outcome' }));
+
+    expect(screen.getByLabelText('Outcome')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Next Action')).not.toBeInTheDocument();
+  });
+
+  it('allows collapsing the large notes section to reach lower sections faster', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+
+    expect(screen.getByLabelText('Context / Notes')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /collapse context \/ notes/i }));
+
+    expect(screen.queryByLabelText('Context / Notes')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /expand context \/ notes/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /collapse operational settings/i })).toBeInTheDocument();
   });
 
   it('opens the bulk carry forward dialog with all open items selected by default', () => {
