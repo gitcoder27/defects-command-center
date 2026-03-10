@@ -159,7 +159,11 @@ export function ManagerDeskPage() {
         { fromDate: date, toDate, itemIds },
         {
           onSuccess: (res) => {
-            addToast(`${res.created} item(s) carried forward`, 'success');
+            if (res.created === 0) {
+              addToast('Nothing new was carried forward', 'info', 'Selected items may already exist on the target date.');
+            } else {
+              addToast(`${res.created} item(s) carried forward`, 'success');
+            }
             setShowCarryForward(false);
           },
           onError: (err) => addToast(err.message, 'error'),
@@ -167,6 +171,26 @@ export function ManagerDeskPage() {
       );
     },
     [carryForward, date, addToast],
+  );
+
+  const handleCarryForwardItem = useCallback(
+    (item: ManagerDeskItem) => {
+      const targetDate = format(addDays(parseISO(date), 1), 'yyyy-MM-dd');
+      carryForward.mutate(
+        { fromDate: date, toDate: targetDate, itemIds: [item.id] },
+        {
+          onSuccess: (res) => {
+            if (res.created === 0) {
+              addToast('Task already carried forward', 'info', `"${item.title}" is already on ${targetDate}.`);
+            } else {
+              addToast('Task carried forward', 'success', `"${item.title}" moved to ${targetDate}.`);
+            }
+          },
+          onError: (err) => addToast(err.message, 'error'),
+        },
+      );
+    },
+    [addToast, carryForward, date],
   );
 
   const clearFilters = useCallback(() => setFilters({ kind: null, category: null, status: null }), []);
@@ -401,6 +425,8 @@ export function ManagerDeskPage() {
                           item={item}
                           onSelect={() => setSelectedItemId(item.id)}
                           onStatusChange={(status) => handleUpdateItem(item.id, { status })}
+                          onCarryForward={() => handleCarryForwardItem(item)}
+                          isCarryForwardPending={carryForward.isPending}
                         />
                       ))}
                     </DeskSection>
@@ -421,6 +447,8 @@ export function ManagerDeskPage() {
                           item={item}
                           onSelect={() => setSelectedItemId(item.id)}
                           onStatusChange={(status) => handleUpdateItem(item.id, { status })}
+                          onCarryForward={() => handleCarryForwardItem(item)}
+                          isCarryForwardPending={carryForward.isPending}
                           variant="meeting"
                         />
                       ))}
@@ -442,6 +470,8 @@ export function ManagerDeskPage() {
                           item={item}
                           onSelect={() => setSelectedItemId(item.id)}
                           onStatusChange={(status) => handleUpdateItem(item.id, { status })}
+                          onCarryForward={() => handleCarryForwardItem(item)}
+                          isCarryForwardPending={carryForward.isPending}
                           variant="waiting"
                         />
                       ))}
@@ -463,6 +493,8 @@ export function ManagerDeskPage() {
                           item={item}
                           onSelect={() => setSelectedItemId(item.id)}
                           onStatusChange={(status) => handleUpdateItem(item.id, { status })}
+                          onCarryForward={() => handleCarryForwardItem(item)}
+                          isCarryForwardPending={carryForward.isPending}
                           variant="inbox"
                         />
                       ))}

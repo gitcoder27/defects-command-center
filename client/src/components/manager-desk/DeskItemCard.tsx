@@ -6,6 +6,7 @@ import {
   Scale,
   Clock,
   CheckCircle2,
+  ArrowRightFromLine,
   XCircle,
   ArrowRight,
   Link2,
@@ -19,6 +20,8 @@ interface Props {
   item: ManagerDeskItem;
   onSelect: () => void;
   onStatusChange: (status: ManagerDeskStatus) => void;
+  onCarryForward?: () => void;
+  isCarryForwardPending?: boolean;
   variant?: 'default' | 'meeting' | 'waiting' | 'inbox' | 'completed';
 }
 
@@ -36,7 +39,14 @@ const priorityColors: Record<string, string> = {
   low: 'var(--text-muted)',
 };
 
-export function DeskItemCard({ item, onSelect, onStatusChange, variant = 'default' }: Props) {
+export function DeskItemCard({
+  item,
+  onSelect,
+  onStatusChange,
+  onCarryForward,
+  isCarryForwardPending = false,
+  variant = 'default',
+}: Props) {
   const KindIcon = kindIcons[item.kind];
   const isDone = item.status === 'done' || item.status === 'cancelled';
 
@@ -224,27 +234,53 @@ export function DeskItemCard({ item, onSelect, onStatusChange, variant = 'defaul
           </div>
         </div>
 
-        {/* Quick status action */}
-        {quickAction && (
-          <button
-            onClick={e => {
-              e.stopPropagation();
-              onStatusChange(quickAction.status);
-            }}
-            className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wide opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 mt-0.5"
-            style={{
-              background: 'var(--md-accent-glow)',
-              color: 'var(--md-accent)',
-              border: '1px solid var(--md-accent)',
-            }}
-          >
-            {quickAction.status === 'done' ? (
-              <CheckCircle2 size={10} />
-            ) : (
-              <ArrowRight size={10} />
+        {(quickAction || (!isDone && onCarryForward)) && (
+          <div className="mt-0.5 flex flex-col items-end gap-1.5 self-start">
+            {!isDone && onCarryForward && (
+              <button
+                type="button"
+                onClick={e => {
+                  e.stopPropagation();
+                  onCarryForward();
+                }}
+                disabled={isCarryForwardPending}
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition-all disabled:opacity-40"
+                style={{
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--md-accent)',
+                  border: '1px solid color-mix(in srgb, var(--md-accent) 20%, var(--border) 80%)',
+                }}
+                aria-label={`Carry forward ${item.title}`}
+              >
+                <ArrowRightFromLine size={10} />
+                Carry
+              </button>
             )}
-            {quickAction.label}
-          </button>
+
+            {quickAction && (
+              <button
+                type="button"
+                onClick={e => {
+                  e.stopPropagation();
+                  onStatusChange(quickAction.status);
+                }}
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition-all"
+                style={{
+                  background: 'var(--md-accent-glow)',
+                  color: 'var(--md-accent)',
+                  border: '1px solid var(--md-accent)',
+                }}
+                aria-label={`${quickAction.label} ${item.title}`}
+              >
+                {quickAction.status === 'done' ? (
+                  <CheckCircle2 size={10} />
+                ) : (
+                  <ArrowRight size={10} />
+                )}
+                {quickAction.label}
+              </button>
+            )}
+          </div>
         )}
 
         {/* Done/cancelled indicator */}

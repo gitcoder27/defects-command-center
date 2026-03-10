@@ -265,6 +265,63 @@ describe('ManagerDeskPage', () => {
     expect(screen.getByText('Carry Forward')).toBeInTheDocument();
   });
 
+  it('opens the bulk carry forward dialog with all open items selected by default', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
+
+    expect(screen.getByRole('dialog', { name: /carry forward/i })).toBeInTheDocument();
+    expect(screen.getByText('4 of 4 selected')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /carry 4 items forward/i })).toBeInTheDocument();
+  });
+
+  it('toggles all selections in the bulk carry forward dialog', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /deselect all/i }));
+
+    expect(screen.getByText('0 of 4 selected')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /carry 0 items forward/i })).toBeDisabled();
+  });
+
+  it('carries a single task forward to the next day from the task card', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /carry forward analyze root cause for def-241/i }));
+
+    expect(mockCarryForwardMutate).toHaveBeenCalledWith(
+      {
+        fromDate: '2026-03-08',
+        toDate: '2026-03-09',
+        itemIds: [1],
+      },
+      expect.anything(),
+    );
+  });
+
+  it('does not show single-task carry forward on completed items', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    expect(screen.queryByRole('button', { name: /carry forward completed analysis/i })).not.toBeInTheDocument();
+  });
+
   it('shows filter button and toggles filter bar', () => {
     render(
       <TestWrapper>
