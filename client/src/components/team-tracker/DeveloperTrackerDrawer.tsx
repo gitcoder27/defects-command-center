@@ -54,6 +54,7 @@ export function DeveloperTrackerDrawer({
   const [notesEditing, setNotesEditing] = useState(false);
   const [localPlannedItems, setLocalPlannedItems] = useState<TrackerWorkItem[]>([]);
   const [deskCaptureOpen, setDeskCaptureOpen] = useState(false);
+  const localPlannedItemsRef = useRef<TrackerWorkItem[]>([]);
   const isDraggingRef = useRef(false);
   const assignedTodayCount = (day?.currentItem ? 1 : 0) + (day?.plannedItems.length ?? 0);
   const loadLabel = day?.capacityUnits ? `${assignedTodayCount}/${day.capacityUnits}` : `${assignedTodayCount}`;
@@ -63,6 +64,7 @@ export function DeveloperTrackerDrawer({
   useEffect(() => {
     if (day && !isDraggingRef.current) {
       setLocalPlannedItems(day.plannedItems);
+      localPlannedItemsRef.current = day.plannedItems;
     }
   }, [day?.plannedItems]);
 
@@ -74,6 +76,7 @@ export function DeveloperTrackerDrawer({
 
   const handleDragReorder = useCallback(
     (newOrder: TrackerWorkItem[]) => {
+      localPlannedItemsRef.current = newOrder;
       setLocalPlannedItems(newOrder);
     },
     []
@@ -85,7 +88,7 @@ export function DeveloperTrackerDrawer({
 
     // Find the item that moved and compute its new target position
     const oldIds = day.plannedItems.map((i) => i.id);
-    const newIds = localPlannedItems.map((i) => i.id);
+    const newIds = localPlannedItemsRef.current.map((i) => i.id);
 
     // Find the moved item: compare old vs new by index
     for (let i = 0; i < newIds.length; i++) {
@@ -97,7 +100,7 @@ export function DeveloperTrackerDrawer({
         break;
       }
     }
-  }, [day, localPlannedItems, onReorderPlannedItem]);
+  }, [day, onReorderPlannedItem]);
 
   const handleSaveNotes = () => {
     if (!day) return;

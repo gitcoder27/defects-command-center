@@ -4,6 +4,8 @@ import type { HTMLAttributes, ReactNode } from 'react';
 import { PlannedQueue } from '@/components/my-day/PlannedQueue';
 import type { TrackerWorkItem } from '@/types';
 
+const activeDragEndCallbacks = new Map<number, () => void>();
+
 vi.mock('@/components/team-tracker/TrackerItemRow', () => ({
   TrackerItemRow: ({ item }: { item: TrackerWorkItem }) => (
     <div data-testid={`planned-row-${item.id}`}>{item.title}</div>
@@ -52,15 +54,33 @@ vi.mock('framer-motion', () => ({
       children,
       value,
       whileDrag,
+      onDragStart,
+      onDragEnd,
       ...props
     }: {
       children: ReactNode;
       value: TrackerWorkItem;
       whileDrag?: unknown;
+      onDragStart?: () => void;
+      onDragEnd?: () => void;
     } & HTMLAttributes<HTMLDivElement>) => {
       void whileDrag;
       return (
-        <div data-testid={`item-${value.id}`} {...props}>
+        <div
+          data-testid={`item-${value.id}`}
+          {...props}
+          onDragStart={() => {
+            if (onDragEnd) {
+              activeDragEndCallbacks.set(value.id, onDragEnd);
+            }
+            onDragStart?.();
+          }}
+          onDragEnd={() => {
+            const callback = activeDragEndCallbacks.get(value.id);
+            activeDragEndCallbacks.delete(value.id);
+            callback?.();
+          }}
+        >
           {children}
         </div>
       );
@@ -102,6 +122,7 @@ function getRenderedTitles() {
 describe('PlannedQueue', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    activeDragEndCallbacks.clear();
   });
 
   it('keeps the locally reordered order until server props change', () => {

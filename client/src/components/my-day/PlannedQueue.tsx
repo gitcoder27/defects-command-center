@@ -23,6 +23,7 @@ export function PlannedQueue({
   onUpdateTitle,
 }: PlannedQueueProps) {
   const [orderedItems, setOrderedItems] = useState(items);
+  const orderedItemsRef = useRef(items);
   const isDraggingRef = useRef(false);
   const dragStartItemsRef = useRef(items);
   const draggedItemIdRef = useRef<number | null>(null);
@@ -33,18 +34,20 @@ export function PlannedQueue({
     }
 
     setOrderedItems(items);
+    orderedItemsRef.current = items;
     dragStartItemsRef.current = items;
   }, [items]);
 
   const handleReorder = useCallback((newOrder: TrackerWorkItem[]) => {
+    orderedItemsRef.current = newOrder;
     setOrderedItems(newOrder);
   }, []);
 
   const handleDragStart = useCallback((itemId: number) => {
     isDraggingRef.current = true;
     draggedItemIdRef.current = itemId;
-    dragStartItemsRef.current = orderedItems;
-  }, [orderedItems]);
+    dragStartItemsRef.current = orderedItemsRef.current;
+  }, []);
 
   const handleDragEnd = useCallback(() => {
     isDraggingRef.current = false;
@@ -57,8 +60,9 @@ export function PlannedQueue({
     }
 
     const startItems = dragStartItemsRef.current;
+    const finalItems = orderedItemsRef.current;
     const startIndex = startItems.findIndex((item) => item.id === draggedItemId);
-    const nextIndex = orderedItems.findIndex((item) => item.id === draggedItemId);
+    const nextIndex = finalItems.findIndex((item) => item.id === draggedItemId);
 
     if (startIndex === -1 || nextIndex === -1 || startIndex === nextIndex) {
       return;
@@ -66,7 +70,7 @@ export function PlannedQueue({
 
     const targetPosition = startItems[nextIndex]?.position ?? nextIndex;
     onReorder(draggedItemId, targetPosition);
-  }, [onReorder, orderedItems]);
+  }, [onReorder]);
 
   if (items.length === 0) {
     return (

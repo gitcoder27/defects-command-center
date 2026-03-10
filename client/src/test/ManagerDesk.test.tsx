@@ -189,6 +189,17 @@ describe('ManagerDeskPage', () => {
     expect(input).toBeInTheDocument();
   });
 
+  it('does not auto-focus quick capture on initial render', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    const input = screen.getByPlaceholderText(/Quick capture/);
+    expect(input).not.toHaveFocus();
+  });
+
   it('groups items into the correct sections', () => {
     render(
       <TestWrapper>
@@ -221,6 +232,22 @@ describe('ManagerDeskPage', () => {
       expect.objectContaining({ title: 'New task item', date: '2026-03-08' }),
       expect.anything(),
     );
+  });
+
+  it('keeps quick capture focused after submitting a task', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    const input = screen.getByPlaceholderText(/Quick capture/);
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'First follow-up task' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue('');
   });
 
   it('shows loading state', () => {

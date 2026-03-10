@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Zap, Tag } from 'lucide-react';
 import type { ManagerDeskItemKind, ManagerDeskCategory } from '@/types/manager-desk';
@@ -20,9 +20,11 @@ export function QuickCapture({ onCapture, isPending }: Props) {
   const [kind, setKind] = useState<ManagerDeskItemKind | ''>('');
   const [category, setCategory] = useState<ManagerDeskCategory | ''>('');
   const [expanded, setExpanded] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = useCallback(() => {
+    if (isPending) return;
     const trimmed = title.trim();
     if (!trimmed) return;
     onCapture(trimmed, kind || undefined, category || undefined);
@@ -31,7 +33,7 @@ export function QuickCapture({ onCapture, isPending }: Props) {
     setCategory('');
     setExpanded(false);
     inputRef.current?.focus();
-  }, [title, kind, category, onCapture]);
+  }, [title, kind, category, onCapture, isPending]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -47,17 +49,11 @@ export function QuickCapture({ onCapture, isPending }: Props) {
     [handleSubmit],
   );
 
-  // Auto-focus on mount
-  useEffect(() => {
-    const timer = setTimeout(() => inputRef.current?.focus(), 400);
-    return () => clearTimeout(timer);
-  }, []);
-
   return (
     <div
       className="md-glass-panel rounded-[14px] overflow-hidden transition-all"
       style={{
-        boxShadow: expanded
+        boxShadow: expanded || isFocused
           ? '0 0 0 1px var(--md-accent), 0 4px 24px rgba(217,169,78,0.08)'
           : undefined,
       }}
@@ -78,7 +74,11 @@ export function QuickCapture({ onCapture, isPending }: Props) {
             setTitle(e.target.value);
             if (e.target.value && !expanded) setExpanded(true);
           }}
-          onFocus={() => title && setExpanded(true)}
+          onFocus={() => {
+            setIsFocused(true);
+            if (title) setExpanded(true);
+          }}
+          onBlur={() => setIsFocused(false)}
           onKeyDown={handleKeyDown}
           placeholder="Quick capture — type and press Enter…"
           className="flex-1 bg-transparent outline-none text-[13px] font-medium placeholder:font-normal"
@@ -86,7 +86,7 @@ export function QuickCapture({ onCapture, isPending }: Props) {
             color: 'var(--text-primary)',
             caretColor: 'var(--md-accent)',
           }}
-          disabled={isPending}
+          aria-busy={isPending}
           maxLength={200}
         />
 
