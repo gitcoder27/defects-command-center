@@ -4,26 +4,32 @@ import { TriagePanel } from '@/components/triage/TriagePanel';
 import { TestWrapper } from '@/test/wrapper';
 import type { Developer, Issue, TrackerIssueAssignment } from '@/types';
 
-const mockIssue: Issue = {
-  jiraKey: 'PROJ-101',
-  summary: 'Login page crashes on submit with special chars',
-  description: 'Users report **crash** when special characters entered',
-  aspenSeverity: 'Critical',
-  priorityName: 'Highest',
-  priorityId: '1',
-  statusName: 'To Do',
-  statusCategory: 'new',
-  assigneeName: 'Alice',
-  assigneeId: 'alice-1',
-  reporterName: 'John',
-  component: 'Auth',
-  labels: ['backend', 'critical'],
-  dueDate: '2026-03-06',
-  flagged: false,
-  createdAt: '2026-03-04T09:00:00Z',
-  updatedAt: '2026-03-05T09:00:00Z',
-  localTags: [],
-};
+function buildMockIssue(overrides: Partial<Issue> = {}): Issue {
+  return {
+    jiraKey: 'PROJ-101',
+    summary: 'Login page crashes on submit with special chars',
+    description: 'Users report **crash** when special characters entered',
+    aspenSeverity: 'Critical',
+    priorityName: 'Highest',
+    priorityId: '1',
+    statusName: 'To Do',
+    statusCategory: 'new',
+    assigneeName: 'Alice',
+    assigneeId: 'alice-1',
+    reporterName: 'John',
+    component: 'Auth',
+    labels: ['backend', 'critical'],
+    dueDate: '2026-03-06',
+    flagged: false,
+    createdAt: '2026-03-04T09:00:00Z',
+    updatedAt: '2026-03-05T09:00:00Z',
+    localTags: [],
+    analysisNotes: 'Root cause looks related to the submit sanitization path.',
+    ...overrides,
+  };
+}
+
+let mockIssue: Issue = buildMockIssue();
 
 const mockDevelopers: Developer[] = [
   { accountId: 'alice-1', displayName: 'Alice', isActive: true },
@@ -81,6 +87,7 @@ describe('TriagePanel', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-07T12:00:00.000Z'));
+    mockIssue = buildMockIssue();
     mockAddTrackerItemMutate.mockReset();
     mockTrackerAssignments = [];
     onClose.mockReset();
@@ -265,5 +272,34 @@ describe('TriagePanel', () => {
       }),
       expect.any(Object)
     );
+  });
+
+  it('prefills the manager desk context note from saved triage analysis notes', () => {
+    render(
+      <TestWrapper>
+        <TriagePanel issueKey="PROJ-101" onClose={onClose} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /add to manager desk/i }));
+
+    expect(screen.getByPlaceholderText('Add a little context so future-you remembers why this was captured.')).toHaveValue(
+      'Root cause looks related to the submit sanitization path.'
+    );
+  });
+
+  it('does not auto-open a manager desk context note when no saved triage analysis exists', () => {
+    mockIssue = buildMockIssue({ analysisNotes: '   ' });
+
+    render(
+      <TestWrapper>
+        <TriagePanel issueKey="PROJ-101" onClose={onClose} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /add to manager desk/i }));
+
+    expect(screen.queryByPlaceholderText('Add a little context so future-you remembers why this was captured.')).not.toBeInTheDocument();
+    expect(screen.getByText('Optional')).toBeInTheDocument();
   });
 });

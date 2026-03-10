@@ -84,7 +84,22 @@ vi.mock('@/components/my-day/StatusSelector', () => ({
 vi.mock('framer-motion', async () => {
   const React = await import('react');
 
-  function stripMotionProps<T extends Record<string, unknown>>(props: T): T {
+  type MotionLikeProps = React.HTMLAttributes<HTMLElement> & {
+    initial?: unknown;
+    animate?: unknown;
+    exit?: unknown;
+    transition?: unknown;
+    variants?: unknown;
+    layout?: unknown;
+    whileTap?: unknown;
+    whileDrag?: unknown;
+    onReorder?: unknown;
+    values?: unknown;
+    value?: unknown;
+    as?: unknown;
+  };
+
+  function stripMotionProps(props: MotionLikeProps): React.HTMLAttributes<HTMLElement> {
     const {
       initial,
       animate,
@@ -112,11 +127,11 @@ vi.mock('framer-motion', async () => {
     void values;
     void value;
     void as;
-    return rest as T;
+    return rest;
   }
 
   const makeComponent = (tag: keyof JSX.IntrinsicElements) =>
-    React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>((props, ref) =>
+    React.forwardRef<HTMLElement, MotionLikeProps>((props, ref) =>
       React.createElement(tag, { ...stripMotionProps(props), ref }, props.children)
     );
 

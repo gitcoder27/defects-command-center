@@ -808,6 +808,7 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
           description="Capture a manager task from the current Jira issue without leaving triage."
           initialTitle={issue.summary}
           initialCategory="analysis"
+          initialContextNote={issue.analysisNotes?.trim() ? issue.analysisNotes : undefined}
           initialLinks={[{ linkType: 'issue', issueKey: issue.jiraKey }]}
           contextChips={[
             { label: 'Issue', value: issue.jiraKey, tone: 'issue' },
