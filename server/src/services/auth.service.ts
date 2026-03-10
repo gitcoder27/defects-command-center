@@ -7,6 +7,7 @@ import { HttpError } from "../middleware/errorHandler";
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 export const SESSION_COOKIE_NAME = "dcc_session";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 interface CreateUserParams {
   username: string;
@@ -70,23 +71,31 @@ function mapAuthUser(user: PersistedUser): AuthUser {
 }
 
 export function serializeSessionCookie(sessionId: string, maxAgeSeconds = SESSION_MAX_AGE_SECONDS): string {
-  return [
+  const parts = [
     `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}`,
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",
     `Max-Age=${maxAgeSeconds}`,
-  ].join("; ");
+  ];
+  if (IS_PRODUCTION) {
+    parts.push("Secure");
+  }
+  return parts.join("; ");
 }
 
 export function clearSessionCookie(): string {
-  return [
+  const parts = [
     `${SESSION_COOKIE_NAME}=`,
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",
     "Max-Age=0",
-  ].join("; ");
+  ];
+  if (IS_PRODUCTION) {
+    parts.push("Secure");
+  }
+  return parts.join("; ");
 }
 
 export class AuthService {

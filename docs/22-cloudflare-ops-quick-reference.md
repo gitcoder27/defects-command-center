@@ -1,6 +1,16 @@
 # Cloudflare Ops Quick Reference
 
-This is the short command reference for the VPS deployment.
+This document is now historical.
+
+The production deployment no longer uses the Cloudflare Quick Tunnel as the primary access path. The current live setup uses:
+
+- `nginx`
+- `https://manager.daycommand.online`
+- `https://developer.daycommand.online`
+
+Use `docs/23-hostinger-domain-vps-deployment-runbook.md` for the active VPS deployment and redeploy process.
+
+Keep this document only for rollback or legacy tunnel troubleshooting.
 
 ## Current Services
 

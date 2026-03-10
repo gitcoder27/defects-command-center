@@ -832,7 +832,15 @@ function TabbedDraftTextArea({
     outcome: outcomeDraft,
   } as const;
 
-  const activeConfig = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
+  const defaultTabConfig = tabs.find((tab) => tab.id === 'nextAction') ?? tabs[0] ?? {
+    id: 'nextAction' as const,
+    label: 'Next Action',
+    description: '',
+    value: '',
+    placeholder: '',
+    onChange: () => {},
+  };
+  const activeConfig = tabs.find((tab) => tab.id === activeTab) ?? defaultTabConfig;
   const activeDraft = tabState[activeConfig.id];
   const panelId = `action-outcome-panel-${activeConfig.id}`;
   const populatedTabs = tabs.filter((tab) => tab.value.trim().length > 0);

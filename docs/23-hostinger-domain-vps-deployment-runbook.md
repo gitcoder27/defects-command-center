@@ -93,6 +93,71 @@ Final target flow:
 4. `nginx` forwards traffic to `http://127.0.0.1:3001`
 5. the Node app serves both the frontend and the API
 
+## Routine Redeploy After Code Changes
+
+Once the domain setup is live, use this process whenever you want production to pick up newer code from this repo.
+
+### What Production Actually Runs
+
+- backend runtime: `server/dist/server/src/index.js`
+- frontend runtime assets: `client/dist/`
+- service name: `defects-dashboard`
+
+This means source changes in `server/src/` or `client/src/` do **not** affect production until you rebuild and restart the service.
+
+### Backend-Only Changes
+
+If you changed only backend files and did not change frontend or shared UI code:
+
+```bash
+cd /home/ubuntu/Development/defects-command-center
+npm run build --workspace=server
+sudo systemctl restart defects-dashboard
+sudo systemctl status defects-dashboard --no-pager
+curl -s https://manager.YOUR_DOMAIN/api/health
+```
+
+### Frontend Changes Or Full App Changes
+
+If you changed frontend code, shared contracts, or anything used by both workspaces:
+
+```bash
+cd /home/ubuntu/Development/defects-command-center
+npm install
+npm run build
+sudo systemctl restart defects-dashboard
+sudo systemctl status defects-dashboard --no-pager
+curl -I https://manager.YOUR_DOMAIN
+curl -I https://developer.YOUR_DOMAIN/my-day
+curl -s https://manager.YOUR_DOMAIN/api/health
+```
+
+### If The VPS Needs The Latest Git Changes First
+
+```bash
+cd /home/ubuntu/Development/defects-command-center
+git pull
+npm install
+npm run build
+sudo systemctl restart defects-dashboard
+```
+
+### Fast Validation Checklist
+
+After redeploying:
+
+1. confirm the service is running
+2. confirm the manager URL returns HTTP 200
+3. confirm the developer URL or `/my-day` returns HTTP 200
+4. confirm `/api/health` returns `{"status":"ok"}`
+5. sign in once in the browser and check the changed screen or route
+
+### Important Failure Pattern
+
+If `npm run build` fails, production will continue serving the older built assets already present in `client/dist` and `server/dist`.
+
+Do **not** restart the service expecting new code to appear unless the relevant build step succeeded.
+
 ## Phase 1: Decide Which Hostname Pattern You Want
 
 ### Option A: Recommended
@@ -256,6 +321,39 @@ sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 sudo ufw status
 ```
+
+### Oracle Cloud Image Firewall Note
+
+Some Oracle Cloud Ubuntu images also enforce host-level `iptables` rules even when `ufw` is not installed.
+
+Typical symptom:
+
+- DNS resolves correctly
+- `nginx` is listening on port `80`
+- local `curl` to `127.0.0.1` works
+- public HTTP requests and Certbot HTTP challenges time out
+
+Check the live policy:
+
+```bash
+sudo iptables -L INPUT -n --line-numbers
+```
+
+If you only see SSH allowed before a final reject rule, open `80` and `443` on the VPS itself and persist the change:
+
+```bash
+sudo iptables -I INPUT 5 -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
+sudo iptables -I INPUT 6 -p tcp -m state --state NEW -m tcp --dport 443 -j ACCEPT
+sudo netfilter-persistent save
+```
+
+On these images, persisted rules are commonly stored in:
+
+```bash
+/etc/iptables/rules.v4
+```
+
+After saving, retry the HTTP check and Certbot. If it still times out, the remaining block is likely in the cloud provider security list / NSG rather than inside the VM.
 
 ## Phase 5: Configure Nginx
 
