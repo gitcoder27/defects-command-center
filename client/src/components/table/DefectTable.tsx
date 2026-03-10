@@ -417,21 +417,17 @@ export function DefectTable({
 
   if (isLoading) {
     return (
-      <div className="flex-1 min-w-0 min-h-0 p-1 md:p-1.5">
-        <div className="dashboard-panel rounded-[14px] h-full p-2" style={{ borderColor: 'var(--border-strong)' }}>
-          <div className="flex items-center justify-between gap-3 pb-1.5">
-            <div className="text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
-              Loading defects
-            </div>
-          </div>
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-10 mb-1 rounded-[12px] animate-pulse"
-              style={{ background: 'var(--bg-secondary)' }}
-            />
-          ))}
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col px-3 pt-3">
+        <div className="text-[13px] font-medium pb-1.5" style={{ color: 'var(--text-secondary)' }}>
+          Loading defects
         </div>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-10 mb-1 rounded-[12px] animate-pulse"
+            style={{ background: 'var(--bg-secondary)' }}
+          />
+        ))}
       </div>
     );
   }
@@ -530,15 +526,13 @@ export function DefectTable({
 
   if (!baseIssues.length && !hasActiveFilters) {
     return (
-      <div className="flex-1 min-w-0 min-h-0 p-1 md:p-1.5">
-        <div className="dashboard-panel rounded-[14px] h-full flex items-center justify-center p-4 text-center" style={{ borderColor: 'var(--border-strong)' }}>
-          <div>
-            <p className="text-[15px]" style={{ color: 'var(--text-secondary)' }}>
-            {filter !== 'all'
-              ? 'No defects match this filter.'
-              : 'No open defects. Your project is clean. 🎉'}
-            </p>
-          </div>
+      <div className="flex-1 min-w-0 min-h-0 flex items-center justify-center p-4 text-center">
+        <div>
+          <p className="text-[15px]" style={{ color: 'var(--text-secondary)' }}>
+          {filter !== 'all'
+            ? 'No defects match this filter.'
+            : 'No open defects. Your project is clean. 🎉'}
+          </p>
         </div>
       </div>
     );
@@ -546,18 +540,16 @@ export function DefectTable({
 
   if (!baseIssues.length) {
     return (
-      <div className="flex-1 min-w-0 min-h-0 p-1 md:p-1.5">
-        <div className="dashboard-panel rounded-[14px] h-full min-w-0 min-h-0 flex flex-col overflow-hidden" style={{ borderColor: 'var(--border-strong)' }}>
-          {toolbar}
-          <div className="flex-1 flex items-center justify-center px-6">
-            <div className="text-center">
-              <div className="text-[11px] uppercase font-semibold" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
-                Filter State
-              </div>
-              <p className="text-[14px] mt-2" style={{ color: 'var(--text-secondary)' }}>
-                No defects match the current filters.
-              </p>
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+        {toolbar}
+        <div className="flex-1 flex items-center justify-center px-6">
+          <div className="text-center">
+            <div className="text-[11px] uppercase font-semibold" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
+              Filter State
             </div>
+            <p className="text-[14px] mt-2" style={{ color: 'var(--text-secondary)' }}>
+              No defects match the current filters.
+            </p>
           </div>
         </div>
       </div>
@@ -565,14 +557,13 @@ export function DefectTable({
   }
 
   return (
-    <div className="flex-1 min-w-0 min-h-0 p-1 md:p-1.5">
-      <div className="dashboard-panel rounded-[14px] h-full min-w-0 min-h-0 flex flex-col overflow-hidden" style={{ borderColor: 'var(--border-strong)' }}>
-        {toolbar}
+    <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+      {toolbar}
 
-        <div
-          className="flex-1 min-w-0 overflow-auto px-1 pb-1"
-          ref={tableRef}
-        >
+      <div
+        className="flex-1 min-w-0 overflow-auto px-1 pb-1"
+        ref={tableRef}
+      >
           {filteredIssues.length === 0 ? (
             <div className="h-full flex items-center justify-center px-6">
               <div className="text-center">
@@ -700,7 +691,6 @@ export function DefectTable({
             </table>
           )}
         </div>
-      </div>
     </div>
   );
 }

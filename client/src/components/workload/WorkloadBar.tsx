@@ -31,9 +31,10 @@ export function WorkloadBar({ activeDeveloper, onDeveloperClick }: WorkloadBarPr
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: 0.6 }}
-      className="flex flex-col shrink-0 px-1.5 pb-1 pt-0.5 md:px-1.5 md:pb-1.5"
+      className="flex flex-col shrink-0 border-t"
+      style={{ borderColor: 'var(--border)' }}
     >
-        <div className="dashboard-panel rounded-[12px] overflow-hidden" style={{ borderColor: 'var(--border-strong)' }}>
+        <div className="overflow-hidden">
         <div className={`shrink-0 ${expanded ? 'px-2 py-1.5' : 'px-1.5 py-1'}`}>
           <div
             className={`flex items-center ${expanded ? 'gap-2.5' : 'gap-1.5'}`}

@@ -176,7 +176,7 @@ function WorkspaceShell({ activeView, onViewChange, children }: WorkspaceShellPr
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
       <Header activeView={activeView} onViewChange={onViewChange} />
-      <div className="flex-1 min-h-0 px-1.5 pb-1 md:px-2 md:pb-1.5">
+      <div className="flex-1 min-h-0 px-1 pb-0.5 md:px-1.5 md:pb-1">
         <div
           className="h-full min-h-0 rounded-[16px] border overflow-hidden flex flex-col"
           style={{

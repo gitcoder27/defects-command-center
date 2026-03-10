@@ -32,7 +32,7 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange }: Header
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="shrink-0 px-1.5 pt-1 md:px-2 md:pt-1.5"
+        className="shrink-0 px-1 pt-0.5 md:px-1.5 md:pt-1"
       >
         <div
           className="dashboard-panel rounded-[14px] px-2.5 py-1.5 md:px-3 md:py-1.5 flex flex-col gap-1 lg:flex-row lg:items-center lg:justify-between"

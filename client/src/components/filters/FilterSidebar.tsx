@@ -348,14 +348,12 @@ export function FilterSidebar({
       style={{ borderColor: 'var(--border)' }}
     >
       {collapsed ? (
-        <div className="h-full p-1.5">
-          <div
-            className="h-full rounded-[18px] border flex flex-col items-center justify-between px-1.5 py-2"
-            style={{
-              borderColor: 'var(--border)',
-              background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 94%, white 6%) 0%, color-mix(in srgb, var(--bg-primary) 90%, var(--bg-secondary) 10%) 100%)',
-            }}
-          >
+        <div
+          className="h-full flex flex-col items-center justify-between px-1.5 py-2"
+          style={{
+            background: 'color-mix(in srgb, var(--bg-secondary) 60%, transparent)',
+          }}
+        >
             <div className="flex flex-col items-center gap-2">
               <button
                 onClick={onExpand}
@@ -414,7 +412,6 @@ export function FilterSidebar({
                 Focus
               </div>
             </div>
-          </div>
         </div>
       ) : (
         renderExpandedPanel(false)
