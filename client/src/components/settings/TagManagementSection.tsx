@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Link2, Loader2, Search, Tag, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Link2, Loader2, Search, Trash2, X } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { useTagCounts } from '@/hooks/useTagCounts';
 import { useDeleteTag, useTags, useTagUsage } from '@/hooks/useTags';
@@ -43,175 +43,127 @@ export function TagManagementSection() {
       });
   }, [search, tags, unusedOnly, usageCountById]);
 
+  const unusedCount = useMemo(
+    () => tags.filter((t) => (usageCountById.get(t.id) ?? 0) === 0).length,
+    [tags, usageCountById]
+  );
+
   return (
     <>
-      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <div
-          className="rounded-[22px] p-4 lg:p-5"
-          style={{
-            background: 'var(--settings-pane-strong-bg)',
-            border: 'var(--settings-pane-border)',
-          }}
-        >
-          <div className="flex items-start gap-3">
-            <div
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
-              style={{
-                background: 'var(--settings-accent-soft-bg)',
-                color: 'var(--accent)',
-                border: 'var(--settings-accent-soft-border)',
-              }}
-            >
-              <Tag size={18} />
-            </div>
-            <div>
-              <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                Clean up old tags safely
-              </p>
-              <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                Review every locally-managed defect tag in one place. If a tag is still applied, the delete flow shows
-                the linked defects before anything is removed.
-              </p>
-            </div>
+      <div className="max-w-[680px]">
+        {/* Toolbar */}
+        <div className="mb-3 flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search tags…"
+              aria-label="Search tags"
+              className="w-full rounded-lg py-1.5 pl-8 pr-3 text-[11.5px] outline-none"
+              style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+            />
           </div>
-
-          <div
-            className="mt-4 rounded-[18px] px-3.5 py-3 text-[12px] leading-relaxed md:px-4 md:py-4"
+          <button
+            type="button"
+            onClick={() => setUnusedOnly((v) => !v)}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors"
             style={{
-              background: 'var(--settings-accent-soft-bg)',
-              color: 'var(--text-secondary)',
-              border: 'var(--settings-accent-soft-border)',
+              background: unusedOnly ? 'var(--settings-accent-soft-bg)' : 'var(--settings-neutral-chip-bg)',
+              color: unusedOnly ? 'var(--accent)' : 'var(--text-secondary)',
+              border: unusedOnly ? 'var(--settings-accent-soft-border)' : '1px solid var(--border-strong)',
             }}
           >
-            Deleting a tag removes it from every tagged defect. Use the impact review to confirm you are clearing the
-            right label.
-          </div>
+            Unused only
+            {unusedCount > 0 ? (
+              <span
+                className="rounded-full px-1.5 py-0.5 text-[9.5px] font-semibold"
+                style={{ background: unusedOnly ? 'var(--accent)' : 'var(--settings-neutral-chip-bg)', color: unusedOnly ? '#fff' : 'var(--text-muted)', border: unusedOnly ? 'none' : '1px solid var(--border-strong)' }}
+              >
+                {unusedCount}
+              </span>
+            ) : null}
+          </button>
+          <span
+            className="shrink-0 rounded-lg px-2.5 py-1.5 text-[10.5px] font-semibold"
+            style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-muted)', border: '1px solid var(--border-strong)' }}
+          >
+            {tags.length} total
+          </span>
         </div>
 
-        <div
-          className="rounded-[22px] p-4 lg:p-5"
-          style={{
-            background: 'var(--settings-pane-bg)',
-            border: 'var(--settings-pane-border)',
-          }}
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
-                Tag library
-              </p>
-              <p className="mt-2 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-                Search tags, review usage, and remove labels that are no longer needed.
-              </p>
+        {/* Tag list */}
+        <div className="overflow-hidden rounded-xl" style={{ border: 'var(--settings-inset-border)' }}>
+          {filteredTags.length === 0 ? (
+            <div className="px-4 py-5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+              {tags.length === 0
+                ? 'No tags yet — create them from the defect table or triage panel.'
+                : 'No tags match this filter.'}
             </div>
-            <div
-              className="rounded-full px-3 py-1 text-[11px] font-semibold"
-              style={{
-                background: 'var(--settings-neutral-chip-bg)',
-                color: 'var(--text-muted)',
-                border: '1px solid var(--border-strong)',
-              }}
-            >
-              {tags.length} tag{tags.length === 1 ? '' : 's'}
-            </div>
-          </div>
+          ) : (
+            filteredTags.map((tag, index) => {
+              const usageCount = usageCountById.get(tag.id) ?? 0;
+              const isUnused = usageCount === 0;
+              return (
+                <div
+                  key={tag.id}
+                  className="flex items-center gap-3 px-3 py-2"
+                  style={{
+                    background: index % 2 === 0 ? 'var(--settings-row-even-bg)' : 'var(--settings-row-odd-bg)',
+                    borderTop: index > 0 ? 'var(--settings-row-divider)' : 'none',
+                  }}
+                >
+                  {/* Color swatch */}
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ background: tag.color, boxShadow: `0 0 0 3px ${tag.color}28` }}
+                    aria-hidden="true"
+                  />
 
-          <div className="mt-4 grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-              <input
-                type="text"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search tags"
-                aria-label="Search tags"
-                className="w-full rounded-[14px] py-2 pl-9 pr-3 text-[12px] outline-none"
-                style={{
-                  background: 'var(--settings-input-bg)',
-                  color: 'var(--text-primary)',
-                  border: 'var(--settings-input-border)',
-                }}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setUnusedOnly((current) => !current)}
-              className="rounded-[14px] px-3 py-2 text-[10px] font-semibold transition-colors md:text-[11px]"
-              style={{
-                background: unusedOnly ? 'var(--settings-accent-soft-bg)' : 'var(--settings-neutral-chip-bg)',
-                color: unusedOnly ? 'var(--accent)' : 'var(--text-secondary)',
-                border: unusedOnly ? 'var(--settings-accent-soft-border)' : '1px solid var(--border-strong)',
-              }}
-            >
-              Unused only
-            </button>
-          </div>
+                  {/* Name */}
+                  <p className="min-w-0 flex-1 truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {tag.name}
+                  </p>
 
-          <div className="mt-4 overflow-hidden rounded-[18px]" style={{ border: 'var(--settings-inset-border)' }}>
-            {filteredTags.length === 0 ? (
-              <div className="px-4 py-6 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                {tags.length === 0
-                  ? 'No tags exist yet. Create tags from the defect table or triage panel first.'
-                  : 'No tags match this filter.'}
-              </div>
-            ) : (
-              filteredTags.map((tag, index) => {
-                const usageCount = usageCountById.get(tag.id) ?? 0;
-                return (
-                  <div
-                    key={tag.id}
-                    className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
+                  {/* Usage badge */}
+                  <span
+                    className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
                     style={{
-                      background: index % 2 === 0 ? 'var(--settings-row-even-bg)' : 'var(--settings-row-odd-bg)',
-                      borderTop: index > 0 ? 'var(--settings-row-divider)' : 'none',
+                      background: isUnused ? 'var(--settings-success-soft-bg)' : 'var(--settings-warning-soft-bg)',
+                      color: isUnused ? 'var(--success)' : 'var(--warning)',
+                      border: isUnused ? 'var(--settings-success-soft-border)' : 'var(--settings-warning-soft-border)',
                     }}
                   >
-                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <span
-                        className="h-3 w-3 shrink-0 rounded-full"
-                        style={{ background: tag.color, boxShadow: `0 0 0 4px ${tag.color}22` }}
-                        aria-hidden="true"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                          {tag.name}
-                        </p>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                          <span
-                            className="rounded-full px-2 py-1 font-semibold"
-                            style={{
-                              background: usageCount > 0 ? 'var(--settings-warning-soft-bg)' : 'var(--settings-success-soft-bg)',
-                              color: usageCount > 0 ? 'var(--warning)' : 'var(--success)',
-                              border: usageCount > 0 ? 'var(--settings-warning-soft-border)' : 'var(--settings-success-soft-border)',
-                            }}
-                          >
-                            {usageCount} linked defect{usageCount === 1 ? '' : 's'}
-                          </span>
-                          {usageCount === 0 ? 'Safe to remove immediately.' : 'Review impact before deleting.'}
-                        </div>
-                      </div>
-                    </div>
+                    {isUnused ? 'Unused' : `${usageCount} defect${usageCount === 1 ? '' : 's'}`}
+                  </span>
 
-                    <button
-                      type="button"
-                      onClick={() => setSelectedTag(tag)}
-                    className="flex items-center justify-center gap-2 rounded-[14px] px-3 py-2 text-[10px] font-semibold transition-colors md:text-[11px]"
-                      style={{
-                        background: 'var(--settings-danger-soft-bg)',
-                        color: 'var(--danger-muted)',
-                        border: 'var(--settings-danger-soft-border)',
-                      }}
-                      aria-label={`Delete tag ${tag.name}`}
-                    >
-                      <Trash2 size={13} />
-                      Delete
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </div>
+                  {/* Delete */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTag(tag)}
+                    className="flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10.5px] font-semibold transition-colors"
+                    style={{
+                      background: 'var(--settings-danger-soft-bg)',
+                      color: 'var(--danger-muted)',
+                      border: 'var(--settings-danger-soft-border)',
+                    }}
+                    aria-label={`Delete tag ${tag.name}`}
+                  >
+                    <Trash2 size={11} />
+                    Delete
+                  </button>
+                </div>
+              );
+            })
+          )}
         </div>
+
+        {filteredTags.length > 0 && (
+          <p className="mt-2 text-[10.5px]" style={{ color: 'var(--text-muted)' }}>
+            Deleting a tag removes it from every linked defect. The impact review shows exactly which issues will be affected before anything is removed.
+          </p>
+        )}
       </div>
 
       <DeleteTagDialog

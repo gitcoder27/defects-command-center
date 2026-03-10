@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SettingsPage } from '@/components/settings/SettingsPanel';
+import { DEVELOPER_LOGIN_URL } from '@/lib/constants';
 import { TestWrapper } from '@/test/wrapper';
 import type { TagUsageResponse } from '@/types';
 
@@ -125,6 +126,12 @@ describe('SettingsPage', () => {
     vi.clearAllMocks();
     mockRefetch.mockClear();
     mockRefetchTagUsage.mockClear();
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    });
 
     mockGet.mockImplementation(async (path: string) => {
       if (path === '/auth/users') {
@@ -285,6 +292,24 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalledWith('/auth/users/taylor.dev');
       expect(screen.queryByRole('button', { name: /delete account for taylor dev/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows and copies the hosted developer login link', async () => {
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Developer Access' }));
+
+    expect(await screen.findByText(DEVELOPER_LOGIN_URL)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Copy$/i }));
+
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(DEVELOPER_LOGIN_URL);
     });
   });
 

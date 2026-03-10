@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Save,
   RefreshCw,
@@ -20,12 +20,15 @@ import {
   EyeOff,
   RefreshCcw,
   Tag,
+  Globe,
+  X,
 } from 'lucide-react';
 import { useConfig } from '@/hooks/useConfig';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
+import { DEVELOPER_LOGIN_URL } from '@/lib/constants';
 import { useDevelopers } from '@/hooks/useDevelopers';
 import { TagManagementSection } from '@/components/settings/TagManagementSection';
 import type { AuthUser, UserRole } from '@/types';
@@ -52,6 +55,7 @@ interface DiscoverUsersResponse {
 }
 
 type FieldPickerTarget = 'dueDate' | 'aspenSeverity';
+type SectionId = 'connection' | 'sync' | 'team' | 'tags' | 'access';
 
 export function SettingsPage() {
   const DISCOVER_PAGE_SIZE = 50;
@@ -102,6 +106,7 @@ export function SettingsPage() {
   const [deletingUsername, setDeletingUsername] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [activeSection, setActiveSection] = useState<SectionId>('connection');
   const [showPasswordGen, setShowPasswordGen] = useState(false);
   const [showNewPw, setShowNewPw] = useState(true);
   const [copiedPw, setCopiedPw] = useState(false);
@@ -187,10 +192,9 @@ export function SettingsPage() {
   };
 
   const handleCopyDevLink = () => {
-    const url = `${window.location.origin}/my-day`;
-    navigator.clipboard.writeText(url).then(() => {
+    navigator.clipboard.writeText(DEVELOPER_LOGIN_URL).then(() => {
       setCopiedLink(true);
-      addToast({ type: 'success', title: 'Link copied', message: url });
+      addToast({ type: 'success', title: 'Link copied', message: DEVELOPER_LOGIN_URL });
       setTimeout(() => setCopiedLink(false), 2000);
     });
   };
@@ -557,6 +561,22 @@ export function SettingsPage() {
     }
   }, [config?.jiraBaseUrl]);
 
+  const SECTION_LABELS: Record<SectionId, { title: string; description: string }> = {
+    connection: { title: 'Jira Connection', description: 'Review the active workspace and set the lead manager identity.' },
+    sync: { title: 'Sync Scope', description: 'Define the base defect query and map custom Jira fields.' },
+    team: { title: 'Team Members', description: 'Manage tracked developers for workload, routing, and sync scope.' },
+    tags: { title: 'Defect Tags', description: 'Review the shared tag library and safely remove labels.' },
+    access: { title: 'Developer Access', description: 'Create developer accounts and manage app user access.' },
+  };
+
+  const navItems: Array<{ id: SectionId; icon: ReactNode; label: string; status: string | null; sv: 'success' | 'warning' | 'muted' }> = [
+    { id: 'connection', icon: <Globe size={13} />, label: 'Jira Connection', status: connectionLabel !== 'Connection pending' ? connectionLabel : null, sv: config?.jiraBaseUrl ? 'success' : 'muted' },
+    { id: 'sync', icon: <RefreshCw size={13} />, label: 'Sync Scope', status: jql ? 'Query set' : 'No query', sv: jql ? 'muted' : 'warning' },
+    { id: 'team', icon: <Users size={13} />, label: 'Team Members', status: `${developers.length} tracked`, sv: 'muted' },
+    { id: 'tags', icon: <Tag size={13} />, label: 'Defect Tags', status: null, sv: 'muted' },
+    { id: 'access', icon: <Shield size={13} />, label: 'Developer Access', status: !loadingUsers ? `${appUsers.length} user${appUsers.length !== 1 ? 's' : ''}` : null, sv: 'muted' },
+  ];
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -564,7 +584,7 @@ export function SettingsPage() {
       transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
       className="flex h-full min-h-0 flex-col overflow-hidden"
       style={{
-        background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 96%, transparent) 0%, color-mix(in srgb, var(--bg-canvas) 94%, transparent) 100%)',
+        background: 'var(--bg-primary)',
         ['--settings-shell-bg' as string]: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 92%, var(--accent) 8%) 0%, color-mix(in srgb, var(--bg-secondary) 94%, transparent) 100%)',
         ['--settings-shell-border' as string]: '1px solid color-mix(in srgb, var(--border-strong) 88%, transparent)',
         ['--settings-shell-shadow' as string]: '0 18px 44px color-mix(in srgb, var(--text-primary) 8%, transparent)',
@@ -604,268 +624,304 @@ export function SettingsPage() {
         ['--settings-cta-primary-text' as string]: '#f8fbff',
       }}
     >
-            <div
-              className="relative overflow-hidden border-b px-4 py-3 md:px-6 lg:px-7"
-              style={{ borderColor: 'var(--border-strong)' }}
-            >
-              <div
-                className="pointer-events-none absolute inset-0"
-                style={{
-                  background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 72%, transparent) 0%, transparent 100%)',
-                }}
-              />
-              <div className="relative min-w-0">
-                <div className="min-w-0">
-                  <h2 className="text-[16px] font-semibold tracking-[-0.02em] md:text-[18px]" style={{ color: 'var(--text-primary)' }}>
-                    Settings
-                  </h2>
-                  <p className="mt-1 text-[11px] leading-5" style={{ color: 'var(--text-muted)' }}>
-                    Jira setup, team configuration, tags, and app access.
-                  </p>
-                </div>
-              </div>
-            </div>
+      {/* ── SIDEBAR + CONTENT ───────────────────────────────── */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
 
-            <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-5 lg:px-7">
-              <div className="flex flex-col gap-4">
-                <SectionCard
-                  icon={<Search size={16} />}
-                  eyebrow="01"
-                  title="Jira Connection"
-                  description="Review the active Jira workspace and define the manager account used as the lead identity for sync scope."
+        {/* ── SIDEBAR ─────────────────────────────────────────── */}
+        <aside
+          className="w-[214px] shrink-0 flex flex-col overflow-hidden"
+          style={{
+            borderRight: 'var(--settings-pane-border)',
+            background: 'color-mix(in srgb, var(--bg-secondary) 72%, var(--bg-primary) 28%)',
+          }}
+        >
+          {/* Sidebar header */}
+          <div
+            className="flex items-center gap-2 border-b px-3 py-2.5"
+            style={{ borderColor: 'var(--border-strong)' }}
+          >
+            <div
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
+              style={{ background: 'var(--settings-accent-soft-bg)', color: 'var(--accent)', border: 'var(--settings-accent-soft-border)' }}
+            >
+              <Globe size={11} />
+            </div>
+            <span className="text-[12px] font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+              Settings
+            </span>
+          </div>
+
+          {/* Nav items */}
+          <nav className="flex-1 overflow-y-auto p-1.5">
+            {navItems.map((item) => {
+              const isActive = activeSection === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveSection(item.id)}
+                  className="relative mb-0.5 flex w-full items-start gap-2 rounded-md py-1.5 text-left transition-all last:mb-0"
+                  style={{
+                    background: isActive ? 'color-mix(in srgb, var(--accent) 10%, var(--bg-primary))' : 'transparent',
+                    borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
+                    paddingLeft: '9px',
+                    paddingRight: '10px',
+                  }}
                 >
-                  <div className="grid gap-4 lg:grid-cols-[1.05fr_1.2fr]">
-                    <div
-                      className="rounded-[22px] p-4 lg:p-5"
-                      style={{
-                        background: 'var(--settings-pane-strong-bg)',
-                        border: 'var(--settings-pane-border)',
-                      }}
-                    >
-                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--accent)' }}>
-                        <RefreshCw size={12} />
-                        Active Connection
-                      </div>
-                      <div className="mt-4 space-y-4">
-                        <InfoRow label="Workspace" value={connectionLabel} />
-                        <InfoRow label="Project key" value={config?.jiraProjectKey || 'Not configured'} />
-                        <InfoRow label="Manager scope behavior" value="Assignee filtering is appended automatically during sync." />
-                      </div>
-                      <div
-                        className="mt-5 rounded-2xl px-4 py-3 text-[12px] leading-relaxed"
-                        style={{
-                          background: 'var(--settings-accent-soft-bg)',
-                          color: 'var(--text-secondary)',
-                          border: 'var(--settings-accent-soft-border)',
-                        }}
+                  <span className="mt-[1px] shrink-0" style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}>
+                    {item.icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-medium leading-snug" style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                      {item.label}
+                    </p>
+                    {item.status ? (
+                      <p
+                        className="mt-0.5 truncate text-[10px]"
+                        style={{ color: item.sv === 'success' ? 'var(--success)' : item.sv === 'warning' ? 'var(--warning)' : 'var(--text-muted)' }}
                       >
-                        Save the base query only. The dashboard composes team assignees and the manager lead identity around it at sync time.
+                        {item.status}
+                      </p>
+                    ) : null}
+                  </div>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* User footer */}
+          <div className="border-t p-2.5" style={{ borderColor: 'var(--border-strong)' }}>
+            <div className="flex items-center gap-2">
+              <div
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[9.5px] font-bold"
+                style={{ background: 'var(--settings-warning-soft-bg)', color: 'var(--warning)' }}
+              >
+                {(user?.displayName ?? '').split(' ').map((p) => p[0] ?? '').join('').slice(0, 2).toUpperCase() || 'M'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                  {user?.displayName || 'Manager'}
+                </p>
+                <p className="truncate text-[9.5px]" style={{ color: 'var(--text-muted)' }}>
+                  @{user?.username}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleManagerLogout()}
+                disabled={hasChanges || loggingOut}
+                title="Log out"
+                aria-label="Log out"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-40"
+                style={{ background: 'var(--settings-danger-soft-bg)', color: 'var(--danger-muted)', border: 'var(--settings-danger-soft-border)' }}
+              >
+                {loggingOut ? <Loader2 size={11} className="animate-spin" /> : <LogOut size={11} />}
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* ── CONTENT ─────────────────────────────────────────── */}
+        <div className="flex flex-1 min-w-0 min-h-0 flex-col overflow-hidden">
+          {/* Section title bar */}
+          <div
+            className="shrink-0 border-b px-5 py-2"
+            style={{ borderColor: 'var(--border-strong)', background: 'color-mix(in srgb, var(--bg-secondary) 42%, var(--bg-primary) 58%)' }}
+          >
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeSection + '-hdr'}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.12 }}
+              >
+                <h2 className="text-[13px] font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                  {SECTION_LABELS[activeSection].title}
+                </h2>
+                <p className="mt-0.5 text-[10.5px]" style={{ color: 'var(--text-muted)' }}>
+                  {SECTION_LABELS[activeSection].description}
+                </p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Scrollable section content */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeSection}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              className="flex-1 overflow-y-auto px-5 py-4"
+            >
+
+              {/* ── CONNECTION ────── */}
+              {activeSection === 'connection' ? (
+                <div className="max-w-[720px] space-y-7">
+                  {/* Active connection */}
+                  <div>
+                    <SettingsGroupLabel>Active Connection</SettingsGroupLabel>
+                    <div className="mt-2.5 overflow-hidden rounded-xl" style={{ border: 'var(--settings-pane-border)' }}>
+                      {([
+                        { label: 'Workspace', value: connectionLabel },
+                        { label: 'Project key', value: config?.jiraProjectKey || '—' },
+                        { label: 'Sync scope', value: 'Assignees auto-appended at sync time.' },
+                      ] as Array<{ label: string; value: string }>).map((row, idx) => (
+                        <div
+                          key={row.label}
+                          className="flex items-start gap-4 px-4 py-2"
+                          style={{ borderTop: idx > 0 ? 'var(--settings-row-divider)' : 'none' }}
+                        >
+                          <span className="w-[110px] shrink-0 text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                            {row.label}
+                          </span>
+                          <span className="text-[11.5px]" style={{ color: 'var(--text-primary)' }}>
+                            {row.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                      Save the base query only — team assignees and the manager lead identity are appended automatically at sync time.
+                    </p>
+                  </div>
+
+                  {/* Manager identity */}
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <SettingsGroupLabel>Manager Jira Identity</SettingsGroupLabel>
+                      {managerJiraAccountId ? (
+                        <button
+                          type="button"
+                          onClick={() => setManagerJiraAccountId('')}
+                          className="text-[11px] font-medium transition-opacity hover:opacity-70"
+                          style={{ color: 'var(--danger-muted)' }}
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 mb-3 text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                      Link the manager account Jira should treat as the lead when assembling sync scope and Manager Desk context.
+                    </p>
+                    <div className="space-y-2">
+                      <input
+                        id="manager-jira-identity"
+                        type="text"
+                        value={managerJiraAccountId}
+                        onChange={(e) => setManagerJiraAccountId(e.target.value)}
+                        placeholder="Paste or edit the Jira account id"
+                        className="w-full rounded-lg px-3 py-1.5 font-mono text-[11.5px] outline-none"
+                        style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                      />
+                      <div className="relative">
+                        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                        <input
+                          type="text"
+                          value={managerSearch}
+                          onChange={(e) => setManagerSearch(e.target.value)}
+                          placeholder="Filter known Jira people"
+                          className="w-full rounded-lg py-1.5 pl-8 pr-3 text-[11.5px] outline-none"
+                          style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                        />
                       </div>
                     </div>
-
-                    <div
-                      className="rounded-[22px] p-4 lg:p-5"
-                      style={{
-                        background: 'var(--settings-pane-bg)',
-                        border: 'var(--settings-pane-border)',
-                      }}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <label
-                            htmlFor="manager-jira-identity"
-                            className="text-[11px] font-semibold uppercase tracking-[0.18em]"
-                            style={{ color: 'var(--text-muted)' }}
-                          >
-                            Manager Jira Identity
-                          </label>
-                          <p className="mt-2 text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                            Link the manager account Jira should treat as the lead when assembling sync scope and manager desk context.
-                          </p>
-                        </div>
-                        {managerJiraAccountId ? (
-                          <button
-                            type="button"
-                            onClick={() => setManagerJiraAccountId('')}
-                            className="rounded-full px-3 py-1 text-[11px] font-semibold transition-colors"
-                            style={{
-                              background: 'var(--settings-danger-soft-bg)',
-                              color: 'var(--danger-muted)',
-                              border: 'var(--settings-danger-soft-border)',
-                            }}
-                          >
-                            Clear
-                          </button>
+                    <div className="mt-3">
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
+                          Directory picks
+                        </p>
+                        {discoveringTeam ? (
+                          <span className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            <Loader2 size={10} className="animate-spin" /> Refreshing
+                          </span>
                         ) : null}
                       </div>
-
-                      <div className="mt-4 space-y-3">
-                        <TextInput
-                          id="manager-jira-identity"
-                          label="Manager Jira Identity"
-                          hideLabel
-                          value={managerJiraAccountId}
-                          onChange={setManagerJiraAccountId}
-                          placeholder="Paste or edit the Jira account id"
-                          mono
-                        />
-
-                        <TextInput
-                          label="Filter known Jira people"
-                          hideLabel
-                          value={managerSearch}
-                          onChange={setManagerSearch}
-                          placeholder="Filter known Jira people"
-                        />
+                      <div className="overflow-hidden rounded-xl" style={{ border: 'var(--settings-inset-border)' }}>
+                        {managerSuggestions.length > 0 ? (
+                          managerSuggestions.map((u, idx) => (
+                            <button
+                              key={u.accountId}
+                              type="button"
+                              onClick={() => setManagerJiraAccountId(u.accountId)}
+                              className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors"
+                              style={{
+                                background: u.accountId === managerJiraAccountId ? 'var(--settings-accent-soft-bg)' : idx % 2 === 0 ? 'var(--settings-row-even-bg)' : 'var(--settings-row-odd-bg)',
+                                borderTop: idx > 0 ? 'var(--settings-row-divider)' : 'none',
+                              }}
+                            >
+                              <IdentityAvatar user={u} accent={u.accountId === managerJiraAccountId ? 'var(--accent)' : 'var(--text-muted)'} />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-[11.5px] font-medium" style={{ color: 'var(--text-primary)' }}>{u.displayName}</p>
+                                <p className="truncate text-[10px]" style={{ color: 'var(--text-muted)' }}>{u.email ?? u.accountId}</p>
+                              </div>
+                              {u.accountId === managerJiraAccountId ? (
+                                <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--settings-accent-soft-bg)', color: 'var(--accent)' }}>
+                                  Active
+                                </span>
+                              ) : null}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-4 py-3 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                            No profiles match. Paste an account id directly above.
+                          </div>
+                        )}
                       </div>
-
-                      <div
-                        className="mt-4 rounded-2xl p-4"
-                        style={{
-                          background: 'var(--settings-inset-bg)',
-                          border: 'var(--settings-inset-border)',
-                        }}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                              Directory picks
-                            </p>
-                            <p className="mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                              Suggestions come from your tracked developers and the latest Jira directory discovery.
-                            </p>
-                          </div>
-                          {discoveringTeam ? (
-                            <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                              <Loader2 size={12} className="animate-spin" />
-                              Refreshing
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className="mt-3 grid gap-2">
-                          {managerSuggestions.length > 0 ? (
-                            managerSuggestions.map((user) => (
-                              <button
-                                key={user.accountId}
-                                type="button"
-                                onClick={() => setManagerJiraAccountId(user.accountId)}
-                                className="flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors"
-                                style={{
-                                  background: user.accountId === managerJiraAccountId ? 'var(--settings-accent-soft-bg)' : 'var(--settings-inset-bg)',
-                                  border: user.accountId === managerJiraAccountId ? 'var(--settings-accent-soft-border)' : 'var(--settings-inset-border)',
-                                }}
-                              >
-                                <IdentityAvatar user={user} accent={user.accountId === managerJiraAccountId ? 'var(--accent)' : 'var(--text-muted)'} />
-                                <div className="min-w-0 flex-1">
-                                  <p className="truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                                    {user.displayName}
-                                  </p>
-                                  <p className="truncate text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                                    {user.email || user.accountId}
-                                  </p>
-                                </div>
-                                {user.accountId === managerJiraAccountId ? (
-                                  <span
-                                    className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em]"
-                                    style={{ background: 'var(--settings-accent-soft-bg)', color: 'var(--accent)' }}
-                                  >
-                                    Active
-                                  </span>
-                                ) : null}
-                              </button>
-                            ))
-                          ) : (
-                            <div className="rounded-2xl border border-dashed px-4 py-5 text-[12px]" style={{ borderColor: 'color-mix(in srgb, var(--border-strong) 92%, transparent)', color: 'var(--text-muted)' }}>
-                              No discovered Jira profiles match this filter yet. You can still paste an account id directly.
-                            </div>
-                          )}
-                        </div>
-
-                        {selectedManagerProfile ? (
-                          <div
-                            className="mt-4 rounded-2xl px-4 py-3 text-[12px]"
-                            style={{
-                              background: 'var(--settings-success-soft-bg)',
-                              color: 'var(--text-secondary)',
-                              border: 'var(--settings-success-soft-border)',
-                            }}
-                          >
-                            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedManagerProfile.displayName}</span>
-                            {' '}is currently linked as the manager Jira identity.
-                          </div>
-                        ) : managerJiraAccountId ? (
-                          <div
-                            className="mt-4 rounded-2xl px-4 py-3 text-[12px]"
-                            style={{
-                              background: 'var(--settings-warning-soft-bg)',
-                              color: 'var(--text-secondary)',
-                              border: 'var(--settings-warning-soft-border)',
-                            }}
-                          >
-                            This account id is saved manually and is not in the current local directory snapshot.
-                          </div>
-                        ) : null}
-                      </div>
+                      {selectedManagerProfile ? (
+                        <p className="mt-2 text-[11px]" style={{ color: 'var(--success)' }}>
+                          <span className="font-semibold">{selectedManagerProfile.displayName}</span> is linked as the manager Jira identity.
+                        </p>
+                      ) : managerJiraAccountId ? (
+                        <p className="mt-2 text-[11px]" style={{ color: 'var(--warning)' }}>
+                          Account id saved manually — not in the current directory snapshot.
+                        </p>
+                      ) : null}
                     </div>
                   </div>
-                </SectionCard>
+                </div>
+              ) : null}
 
-                <SectionCard
-                  icon={<RefreshCw size={16} />}
-                  eyebrow="02"
-                  title="Sync Scope"
-                  description="Tune the base defect query and map Jira fields that the dashboard surfaces during triage."
-                >
-                  <div className="grid gap-4 lg:grid-cols-[1.2fr_0.95fr]">
-                    <div
-                      className="rounded-[22px] p-4 lg:p-5"
-                      style={{
-                        background: 'var(--settings-pane-bg)',
-                        border: 'var(--settings-pane-border)',
-                      }}
-                    >
-                      <label
-                        htmlFor="jira-base-query"
-                        className="text-[11px] font-semibold uppercase tracking-[0.18em]"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        Base Jira Query
-                      </label>
-                      <p className="mt-2 text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                        Keep this query focused on the defect universe you want to monitor. Team assignees and manager lead logic are layered on top automatically.
-                      </p>
-                      <textarea
-                        id="jira-base-query"
-                        value={jql}
-                        onChange={(event) => setJql(event.target.value)}
-                        rows={9}
-                        spellCheck={false}
-                        className="mt-4 w-full rounded-[18px] px-3.5 py-3 text-[12px] leading-relaxed outline-none transition-colors md:text-[13px]"
-                        style={{
-                          background: 'var(--settings-input-bg)',
-                          color: 'var(--text-primary)',
-                          border: 'var(--settings-input-border)',
-                          minHeight: '156px',
-                        }}
-                        placeholder="project = PROJ AND issuetype = Bug AND statusCategory != Done"
-                      />
-                      <div
-                        className="mt-4 rounded-2xl px-4 py-3 text-[12px] leading-relaxed"
-                        style={{
-                          background: 'var(--settings-accent-soft-bg)',
-                          color: 'var(--text-secondary)',
-                          border: 'var(--settings-accent-soft-border)',
-                        }}
-                      >
-                        Use <code className="rounded px-1.5 py-0.5 text-[11px]" style={{ background: 'var(--settings-code-bg)', color: 'var(--accent)' }}>{'{ PROJECT_KEY }'}</code> to insert the configured Jira project key dynamically.
-                      </div>
-                    </div>
+              {/* ── SYNC SCOPE ────── */}
+              {activeSection === 'sync' ? (
+                <div className="max-w-[720px] space-y-7">
+                  {/* Base query */}
+                  <div>
+                    <SettingsGroupLabel>Base JQL Query</SettingsGroupLabel>
+                    <p className="mt-1 mb-3 text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                      Keep this query focused on the defect universe. Team assignees and manager lead logic are appended automatically at sync time.
+                    </p>
+                    <textarea
+                      id="jira-base-query"
+                      value={jql}
+                      onChange={(e) => setJql(e.target.value)}
+                      rows={7}
+                      spellCheck={false}
+                      className="w-full resize-y rounded-lg px-3 py-2.5 font-mono text-[11.5px] leading-relaxed outline-none"
+                      style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)', minHeight: '120px' }}
+                      placeholder="project = PROJ AND issuetype = Bug AND statusCategory != Done"
+                    />
+                    <p className="mt-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                      Use{' '}
+                      <code className="rounded px-1 py-0.5 font-mono text-[10.5px]" style={{ background: 'var(--settings-code-bg)', color: 'var(--accent)' }}>
+                        {'{ PROJECT_KEY }'}
+                      </code>{' '}
+                      to insert the configured project key dynamically.
+                    </p>
+                  </div>
 
-                    <div className="grid gap-4">
-                      <FieldCard
-                        label="Development Due Date"
-                        description="Custom Jira date field shown as the development due date in triage."
+                  {/* Custom fields */}
+                  <div>
+                    <SettingsGroupLabel>Custom Field Mapping</SettingsGroupLabel>
+                    <p className="mt-1 mb-3 text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                      Map custom Jira fields surfaced during triage. Use Discover to browse available fields.
+                    </p>
+                    <div className="space-y-2">
+                      <CompactFieldRow
+                        label="Dev Due Date"
+                        description="Date field shown as development due date in triage."
                         value={devDueDateField}
                         onChange={setDevDueDateField}
                         onDiscover={() => handleDiscoverFields('dueDate')}
@@ -873,9 +929,9 @@ export function SettingsPage() {
                         active={fieldPickerTarget === 'dueDate'}
                         placeholder="customfield_10128"
                       />
-                      <FieldCard
+                      <CompactFieldRow
                         label="ASPEN Severity"
-                        description="Custom Jira field displayed at the top of triage properties."
+                        description="Field displayed at the top of triage properties."
                         value={aspenSeverityField}
                         onChange={setAspenSeverityField}
                         onDiscover={() => handleDiscoverFields('aspenSeverity')}
@@ -886,930 +942,677 @@ export function SettingsPage() {
                     </div>
                   </div>
 
+                  {/* Field picker */}
                   {fieldPickerTarget ? (
-                    <div
-                      className="mt-4 overflow-hidden rounded-[24px]"
-                      style={{
-                        background: 'var(--settings-inset-bg)',
-                        border: 'var(--settings-inset-border)',
-                      }}
-                    >
+                    <div className="overflow-hidden rounded-xl" style={{ border: 'var(--settings-inset-border)', background: 'var(--settings-inset-bg)' }}>
                       <div
-                        className="flex flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+                        className="flex flex-col gap-2 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                         style={{ borderColor: 'color-mix(in srgb, var(--border-strong) 78%, transparent)' }}
                       >
-                        <div>
-                          <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                            {fieldPickerTarget === 'aspenSeverity' ? 'ASPEN Severity field picker' : 'Development due date field picker'}
-                          </p>
-                          <p className="mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                            Search across Jira custom fields and click one to apply it.
-                          </p>
-                        </div>
+                        <p className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                          {fieldPickerTarget === 'aspenSeverity' ? 'ASPEN Severity' : 'Dev Due Date'} — field picker
+                        </p>
                         <div className="flex items-center gap-2">
-                          <div className="relative min-w-[220px] flex-1">
-                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                          <div className="relative flex-1 sm:min-w-[200px]">
+                            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
                             <input
                               type="text"
                               value={fieldSearch}
-                              onChange={(event) => setFieldSearch(event.target.value)}
+                              onChange={(e) => setFieldSearch(e.target.value)}
                               placeholder="Search fields…"
-                              className="w-full rounded-xl py-2 pl-9 pr-3 text-[12px] outline-none"
-                              style={{
-                                background: 'var(--settings-input-bg)',
-                                color: 'var(--text-primary)',
-                                border: 'var(--settings-input-border)',
-                              }}
+                              className="w-full rounded-lg py-1.5 pl-8 pr-3 text-[12px] outline-none"
+                              style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
                             />
                           </div>
                           <button
                             type="button"
                             onClick={() => setFieldPickerTarget(null)}
-                            className="rounded-xl px-3 py-2 text-[12px] font-medium transition-colors"
-                            style={{
-                              background: 'var(--settings-neutral-chip-bg)',
-                              color: 'var(--text-secondary)',
-                              border: '1px solid var(--border-strong)',
-                            }}
+                            className="rounded-lg px-3 py-1.5 text-[11px] font-medium transition-colors"
+                            style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' }}
                           >
                             Close
                           </button>
                         </div>
                       </div>
-
-                      <div className="max-h-[280px] overflow-y-auto">
+                      <div className="max-h-[260px] overflow-y-auto">
                         {preferredFields.length > 0 ? (
-                          <FieldListGroup
-                            title="Likely matches"
-                            accent
-                            fields={preferredFields}
-                            currentFieldValue={currentFieldValue}
-                            onSelect={handleFieldSelection}
-                          />
+                          <FieldListGroup title="Likely matches" accent fields={preferredFields} currentFieldValue={currentFieldValue} onSelect={handleFieldSelection} />
                         ) : null}
                         {otherFields.length > 0 ? (
-                          <FieldListGroup
-                            title="Other custom fields"
-                            fields={otherFields.slice(0, 50)}
-                            currentFieldValue={currentFieldValue}
-                            onSelect={handleFieldSelection}
-                          />
+                          <FieldListGroup title="Other custom fields" fields={otherFields.slice(0, 50)} currentFieldValue={currentFieldValue} onSelect={handleFieldSelection} />
                         ) : null}
                         {otherFields.length > 50 ? (
-                          <div className="px-4 py-3 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                            +{otherFields.length - 50} more fields. Narrow the search to see them.
-                          </div>
+                          <p className="px-4 py-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>+{otherFields.length - 50} more — narrow the search.</p>
                         ) : null}
                         {preferredFields.length === 0 && otherFields.length === 0 ? (
-                          <div className="px-4 py-5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                            No custom fields match this search.
-                          </div>
+                          <p className="px-4 py-4 text-[12px]" style={{ color: 'var(--text-muted)' }}>No custom fields match this search.</p>
                         ) : null}
                       </div>
                     </div>
                   ) : null}
-                </SectionCard>
+                </div>
+              ) : null}
 
-                <SectionCard
-                  icon={<Users size={16} />}
-                  eyebrow="03"
-                  title="Team Members"
-                  description="Curate the tracked Jira developers that drive workload, routing, and manager visibility."
-                >
-                  <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-                    <div
-                      className="rounded-[22px] p-4 lg:p-5"
-                      style={{
-                        background: 'var(--settings-pane-bg)',
-                        border: 'var(--settings-pane-border)',
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
-                            Tracked team
-                          </p>
-                          <p className="mt-2 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-                            These Jira users are included in workload calculations and scoped sync results.
-                          </p>
-                        </div>
-                        <div
-                          className="rounded-full px-3 py-1 text-[11px] font-semibold"
-                          style={{
-                            background: 'var(--settings-accent-soft-bg)',
-                            color: 'var(--accent)',
-                            border: 'var(--settings-accent-soft-border)',
-                          }}
-                        >
-                          {developers.length} tracked
-                        </div>
-                      </div>
-
-                      <div className="relative mt-4">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-                        <input
-                          type="text"
-                          value={teamSearch}
-                          onChange={(event) => setTeamSearch(event.target.value)}
-                          placeholder="Search current team"
-                          aria-label="Search current team"
-                          className="w-full rounded-xl py-2 pl-9 pr-3 text-[12px] outline-none"
-                          style={{
-                            background: 'var(--settings-input-bg)',
-                            color: 'var(--text-primary)',
-                            border: 'var(--settings-input-border)',
-                          }}
-                        />
-                      </div>
-
-                      <div className="mt-4 overflow-hidden rounded-[20px]" style={{ border: 'var(--settings-inset-border)' }}>
-                        {loadingDevelopers ? (
-                          <div className="px-4 py-5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                            Loading team members…
-                          </div>
-                        ) : filteredDevelopers.length === 0 ? (
-                          <div className="px-4 py-5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                            No tracked team members match this search.
-                          </div>
-                        ) : (
-                          filteredDevelopers.map((member, index) => {
-                            const isRemoving = removingAccountId === member.accountId;
-                            return (
-                              <div
-                                key={member.accountId}
-                                className="flex items-center gap-3 px-4 py-3"
-                                style={{
-                                  background: index % 2 === 0 ? 'var(--settings-row-even-bg)' : 'var(--settings-row-odd-bg)',
-                                  borderTop: index > 0 ? 'var(--settings-row-divider)' : 'none',
-                                }}
-                              >
-                                <IdentityAvatar
-                                  user={member}
-                                  accent="var(--accent)"
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <p className="truncate text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                                    {member.displayName}
-                                  </p>
-                                  <p className="truncate text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                                    {member.email || member.accountId}
-                                  </p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveMember(member.accountId)}
-                                  disabled={teamActionLoading}
-                                  className="rounded-xl p-2 transition-colors disabled:opacity-50"
-                                  style={{
-                                    background: 'var(--settings-input-bg)',
-                                    color: 'var(--text-secondary)',
-                                    border: 'var(--settings-input-border)',
-                                  }}
-                                  title="Remove from team"
-                                  aria-label={`Remove ${member.displayName} from team`}
-                                >
-                                  {isRemoving ? <Loader2 size={14} className="animate-spin" /> : <UserMinus size={14} />}
-                                </button>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
+              {/* ── TEAM MEMBERS ────── */}
+              {activeSection === 'team' ? (
+                <div className="grid gap-5 xl:grid-cols-2">
+                  {/* Tracked team */}
+                  <div>
+                    <div className="mb-2.5 flex items-center justify-between">
+                      <SettingsGroupLabel>Tracked Team</SettingsGroupLabel>
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
+                        style={{ background: 'var(--settings-accent-soft-bg)', color: 'var(--accent)', border: 'var(--settings-accent-soft-border)' }}
+                      >
+                        {developers.length}
+                      </span>
                     </div>
-
-                    <div
-                      className="rounded-[22px] p-4 lg:p-5"
-                      style={{
-                        background: 'var(--settings-pane-bg)',
-                        border: 'var(--settings-pane-border)',
-                      }}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
-                            Jira directory
-                          </p>
-                          <p className="mt-2 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-                            Discover Jira users, select the people you want to track, and add them in one step.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDiscoverTeamMembers({
-                              query: discoveredSearch.trim(),
-                              startAt: 0,
-                              append: false,
-                              silentEmpty: false,
-                            })
-                          }
-                          disabled={teamActionLoading || discoveringTeam}
-                          className="rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
-                          style={{
-                            background: 'var(--settings-accent-soft-bg)',
-                            color: 'var(--accent)',
-                            border: 'var(--settings-accent-soft-border)',
-                          }}
-                        >
-                          {discoveringTeam ? 'Refreshing…' : 'Refresh directory'}
-                        </button>
-                      </div>
-
-                      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
-                        <div className="relative">
-                          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-                          <input
-                            type="text"
-                            value={discoveredSearch}
-                            onChange={(event) => setDiscoveredSearch(event.target.value)}
-                            placeholder="Search discoverable Jira users"
-                            aria-label="Search discoverable Jira users"
-                            className="w-full rounded-xl py-2 pl-9 pr-3 text-[12px] outline-none"
-                            style={{
-                              background: 'var(--settings-input-bg)',
-                              color: 'var(--text-primary)',
-                              border: 'var(--settings-input-border)',
-                            }}
-                          />
-                        </div>
-                        <div
-                          className="flex items-center justify-center rounded-xl px-3 py-2 text-[11px] font-semibold"
-                          style={{
-                            background: 'var(--settings-neutral-chip-bg)',
-                            color: 'var(--text-muted)',
-                            border: '1px solid var(--border-strong)',
-                          }}
-                        >
-                          {addableSelectionCount} selected
-                        </div>
-                      </div>
-
-                      {discoverTeamError ? (
-                        <div
-                          className="mt-4 rounded-2xl px-4 py-3 text-[12px]"
-                          style={{
-                            background: 'var(--settings-danger-soft-bg)',
-                            color: 'var(--danger-muted)',
-                            border: 'var(--settings-danger-soft-border)',
-                          }}
-                        >
-                          {discoverTeamError}
-                        </div>
-                      ) : null}
-
-                      {discoveringTeam ? (
-                        <div className="mt-4 flex items-center gap-2 rounded-2xl border px-4 py-4 text-[12px]" style={{ borderColor: 'color-mix(in srgb, var(--border-strong) 82%, transparent)', color: 'var(--text-secondary)', background: 'var(--settings-inset-bg)' }}>
-                          <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
-                          Discovering Jira users…
-                        </div>
-                      ) : discoveredUsers.length === 0 ? (
-                        <div className="mt-4 rounded-2xl border border-dashed px-4 py-5 text-[12px]" style={{ borderColor: 'color-mix(in srgb, var(--border-strong) 92%, transparent)', color: 'var(--text-muted)' }}>
-                          Discover users from Jira to build your tracked team.
-                        </div>
+                    <div className="relative mb-2">
+                      <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                      <input
+                        type="text"
+                        value={teamSearch}
+                        onChange={(e) => setTeamSearch(e.target.value)}
+                        placeholder="Search team"
+                        aria-label="Search current team"
+                        className="w-full rounded-lg py-1.5 pl-8 pr-3 text-[11.5px] outline-none"
+                        style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                      />
+                    </div>
+                    <div className="overflow-hidden rounded-xl" style={{ border: 'var(--settings-inset-border)' }}>
+                      {loadingDevelopers ? (
+                        <p className="px-4 py-4 text-[12px]" style={{ color: 'var(--text-muted)' }}>Loading team…</p>
+                      ) : filteredDevelopers.length === 0 ? (
+                        <p className="px-4 py-4 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                          {developers.length === 0 ? 'No team members yet.' : 'No members match this search.'}
+                        </p>
                       ) : (
-                        <>
-                          <div className="mt-4 flex flex-wrap items-center gap-3 text-[11px]">
-                            <button type="button" onClick={handleSelectAllDiscovered} className="font-semibold" style={{ color: 'var(--accent)' }}>
-                              Select all visible
-                            </button>
-                            <button type="button" onClick={handleClearAddSelection} className="font-semibold" style={{ color: 'var(--text-muted)' }}>
-                              Clear
-                            </button>
-                            <span className="ml-auto" style={{ color: 'var(--text-muted)' }}>
-                              {discoveredUsers.length} results loaded
-                            </span>
-                          </div>
-
-                          <div className="mt-3 max-h-[320px] overflow-y-auto rounded-[20px]" style={{ border: 'var(--settings-inset-border)' }}>
-                            {discoveredUsers.map((user, index) => {
-                              const isAlreadyMember = activeMemberIds.has(user.accountId);
-                              const isSelected = selectedAddUsers.has(user.accountId);
-                              return (
-                                <button
-                                  key={user.accountId}
-                                  type="button"
-                                  onClick={() => !isAlreadyMember && handleToggleAddUser(user.accountId)}
-                                  disabled={isAlreadyMember || teamActionLoading}
-                                  className="flex w-full items-center gap-3 px-4 py-3 text-left disabled:opacity-100"
-                                  style={{
-                                    background: index % 2 === 0 ? 'var(--settings-row-even-bg)' : 'var(--settings-row-odd-bg)',
-                                    borderTop: index > 0 ? 'var(--settings-row-divider)' : 'none',
-                                  }}
-                                >
-                                  <span
-                                    className="flex h-5 w-5 items-center justify-center rounded-md border text-[11px] font-semibold"
-                                    style={{
-                                      borderColor: isAlreadyMember || isSelected ? 'color-mix(in srgb, var(--accent) 26%, var(--border-strong))' : 'color-mix(in srgb, var(--border-strong) 88%, transparent)',
-                                      background: isAlreadyMember || isSelected ? 'var(--settings-accent-soft-bg)' : 'transparent',
-                                      color: isAlreadyMember || isSelected ? 'var(--accent)' : 'var(--text-muted)',
-                                    }}
-                                  >
-                                    {isAlreadyMember || isSelected ? '✓' : ''}
-                                  </span>
-                                  <IdentityAvatar user={user} accent={isSelected ? 'var(--accent)' : 'var(--text-muted)'} />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                                      {user.displayName}
-                                    </p>
-                                    <p className="truncate text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                                      {user.email || user.accountId}
-                                    </p>
-                                  </div>
-                                  {isAlreadyMember ? (
-                                    <span className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ background: 'var(--settings-accent-soft-bg)', color: 'var(--accent)' }}>
-                                      Added
-                                    </span>
-                                  ) : null}
-                                </button>
-                              );
-                            })}
-                          </div>
-
-                          {discoverHasMore ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleDiscoverTeamMembers({
-                                  query: discoveredSearch.trim(),
-                                  startAt: discoverNextStartAt,
-                                  append: true,
-                                  silentEmpty: true,
-                                })
-                              }
-                              disabled={loadingMoreTeam || discoveringTeam}
-                              className="mt-3 w-full rounded-2xl px-4 py-2.5 text-[12px] font-medium transition-colors disabled:opacity-50"
-                              style={{
-                                background: 'var(--settings-neutral-chip-bg)',
-                                color: 'var(--text-primary)',
-                                border: '1px solid var(--border-strong)',
-                              }}
+                        filteredDevelopers.map((member, idx) => {
+                          const isRemoving = removingAccountId === member.accountId;
+                          return (
+                            <div
+                              key={member.accountId}
+                              className="flex items-center gap-2 px-3 py-1.5"
+                              style={{ background: idx % 2 === 0 ? 'var(--settings-row-even-bg)' : 'var(--settings-row-odd-bg)', borderTop: idx > 0 ? 'var(--settings-row-divider)' : 'none' }}
                             >
-                              {loadingMoreTeam ? 'Loading more…' : 'Load more users'}
-                            </button>
-                          ) : null}
-
-                          <button
-                            type="button"
-                            onClick={handleAddSelectedDevelopers}
-                            disabled={addableSelectionCount === 0 || savingTeam}
-                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-[12px] font-semibold transition-colors disabled:opacity-50"
-                            style={{
-                              background: 'var(--settings-cta-bg)',
-                              color: 'var(--settings-cta-text)',
-                              border: 'var(--settings-cta-border)',
-                            }}
-                          >
-                            {savingTeam ? (
-                              <>
-                                <Loader2 size={14} className="animate-spin" />
-                                Adding selected members…
-                              </>
-                            ) : (
-                              <>
-                                <UserPlus size={14} />
-                                Add selected developers
-                              </>
-                            )}
-                          </button>
-                        </>
+                              <IdentityAvatar user={member} accent="var(--accent)" />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{member.displayName}</p>
+                                <p className="truncate text-[10px]" style={{ color: 'var(--text-muted)' }}>{member.email ?? member.accountId}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMember(member.accountId)}
+                                disabled={teamActionLoading}
+                                className="flex h-6 w-6 items-center justify-center rounded-md transition-colors disabled:opacity-50"
+                                style={{ background: 'var(--settings-input-bg)', color: 'var(--text-secondary)', border: 'var(--settings-input-border)' }}
+                                title="Remove from team"
+                                aria-label={`Remove ${member.displayName} from team`}
+                              >
+                                {isRemoving ? <Loader2 size={12} className="animate-spin" /> : <UserMinus size={12} />}
+                              </button>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   </div>
-                </SectionCard>
 
-                <SectionCard
-                  icon={<Tag size={16} />}
-                  eyebrow="04"
-                  title="Defect Tags"
-                  description="Review the shared tag library, inspect where tags are applied, and delete labels safely."
-                >
-                  <TagManagementSection />
-                </SectionCard>
-
-                <SectionCard
-                  icon={<Shield size={16} />}
-                  eyebrow="05"
-                  title="Developer Access"
-                  description="Create application accounts for the team and share the direct `/my-day` entry point with developers."
-                >
-                  <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-                    <div className="grid gap-4">
-                      <div
-                        className="rounded-[22px] p-4 lg:p-5"
-                        style={{
-                          background: 'var(--settings-pane-strong-bg)',
-                          border: 'var(--settings-pane-border)',
-                        }}
+                  {/* Jira directory */}
+                  <div>
+                    <div className="mb-2.5 flex items-center justify-between">
+                      <SettingsGroupLabel>Jira Directory</SettingsGroupLabel>
+                      <button
+                        type="button"
+                        onClick={() => handleDiscoverTeamMembers({ query: discoveredSearch.trim(), startAt: 0, append: false, silentEmpty: false })}
+                        disabled={teamActionLoading || discoveringTeam}
+                        className="rounded-full px-2.5 py-1 text-[10.5px] font-semibold transition-colors disabled:opacity-50"
+                        style={{ background: 'var(--settings-accent-soft-bg)', color: 'var(--accent)', border: 'var(--settings-accent-soft-border)' }}
                       >
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
-                          Developer login link
-                        </p>
-                        <p className="mt-2 text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                          Share the direct workspace URL with developers so they land in their day view immediately after sign-in.
-                        </p>
-                        <div
-                          className="mt-4 rounded-2xl px-4 py-3 text-[12px] font-medium"
-                          style={{
-                            background: 'var(--settings-code-bg)',
-                            color: 'var(--text-primary)',
-                            border: 'var(--settings-inset-border)',
-                          }}
-                        >
-                          {window.location.origin}/my-day
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleCopyDevLink}
-                          className="mt-4 flex items-center gap-2 rounded-2xl px-4 py-2.5 text-[12px] font-semibold transition-colors"
-                          style={{
-                            background: copiedLink ? 'var(--settings-success-soft-bg)' : 'var(--settings-accent-soft-bg)',
-                            color: copiedLink ? 'var(--success)' : 'var(--accent)',
-                            border: copiedLink ? 'var(--settings-success-soft-border)' : 'var(--settings-accent-soft-border)',
-                          }}
-                        >
-                          {copiedLink ? <CheckCircle2 size={14} /> : <Copy size={14} />}
-                          {copiedLink ? 'Copied /my-day link' : 'Copy /my-day link'}
-                        </button>
+                        {discoveringTeam ? 'Refreshing…' : 'Refresh'}
+                      </button>
+                    </div>
+                    <div className="mb-2 flex gap-2">
+                      <div className="relative flex-1">
+                        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                        <input
+                          type="text"
+                          value={discoveredSearch}
+                          onChange={(e) => setDiscoveredSearch(e.target.value)}
+                          placeholder="Search Jira users"
+                          aria-label="Search discoverable Jira users"
+                          className="w-full rounded-lg py-1.5 pl-8 pr-3 text-[11.5px] outline-none"
+                          style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                        />
                       </div>
-
-                      <div
-                        className="rounded-[22px] px-4 py-3 text-[12px] leading-relaxed lg:px-5 lg:py-4"
-                        style={{
-                          background: 'var(--settings-accent-soft-bg)',
-                          color: 'var(--text-secondary)',
-                          border: 'var(--settings-accent-soft-border)',
-                        }}
+                      <span
+                        className="flex items-center justify-center rounded-lg px-2.5 text-[10.5px] font-semibold"
+                        style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-muted)', border: '1px solid var(--border-strong)', whiteSpace: 'nowrap' }}
                       >
-                        Managers can create new developer accounts here without reopening onboarding. Developer accounts still require a Jira identity link.
-                      </div>
+                        {addableSelectionCount} sel.
+                      </span>
                     </div>
 
-                    <div className="grid gap-4">
-                      <div
-                        className="rounded-[22px] p-4 lg:p-5"
-                        style={{
-                          background: 'var(--settings-pane-bg)',
-                          border: 'var(--settings-pane-border)',
-                        }}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
-                              Existing accounts
-                            </p>
-                            <p className="mt-2 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-                              Review the current app users and their roles before creating more access.
-                            </p>
-                          </div>
-                          <div
-                            className="rounded-full px-3 py-1 text-[11px] font-semibold"
-                            style={{
-                              background: 'var(--settings-neutral-chip-bg)',
-                              color: 'var(--text-muted)',
-                              border: '1px solid var(--border-strong)',
-                            }}
-                          >
-                            {loadingUsers ? 'Loading…' : `${appUsers.length} user${appUsers.length === 1 ? '' : 's'}`}
-                          </div>
-                        </div>
+                    {discoverTeamError ? (
+                      <p className="mb-2 rounded-xl px-3 py-2 text-[11px]" style={{ background: 'var(--settings-danger-soft-bg)', color: 'var(--danger-muted)', border: 'var(--settings-danger-soft-border)' }}>
+                        {discoverTeamError}
+                      </p>
+                    ) : null}
 
-                        <div className="mt-4 overflow-hidden rounded-[20px]" style={{ border: 'var(--settings-inset-border)' }}>
-                          {loadingUsers ? (
-                            <div className="flex items-center gap-2 px-4 py-5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                              <Loader2 size={14} className="animate-spin" />
-                              Loading users…
-                            </div>
-                          ) : appUsers.length > 0 ? (
-                            appUsers.map((user, index) => (
-                              <div
-                                key={user.username}
-                                className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
-                                style={{
-                                  background: index % 2 === 0 ? 'var(--settings-row-even-bg)' : 'var(--settings-row-odd-bg)',
-                                  borderTop: index > 0 ? 'var(--settings-row-divider)' : 'none',
-                                }}
-                              >
-                                <div className="flex min-w-0 flex-1 items-center gap-3">
-                                  <div
-                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[11px] font-bold"
-                                    style={{
-                                      background: user.role === 'manager' ? 'var(--settings-warning-soft-bg)' : 'var(--settings-accent-soft-bg)',
-                                      color: user.role === 'manager' ? 'var(--warning)' : 'var(--accent)',
-                                    }}
-                                  >
-                                    {user.displayName.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <p className="truncate text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                                        {user.displayName}
-                                      </p>
-                                      <span
-                                        className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
-                                        style={{
-                                          background: user.role === 'manager' ? 'var(--settings-warning-soft-bg)' : 'var(--settings-accent-soft-bg)',
-                                          color: user.role === 'manager' ? 'var(--warning)' : 'var(--accent)',
-                                        }}
-                                      >
-                                        {user.role}
-                                      </span>
-                                      {user.developerAccountId ? (
-                                        <span
-                                          className="rounded-full px-2 py-1 text-[10px] font-medium"
-                                          style={{
-                                            background: 'var(--settings-neutral-chip-bg)',
-                                            color: 'var(--text-muted)',
-                                            border: '1px solid var(--border-strong)',
-                                          }}
-                                        >
-                                          Jira linked
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    <p className="truncate text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                                      @{user.username}
-                                      {user.developerAccountId ? ` • ${user.developerAccountId}` : ''}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="sm:ml-auto">
-                                  {user.role === 'developer' ? (
-                                    <UserAccountDeleteAction
-                                      user={user}
-                                      confirming={confirmDeleteUsername === user.username}
-                                      deleting={deletingUsername === user.username}
-                                      onStartConfirm={() => setConfirmDeleteUsername(user.username)}
-                                      onCancel={() => setConfirmDeleteUsername((current) => (current === user.username ? null : current))}
-                                      onConfirm={() => void handleDeleteUser(user)}
-                                    />
-                                  ) : (
-                                    <div
-                                      className="rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
-                                      style={{
-                                        background: 'var(--settings-warning-soft-bg)',
-                                        color: 'var(--warning)',
-                                        border: 'var(--settings-warning-soft-border)',
-                                      }}
-                                    >
-                                      Manager access
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="px-4 py-5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                              No access accounts found.
-                            </div>
-                          )}
-                        </div>
+                    {discoveringTeam ? (
+                      <div className="flex items-center gap-2 rounded-xl px-3 py-3 text-[12px]" style={{ background: 'var(--settings-inset-bg)', border: 'var(--settings-inset-border)', color: 'var(--text-secondary)' }}>
+                        <Loader2 size={13} className="animate-spin" style={{ color: 'var(--accent)' }} />
+                        Discovering users…
                       </div>
-
-                      {!showCreateUser ? (
+                    ) : discoveredUsers.length === 0 ? (
+                      <div className="rounded-xl border border-dashed px-4 py-5 text-[12px]" style={{ borderColor: 'color-mix(in srgb, var(--border-strong) 90%, transparent)', color: 'var(--text-muted)' }}>
+                        Discover users from Jira to build your tracked team.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mb-1.5 flex flex-wrap items-center gap-3 text-[11px]">
+                          <button type="button" onClick={handleSelectAllDiscovered} className="font-semibold" style={{ color: 'var(--accent)' }}>All</button>
+                          <button type="button" onClick={handleClearAddSelection} style={{ color: 'var(--text-muted)' }}>Clear</button>
+                          <span className="ml-auto" style={{ color: 'var(--text-muted)' }}>{discoveredUsers.length} loaded</span>
+                        </div>
+                        <div className="max-h-[280px] overflow-y-auto rounded-xl" style={{ border: 'var(--settings-inset-border)' }}>
+                          {discoveredUsers.map((u, idx) => {
+                            const isAlready = activeMemberIds.has(u.accountId);
+                            const isSel = selectedAddUsers.has(u.accountId);
+                            return (
+                              <button
+                                key={u.accountId}
+                                type="button"
+                                onClick={() => !isAlready && handleToggleAddUser(u.accountId)}
+                                disabled={isAlready || teamActionLoading}
+                                className="flex w-full items-center gap-2 px-3 py-1.5 text-left disabled:opacity-100"
+                                style={{ background: idx % 2 === 0 ? 'var(--settings-row-even-bg)' : 'var(--settings-row-odd-bg)', borderTop: idx > 0 ? 'var(--settings-row-divider)' : 'none' }}
+                              >
+                                <span
+                                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-[10px] font-semibold"
+                                  style={{
+                                    borderWidth: 1, borderStyle: 'solid',
+                                    borderColor: isAlready || isSel ? 'color-mix(in srgb, var(--accent) 26%, var(--border-strong))' : 'color-mix(in srgb, var(--border-strong) 88%, transparent)',
+                                    background: isAlready || isSel ? 'var(--settings-accent-soft-bg)' : 'transparent',
+                                    color: isAlready || isSel ? 'var(--accent)' : 'var(--text-muted)',
+                                  }}
+                                >
+                                  {isAlready || isSel ? '✓' : ''}
+                                </span>
+                                <IdentityAvatar user={u} accent={isSel ? 'var(--accent)' : 'var(--text-muted)'} />
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-[11.5px] font-medium" style={{ color: 'var(--text-primary)' }}>{u.displayName}</p>
+                                  <p className="truncate text-[10px]" style={{ color: 'var(--text-muted)' }}>{u.email ?? u.accountId}</p>
+                                </div>
+                                {isAlready ? (
+                                  <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--settings-accent-soft-bg)', color: 'var(--accent)' }}>Added</span>
+                                ) : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {discoverHasMore ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDiscoverTeamMembers({ query: discoveredSearch.trim(), startAt: discoverNextStartAt, append: true, silentEmpty: true })}
+                            disabled={loadingMoreTeam || discoveringTeam}
+                            className="mt-2 w-full rounded-xl px-4 py-2 text-[12px] font-medium transition-colors disabled:opacity-50"
+                            style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-strong)' }}
+                          >
+                            {loadingMoreTeam ? 'Loading more…' : 'Load more users'}
+                          </button>
+                        ) : null}
                         <button
                           type="button"
-                          onClick={() => {
-                            setShowCreateUser(true);
-                            setNewPassword(generateStrongPassword(pwLength, pwUppercase, pwLowercase, pwDigits, pwSymbols));
-                            setShowNewPw(true);
-                            setCopiedPw(false);
-                            setShowPasswordGen(false);
-                          }}
-                          className="flex items-center justify-center gap-2 rounded-[22px] px-4 py-3 text-[12px] font-semibold transition-colors md:text-[13px]"
-                          style={{
-                            background: 'var(--settings-accent-soft-bg)',
-                            color: 'var(--accent)',
-                            border: 'var(--settings-accent-soft-border)',
-                          }}
+                          onClick={handleAddSelectedDevelopers}
+                          disabled={addableSelectionCount === 0 || savingTeam}
+                          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-semibold transition-colors disabled:opacity-50"
+                          style={{ background: 'var(--settings-cta-bg)', color: 'var(--settings-cta-text)', border: 'var(--settings-cta-border)' }}
                         >
-                          <UserPlus size={15} />
-                          Create user account
+                          {savingTeam ? (
+                            <><Loader2 size={13} className="animate-spin" /> Adding…</>
+                          ) : (
+                            <><UserPlus size={13} /> Add {addableSelectionCount > 0 ? `${addableSelectionCount} ` : ''}selected</>
+                          )}
                         </button>
-                      ) : (
-                        <div
-                          className="rounded-[22px] p-4 lg:p-5"
-                          style={{
-                            background: 'var(--settings-pane-bg)',
-                            border: 'var(--settings-accent-soft-border)',
-                          }}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--accent)' }}>
-                                New account
-                              </p>
-                              <p className="mt-2 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-                                Create a developer or manager login without leaving settings.
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setShowCreateUser(false)}
-                              className="rounded-full px-3 py-1 text-[11px] font-semibold transition-colors"
-                              style={{
-                                background: 'var(--settings-neutral-chip-bg)',
-                                color: 'var(--text-secondary)',
-                                border: '1px solid var(--border-strong)',
-                              }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : null}
 
-                          <div className="mt-4 grid gap-3 md:grid-cols-2">
-                            <TextInput label="Username" value={newUsername} onChange={setNewUsername} placeholder="manager.smith" />
-                            <TextInput label="Display Name" value={newDisplayName} onChange={setNewDisplayName} placeholder="Morgan Smith" />
-                          </div>
-                          <div className="mt-3">
-                            <div className="block">
-                              <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
-                                Password
-                              </span>
-                              <div className="relative">
-                                <input
-                                  type={showNewPw ? 'text' : 'password'}
-                                  value={newPassword}
-                                  onChange={(e) => { setNewPassword(e.target.value); setCopiedPw(false); }}
-                                  placeholder="Password (min 6 characters)"
-                                  autoComplete="new-password"
-                                  className="w-full rounded-[20px] px-4 py-3 pr-28 text-[13px] font-mono outline-none transition-colors"
-                                  style={{
-                                    background: 'var(--settings-input-bg)',
-                                    color: 'var(--text-primary)',
-                                    border: 'var(--settings-input-border)',
-                                  }}
-                                />
-                                <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const pw = generateStrongPassword(pwLength, pwUppercase, pwLowercase, pwDigits, pwSymbols);
-                                      setNewPassword(pw);
-                                      setShowNewPw(true);
-                                      setCopiedPw(false);
-                                    }}
-                                    className="rounded-full p-1.5 transition-colors hover:opacity-80"
-                                    style={{ color: 'var(--accent)' }}
-                                    aria-label="Generate new password"
-                                    title="Generate new password"
-                                  >
-                                    <Dices size={14} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setShowNewPw((v) => !v)}
-                                    className="rounded-full p-1.5 transition-colors hover:opacity-80"
-                                    style={{ color: 'var(--text-muted)' }}
-                                    aria-label={showNewPw ? 'Hide password' : 'Show password'}
-                                    title={showNewPw ? 'Hide password' : 'Show password'}
-                                  >
-                                    {showNewPw ? <EyeOff size={14} /> : <Eye size={14} />}
-                                  </button>
-                                  {newPassword && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        navigator.clipboard.writeText(newPassword);
-                                        setCopiedPw(true);
-                                        setTimeout(() => setCopiedPw(false), 2000);
-                                      }}
-                                      className="rounded-full p-1.5 transition-colors hover:opacity-80"
-                                      style={{ color: copiedPw ? 'var(--success)' : 'var(--text-muted)' }}
-                                      aria-label={copiedPw ? 'Copied!' : 'Copy password'}
-                                      title={copiedPw ? 'Copied!' : 'Copy password'}
-                                    >
-                                      {copiedPw ? <CheckCircle2 size={14} /> : <Copy size={14} />}
-                                    </button>
-                                  )}
-                                </div>
+              {/* ── TAGS ────── */}
+              {activeSection === 'tags' ? (
+                <TagManagementSection />
+              ) : null}
+
+              {/* ── DEVELOPER ACCESS ────── */}
+              {activeSection === 'access' ? (
+                <div className="max-w-[720px] space-y-7">
+                  {/* Dev login link */}
+                  <div>
+                    <SettingsGroupLabel>Developer Login Link</SettingsGroupLabel>
+                    <p className="mt-1 mb-3 text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                      Share this URL with developers. They land directly in their My Day workspace after sign-in.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="min-w-0 flex-1 rounded-lg px-3 py-1.5 font-mono text-[11.5px]"
+                        style={{ background: 'var(--settings-code-bg)', color: 'var(--text-primary)', border: 'var(--settings-inset-border)' }}
+                      >
+                        {DEVELOPER_LOGIN_URL}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCopyDevLink}
+                        className="flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11.5px] font-semibold transition-colors"
+                        style={{
+                          background: copiedLink ? 'var(--settings-success-soft-bg)' : 'var(--settings-accent-soft-bg)',
+                          color: copiedLink ? 'var(--success)' : 'var(--accent)',
+                          border: copiedLink ? 'var(--settings-success-soft-border)' : 'var(--settings-accent-soft-border)',
+                        }}
+                      >
+                        {copiedLink ? <CheckCircle2 size={13} /> : <Copy size={13} />}
+                        {copiedLink ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* App accounts */}
+                  <div>
+                    <div className="mb-2.5 flex items-center justify-between">
+                      <SettingsGroupLabel>App Accounts</SettingsGroupLabel>
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
+                        style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-muted)', border: '1px solid var(--border-strong)' }}
+                      >
+                        {loadingUsers ? '…' : appUsers.length}
+                      </span>
+                    </div>
+                    <div className="overflow-hidden rounded-xl" style={{ border: 'var(--settings-inset-border)' }}>
+                      {loadingUsers ? (
+                        <div className="flex items-center gap-2 px-4 py-4 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                          <Loader2 size={13} className="animate-spin" /> Loading users…
+                        </div>
+                      ) : appUsers.length > 0 ? (
+                        appUsers.map((u, idx) => (
+                          <div
+                            key={u.username}
+                            className="flex flex-col gap-1.5 px-3 py-2 sm:flex-row sm:items-center"
+                            style={{ background: idx % 2 === 0 ? 'var(--settings-row-even-bg)' : 'var(--settings-row-odd-bg)', borderTop: idx > 0 ? 'var(--settings-row-divider)' : 'none' }}
+                          >
+                            <div className="flex min-w-0 flex-1 items-center gap-2">
+                              <div
+                                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[9.5px] font-bold"
+                                style={{ background: u.role === 'manager' ? 'var(--settings-warning-soft-bg)' : 'var(--settings-accent-soft-bg)', color: u.role === 'manager' ? 'var(--warning)' : 'var(--accent)' }}
+                              >
+                                {u.displayName.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase()}
                               </div>
-                              <div className="mt-2 flex items-center gap-3">
-                                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                                  Auto-generated · {pwLength} chars
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => setShowPasswordGen((v) => !v)}
-                                  className="text-[11px] font-medium transition-colors hover:underline"
-                                  style={{ color: 'var(--accent)' }}
-                                >
-                                  {showPasswordGen ? 'Hide options' : 'Customize'}
-                                </button>
-                              </div>
-                              {showPasswordGen && (
-                                <motion.div
-                                  initial={{ opacity: 0, height: 0 }}
-                                  animate={{ opacity: 1, height: 'auto' }}
-                                  exit={{ opacity: 0, height: 0 }}
-                                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                                  className="mt-3 overflow-hidden rounded-[16px] p-4"
-                                  style={{
-                                    background: 'var(--settings-inset-bg)',
-                                    border: 'var(--settings-inset-border)',
-                                  }}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--accent)' }}>
-                                      Generator options
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <p className="truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{u.displayName}</p>
+                                  <span
+                                    className="rounded-full px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.1em]"
+                                    style={{ background: u.role === 'manager' ? 'var(--settings-warning-soft-bg)' : 'var(--settings-accent-soft-bg)', color: u.role === 'manager' ? 'var(--warning)' : 'var(--accent)' }}
+                                  >
+                                    {u.role}
+                                  </span>
+                                  {u.developerAccountId ? (
+                                    <span className="rounded-full px-1.5 py-0.5 text-[9.5px] font-medium" style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-muted)', border: '1px solid var(--border-strong)' }}>
+                                      Jira linked
                                     </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const pw = generateStrongPassword(pwLength, pwUppercase, pwLowercase, pwDigits, pwSymbols);
-                                        setNewPassword(pw);
-                                        setShowNewPw(true);
-                                        setCopiedPw(false);
-                                      }}
-                                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all hover:opacity-90"
-                                      style={{
-                                        background: 'var(--settings-cta-bg)',
-                                        color: 'var(--settings-cta-text)',
-                                        border: 'var(--settings-cta-border)',
-                                      }}
-                                    >
-                                      <RefreshCcw size={12} />
-                                      Regenerate
-                                    </button>
-                                  </div>
-
-                                  <div className="mt-4">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>Length</span>
-                                      <span className="min-w-[2ch] text-center text-[13px] font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{pwLength}</span>
-                                    </div>
-                                    <input
-                                      type="range"
-                                      min={8}
-                                      max={32}
-                                      value={pwLength}
-                                      onChange={(e) => {
-                                        const len = Number(e.target.value);
-                                        setPwLength(len);
-                                        setNewPassword(generateStrongPassword(len, pwUppercase, pwLowercase, pwDigits, pwSymbols));
-                                        setShowNewPw(true);
-                                        setCopiedPw(false);
-                                      }}
-                                      className="mt-1.5 w-full accent-[var(--accent)]"
-                                    />
-                                    <div className="flex justify-between text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                                      <span>8</span>
-                                      <span>32</span>
-                                    </div>
-                                  </div>
-
-                                  <div className="mt-3 grid grid-cols-2 gap-2">
-                                    <ToggleChip label="Uppercase (A–Z)" checked={pwUppercase} onChange={(v) => { setPwUppercase(v); setNewPassword(generateStrongPassword(pwLength, v, pwLowercase, pwDigits, pwSymbols)); setCopiedPw(false); }} disabled={!pwLowercase && !pwDigits && !pwSymbols} />
-                                    <ToggleChip label="Lowercase (a–z)" checked={pwLowercase} onChange={(v) => { setPwLowercase(v); setNewPassword(generateStrongPassword(pwLength, pwUppercase, v, pwDigits, pwSymbols)); setCopiedPw(false); }} disabled={!pwUppercase && !pwDigits && !pwSymbols} />
-                                    <ToggleChip label="Digits (0–9)" checked={pwDigits} onChange={(v) => { setPwDigits(v); setNewPassword(generateStrongPassword(pwLength, pwUppercase, pwLowercase, v, pwSymbols)); setCopiedPw(false); }} disabled={!pwUppercase && !pwLowercase && !pwSymbols} />
-                                    <ToggleChip label="Symbols (!@#$)" checked={pwSymbols} onChange={(v) => { setPwSymbols(v); setNewPassword(generateStrongPassword(pwLength, pwUppercase, pwLowercase, pwDigits, v)); setCopiedPw(false); }} disabled={!pwUppercase && !pwLowercase && !pwDigits} />
-                                  </div>
-                                </motion.div>
+                                  ) : null}
+                                </div>
+                                <p className="truncate text-[10.5px]" style={{ color: 'var(--text-muted)' }}>
+                                  @{u.username}{u.developerAccountId ? ` · ${u.developerAccountId}` : ''}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="sm:ml-auto">
+                              {u.role === 'developer' ? (
+                                <UserAccountDeleteAction
+                                  user={u}
+                                  confirming={confirmDeleteUsername === u.username}
+                                  deleting={deletingUsername === u.username}
+                                  onStartConfirm={() => setConfirmDeleteUsername(u.username)}
+                                  onCancel={() => setConfirmDeleteUsername((c) => (c === u.username ? null : c))}
+                                  onConfirm={() => void handleDeleteUser(u)}
+                                />
+                              ) : (
+                                <div
+                                  className="rounded-full px-2.5 py-1 text-[9.5px] font-semibold uppercase tracking-[0.1em]"
+                                  style={{ background: 'var(--settings-warning-soft-bg)', color: 'var(--warning)', border: 'var(--settings-warning-soft-border)' }}
+                                >
+                                  Manager access
+                                </div>
                               )}
                             </div>
                           </div>
-                          <div className="mt-3 grid gap-3 md:grid-cols-2">
-                            <SelectField
-                              label="Role"
-                              value={newRole}
-                              onChange={(value) => {
-                                setNewRole(value as UserRole);
-                                if (value === 'manager') setNewDevAccountId('');
-                              }}
-                              options={[
-                                { label: 'Developer', value: 'developer' },
-                                { label: 'Manager', value: 'manager' },
-                              ]}
-                            />
-                            {newRole === 'developer' ? (
-                              <SelectField
-                                label="Jira profile"
-                                value={newDevAccountId}
-                                onChange={setNewDevAccountId}
-                                options={[
-                                  { label: 'Select Jira profile…', value: '' },
-                                  ...developers.map((developer) => ({
-                                    label: `${developer.displayName}${developer.email ? ` (${developer.email})` : ''}`,
-                                    value: developer.accountId,
-                                  })),
-                                ]}
-                              />
-                            ) : (
-                              <div
-                                className="rounded-[20px] px-4 py-3 text-[12px] leading-relaxed"
-                                style={{
-                                  background: 'var(--settings-inset-bg)',
-                                  color: 'var(--text-secondary)',
-                                  border: 'var(--settings-inset-border)',
-                                }}
-                              >
-                                Manager accounts do not require a linked developer Jira profile.
-                              </div>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={handleCreateUser}
-                            disabled={creatingUser || !newUsername.trim() || !newDisplayName.trim() || !newPassword.trim()}
-                            className="mt-4 flex items-center gap-2 rounded-2xl px-4 py-3 text-[12px] font-semibold transition-colors disabled:opacity-50"
-                            style={{
-                              background: 'var(--settings-cta-bg)',
-                              color: 'var(--settings-cta-text)',
-                              border: 'var(--settings-cta-border)',
-                            }}
-                          >
-                            {creatingUser ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
-                            Create account
-                          </button>
-                        </div>
+                        ))
+                      ) : (
+                        <p className="px-4 py-4 text-[12px]" style={{ color: 'var(--text-muted)' }}>No accounts found.</p>
                       )}
                     </div>
                   </div>
-                </SectionCard>
-              </div>
-            </div>
 
-            <div
-              className="border-t px-4 py-3 md:px-6 lg:px-7"
-              style={{
-                borderColor: 'color-mix(in srgb, var(--border-strong) 84%, transparent)',
-                background: 'color-mix(in srgb, var(--bg-secondary) 88%, transparent)',
-              }}
+                  {/* Create account */}
+                  <div>
+                    {!showCreateUser ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCreateUser(true);
+                          setNewPassword(generateStrongPassword(pwLength, pwUppercase, pwLowercase, pwDigits, pwSymbols));
+                          setShowNewPw(true);
+                          setCopiedPw(false);
+                          setShowPasswordGen(false);
+                        }}
+                        className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-[11.5px] font-semibold transition-colors"
+                        style={{ background: 'var(--settings-accent-soft-bg)', color: 'var(--accent)', border: 'var(--settings-accent-soft-border)' }}
+                      >
+                        <UserPlus size={12} />
+                        Create user account
+                      </button>
+                    ) : (
+                      <div className="rounded-xl p-4" style={{ background: 'var(--settings-pane-bg)', border: 'var(--settings-accent-soft-border)' }}>
+                        <div className="mb-3 flex items-center justify-between">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--accent)' }}>New account</p>
+                          <button
+                            type="button"
+                            onClick={() => { setShowCreateUser(false); setNewUsername(''); setNewDisplayName(''); setNewPassword(''); setNewRole('developer'); setNewDevAccountId(''); }}
+                            className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors"
+                            style={{ color: 'var(--text-muted)', background: 'var(--settings-neutral-chip-bg)' }}
+                            aria-label="Cancel create user"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                        <div className="space-y-2.5">
+                          <SettingsLabeledInput label="Username" id="new-username">
+                            <input
+                              id="new-username"
+                              type="text"
+                              value={newUsername}
+                              onChange={(e) => setNewUsername(e.target.value)}
+                              placeholder="username"
+                              autoComplete="off"
+                              className="w-full rounded-lg px-3 py-2 text-[12px] outline-none"
+                              style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                            />
+                          </SettingsLabeledInput>
+                          <SettingsLabeledInput label="Display name" id="new-displayname">
+                            <input
+                              id="new-displayname"
+                              type="text"
+                              value={newDisplayName}
+                              onChange={(e) => setNewDisplayName(e.target.value)}
+                              placeholder="Full name"
+                              autoComplete="off"
+                              className="w-full rounded-lg px-3 py-2 text-[12px] outline-none"
+                              style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                            />
+                          </SettingsLabeledInput>
+                          <SettingsLabeledInput label="Password" id="new-password">
+                            <div className="relative">
+                              <input
+                                id="new-password"
+                                type={showNewPw ? 'text' : 'password'}
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                placeholder="Password"
+                                autoComplete="new-password"
+                                className="w-full rounded-lg py-2 pl-3 pr-20 font-mono text-[12px] outline-none"
+                                style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                              />
+                              <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+                                <button type="button" onClick={() => { setNewPassword(generateStrongPassword(pwLength, pwUppercase, pwLowercase, pwDigits, pwSymbols)); setShowNewPw(true); setCopiedPw(false); }} className="rounded-md p-1.5" style={{ color: 'var(--accent)' }} aria-label="Generate password" title="Generate password"><Dices size={13} /></button>
+                                <button type="button" onClick={() => setShowNewPw((v) => !v)} className="rounded-md p-1.5" style={{ color: 'var(--text-muted)' }} aria-label={showNewPw ? 'Hide' : 'Show'} title={showNewPw ? 'Hide password' : 'Show password'}>{showNewPw ? <EyeOff size={13} /> : <Eye size={13} />}</button>
+                                {newPassword ? (
+                                  <button type="button" onClick={() => { navigator.clipboard.writeText(newPassword); setCopiedPw(true); setTimeout(() => setCopiedPw(false), 2000); }} className="rounded-md p-1.5" style={{ color: copiedPw ? 'var(--success)' : 'var(--text-muted)' }} aria-label={copiedPw ? 'Copied' : 'Copy password'} title={copiedPw ? 'Copied!' : 'Copy password'}>{copiedPw ? <CheckCircle2 size={13} /> : <Copy size={13} />}</button>
+                                ) : null}
+                              </div>
+                            </div>
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className="text-[10.5px]" style={{ color: 'var(--text-muted)' }}>Auto-generated · {pwLength} chars</span>
+                              <button type="button" onClick={() => setShowPasswordGen((v) => !v)} className="text-[10.5px] font-medium" style={{ color: 'var(--accent)' }}>
+                                {showPasswordGen ? 'Hide options' : 'Customize'}
+                              </button>
+                            </div>
+                            {showPasswordGen ? (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                                className="mt-2 overflow-hidden rounded-lg p-3"
+                                style={{ background: 'var(--settings-inset-bg)', border: 'var(--settings-inset-border)' }}
+                              >
+                                <div className="mb-2 flex items-center justify-between">
+                                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--accent)' }}>Generator options</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => { setNewPassword(generateStrongPassword(pwLength, pwUppercase, pwLowercase, pwDigits, pwSymbols)); setShowNewPw(true); setCopiedPw(false); }}
+                                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10.5px] font-medium"
+                                    style={{ background: 'var(--settings-cta-bg)', color: 'var(--settings-cta-text)', border: 'var(--settings-cta-border)' }}
+                                  >
+                                    <RefreshCcw size={11} /> Regenerate
+                                  </button>
+                                </div>
+                                <div className="mb-2">
+                                  <div className="flex items-center justify-between text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                                    <span>Length</span>
+                                    <span className="font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{pwLength}</span>
+                                  </div>
+                                  <input
+                                    type="range" min={8} max={32} value={pwLength}
+                                    onChange={(e) => { const len = Number(e.target.value); setPwLength(len); setNewPassword(generateStrongPassword(len, pwUppercase, pwLowercase, pwDigits, pwSymbols)); setShowNewPw(true); setCopiedPw(false); }}
+                                    className="mt-1 w-full accent-[var(--accent)]"
+                                  />
+                                  <div className="flex justify-between text-[9.5px]" style={{ color: 'var(--text-muted)' }}><span>8</span><span>32</span></div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  <ToggleChip label="A–Z" checked={pwUppercase} onChange={(v) => { setPwUppercase(v); setNewPassword(generateStrongPassword(pwLength, v, pwLowercase, pwDigits, pwSymbols)); setCopiedPw(false); }} disabled={!pwLowercase && !pwDigits && !pwSymbols} />
+                                  <ToggleChip label="a–z" checked={pwLowercase} onChange={(v) => { setPwLowercase(v); setNewPassword(generateStrongPassword(pwLength, pwUppercase, v, pwDigits, pwSymbols)); setCopiedPw(false); }} disabled={!pwUppercase && !pwDigits && !pwSymbols} />
+                                  <ToggleChip label="0–9" checked={pwDigits} onChange={(v) => { setPwDigits(v); setNewPassword(generateStrongPassword(pwLength, pwUppercase, pwLowercase, v, pwSymbols)); setCopiedPw(false); }} disabled={!pwUppercase && !pwLowercase && !pwSymbols} />
+                                  <ToggleChip label="!@#$" checked={pwSymbols} onChange={(v) => { setPwSymbols(v); setNewPassword(generateStrongPassword(pwLength, pwUppercase, pwLowercase, pwDigits, v)); setCopiedPw(false); }} disabled={!pwUppercase && !pwLowercase && !pwDigits} />
+                                </div>
+                              </motion.div>
+                            ) : null}
+                          </SettingsLabeledInput>
+
+                          <div className="grid gap-2.5 sm:grid-cols-2">
+                            <SettingsLabeledInput label="Role" id="new-role">
+                              <div className="relative">
+                                <select
+                                  id="new-role"
+                                  value={newRole}
+                                  onChange={(e) => { setNewRole(e.target.value as UserRole); if (e.target.value === 'manager') setNewDevAccountId(''); }}
+                                  className="w-full appearance-none rounded-lg px-3 py-2 text-[12px] outline-none"
+                                  style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                                >
+                                  <option value="developer">Developer</option>
+                                  <option value="manager">Manager</option>
+                                </select>
+                                <ChevronDown size={13} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                              </div>
+                            </SettingsLabeledInput>
+                            {newRole === 'developer' ? (
+                              <SettingsLabeledInput label="Jira profile" id="new-jira-profile">
+                                <div className="relative">
+                                  <select
+                                    id="new-jira-profile"
+                                    value={newDevAccountId}
+                                    onChange={(e) => setNewDevAccountId(e.target.value)}
+                                    className="w-full appearance-none rounded-lg px-3 py-2 text-[12px] outline-none"
+                                    style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                                  >
+                                    <option value="">Select…</option>
+                                    {developers.map((dev) => (
+                                      <option key={dev.accountId} value={dev.accountId}>
+                                        {dev.displayName}{dev.email ? ` (${dev.email})` : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <ChevronDown size={13} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                                </div>
+                              </SettingsLabeledInput>
+                            ) : (
+                              <div className="flex items-center rounded-lg px-3 py-2 text-[11px]" style={{ background: 'var(--settings-inset-bg)', color: 'var(--text-muted)', border: 'var(--settings-inset-border)' }}>
+                                Managers don't need a Jira link.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCreateUser}
+                          disabled={creatingUser || !newUsername.trim() || !newDisplayName.trim() || !newPassword.trim()}
+                          className="mt-3.5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-semibold transition-colors disabled:opacity-50"
+                          style={{ background: 'var(--settings-cta-bg)', color: 'var(--settings-cta-text)', border: 'var(--settings-cta-border)' }}
+                        >
+                          {creatingUser ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}
+                          {creatingUser ? 'Creating…' : 'Create account'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* ── FOOTER ─────────────────────────────────────────── */}
+      <div
+        className="shrink-0 border-t px-5 py-2"
+        style={{ borderColor: 'var(--border-strong)', background: 'color-mix(in srgb, var(--bg-secondary) 74%, var(--bg-primary) 26%)' }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            Save stores settings only. Save &amp; Sync also triggers an immediate Jira refresh.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleResetConfig}
+              disabled={hasChanges}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11.5px] font-medium transition-colors disabled:opacity-50"
+              style={{ background: 'var(--settings-danger-soft-bg)', color: 'var(--danger-muted)', border: 'var(--settings-danger-soft-border)' }}
             >
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="space-y-1">
-                  <div className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>
-                    Signed in as {user?.displayName || 'Manager'}{user?.username ? ` (@${user.username})` : ''}.
-                  </div>
-                  <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                    Save stages settings only. Save & Sync persists them and immediately starts a Jira refresh without leaving this page.
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => void handleManagerLogout()}
-                    disabled={hasChanges || loggingOut}
-                    className="flex items-center gap-2 rounded-2xl px-4 py-2.5 text-[13px] font-medium transition-colors disabled:opacity-50"
-                    style={{
-                      background: 'linear-gradient(135deg, color-mix(in srgb, var(--danger) 12%, var(--bg-primary)), color-mix(in srgb, var(--warning) 10%, var(--bg-primary)))',
-                      color: 'var(--danger-muted)',
-                      border: 'var(--settings-danger-soft-border)',
-                    }}
-                    aria-label="Log out manager session"
-                  >
-                    {loggingOut ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
-                    {loggingOut ? 'Logging out…' : 'Logout'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleResetConfig}
-                    disabled={hasChanges}
-                    className="rounded-2xl px-4 py-2.5 text-[13px] font-medium transition-colors disabled:opacity-50"
-                    style={{
-                      background: 'var(--settings-danger-soft-bg)',
-                      color: 'var(--danger-muted)',
-                      border: 'var(--settings-danger-soft-border)',
-                    }}
-                    >
-                    <AlertTriangle size={14} className="mr-2 inline" />
-                    {resetting ? 'Resetting…' : 'Reset & Reconfigure'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={hasChanges}
-                    className="flex items-center gap-2 rounded-2xl px-4 py-2.5 text-[13px] font-medium transition-colors disabled:opacity-50"
-                    style={{
-                      background: 'var(--settings-neutral-chip-bg)',
-                      color: 'var(--text-primary)',
-                      border: '1px solid var(--border-strong)',
-                    }}
-                  >
-                    <Save size={14} />
-                    Save
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveAndSync}
-                    disabled={hasChanges || triggerSync.isPending}
-                    className="flex items-center gap-2 rounded-2xl px-4 py-2.5 text-[13px] font-semibold transition-colors disabled:opacity-50"
-                    style={{
-                      background: 'var(--settings-cta-primary-bg)',
-                      color: 'var(--settings-cta-primary-text)',
-                    }}
-                  >
-                    <RefreshCw size={14} className={triggerSync.isPending ? 'animate-spin' : ''} />
-                    Save & Sync
-                  </button>
-                </div>
-              </div>
-            </div>
+              <AlertTriangle size={12} />
+              Reset &amp; Reconfigure
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={hasChanges}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11.5px] font-medium transition-colors disabled:opacity-50"
+              style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-strong)' }}
+            >
+              <Save size={12} />
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveAndSync}
+              disabled={hasChanges || triggerSync.isPending}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11.5px] font-semibold transition-colors disabled:opacity-50"
+              style={{ background: 'var(--settings-cta-primary-bg)', color: 'var(--settings-cta-primary-text)' }}
+            >
+              <RefreshCw size={12} className={triggerSync.isPending ? 'animate-spin' : ''} />
+              Save &amp; Sync
+            </button>
+          </div>
+        </div>
+      </div>
     </motion.div>
   );
 }
 
 export const SettingsPanel = SettingsPage;
+
+// ── Layout helpers ────────────────────────────────────────────
+
+function SettingsGroupLabel({ children }: { children: ReactNode }) {
+  return (
+    <h3 className="text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
+      {children}
+    </h3>
+  );
+}
+
+function SettingsLabeledInput({ label, id, children }: { label: string; id?: string; children: ReactNode }) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-[10.5px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function CompactFieldRow({
+  label,
+  description,
+  value,
+  onChange,
+  onDiscover,
+  loading,
+  active,
+  placeholder,
+}: {
+  label: string;
+  description: string;
+  value: string;
+  onChange: (v: string) => void;
+  onDiscover: () => void;
+  loading: boolean;
+  active: boolean;
+  placeholder: string;
+}) {
+  return (
+    <div
+      className="rounded-lg p-3"
+      style={{
+        background: active ? 'var(--settings-accent-chip-bg)' : 'color-mix(in srgb, var(--bg-secondary) 60%, var(--bg-primary) 40%)',
+        border: active ? '1px solid color-mix(in srgb, var(--accent) 40%, var(--border))' : '1px solid var(--border)',
+      }}
+    >
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div>
+          <p className="text-[11.5px] font-semibold" style={{ color: 'var(--text-primary)' }}>{label}</p>
+          <p className="mt-0.5 text-[10.5px]" style={{ color: 'var(--text-muted)' }}>{description}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onDiscover}
+          className="flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold transition-colors"
+          style={{
+            background: active ? 'var(--settings-accent-chip-bg)' : 'var(--settings-neutral-chip-bg)',
+            color: active ? 'var(--accent)' : 'var(--text-secondary)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          {loading ? <RefreshCw size={10} className="animate-spin" /> : <Search size={10} />}
+          Discover
+        </button>
+      </div>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-md px-2.5 py-1.5 font-mono text-[11.5px] outline-none"
+        style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+      />
+    </div>
+  );
+}
+
+// ── Data helpers ──────────────────────────────────────────────
 
 function UserAccountDeleteAction({
   user,
@@ -1833,40 +1636,23 @@ function UserAccountDeleteAction({
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center gap-2"
       >
-        <span className="text-[11px] font-medium" style={{ color: 'var(--danger-muted)' }}>
-          Delete access?
-        </span>
+        <span className="text-[11px] font-medium" style={{ color: 'var(--danger-muted)' }}>Delete access?</span>
         <button
           type="button"
           onClick={onConfirm}
           disabled={deleting}
-          className="rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
-          style={{
-            background: 'var(--settings-danger-soft-bg)',
-            color: 'var(--danger-muted)',
-            border: 'var(--settings-danger-soft-border)',
-          }}
+          className="rounded-full px-2.5 py-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
+          style={{ background: 'var(--settings-danger-soft-bg)', color: 'var(--danger-muted)', border: 'var(--settings-danger-soft-border)' }}
           aria-label={`Confirm delete account for ${user.displayName}`}
         >
-          {deleting ? (
-            <span className="flex items-center gap-1.5">
-              <Loader2 size={12} className="animate-spin" />
-              Deleting…
-            </span>
-          ) : (
-            'Confirm'
-          )}
+          {deleting ? <span className="flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" />Deleting…</span> : 'Confirm'}
         </button>
         <button
           type="button"
           onClick={onCancel}
           disabled={deleting}
-          className="rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
-          style={{
-            background: 'var(--settings-neutral-chip-bg)',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--border-strong)',
-          }}
+          className="rounded-full px-2.5 py-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
+          style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' }}
           aria-label={`Cancel deleting account for ${user.displayName}`}
         >
           Cancel
@@ -1879,238 +1665,13 @@ function UserAccountDeleteAction({
     <button
       type="button"
       onClick={onStartConfirm}
-      className="flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors"
-      style={{
-        background: 'var(--settings-danger-soft-bg)',
-        color: 'var(--danger-muted)',
-        border: 'var(--settings-danger-soft-border)',
-      }}
+      className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] font-semibold transition-colors"
+      style={{ background: 'var(--settings-danger-soft-bg)', color: 'var(--danger-muted)', border: 'var(--settings-danger-soft-border)' }}
       aria-label={`Delete account for ${user.displayName}`}
     >
       <UserMinus size={12} />
       Delete
     </button>
-  );
-}
-
-function SectionCard({
-  icon,
-  eyebrow,
-  title,
-  description,
-  children,
-}: {
-  icon: ReactNode;
-  eyebrow: string;
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <section
-      className="rounded-[24px] p-4 sm:p-5"
-      style={{
-        background: 'var(--settings-shell-bg)',
-        border: 'var(--settings-shell-border)',
-        boxShadow: 'var(--settings-shell-shadow)',
-      }}
-    >
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-2.5 sm:gap-3">
-          <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px]"
-            style={{
-              background: 'var(--settings-accent-chip-bg)',
-              color: 'var(--accent)',
-              border: '1px solid color-mix(in srgb, var(--accent) 28%, var(--border))',
-            }}
-          >
-            {icon}
-          </div>
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--text-muted)' }}>
-              Section {eyebrow}
-            </div>
-            <h3 className="mt-1 text-[18px] font-semibold tracking-[-0.03em] md:text-[19px]" style={{ color: 'var(--text-primary)' }}>
-              {title}
-            </h3>
-            <p className="mt-1.5 max-w-[560px] text-[12px] leading-relaxed md:text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-              {description}
-            </p>
-          </div>
-        </div>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
-        {label}
-      </div>
-      <div className="mt-1 text-[13px]" style={{ color: 'var(--text-primary)' }}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function TextInput({
-  id,
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = 'text',
-  autoComplete,
-  mono = false,
-  hideLabel = false,
-}: {
-  id?: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  type?: string;
-  autoComplete?: string;
-  mono?: boolean;
-  hideLabel?: boolean;
-}) {
-  return (
-    <label className="block">
-      <span
-        className={hideLabel ? 'sr-only' : 'mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em]'}
-        style={hideLabel ? undefined : { color: 'var(--text-muted)' }}
-      >
-        {label}
-      </span>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        autoComplete={autoComplete}
-        className={`w-full rounded-[16px] px-3.5 py-2.5 text-[12px] outline-none transition-colors md:px-4 md:py-3 md:text-[13px] ${mono ? 'font-mono' : ''}`}
-        style={{
-          background: 'var(--settings-input-bg)',
-          color: 'var(--text-primary)',
-          border: 'var(--settings-input-border)',
-        }}
-      />
-    </label>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: Array<{ label: string; value: string }>;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
-        {label}
-      </span>
-      <div className="relative">
-        <select
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="w-full appearance-none rounded-[16px] px-3.5 py-2.5 text-[12px] outline-none md:px-4 md:py-3 md:text-[13px]"
-          style={{
-            background: 'var(--settings-input-bg)',
-            color: 'var(--text-primary)',
-            border: 'var(--settings-input-border)',
-          }}
-        >
-          {options.map((option) => (
-            <option key={option.value || option.label} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <ChevronDown
-          size={14}
-          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2"
-          style={{ color: 'var(--text-muted)' }}
-        />
-      </div>
-    </label>
-  );
-}
-
-function FieldCard({
-  label,
-  description,
-  value,
-  onChange,
-  onDiscover,
-  loading,
-  active,
-  placeholder,
-}: {
-  label: string;
-  description: string;
-  value: string;
-  onChange: (value: string) => void;
-  onDiscover: () => void;
-  loading: boolean;
-  active: boolean;
-  placeholder: string;
-}) {
-  return (
-    <div
-      className="rounded-[20px] p-4 lg:p-5"
-      style={{
-        background: active ? 'var(--settings-accent-chip-bg)' : 'var(--settings-soft-bg)',
-        border: active ? '1px solid color-mix(in srgb, var(--accent) 28%, var(--border))' : 'var(--settings-soft-border)',
-      }}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[12px] font-semibold md:text-[13px]" style={{ color: 'var(--text-primary)' }}>
-            {label}
-          </p>
-          <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            {description}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onDiscover}
-        className="flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-[10px] font-semibold transition-colors md:px-3 md:text-[11px]"
-          style={{
-            background: active ? 'var(--settings-accent-chip-bg)' : 'var(--settings-neutral-chip-bg)',
-            color: active ? 'var(--accent)' : 'var(--text-primary)',
-            border: '1px solid var(--border-strong)',
-          }}
-        >
-          {loading ? <RefreshCw size={12} className="animate-spin" /> : <Search size={12} />}
-          Discover
-        </button>
-      </div>
-      <input
-        type="text"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="mt-3.5 w-full rounded-[16px] px-3.5 py-2.5 text-[12px] font-mono outline-none md:px-4 md:py-3 md:text-[13px]"
-        style={{
-          background: 'var(--settings-input-bg)',
-          color: 'var(--text-primary)',
-          border: 'var(--settings-input-border)',
-        }}
-      />
-    </div>
   );
 }
 
@@ -2131,10 +1692,7 @@ function FieldListGroup({
     <>
       <div
         className="px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em]"
-        style={{
-          color: accent ? 'var(--accent)' : 'var(--text-muted)',
-          background: 'var(--settings-neutral-chip-bg)',
-        }}
+        style={{ color: accent ? 'var(--accent)' : 'var(--text-muted)', background: 'var(--settings-neutral-chip-bg)' }}
       >
         {title}
       </div>
@@ -2143,22 +1701,15 @@ function FieldListGroup({
           key={field.id}
           type="button"
           onClick={() => onSelect(field.id)}
-          className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors"
-          style={{
-            background: field.id === currentFieldValue ? 'var(--settings-accent-soft-bg)' : 'transparent',
-            borderTop: 'var(--settings-row-divider)',
-          }}
+          className="flex w-full items-center justify-between px-4 py-2.5 text-left transition-colors"
+          style={{ background: field.id === currentFieldValue ? 'var(--settings-accent-soft-bg)' : 'transparent', borderTop: 'var(--settings-row-divider)' }}
         >
           <div className="min-w-0">
-            <p className="truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
-              {field.name}
-            </p>
-            <p className="truncate text-[11px] font-mono" style={{ color: 'var(--text-muted)' }}>
-              {field.id}
-            </p>
+            <p className="truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{field.name}</p>
+            <p className="truncate font-mono text-[11px]" style={{ color: 'var(--text-muted)' }}>{field.id}</p>
           </div>
           {field.id === currentFieldValue ? (
-            <span className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ background: 'var(--settings-accent-soft-bg)', color: 'var(--accent)' }}>
+            <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ background: 'var(--settings-accent-soft-bg)', color: 'var(--accent)' }}>
               Selected
             </span>
           ) : null}
@@ -2168,33 +1719,16 @@ function FieldListGroup({
   );
 }
 
-function IdentityAvatar({
-  user,
-  accent,
-}: {
-  user: { displayName: string; avatarUrl?: string };
-  accent: string;
-}) {
+function IdentityAvatar({ user, accent }: { user: { displayName: string; avatarUrl?: string }; accent: string }) {
   if (user.avatarUrl) {
-    return (
-      <img
-        src={user.avatarUrl}
-        alt={user.displayName}
-        className="h-9 w-9 shrink-0 rounded-2xl object-cover"
-      />
-    );
+    return <img src={user.avatarUrl} alt={user.displayName} className="h-7 w-7 shrink-0 rounded-lg object-cover" />;
   }
-
   return (
     <div
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[11px] font-bold"
-      style={{
-        background: 'var(--settings-neutral-chip-bg)',
-        color: accent,
-        border: '1px solid var(--border-strong)',
-      }}
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold"
+      style={{ background: 'var(--settings-neutral-chip-bg)', color: accent, border: '1px solid var(--border-strong)' }}
     >
-      {user.displayName.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'U'}
+      {user.displayName.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase() || 'U'}
     </div>
   );
 }
@@ -2229,7 +1763,6 @@ function generateStrongPassword(
     chars.push(pool.charAt(arr[i]! % pool.length));
   }
 
-  // Ensure at least one character from each required set
   for (let i = 0; i < required.length && i < length; i++) {
     const rng = new Uint32Array(2);
     crypto.getRandomValues(rng);
@@ -2237,7 +1770,6 @@ function generateStrongPassword(
     chars[i] = reqSet.charAt(rng[0]! % reqSet.length);
   }
 
-  // Fisher–Yates shuffle (so guaranteed chars aren't always at the front)
   for (let i = chars.length - 1; i > 0; i--) {
     const rng = new Uint32Array(1);
     crypto.getRandomValues(rng);
@@ -2265,21 +1797,17 @@ function ToggleChip({
     <button
       type="button"
       onClick={() => { if (!disabled) onChange(!checked); }}
-      className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[11px] font-medium transition-all"
+      className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-all"
       style={{
-        background: checked
-          ? 'color-mix(in srgb, var(--accent) 14%, transparent)'
-          : 'var(--settings-neutral-chip-bg)',
+        background: checked ? 'color-mix(in srgb, var(--accent) 14%, transparent)' : 'var(--settings-neutral-chip-bg)',
         color: checked ? 'var(--accent)' : 'var(--text-muted)',
-        border: checked
-          ? '1px solid color-mix(in srgb, var(--accent) 28%, transparent)'
-          : '1px solid var(--border-strong)',
+        border: checked ? '1px solid color-mix(in srgb, var(--accent) 28%, transparent)' : '1px solid var(--border-strong)',
         opacity: disabled ? 0.4 : 1,
         cursor: disabled ? 'not-allowed' : 'pointer',
       }}
     >
       <span
-        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] text-[10px] transition-colors"
+        className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded text-[9px] transition-colors"
         style={{
           background: checked ? 'var(--accent)' : 'transparent',
           border: checked ? 'none' : '1.5px solid var(--border-strong)',

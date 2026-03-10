@@ -46,3 +46,5 @@ export const CARD_CONFIGS = [
   { key: 'inProgress' as const, label: 'In Progress', color: '#10B981', filter: 'inProgress' as FilterType },
   { key: 'new' as const, label: 'New (24h)', color: '#8B5CF6', filter: 'new' as FilterType },
 ];
+
+export const DEVELOPER_LOGIN_URL = 'https://developer.daycommand.online/my-day';

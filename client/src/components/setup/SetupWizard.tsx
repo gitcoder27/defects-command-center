@@ -23,6 +23,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { useConfig } from '@/hooks/useConfig';
 import { api } from '@/lib/api';
+import { DEVELOPER_LOGIN_URL } from '@/lib/constants';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import type { AuthUser } from '@/types';
 
@@ -996,7 +997,7 @@ function StepContent(props: any) {
               Developer login link
             </div>
             <div className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
-              Share <span className="rounded-md px-1.5 py-0.5 font-mono text-[11px]" style={{ background: 'var(--bg-tertiary)' }}>{`${window.location.origin}/my-day`}</span> with developers after accounts are created.
+              Share <span className="rounded-md px-1.5 py-0.5 font-mono text-[11px]" style={{ background: 'var(--bg-tertiary)' }}>{DEVELOPER_LOGIN_URL}</span> with developers after accounts are created.
             </div>
           </div>
 
