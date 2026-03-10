@@ -29,21 +29,43 @@ export class TagService {
 
     const rows = await db
       .select({
-        jiraKey: issues.jiraKey,
+        jiraKey: issueTags.jiraKey,
         summary: issues.summary,
         assigneeName: issues.assigneeName,
         statusName: issues.statusName,
         updatedAt: issues.updatedAt,
       })
       .from(issueTags)
-      .innerJoin(issues, eq(issueTags.jiraKey, issues.jiraKey))
+      .leftJoin(issues, eq(issueTags.jiraKey, issues.jiraKey))
       .where(eq(issueTags.tagId, id))
       .orderBy(desc(issues.updatedAt));
 
+    const issueKeys = new Set<string>();
+    const syncedIssues = new Map<string, TagUsageResponse["issues"][number]>();
+
+    for (const row of rows) {
+      issueKeys.add(row.jiraKey);
+
+      if (
+        row.summary !== null &&
+        row.statusName !== null &&
+        row.updatedAt !== null &&
+        !syncedIssues.has(row.jiraKey)
+      ) {
+        syncedIssues.set(row.jiraKey, {
+          jiraKey: row.jiraKey,
+          summary: row.summary,
+          assigneeName: row.assigneeName ?? undefined,
+          statusName: row.statusName,
+          updatedAt: row.updatedAt,
+        });
+      }
+    }
+
     return {
       tag,
-      issueCount: rows.length,
-      issues: rows,
+      issueCount: issueKeys.size,
+      issues: Array.from(syncedIssues.values()),
     };
   }
 
@@ -53,8 +75,10 @@ export class TagService {
   }
 
   async setIssueTags(jiraKey: string, tagIds: number[]): Promise<LocalTag[]> {
+    const uniqueTagIds = Array.from(new Set(tagIds));
+
     await db.delete(issueTags).where(eq(issueTags.jiraKey, jiraKey));
-    for (const tagId of tagIds) {
+    for (const tagId of uniqueTagIds) {
       await db.insert(issueTags).values({ jiraKey, tagId });
     }
     const rows = await db

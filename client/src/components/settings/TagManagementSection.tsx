@@ -260,6 +260,7 @@ function DeleteTagDialog({
 
   const resolvedUsage = usage ?? emptyUsage(tag);
   const hasLinkedDefects = resolvedUsage.issueCount > 0;
+  const hiddenLinkedDefectCount = Math.max(0, resolvedUsage.issueCount - resolvedUsage.issues.length);
 
   const handleConfirmDelete = () => {
     if (isLoading || deleteTag.isPending) {
@@ -356,7 +357,9 @@ function DeleteTagDialog({
                     {isLoading
                       ? 'Checking where this tag is used before deleting it.'
                       : hasLinkedDefects
-                        ? 'This tag is still assigned. Review the impact before deleting it everywhere.'
+                        ? hiddenLinkedDefectCount > 0
+                          ? 'This tag is still assigned. Some linked defects do not have synced details yet.'
+                          : 'This tag is still assigned. Review the impact before deleting it everywhere.'
                         : 'This tag is unused and can be removed immediately.'}
                   </div>
                 </div>
@@ -425,6 +428,9 @@ function DeleteTagDialog({
               >
                 Deleting this tag will remove it from {resolvedUsage.issueCount} defect{resolvedUsage.issueCount === 1 ? '' : 's'}
                 {' '}and then delete the tag itself.
+                {hiddenLinkedDefectCount > 0
+                  ? ` ${hiddenLinkedDefectCount} linked defect${hiddenLinkedDefectCount === 1 ? '' : 's'} ${hiddenLinkedDefectCount === 1 ? 'does' : 'do'} not have synced details yet.`
+                  : ''}
               </div>
 
               <div>
@@ -436,44 +442,59 @@ function DeleteTagDialog({
                     Linked defects
                   </label>
                   <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                    Review exactly what will lose this tag.
+                    {hiddenLinkedDefectCount > 0
+                      ? `${hiddenLinkedDefectCount} linked defect${hiddenLinkedDefectCount === 1 ? '' : 's'} ${hiddenLinkedDefectCount === 1 ? 'is' : 'are'} not available in the preview list yet.`
+                      : 'Review exactly what will lose this tag.'}
                   </span>
                 </div>
 
-                <div className="max-h-[320px] overflow-y-auto rounded-[18px]" style={{ border: 'var(--settings-inset-border)' }}>
-                  {resolvedUsage.issues.map((issue, index) => (
-                    <div
-                      key={issue.jiraKey}
-                      className="flex flex-col gap-2 px-4 py-3"
-                      style={{
-                        background: index % 2 === 0 ? 'var(--settings-row-even-bg)' : 'var(--settings-row-odd-bg)',
-                        borderTop: index > 0 ? 'var(--settings-row-divider)' : 'none',
-                      }}
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[12px] font-semibold" style={{ color: 'var(--accent)' }}>
-                          {issue.jiraKey}
-                        </span>
-                        <span
-                          className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
-                          style={{
-                            background: 'var(--settings-neutral-chip-bg)',
-                            color: 'var(--text-muted)',
-                            border: '1px solid var(--border-strong)',
-                          }}
-                        >
-                          {issue.statusName}
-                        </span>
+                {resolvedUsage.issues.length > 0 ? (
+                  <div className="max-h-[320px] overflow-y-auto rounded-[18px]" style={{ border: 'var(--settings-inset-border)' }}>
+                    {resolvedUsage.issues.map((issue, index) => (
+                      <div
+                        key={issue.jiraKey}
+                        className="flex flex-col gap-2 px-4 py-3"
+                        style={{
+                          background: index % 2 === 0 ? 'var(--settings-row-even-bg)' : 'var(--settings-row-odd-bg)',
+                          borderTop: index > 0 ? 'var(--settings-row-divider)' : 'none',
+                        }}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[12px] font-semibold" style={{ color: 'var(--accent)' }}>
+                            {issue.jiraKey}
+                          </span>
+                          <span
+                            className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
+                            style={{
+                              background: 'var(--settings-neutral-chip-bg)',
+                              color: 'var(--text-muted)',
+                              border: '1px solid var(--border-strong)',
+                            }}
+                          >
+                            {issue.statusName}
+                          </span>
+                        </div>
+                        <p className="text-[12px] font-medium leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                          {issue.summary}
+                        </p>
+                        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                          {issue.assigneeName ? `Assigned to ${issue.assigneeName}` : 'Unassigned'}
+                        </p>
                       </div>
-                      <p className="text-[12px] font-medium leading-relaxed" style={{ color: 'var(--text-primary)' }}>
-                        {issue.summary}
-                      </p>
-                      <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                        {issue.assigneeName ? `Assigned to ${issue.assigneeName}` : 'Unassigned'}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : hiddenLinkedDefectCount > 0 ? (
+                  <div
+                    className="rounded-[18px] px-4 py-3.5 text-[12px] leading-relaxed"
+                    style={{
+                      background: 'var(--settings-inset-bg)',
+                      color: 'var(--text-secondary)',
+                      border: 'var(--settings-inset-border)',
+                    }}
+                  >
+                    No synced defect details are available yet for the linked assignment{hiddenLinkedDefectCount === 1 ? '' : 's'}.
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : (

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import express from "express";
 import { Readable, Writable } from "node:stream";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, rawDb } from "../src/db/connection";
 import { migrate } from "../src/db/migrate";
 import { issueTags, issues, localTags } from "../src/db/schema";
@@ -231,5 +231,67 @@ describe("tags routes", () => {
     expect(remainingTags.map((tag) => tag.name)).toEqual(["Unused"]);
     const remainingLinks = await db.select().from(issueTags).where(eq(issueTags.tagId, inUseTagId));
     expect(remainingLinks).toHaveLength(0);
+  });
+
+  it("counts unsynced issue assignments in usage and delete responses", async () => {
+    const insertedTags = await db
+      .insert(localTags)
+      .values([{ name: "Needs Sync", color: "#f97316" }])
+      .returning();
+    const tagId = insertedTags[0]!.id;
+
+    rawDb.pragma("foreign_keys = OFF");
+    try {
+      rawDb.prepare("INSERT INTO issue_tags (jira_key, tag_id) VALUES (?, ?)").run("AM-999", tagId);
+    } finally {
+      rawDb.pragma("foreign_keys = ON");
+    }
+
+    const app = createTestApp();
+
+    const usageRes = await invoke(app, { method: "GET", url: `/api/tags/${tagId}/usage` });
+    expect(usageRes.status).toBe(200);
+    expect(usageRes.body).toMatchObject({
+      tag: { id: tagId, name: "Needs Sync", color: "#f97316" },
+      issueCount: 1,
+      issues: [],
+    });
+
+    const blockedDeleteRes = await invoke(app, { method: "DELETE", url: `/api/tags/${tagId}` });
+    expect(blockedDeleteRes.status).toBe(409);
+    expect(blockedDeleteRes.body?.usage?.issueCount).toBe(1);
+
+    const forcedDeleteRes = await invoke(app, { method: "DELETE", url: `/api/tags/${tagId}?force=true` });
+    expect(forcedDeleteRes.status).toBe(200);
+    expect(forcedDeleteRes.body).toEqual({ success: true, removedIssueCount: 1 });
+
+    const remainingLinks = await db.select().from(issueTags).where(eq(issueTags.tagId, tagId));
+    expect(remainingLinks).toHaveLength(0);
+    const remainingTag = await db.select().from(localTags).where(eq(localTags.id, tagId));
+    expect(remainingTag).toHaveLength(0);
+  });
+
+  it("de-duplicates repeated tag ids when setting issue tags", async () => {
+    const { unusedTagId } = await seedTagFixture();
+    const service = new TagService();
+
+    const tags = await service.setIssueTags("AM-1", [unusedTagId, unusedTagId]);
+    expect(tags).toEqual([
+      {
+        id: unusedTagId,
+        name: "Unused",
+        color: "#22c55e",
+      },
+    ]);
+
+    const usage = await service.getUsage(unusedTagId);
+    expect(usage?.issueCount).toBe(1);
+    expect(usage?.issues.map((issue) => issue.jiraKey)).toEqual(["AM-1"]);
+
+    const links = await db
+      .select()
+      .from(issueTags)
+      .where(and(eq(issueTags.jiraKey, "AM-1"), eq(issueTags.tagId, unusedTagId)));
+    expect(links).toHaveLength(1);
   });
 });
