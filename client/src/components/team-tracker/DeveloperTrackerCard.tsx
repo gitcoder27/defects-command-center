@@ -5,6 +5,7 @@ import type { TrackerDeveloperDay, Issue } from '@/types';
 import { TrackerStatusPill } from './TrackerStatusPill';
 import { TrackerItemRow } from './TrackerItemRow';
 import { QuickAddTaskModal } from './QuickAddTaskModal';
+import { TrackerSignalBadges } from './TrackerSignalBadges';
 import { formatRelativeTime } from '@/lib/utils';
 
 interface DeveloperTrackerCardProps {
@@ -38,13 +39,18 @@ export function DeveloperTrackerCard({
     .slice(0, 2)
     .toUpperCase();
 
-  const isAlert = day.status === 'blocked' || day.status === 'at_risk';
-  const borderColor = isAlert
-    ? day.status === 'blocked'
-      ? 'var(--danger)'
-      : 'var(--warning)'
-    : day.isStale
-    ? 'rgba(245, 158, 11, 0.4)'
+  const isAlert =
+    day.status === 'blocked' ||
+    day.signals.risk.overdueLinkedWork ||
+    day.signals.freshness.staleWithOpenRisk;
+  const borderColor = day.status === 'blocked'
+    ? 'var(--danger)'
+    : day.signals.risk.overdueLinkedWork
+    ? 'rgba(239, 68, 68, 0.45)'
+    : day.signals.freshness.staleWithOpenRisk || day.status === 'at_risk' || day.signals.risk.overCapacity
+    ? 'rgba(245, 158, 11, 0.45)'
+    : day.signals.freshness.staleByTime
+    ? 'rgba(245, 158, 11, 0.28)'
     : 'var(--border)';
 
   return (
@@ -60,11 +66,11 @@ export function DeveloperTrackerCard({
       onClick={() => onOpenDrawer(day.developer.accountId)}
     >
       {/* Stale pulse */}
-      {day.isStale && !isAlert && (
+      {day.signals.freshness.staleByTime && !isAlert && (
         <div
           className="absolute top-2 right-2 w-2 h-2 rounded-full animate-pulse"
           style={{ background: 'var(--warning)', boxShadow: '0 0 8px var(--warning)' }}
-          title="Follow-up stale"
+          title="Freshness follow-up stale"
         />
       )}
 
@@ -141,6 +147,10 @@ export function DeveloperTrackerCard({
         </div>
       )}
 
+      <div className="mb-2">
+        <TrackerSignalBadges day={day} compact maxItems={3} />
+      </div>
+
       {/* Footer */}
       <div
         className="flex items-center gap-2 pt-2 mt-auto"
@@ -148,7 +158,7 @@ export function DeveloperTrackerCard({
       >
         <div className="flex items-center gap-1 shrink-0">
           <Clock size={10} style={{ color: 'var(--text-muted)' }} />
-          <span className="text-[10px]" style={{ color: day.isStale ? 'var(--warning)' : 'var(--text-muted)' }}>
+          <span className="text-[10px]" style={{ color: day.signals.freshness.staleByTime ? 'var(--warning)' : 'var(--text-muted)' }}>
             {day.lastCheckInAt ? formatRelativeTime(day.lastCheckInAt) : 'No check-in'}
           </span>
         </div>

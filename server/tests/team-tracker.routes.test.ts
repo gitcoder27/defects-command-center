@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { Readable, Writable } from "node:stream";
 import { createTeamTrackerRouter } from "../src/routes/team-tracker";
@@ -16,7 +16,10 @@ async function seedDevelopers() {
   ]);
 }
 
-async function seedIssue(jiraKey = "AM-123") {
+async function seedIssue(
+  jiraKey = "AM-123",
+  overrides: Partial<typeof issues.$inferInsert> = {}
+) {
   await db.insert(issues).values({
     jiraKey,
     summary: "Linked Jira task",
@@ -44,6 +47,7 @@ async function seedIssue(jiraKey = "AM-123") {
     scopeChangedAt: null,
     analysisNotes: null,
     excluded: 0,
+    ...overrides,
   });
 }
 
@@ -140,8 +144,14 @@ async function invoke(
 
 describe("team tracker routes", () => {
   beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-07T08:00:00.000Z"));
     await resetDatabase();
     await seedDevelopers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("GET /api/team-tracker returns only active developers", async () => {
@@ -164,6 +174,10 @@ describe("team tracker routes", () => {
       { accountId: "dev-5", displayName: "Evan Park", email: null, avatarUrl: null, isActive: 1 },
       { accountId: "dev-6", displayName: "Fiona West", email: null, avatarUrl: null, isActive: 1 },
     ]);
+    await seedIssue("AM-123", {
+      developmentDueDate: "2026-03-06",
+      dueDate: "2026-03-09",
+    });
 
     await trackerService.updateDay("dev-1", "2026-03-07", { status: "blocked" });
     await trackerService.updateDay("dev-3", "2026-03-07", { status: "at_risk" });
@@ -173,8 +187,14 @@ describe("team tracker routes", () => {
       title: "Follow up with QA",
     });
     await trackerService.setCurrentItem(waitingItem.id);
+    const overdueItem = await trackerService.addItem("dev-1", "2026-03-07", {
+      jiraKey: "AM-123",
+      title: "Linked Jira task",
+    });
+    await trackerService.setCurrentItem(overdueItem.id);
 
     await trackerService.addCheckIn("dev-6", "2026-03-07", { summary: "Planning next work" });
+    vi.setSystemTime(new Date("2026-03-07T12:00:00.000Z"));
 
     const app = createTestApp();
     const res = await invoke(app, {
@@ -186,18 +206,21 @@ describe("team tracker routes", () => {
     expect(res.body?.attentionQueue.map((item: any) => item.developer.accountId)).toEqual([
       "dev-1",
       "dev-3",
+      "dev-4",
       "dev-5",
       "dev-6",
-      "dev-4",
     ]);
     expect(res.body?.attentionQueue[0]?.reasons.map((reason: any) => reason.code)).toEqual([
       "blocked",
-      "stale",
-      "no_current",
+      "stale_with_open_risk",
+      "overdue_linked_work",
+      "status_change_without_follow_up",
     ]);
-    expect(res.body?.attentionQueue[4]?.reasons.map((reason: any) => reason.code)).toEqual([
+    expect(res.body?.attentionQueue[2]?.reasons.map((reason: any) => reason.code)).toEqual([
+      "stale_with_open_risk",
       "waiting",
     ]);
+    expect(res.body?.attentionQueue[0]?.signals?.risk?.overdueLinkedWork).toBe(true);
   });
 
   it("PATCH /api/team-tracker/:accountId/day updates capacity", async () => {

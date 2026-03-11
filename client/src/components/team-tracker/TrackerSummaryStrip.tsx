@@ -1,8 +1,18 @@
 import { motion } from 'framer-motion';
-import { AlertTriangle, Clock, ShieldAlert, Pause, CircleOff, CheckCircle2, Users } from 'lucide-react';
+import { AlertTriangle, Clock, ShieldAlert, Pause, CircleOff, CheckCircle2, Users, CalendarClock, Scale, MessageCircleWarning } from 'lucide-react';
 import type { TrackerBoardSummary } from '@/types';
 
-type SummaryFilter = 'all' | 'stale' | 'blocked' | 'at_risk' | 'waiting' | 'no_current' | 'done_for_today';
+type SummaryFilter =
+  | 'all'
+  | 'stale'
+  | 'blocked'
+  | 'at_risk'
+  | 'waiting'
+  | 'overdue_linked'
+  | 'over_capacity'
+  | 'status_follow_up'
+  | 'no_current'
+  | 'done_for_today';
 
 interface TrackerSummaryStripProps {
   summary: TrackerBoardSummary;
@@ -22,6 +32,9 @@ const chips: Array<{
   { key: 'blocked', label: 'Blocked', icon: ShieldAlert, countKey: 'blocked', color: 'var(--danger)' },
   { key: 'at_risk', label: 'At Risk', icon: AlertTriangle, countKey: 'atRisk', color: 'var(--warning)' },
   { key: 'waiting', label: 'Waiting', icon: Pause, countKey: 'waiting', color: 'var(--info)' },
+  { key: 'overdue_linked', label: 'Overdue Jira', icon: CalendarClock, countKey: 'overdueLinkedWork', color: 'var(--danger)' },
+  { key: 'over_capacity', label: 'Over Cap', icon: Scale, countKey: 'overCapacity', color: 'var(--warning)' },
+  { key: 'status_follow_up', label: 'Needs Follow-up', icon: MessageCircleWarning, countKey: 'statusFollowUp', color: 'var(--info)' },
   { key: 'no_current', label: 'No Current', icon: CircleOff, countKey: 'noCurrent', color: 'var(--text-muted)' },
   { key: 'done_for_today', label: 'Done', icon: CheckCircle2, countKey: 'doneForToday', color: 'var(--success)' },
 ];

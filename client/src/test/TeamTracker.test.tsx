@@ -12,6 +12,32 @@ const mockRefetchCarryForwardPreview = vi.fn();
 let mockCarryForwardPreviewValue = 0;
 let mockIssues: Issue[] = [];
 
+function buildSignals(overrides?: {
+  freshness?: Partial<TrackerDeveloperDay['signals']['freshness']>;
+  risk?: Partial<TrackerDeveloperDay['signals']['risk']>;
+}): TrackerDeveloperDay['signals'] {
+  return {
+    freshness: {
+      staleThresholdHours: 4,
+      noCurrentThresholdHours: 2,
+      statusFollowUpThresholdHours: 2,
+      staleByTime: false,
+      staleWithOpenRisk: false,
+      staleWithoutCurrentWork: false,
+      statusChangeWithoutFollowUp: false,
+      ...overrides?.freshness,
+    },
+    risk: {
+      openRisk: false,
+      overdueLinkedWork: false,
+      overdueLinkedCount: 0,
+      overCapacity: false,
+      capacityDelta: 0,
+      ...overrides?.risk,
+    },
+  };
+}
+
 const mockDay: (overrides?: Partial<TrackerDeveloperDay>) => TrackerDeveloperDay = (overrides = {}) => ({
   id: 1,
   date: '2026-03-07',
@@ -22,6 +48,8 @@ const mockDay: (overrides?: Partial<TrackerDeveloperDay>) => TrackerDeveloperDay
   droppedItems: [],
   checkIns: [],
   isStale: false,
+  signals: buildSignals(),
+  statusUpdatedAt: '2026-03-07T08:00:00Z',
   createdAt: '2026-03-07T08:00:00Z',
   updatedAt: '2026-03-07T08:00:00Z',
   ...overrides,
@@ -35,15 +63,33 @@ const mockBoard: TeamTrackerBoardResponse = {
       id: 2,
       developer: { accountId: 'dev-2', displayName: 'Bob Jones', isActive: true },
       status: 'blocked',
-      capacityUnits: 4,
+      capacityUnits: 2,
       isStale: true,
+      lastCheckInAt: '2026-03-07T07:00:00Z',
+      statusUpdatedAt: '2026-03-07T08:30:00Z',
+      signals: buildSignals({
+        freshness: {
+          staleByTime: true,
+          staleWithOpenRisk: true,
+          statusChangeWithoutFollowUp: true,
+          hoursSinceCheckIn: 5,
+          hoursSinceStatusChange: 3.5,
+        },
+        risk: {
+          openRisk: true,
+          overdueLinkedWork: true,
+          overdueLinkedCount: 1,
+          overCapacity: true,
+          capacityDelta: 1,
+        },
+      }),
       currentItem: {
         id: 10,
         dayId: 2,
         itemType: 'jira',
         jiraKey: 'AM-123',
         jiraPriorityName: 'High',
-        jiraDueDate: '2026-03-08',
+        jiraDueDate: '2026-03-06',
         title: 'Fix login bug',
         state: 'in_progress',
         position: 0,
@@ -81,6 +127,9 @@ const mockBoard: TeamTrackerBoardResponse = {
     atRisk: 0,
     waiting: 0,
     noCurrent: 1,
+    overdueLinkedWork: 1,
+    overCapacity: 1,
+    statusFollowUp: 1,
     doneForToday: 0,
   },
   attentionQueue: [
@@ -89,17 +138,36 @@ const mockBoard: TeamTrackerBoardResponse = {
       status: 'blocked',
       reasons: [
         { code: 'blocked', label: 'Blocked', priority: 1 },
-        { code: 'stale', label: 'Stale follow-up', priority: 3 },
+        { code: 'stale_with_open_risk', label: 'Stale with risk', priority: 2 },
+        { code: 'overdue_linked_work', label: 'Overdue linked work', priority: 3 },
       ],
       isStale: true,
+      signals: buildSignals({
+        freshness: {
+          staleByTime: true,
+          staleWithOpenRisk: true,
+          statusChangeWithoutFollowUp: true,
+          hoursSinceCheckIn: 5,
+          hoursSinceStatusChange: 3.5,
+        },
+        risk: {
+          openRisk: true,
+          overdueLinkedWork: true,
+          overdueLinkedCount: 1,
+          overCapacity: true,
+          capacityDelta: 1,
+        },
+      }),
       hasCurrentItem: true,
       plannedCount: 2,
+      lastCheckInAt: '2026-03-07T07:00:00Z',
     },
     {
       developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
       status: 'on_track',
       reasons: [{ code: 'no_current', label: 'No current item', priority: 4 }],
       isStale: false,
+      signals: buildSignals(),
       hasCurrentItem: false,
       plannedCount: 0,
     },
@@ -212,6 +280,9 @@ describe('TeamTrackerPage', () => {
     // Multiple "Blocked" elements exist (summary strip + card pill), use getAllByText
     expect(screen.getAllByText('Blocked').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Stale').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Overdue Jira')).toBeInTheDocument();
+    expect(screen.getByText('Over Cap')).toBeInTheDocument();
+    expect(screen.getByText('Needs Follow-up')).toBeInTheDocument();
   });
 
   it('renders the attention queue in ranked order with reason chips', () => {
@@ -228,7 +299,8 @@ describe('TeamTrackerPage', () => {
     const bob = queueView.getByText('Bob Jones');
     const alice = queueView.getByText('Alice Smith');
     expect(bob.compareDocumentPosition(alice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(queueView.getByText('Stale follow-up')).toBeInTheDocument();
+    expect(queueView.getByText('Stale with risk')).toBeInTheDocument();
+    expect(queueView.getByText('Overdue linked work')).toBeInTheDocument();
     expect(queueView.getByText('No current item')).toBeInTheDocument();
   });
 
@@ -463,7 +535,7 @@ describe('TeamTrackerPage', () => {
     );
 
     clickDeveloperCard('Bob Jones');
-    fireEvent.change(screen.getByDisplayValue('4'), {
+    fireEvent.change(screen.getByDisplayValue('2'), {
       target: { value: '5' },
     });
     fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]!);

@@ -11,7 +11,12 @@ interface AttentionQueueProps {
 const toneByReason: Record<TrackerAttentionReasonCode, { color: string; background: string; border: string }> = {
   blocked: { color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.18)' },
   at_risk: { color: 'var(--warning)', background: 'rgba(245, 158, 11, 0.14)', border: 'rgba(245, 158, 11, 0.2)' },
-  stale: { color: 'var(--warning)', background: 'rgba(250, 204, 21, 0.12)', border: 'rgba(250, 204, 21, 0.18)' },
+  stale_by_time: { color: 'var(--warning)', background: 'rgba(250, 204, 21, 0.12)', border: 'rgba(250, 204, 21, 0.18)' },
+  stale_with_open_risk: { color: 'var(--warning)', background: 'rgba(245, 158, 11, 0.14)', border: 'rgba(245, 158, 11, 0.2)' },
+  stale_without_current_work: { color: 'var(--warning)', background: 'rgba(245, 158, 11, 0.1)', border: 'rgba(245, 158, 11, 0.18)' },
+  overdue_linked_work: { color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.18)' },
+  over_capacity: { color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.16)' },
+  status_change_without_follow_up: { color: 'var(--info)', background: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.18)' },
   no_current: { color: 'var(--accent)', background: 'var(--accent-glow)', border: 'color-mix(in srgb, var(--accent) 18%, transparent)' },
   waiting: { color: 'var(--info)', background: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.18)' },
 };
@@ -82,6 +87,8 @@ export function AttentionQueue({ items, onOpenDrawer }: AttentionQueueProps) {
                   </span>
                   <span>{item.hasCurrentItem ? 'Has current work' : 'No active work'}</span>
                   <span>{item.plannedCount} planned</span>
+                  {item.signals.risk.overdueLinkedWork && <span>{item.signals.risk.overdueLinkedCount} overdue Jira</span>}
+                  {item.signals.risk.overCapacity && <span>+{item.signals.risk.capacityDelta} over cap</span>}
                 </div>
               </div>
               <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium" style={{ color: 'var(--accent)' }}>

@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS team_tracker_days (
   capacity_units        INTEGER,
   manager_notes         TEXT,
   last_check_in_at      TEXT,
+  status_updated_at     TEXT,
   created_at            TEXT NOT NULL,
   updated_at            TEXT NOT NULL,
   UNIQUE(date, developer_account_id)
@@ -229,6 +230,7 @@ const alterStatements = [
   "CREATE INDEX IF NOT EXISTS idx_issue_scope_history_key_observed ON issue_scope_history(jira_key, observed_at DESC)",
   "ALTER TABLE issues ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE team_tracker_days ADD COLUMN capacity_units INTEGER",
+  "ALTER TABLE team_tracker_days ADD COLUMN status_updated_at TEXT",
   "ALTER TABLE team_tracker_checkins ADD COLUMN author_type TEXT NOT NULL DEFAULT 'manager'",
   "ALTER TABLE team_tracker_checkins ADD COLUMN author_account_id TEXT",
   "ALTER TABLE manager_desk_items ADD COLUMN source_item_id INTEGER",

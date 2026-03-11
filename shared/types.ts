@@ -282,6 +282,8 @@ export interface TrackerDeveloperDay {
   droppedItems: TrackerWorkItem[];
   checkIns: TrackerCheckIn[];
   isStale: boolean;
+  signals: TrackerDeveloperSignals;
+  statusUpdatedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -289,7 +291,12 @@ export interface TrackerDeveloperDay {
 export type TrackerAttentionReasonCode =
   | "blocked"
   | "at_risk"
-  | "stale"
+  | "stale_by_time"
+  | "stale_with_open_risk"
+  | "stale_without_current_work"
+  | "overdue_linked_work"
+  | "over_capacity"
+  | "status_change_without_follow_up"
   | "no_current"
   | "waiting";
 
@@ -305,6 +312,7 @@ export interface TrackerAttentionItem {
   reasons: TrackerAttentionReason[];
   lastCheckInAt?: string;
   isStale: boolean;
+  signals: TrackerDeveloperSignals;
   hasCurrentItem: boolean;
   plannedCount: number;
 }
@@ -346,7 +354,35 @@ export interface TrackerBoardSummary {
   atRisk: number;
   waiting: number;
   noCurrent: number;
+  overdueLinkedWork: number;
+  overCapacity: number;
+  statusFollowUp: number;
   doneForToday: number;
+}
+
+export interface TrackerFreshnessSignals {
+  staleThresholdHours: number;
+  noCurrentThresholdHours: number;
+  statusFollowUpThresholdHours: number;
+  hoursSinceCheckIn?: number;
+  hoursSinceStatusChange?: number;
+  staleByTime: boolean;
+  staleWithOpenRisk: boolean;
+  staleWithoutCurrentWork: boolean;
+  statusChangeWithoutFollowUp: boolean;
+}
+
+export interface TrackerRiskSignals {
+  openRisk: boolean;
+  overdueLinkedWork: boolean;
+  overdueLinkedCount: number;
+  overCapacity: boolean;
+  capacityDelta: number;
+}
+
+export interface TrackerDeveloperSignals {
+  freshness: TrackerFreshnessSignals;
+  risk: TrackerRiskSignals;
 }
 
 // ── Manager Desk types ─────────────────────────────────

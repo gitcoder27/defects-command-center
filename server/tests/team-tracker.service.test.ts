@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { TeamTrackerService } from "../src/services/team-tracker.service";
 import { resetDatabase, db } from "./helpers/db";
 import { developers, issues, teamTrackerDays } from "../src/db/schema";
@@ -46,8 +46,14 @@ async function seedIssue(overrides: Partial<typeof issues.$inferInsert> = {}) {
 
 describe("TeamTrackerService", () => {
   beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-07T08:00:00.000Z"));
     await resetDatabase();
     await seedDevelopers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe("ensureDay", () => {
@@ -107,6 +113,47 @@ describe("TeamTrackerService", () => {
       expect(devDay.currentItem?.title).toBe("Task A");
       expect(devDay.plannedItems).toHaveLength(1);
       expect(devDay.plannedItems[0].title).toBe("Task B");
+    });
+
+    it("computes smarter freshness and risk signals for the board", async () => {
+      await seedIssue({ developmentDueDate: "2026-03-06", dueDate: "2026-03-09" });
+      await service.updateDay("dev-1", "2026-03-07", {
+        status: "blocked",
+        capacityUnits: 1,
+      });
+      const jiraItem = await service.addItem("dev-1", "2026-03-07", {
+        jiraKey: "AM-123",
+        title: "Linked Jira task",
+      });
+      await service.addItem("dev-1", "2026-03-07", {
+        title: "Secondary task",
+      });
+      await service.setCurrentItem(jiraItem.id);
+      vi.setSystemTime(new Date("2026-03-07T12:00:00.000Z"));
+
+      const board = await service.getBoard("2026-03-07");
+      const devDay = board.developers.find(
+        (d) => d.developer.accountId === "dev-1"
+      )!;
+
+      expect(devDay.isStale).toBe(true);
+      expect(devDay.signals.freshness.staleByTime).toBe(true);
+      expect(devDay.signals.freshness.staleWithOpenRisk).toBe(true);
+      expect(devDay.signals.freshness.statusChangeWithoutFollowUp).toBe(true);
+      expect(devDay.signals.risk.overdueLinkedWork).toBe(true);
+      expect(devDay.signals.risk.overdueLinkedCount).toBe(1);
+      expect(devDay.signals.risk.overCapacity).toBe(true);
+      expect(devDay.signals.risk.capacityDelta).toBe(1);
+      expect(board.summary.overdueLinkedWork).toBe(1);
+      expect(board.summary.overCapacity).toBe(1);
+      expect(board.summary.statusFollowUp).toBe(1);
+      expect(board.attentionQueue[0]?.reasons.map((reason) => reason.code)).toEqual([
+        "blocked",
+        "stale_with_open_risk",
+        "overdue_linked_work",
+        "status_change_without_follow_up",
+        "over_capacity",
+      ]);
     });
   });
 
@@ -299,6 +346,7 @@ describe("TeamTrackerService", () => {
         (d) => d.developer.accountId === "dev-1"
       )!;
       expect(devDay.status).toBe("blocked");
+      expect(devDay.statusUpdatedAt).toBeDefined();
     });
   });
 
@@ -314,6 +362,7 @@ describe("TeamTrackerService", () => {
       )!;
       expect(devDay.status).toBe("at_risk");
       expect(devDay.managerNotes).toBe("Needs help with deployment");
+      expect(devDay.statusUpdatedAt).toBeDefined();
     });
 
     it("stores daily capacity when provided", async () => {

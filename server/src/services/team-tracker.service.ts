@@ -3,6 +3,7 @@ import type {
   TrackerDeveloperStatus,
   TrackerItemState,
   TrackerDeveloperDay,
+  TrackerDeveloperSignals,
   TrackerWorkItem,
   TrackerCheckIn,
   TeamTrackerBoardResponse,
@@ -24,17 +25,101 @@ import {
 } from "../db/schema";
 import { getEffectiveDueDate } from "./issue-rules";
 import { HttpError } from "../middleware/errorHandler";
+import { SettingsService } from "./settings.service";
 
-const STALE_HOURS = 4;
+interface TrackerSignalConfig {
+  staleThresholdHours: number;
+  noCurrentThresholdHours: number;
+  statusFollowUpThresholdHours: number;
+}
 
 function nowIso(): string {
   return new Date().toISOString();
 }
 
-function isStale(lastCheckInAt: string | null, now = new Date()): boolean {
-  if (!lastCheckInAt) return true;
-  const diff = now.getTime() - new Date(lastCheckInAt).getTime();
-  return diff > STALE_HOURS * 60 * 60 * 1000;
+function getHoursSince(value: string | null | undefined, now = new Date()): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const diff = now.getTime() - new Date(value).getTime();
+  return Math.max(0, Math.round((diff / (60 * 60 * 1000)) * 10) / 10);
+}
+
+function hasOpenRiskStatus(status: TrackerDeveloperStatus): boolean {
+  return status === "blocked" || status === "at_risk" || status === "waiting";
+}
+
+function buildSignals(params: {
+  date: string;
+  status: TrackerDeveloperStatus;
+  lastCheckInAt?: string | null;
+  statusUpdatedAt?: string | null;
+  updatedAt: string;
+  currentItem?: TrackerWorkItem;
+  plannedItems: TrackerWorkItem[];
+  capacityUnits?: number;
+  config: TrackerSignalConfig;
+  now?: Date;
+}): TrackerDeveloperSignals {
+  const now = params.now ?? new Date();
+  const hoursSinceCheckIn = getHoursSince(params.lastCheckInAt, now);
+  const effectiveStatusUpdatedAt =
+    params.statusUpdatedAt ??
+    (params.status !== "on_track" ? params.updatedAt : null);
+  const hoursSinceStatusChange = getHoursSince(effectiveStatusUpdatedAt, now);
+  const staleByTime =
+    hoursSinceCheckIn === undefined ||
+    hoursSinceCheckIn >= params.config.staleThresholdHours;
+  const noCurrentWork =
+    !params.currentItem && params.status !== "done_for_today";
+  const openRisk = hasOpenRiskStatus(params.status);
+  const staleWithoutCurrentWork =
+    noCurrentWork &&
+    (hoursSinceCheckIn === undefined ||
+      hoursSinceCheckIn >= params.config.noCurrentThresholdHours);
+  const overdueLinkedCount = [params.currentItem, ...params.plannedItems].filter(
+    (item): item is TrackerWorkItem =>
+      Boolean(item?.jiraDueDate && item.jiraDueDate < params.date)
+  ).length;
+  const assignedTodayCount =
+    (params.currentItem ? 1 : 0) + params.plannedItems.length;
+  const capacityDelta = params.capacityUnits
+    ? assignedTodayCount - params.capacityUnits
+    : 0;
+  const hasFollowUpAfterStatusChange = Boolean(
+    effectiveStatusUpdatedAt &&
+      params.lastCheckInAt &&
+      new Date(params.lastCheckInAt).getTime() >=
+        new Date(effectiveStatusUpdatedAt).getTime()
+  );
+  const statusChangeWithoutFollowUp = Boolean(
+    effectiveStatusUpdatedAt &&
+      openRisk &&
+      !hasFollowUpAfterStatusChange &&
+      (hoursSinceStatusChange ?? 0) >= params.config.statusFollowUpThresholdHours
+  );
+
+  return {
+    freshness: {
+      staleThresholdHours: params.config.staleThresholdHours,
+      noCurrentThresholdHours: params.config.noCurrentThresholdHours,
+      statusFollowUpThresholdHours: params.config.statusFollowUpThresholdHours,
+      hoursSinceCheckIn,
+      hoursSinceStatusChange,
+      staleByTime,
+      staleWithOpenRisk: staleByTime && openRisk,
+      staleWithoutCurrentWork,
+      statusChangeWithoutFollowUp,
+    },
+    risk: {
+      openRisk,
+      overdueLinkedWork: overdueLinkedCount > 0,
+      overdueLinkedCount,
+      overCapacity: capacityDelta > 0,
+      capacityDelta: Math.max(0, capacityDelta),
+    },
+  };
 }
 
 type TrackerIssueContext = Pick<
@@ -103,10 +188,15 @@ const ATTENTION_REASON_META: Record<
   { label: string; priority: number }
 > = {
   blocked: { label: "Blocked", priority: 1 },
-  at_risk: { label: "At Risk", priority: 2 },
-  stale: { label: "Stale follow-up", priority: 3 },
-  no_current: { label: "No current item", priority: 4 },
-  waiting: { label: "Waiting", priority: 5 },
+  stale_with_open_risk: { label: "Stale with risk", priority: 2 },
+  overdue_linked_work: { label: "Overdue linked work", priority: 3 },
+  at_risk: { label: "At Risk", priority: 4 },
+  status_change_without_follow_up: { label: "Status changed, no follow-up", priority: 5 },
+  stale_without_current_work: { label: "Stale without current work", priority: 6 },
+  over_capacity: { label: "Over capacity", priority: 7 },
+  stale_by_time: { label: "Stale by time", priority: 8 },
+  no_current: { label: "No current item", priority: 9 },
+  waiting: { label: "Waiting", priority: 10 },
 };
 
 function buildAttentionReasons(
@@ -117,11 +207,30 @@ function buildAttentionReasons(
   if (day.status === "blocked") {
     reasons.push("blocked");
   }
+  if (day.signals.freshness.staleWithOpenRisk) {
+    reasons.push("stale_with_open_risk");
+  }
+  if (day.signals.risk.overdueLinkedWork) {
+    reasons.push("overdue_linked_work");
+  }
   if (day.status === "at_risk") {
     reasons.push("at_risk");
   }
-  if (day.isStale) {
-    reasons.push("stale");
+  if (day.signals.freshness.statusChangeWithoutFollowUp) {
+    reasons.push("status_change_without_follow_up");
+  }
+  if (day.signals.freshness.staleWithoutCurrentWork) {
+    reasons.push("stale_without_current_work");
+  }
+  if (day.signals.risk.overCapacity) {
+    reasons.push("over_capacity");
+  }
+  if (
+    day.signals.freshness.staleByTime &&
+    !day.signals.freshness.staleWithOpenRisk &&
+    !day.signals.freshness.staleWithoutCurrentWork
+  ) {
+    reasons.push("stale_by_time");
   }
   if (!day.currentItem && day.status !== "done_for_today") {
     reasons.push("no_current");
@@ -152,7 +261,10 @@ function getAttentionSortTuple(item: TrackerAttentionItem): [number, number, num
 }
 
 export class TeamTrackerService {
+  constructor(private readonly settings = new SettingsService()) {}
+
   async getBoard(date: string): Promise<TeamTrackerBoardResponse> {
+    const signalConfig = await this.getSignalConfig();
     const devRows = await db
       .select()
       .from(developers)
@@ -163,7 +275,7 @@ export class TeamTrackerService {
     const devDays: TrackerDeveloperDay[] = [];
 
     for (const dev of devList) {
-      devDays.push(await this.buildDeveloperDay(date, dev));
+      devDays.push(await this.buildDeveloperDay(date, dev, signalConfig));
     }
 
     const summary = this.computeSummary(devDays);
@@ -176,8 +288,9 @@ export class TeamTrackerService {
     developerAccountId: string,
     options?: { includeManagerNotes?: boolean }
   ): Promise<TrackerDeveloperDay> {
+    const signalConfig = await this.getSignalConfig();
     const developer = await this.getDeveloperByAccountId(developerAccountId);
-    const day = await this.buildDeveloperDay(date, developer);
+    const day = await this.buildDeveloperDay(date, developer, signalConfig);
 
     if (options?.includeManagerNotes === false) {
       return {
@@ -200,6 +313,7 @@ export class TeamTrackerService {
         date,
         developerAccountId,
         status: "on_track",
+        statusUpdatedAt: now,
         createdAt: now,
         updatedAt: now,
       })
@@ -238,11 +352,15 @@ export class TeamTrackerService {
   ): Promise<typeof teamTrackerDays.$inferSelect> {
     const day = await this.ensureDay(date, accountId);
     const now = nowIso();
+    const nextStatus = updates.status;
+    const statusChanged =
+      nextStatus !== undefined && nextStatus !== day.status;
 
     await db
       .update(teamTrackerDays)
       .set({
-        ...(updates.status !== undefined && { status: updates.status }),
+        ...(nextStatus !== undefined && { status: nextStatus }),
+        ...(statusChanged && { statusUpdatedAt: now }),
         ...(updates.capacityUnits !== undefined && {
           capacityUnits: updates.capacityUnits,
         }),
@@ -416,6 +534,9 @@ export class TeamTrackerService {
     };
     if (params.status) {
       dayUpdates.status = params.status;
+      if (params.status !== day.status) {
+        dayUpdates.statusUpdatedAt = now;
+      }
     }
     await db
       .update(teamTrackerDays)
@@ -633,11 +754,14 @@ export class TeamTrackerService {
   private computeSummary(days: TrackerDeveloperDay[]): TrackerBoardSummary {
     return {
       total: days.length,
-      stale: days.filter((d) => d.isStale).length,
+      stale: days.filter((d) => d.signals.freshness.staleByTime).length,
       blocked: days.filter((d) => d.status === "blocked").length,
       atRisk: days.filter((d) => d.status === "at_risk").length,
       waiting: days.filter((d) => d.status === "waiting").length,
-      noCurrent: days.filter((d) => !d.currentItem).length,
+      noCurrent: days.filter((d) => !d.currentItem && d.status !== "done_for_today").length,
+      overdueLinkedWork: days.filter((d) => d.signals.risk.overdueLinkedWork).length,
+      overCapacity: days.filter((d) => d.signals.risk.overCapacity).length,
+      statusFollowUp: days.filter((d) => d.signals.freshness.statusChangeWithoutFollowUp).length,
       doneForToday: days.filter((d) => d.status === "done_for_today").length,
     };
   }
@@ -657,6 +781,7 @@ export class TeamTrackerService {
         reasons,
         lastCheckInAt: day.lastCheckInAt,
         isStale: day.isStale,
+        signals: day.signals,
         hasCurrentItem: Boolean(day.currentItem),
         plannedCount: day.plannedItems.length,
       });
@@ -699,7 +824,8 @@ export class TeamTrackerService {
 
   private async buildDeveloperDay(
     date: string,
-    developer: Developer
+    developer: Developer,
+    signalConfig: TrackerSignalConfig
   ): Promise<TrackerDeveloperDay> {
     const day = await this.ensureDay(date, developer.accountId);
     const items = await db
@@ -718,6 +844,17 @@ export class TeamTrackerService {
     const plannedItems = mapped.filter((i) => i.state === "planned");
     const completedItems = mapped.filter((i) => i.state === "done");
     const droppedItems = mapped.filter((i) => i.state === "dropped");
+    const signals = buildSignals({
+      date,
+      status: day.status as TrackerDeveloperStatus,
+      lastCheckInAt: day.lastCheckInAt,
+      statusUpdatedAt: day.statusUpdatedAt,
+      updatedAt: day.updatedAt,
+      currentItem,
+      plannedItems,
+      capacityUnits: day.capacityUnits ?? undefined,
+      config: signalConfig,
+    });
 
     return {
       id: day.id,
@@ -732,9 +869,29 @@ export class TeamTrackerService {
       completedItems,
       droppedItems,
       checkIns: checkIns.map(mapCheckIn),
-      isStale: isStale(day.lastCheckInAt),
+      isStale: signals.freshness.staleByTime,
+      signals,
+      statusUpdatedAt: day.statusUpdatedAt ?? undefined,
       createdAt: day.createdAt,
       updatedAt: day.updatedAt,
+    };
+  }
+
+  private async getSignalConfig(): Promise<TrackerSignalConfig> {
+    const [
+      staleThresholdHours,
+      noCurrentThresholdHours,
+      statusFollowUpThresholdHours,
+    ] = await Promise.all([
+      this.settings.getTeamTrackerStaleThresholdHours(),
+      this.settings.getTeamTrackerNoCurrentThresholdHours(),
+      this.settings.getTeamTrackerStatusFollowUpThresholdHours(),
+    ]);
+
+    return {
+      staleThresholdHours,
+      noCurrentThresholdHours,
+      statusFollowUpThresholdHours,
     };
   }
 

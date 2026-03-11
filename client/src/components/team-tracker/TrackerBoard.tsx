@@ -16,15 +16,21 @@ interface TrackerBoardProps {
 function applyFilter(days: TrackerDeveloperDay[], filter: SummaryFilter): TrackerDeveloperDay[] {
   switch (filter) {
     case 'stale':
-      return days.filter((d) => d.isStale);
+      return days.filter((d) => d.signals.freshness.staleByTime);
     case 'blocked':
       return days.filter((d) => d.status === 'blocked');
     case 'at_risk':
       return days.filter((d) => d.status === 'at_risk');
     case 'waiting':
       return days.filter((d) => d.status === 'waiting');
+    case 'overdue_linked':
+      return days.filter((d) => d.signals.risk.overdueLinkedWork);
+    case 'over_capacity':
+      return days.filter((d) => d.signals.risk.overCapacity);
+    case 'status_follow_up':
+      return days.filter((d) => d.signals.freshness.statusChangeWithoutFollowUp);
     case 'no_current':
-      return days.filter((d) => !d.currentItem);
+      return days.filter((d) => !d.currentItem && d.status !== 'done_for_today');
     case 'done_for_today':
       return days.filter((d) => d.status === 'done_for_today');
     default:

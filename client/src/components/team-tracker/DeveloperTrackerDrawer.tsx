@@ -6,6 +6,7 @@ import type { TrackerWorkItem } from '@/types';
 import { TrackerStatusPill } from './TrackerStatusPill';
 import { TrackerItemRow } from './TrackerItemRow';
 import { AddTrackerItemForm } from './AddTrackerItemForm';
+import { TrackerSignalBadges } from './TrackerSignalBadges';
 import { formatRelativeTime } from '@/lib/utils';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
 
@@ -187,7 +188,7 @@ export function DeveloperTrackerDrawer({
                   <div className="flex items-center gap-2 mt-0.5">
                     <TrackerStatusPill status={day.status} size="md" />
                     {day.lastCheckInAt && (
-                      <span className="text-[10px]" style={{ color: day.isStale ? 'var(--warning)' : 'var(--text-muted)' }}>
+                      <span className="text-[10px]" style={{ color: day.signals.freshness.staleByTime ? 'var(--warning)' : 'var(--text-muted)' }}>
                         Last check-in {formatRelativeTime(day.lastCheckInAt)}
                       </span>
                     )}
@@ -244,6 +245,39 @@ export function DeveloperTrackerDrawer({
                     <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Dropped</div>
                     <div className="mt-0.5 font-mono text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                       {day.droppedItems.length}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                  Signals
+                </div>
+                <TrackerSignalBadges day={day} />
+                <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="rounded-xl px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
+                    <div style={{ color: 'var(--text-muted)' }}>Stale after</div>
+                    <div className="mt-0.5 font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {day.signals.freshness.staleThresholdHours}h
+                    </div>
+                  </div>
+                  <div className="rounded-xl px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
+                    <div style={{ color: 'var(--text-muted)' }}>No current follow-up</div>
+                    <div className="mt-0.5 font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {day.signals.freshness.noCurrentThresholdHours}h
+                    </div>
+                  </div>
+                  <div className="rounded-xl px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
+                    <div style={{ color: 'var(--text-muted)' }}>Status follow-up</div>
+                    <div className="mt-0.5 font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {day.signals.freshness.statusFollowUpThresholdHours}h
+                    </div>
+                  </div>
+                  <div className="rounded-xl px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
+                    <div style={{ color: 'var(--text-muted)' }}>Overdue linked Jira</div>
+                    <div className="mt-0.5 font-mono font-semibold" style={{ color: day.signals.risk.overdueLinkedWork ? 'var(--danger)' : 'var(--text-primary)' }}>
+                      {day.signals.risk.overdueLinkedCount}
                     </div>
                   </div>
                 </div>

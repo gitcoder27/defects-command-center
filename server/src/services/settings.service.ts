@@ -8,6 +8,9 @@ import { getJiraApiToken } from "../runtime-credentials";
 
 export const DEFAULT_SYNC_INTERVAL_MS = 300_000;
 export const DEFAULT_STALE_THRESHOLD_HOURS = 48;
+export const DEFAULT_TEAM_TRACKER_STALE_THRESHOLD_HOURS = 4;
+export const DEFAULT_TEAM_TRACKER_NO_CURRENT_THRESHOLD_HOURS = 2;
+export const DEFAULT_TEAM_TRACKER_STATUS_FOLLOW_UP_THRESHOLD_HOURS = 2;
 export const DEFAULT_BACKUP_ENABLED = true;
 export const DEFAULT_BACKUP_INTERVAL_MINUTES = 30;
 export const DEFAULT_BACKUP_RETENTION_DAYS = 14;
@@ -67,6 +70,27 @@ export class SettingsService {
 
   async getStaleThresholdHours(): Promise<number> {
     return this.getPositiveIntegerConfig("stale_threshold_hours", DEFAULT_STALE_THRESHOLD_HOURS);
+  }
+
+  async getTeamTrackerStaleThresholdHours(): Promise<number> {
+    return this.getPositiveIntegerConfig(
+      "team_tracker_stale_threshold_hours",
+      DEFAULT_TEAM_TRACKER_STALE_THRESHOLD_HOURS
+    );
+  }
+
+  async getTeamTrackerNoCurrentThresholdHours(): Promise<number> {
+    return this.getPositiveIntegerConfig(
+      "team_tracker_no_current_threshold_hours",
+      DEFAULT_TEAM_TRACKER_NO_CURRENT_THRESHOLD_HOURS
+    );
+  }
+
+  async getTeamTrackerStatusFollowUpThresholdHours(): Promise<number> {
+    return this.getPositiveIntegerConfig(
+      "team_tracker_status_follow_up_threshold_hours",
+      DEFAULT_TEAM_TRACKER_STATUS_FOLLOW_UP_THRESHOLD_HOURS
+    );
   }
 
   async getBackupEnabled(): Promise<boolean> {
