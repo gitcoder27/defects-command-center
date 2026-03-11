@@ -22,6 +22,7 @@ import { DismissCell } from './DismissCell';
 import { useIssues } from '@/hooks/useIssues';
 import { useConfig } from '@/hooks/useConfig';
 import { useExcludeIssue } from '@/hooks/useExcludeIssue';
+import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { isOverdue, isDueToday, isStale } from '@/lib/utils';
 import type { Issue, FilterType } from '@/types';
@@ -72,6 +73,7 @@ export function DefectTable({
   noTags,
   onClearFilters,
 }: DefectTableProps) {
+  const { theme } = useTheme();
   const { data: issues, isLoading } = useIssues(filter, assigneeFilter, tagId, noTags);
   const { data: config } = useConfig();
   const { exclude, restore } = useExcludeIssue();
@@ -646,7 +648,7 @@ export function DefectTable({
 
                 return (
                   <motion.tr
-                    key={issue.jiraKey}
+                    key={`${theme}-${issue.jiraKey}`}
                     initial={shouldAnimate ? { opacity: 0, y: 6 } : false}
                     animate={{ opacity: 1, y: 0 }}
                     transition={shouldAnimate ? { duration: 0.2, delay: animationDelay } : undefined}

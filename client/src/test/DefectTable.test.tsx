@@ -2,6 +2,7 @@ import * as React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { DefectTable } from '@/components/table/DefectTable';
+import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { TestWrapper } from '@/test/wrapper';
 import type { Issue } from '@/types';
 
@@ -85,6 +86,19 @@ const mockIssues: Issue[] = [
 const mockCreateTagMutate = vi.fn();
 const mockSetIssueTagsMutate = vi.fn();
 let currentIssues = mockIssues;
+
+function ThemeToggleHarness(props: React.ComponentProps<typeof DefectTable>) {
+  const { toggleTheme } = useTheme();
+
+  return (
+    <>
+      <button type="button" onClick={toggleTheme}>
+        Toggle theme
+      </button>
+      <DefectTable {...props} />
+    </>
+  );
+}
 
 const animatedRows: Issue[] = Array.from({ length: 14 }, (_, index) => ({
   jiraKey: `PROJ-${200 + index}`,
@@ -245,6 +259,29 @@ describe('DefectTable', () => {
     const laterRow = screen.getByText('PROJ-212').closest('tr');
     expect(laterRow).toHaveAttribute('data-motion-initial', JSON.stringify({ opacity: 0, y: 6 }));
     expect(laterRow).toHaveAttribute('data-motion-transition', JSON.stringify({ duration: 0.2, delay: 0.76 }));
+  });
+
+  it('remounts animated rows when the theme changes so row surfaces repaint', async () => {
+    render(
+      <ThemeProvider>
+        <TestWrapper>
+          <ThemeToggleHarness {...defaultProps} />
+        </TestWrapper>
+      </ThemeProvider>
+    );
+
+    const originalRow = screen.getByText('PROJ-101').closest('tr');
+    expect(originalRow).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle theme' }));
+
+    await waitFor(() => {
+      expect(document.documentElement).toHaveClass('dark');
+    });
+
+    const themedRow = screen.getByText('PROJ-101').closest('tr');
+    expect(themedRow).toBeTruthy();
+    expect(themedRow).not.toBe(originalRow);
   });
 
   it('uses ASPEN Severity values for the first-column indicators', () => {
