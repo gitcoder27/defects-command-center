@@ -226,7 +226,7 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(mockPut).toHaveBeenCalledTimes(1);
       expect(mockMutateAsync).toHaveBeenCalledTimes(1);
-      expect(screen.getByText('Jira setup, team configuration, tags, and app access.')).toBeInTheDocument();
+      expect(screen.getByText('Settings')).toBeInTheDocument();
     });
   });
 
@@ -262,7 +262,7 @@ describe('SettingsPage', () => {
       </TestWrapper>
     );
 
-    fireEvent.change(screen.getByLabelText(/Manager Jira Identity/i), {
+    fireEvent.change(screen.getByPlaceholderText(/paste or edit the jira account id/i), {
       target: { value: 'manager-2' },
     });
     fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
@@ -275,6 +275,173 @@ describe('SettingsPage', () => {
     });
   });
 
+  it('adds selected team members and triggers an immediate sync', async () => {
+    mockMutateAsync.mockResolvedValue({ status: 'success', issuesSynced: 4, startedAt: '', completedAt: '' });
+
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /team members/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /casey lead/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add 1 selected/i }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith('/team/developers', {
+        developers: [
+          {
+            accountId: 'manager-2',
+            displayName: 'Casey Lead',
+            email: 'casey@example.com',
+          },
+        ],
+      });
+      expect(mockMutateAsync).toHaveBeenCalledTimes(1);
+      expect(mockAddToast).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'success',
+        title: 'Team updated and synced',
+        message: 'Added 1 team member and synced issues.',
+      }));
+    });
+  });
+
+  it('keeps the add action busy until the immediate sync finishes', async () => {
+    let resolveSync: ((value: { status: 'success'; issuesSynced: number; startedAt: string; completedAt: string }) => void) | undefined;
+    const syncPromise = new Promise<{ status: 'success'; issuesSynced: number; startedAt: string; completedAt: string }>((resolve) => {
+      resolveSync = resolve;
+    });
+    mockMutateAsync.mockReturnValue(syncPromise);
+
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /team members/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /casey lead/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add 1 selected/i }));
+
+    await waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: /adding/i })).toBeDisabled();
+    });
+
+    resolveSync?.({ status: 'success', issuesSynced: 4, startedAt: '', completedAt: '' });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /add selected/i })).toBeDisabled();
+      expect(screen.queryByRole('button', { name: /adding/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it('reports when add succeeds but the immediate sync fails', async () => {
+    mockMutateAsync.mockRejectedValueOnce(new Error('Sync unavailable'));
+
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /team members/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /casey lead/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add 1 selected/i }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith('/team/developers', {
+        developers: [
+          {
+            accountId: 'manager-2',
+            displayName: 'Casey Lead',
+            email: 'casey@example.com',
+          },
+        ],
+      });
+      expect(mockMutateAsync).toHaveBeenCalledTimes(1);
+      expect(mockAddToast).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'error',
+        title: 'Team updated but sync failed',
+        message: 'The membership change was saved, but the immediate sync failed: Sync unavailable',
+      }));
+    });
+  });
+
+  it('removes a team member and triggers an immediate sync', async () => {
+    mockMutateAsync.mockResolvedValue({ status: 'success', issuesSynced: 2, startedAt: '', completedAt: '' });
+
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /team members/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /remove taylor dev from team/i }));
+
+    await waitFor(() => {
+      expect(mockDelete).toHaveBeenCalledWith('/team/developers/dev-1');
+      expect(mockMutateAsync).toHaveBeenCalledTimes(1);
+      expect(mockAddToast).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'success',
+        title: 'Team updated and synced',
+        message: 'Developer removed from tracked team and synced issues.',
+      }));
+    });
+  });
+
+  it('does not trigger an immediate sync when adding team members fails', async () => {
+    mockPost.mockImplementation(async (path: string) => {
+      if (path === '/team/discover') {
+        return {
+          users: [
+            {
+              accountId: 'manager-1',
+              displayName: 'Morgan Manager',
+              email: 'manager@example.com',
+            },
+            {
+              accountId: 'manager-2',
+              displayName: 'Casey Lead',
+              email: 'casey@example.com',
+            },
+          ],
+          startAt: 0,
+          maxResults: 50,
+          count: 2,
+          hasMore: false,
+        };
+      }
+
+      if (path === '/team/developers') {
+        throw new Error('Save failed');
+      }
+
+      return {};
+    });
+
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /team members/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /casey lead/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add 1 selected/i }));
+
+    await waitFor(() => {
+      expect(mockMutateAsync).not.toHaveBeenCalled();
+      expect(mockAddToast).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'error',
+        title: 'Failed to add team members',
+        message: 'Save failed',
+      }));
+    });
+  });
+
   it('deletes a developer account after confirmation', async () => {
     render(
       <TestWrapper>
@@ -282,6 +449,7 @@ describe('SettingsPage', () => {
       </TestWrapper>
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /developer access/i }));
     await screen.findByRole('button', { name: /delete account for taylor dev/i });
 
     fireEvent.click(screen.getByRole('button', { name: /delete account for taylor dev/i }));
@@ -302,7 +470,7 @@ describe('SettingsPage', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Developer Access' }));
+    fireEvent.click(screen.getByRole('button', { name: /developer access/i }));
 
     expect(await screen.findByText(DEVELOPER_LOGIN_URL)).toBeInTheDocument();
 
@@ -320,10 +488,12 @@ describe('SettingsPage', () => {
       </TestWrapper>
     );
 
-    expect(await screen.findByText('Defect Tags')).toBeInTheDocument();
-    expect(screen.getByText('Tag library')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /defect tags/i }));
+    await screen.findByLabelText(/search tags/i);
+
+    expect(screen.getByText('Review the shared tag library and safely remove labels.')).toBeInTheDocument();
     expect(screen.getByText('Legacy')).toBeInTheDocument();
-    expect(screen.getByText('Unused')).toBeInTheDocument();
+    expect(screen.getAllByText('Unused').length).toBeGreaterThan(0);
   });
 
   it('deletes an unused tag after simple confirmation', async () => {
@@ -333,6 +503,8 @@ describe('SettingsPage', () => {
       </TestWrapper>
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /defect tags/i }));
+    await screen.findByLabelText(/search tags/i);
     fireEvent.click(screen.getByRole('button', { name: /delete tag unused/i }));
 
     expect(screen.getByText('No defects currently use this tag. Delete it if you no longer want it available in the tag library.')).toBeInTheDocument();
@@ -363,6 +535,8 @@ describe('SettingsPage', () => {
       </TestWrapper>
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /defect tags/i }));
+    await screen.findByLabelText(/search tags/i);
     fireEvent.click(screen.getByRole('button', { name: /delete tag legacy/i }));
 
     expect(screen.getByText('Linked defects')).toBeInTheDocument();

@@ -97,11 +97,35 @@ Final target flow:
 
 Once the domain setup is live, use this process whenever you want production to pick up newer code from this repo.
 
+### Production And Development Separation
+
+This VPS now uses two separate checkouts:
+
+- development workspace: `/home/ubuntu/Development/defects-command-center`
+- production checkout: `/home/ubuntu/apps/defects-command-center-prod`
+
+The live `defects-dashboard` service runs from the production checkout, not from the development workspace.
+
+That means:
+
+- building in the development workspace does not update the public site
+- production has its own `client/dist`, `server/dist`, `.env`, and `data/`
+- development and production SQLite files are separate unless you explicitly point them at the same path
+
+For compile-only validation in the development workspace, prefer:
+
+```bash
+cd /home/ubuntu/Development/defects-command-center
+npm run typecheck
+npm run build:check
+```
+
 ### What Production Actually Runs
 
 - backend runtime: `server/dist/server/src/index.js`
 - frontend runtime assets: `client/dist/`
 - service name: `defects-dashboard`
+- production checkout path: `/home/ubuntu/apps/defects-command-center-prod`
 
 This means source changes in `server/src/` or `client/src/` do **not** affect production until you rebuild and restart the service.
 
@@ -110,7 +134,7 @@ This means source changes in `server/src/` or `client/src/` do **not** affect pr
 If you changed only backend files and did not change frontend or shared UI code:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/apps/defects-command-center-prod
 npm run build --workspace=server
 sudo systemctl restart defects-dashboard
 sudo systemctl status defects-dashboard --no-pager
@@ -122,7 +146,7 @@ curl -s https://manager.YOUR_DOMAIN/api/health
 If you changed frontend code, shared contracts, or anything used by both workspaces:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/apps/defects-command-center-prod
 npm install
 npm run build
 sudo systemctl restart defects-dashboard
@@ -135,7 +159,7 @@ curl -s https://manager.YOUR_DOMAIN/api/health
 ### If The VPS Needs The Latest Git Changes First
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/apps/defects-command-center-prod
 git pull
 npm install
 npm run build
@@ -202,7 +226,7 @@ Before touching DNS, verify the app is healthy locally on the VPS.
 Run:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/apps/defects-command-center-prod
 curl -I http://localhost:3001
 curl -s http://localhost:3001/api/health
 sudo systemctl status defects-dashboard --no-pager
@@ -217,7 +241,7 @@ Expected:
 If the app is not running yet, build and start it:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/apps/defects-command-center-prod
 npm install
 npm run build
 sudo systemctl restart defects-dashboard

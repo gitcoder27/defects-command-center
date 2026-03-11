@@ -5,11 +5,13 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
+    "build:check": "tsc -p tsconfig.json --outDir .build-check",
     "start": "node dist/server/src/index.js",
     "backup:restore": "tsx src/scripts/restore-backup.ts",
     "auth:create-user": "tsx src/scripts/create-auth-user.ts",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0",

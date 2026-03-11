@@ -52,6 +52,8 @@ Run from repo root unless noted:
 - `npm run dev:server`: backend only
 - `npm run dev:client`: frontend only
 - `npm run build`: build client then server
+- `npm run typecheck`: run TypeScript validation in both workspaces without emitting production build artifacts
+- `npm run build:check`: perform a full build validation into temporary `.build-check/` folders without touching `client/dist` or `server/dist`
 - `npm run start`: start the compiled backend, which also serves `client/dist` in production when present
 - `npm run test`: run backend Vitest suite
 - `npm run test --workspace=client`: run frontend Vitest suite
@@ -87,6 +89,9 @@ Windows users can use `run-node20.ps1` modes:
 - The backend performs startup migration, backup initialization, and scheduled Jira sync bootstrapping in `server/src/index.ts`.
 - Default runtime storage lives under repo-root `data/`, not `server/data/`.
 - Production backend serves the built SPA for non-API routes when `client/dist` exists.
+- On this VPS, this checkout at `/home/ubuntu/Development/defects-command-center` is the development workspace. The live production checkout is `/home/ubuntu/apps/defects-command-center-prod`.
+- Development and production are intentionally separated by both working directory and SQLite path. Development uses this checkout's local `data/` area, while production uses the production checkout's `data/` area.
+- Safe local validation in the development workspace should prefer `npm run typecheck` or `npm run build:check`. Production deploys should be run only from `/home/ubuntu/apps/defects-command-center-prod`.
 
 ## Commit & Pull Request Guidelines
 - Follow Conventional Commit style (`feat:`, `fix:`, `chore:`) with concise imperative summaries.

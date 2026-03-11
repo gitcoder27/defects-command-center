@@ -9,3 +9,5 @@ data/**/*.db-*
 server/data/
 client/dist/
 server/dist/
+client/.build-check/
+server/.build-check/

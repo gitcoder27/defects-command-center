@@ -75,11 +75,19 @@ https://<random-name>.trycloudflare.com
 Run after pulling or copying updated code to the VPS:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/apps/defects-command-center-prod
 npm install
 npm run build
 sudo systemctl restart defects-dashboard
 sudo systemctl status defects-dashboard --no-pager
+```
+
+For non-deploy validation in the development workspace, use:
+
+```bash
+cd /home/ubuntu/Development/defects-command-center
+npm run typecheck
+npm run build:check
 ```
 
 ## When To Restart Tunnel

@@ -128,7 +128,7 @@ export function SettingsPage() {
     [developers, teamSearch]
   );
 
-  const teamActionLoading = savingTeam || Boolean(removingAccountId) || loadingMoreTeam;
+  const teamActionLoading = savingTeam || Boolean(removingAccountId) || loadingMoreTeam || triggerSync.isPending;
   const addableSelectionCount = useMemo(
     () => Array.from(selectedAddUsers).filter((accountId) => !activeMemberIds.has(accountId)).length,
     [selectedAddUsers, activeMemberIds]
@@ -346,14 +346,40 @@ export function SettingsPage() {
     setFieldPickerTarget(null);
   }, [fieldPickerTarget]);
 
-  const invalidateTeamAndWorkload = useCallback(async () => {
+  const invalidateTeamScopeData = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['developers'] }),
+      queryClient.invalidateQueries({ queryKey: ['issues'] }),
       queryClient.invalidateQueries({ queryKey: ['workload'] }),
       queryClient.invalidateQueries({ queryKey: ['overview'] }),
       queryClient.invalidateQueries({ queryKey: ['alerts'] }),
+      queryClient.invalidateQueries({ queryKey: ['syncStatus'] }),
+      queryClient.invalidateQueries({ queryKey: ['team-tracker'] }),
+      queryClient.invalidateQueries({ queryKey: ['manager-desk'] }),
+      queryClient.invalidateQueries({ queryKey: ['my-day'] }),
     ]);
   }, [queryClient]);
+
+  const syncTeamMembershipChange = useCallback(async (successMessage: string) => {
+    try {
+      await triggerSync.mutateAsync();
+      await invalidateTeamScopeData();
+      addToast({
+        type: 'success',
+        title: 'Team updated and synced',
+        message: successMessage,
+      });
+    } catch (err) {
+      await invalidateTeamScopeData();
+      addToast({
+        type: 'error',
+        title: 'Team updated but sync failed',
+        message: err instanceof Error
+          ? `The membership change was saved, but the immediate sync failed: ${err.message}`
+          : 'The membership change was saved, but the immediate sync failed.',
+      });
+    }
+  }, [addToast, invalidateTeamScopeData, triggerSync]);
 
   const handleDiscoverTeamMembers = useCallback(
     async (options?: { query?: string; startAt?: number; append?: boolean; silentEmpty?: boolean }) => {
@@ -475,35 +501,27 @@ export function SettingsPage() {
 
       await api.post('/team/developers', { developers: newMembers });
       setSelectedAddUsers(new Set());
-      await invalidateTeamAndWorkload();
-      addToast({
-        type: 'success',
-        title: 'Team updated',
-        message: `Added ${newMembers.length} team member${newMembers.length === 1 ? '' : 's'}.`,
-      });
+      await syncTeamMembershipChange(
+        `Added ${newMembers.length} team member${newMembers.length === 1 ? '' : 's'} and synced issues.`
+      );
     } catch (err) {
       addToast({ type: 'error', title: 'Failed to add team members', message: err instanceof Error ? err.message : 'Request failed' });
     } finally {
       setSavingTeam(false);
     }
-  }, [activeMemberIds, discoveredUsers, selectedAddUsers, addToast, invalidateTeamAndWorkload]);
+  }, [activeMemberIds, discoveredUsers, selectedAddUsers, addToast, syncTeamMembershipChange]);
 
   const handleRemoveMember = useCallback(async (accountId: string) => {
     setRemovingAccountId(accountId);
     try {
       await api.delete(`/team/developers/${encodeURIComponent(accountId)}`);
-      await invalidateTeamAndWorkload();
-      addToast({
-        type: 'success',
-        title: 'Team updated',
-        message: 'Developer removed from tracked team.',
-      });
+      await syncTeamMembershipChange('Developer removed from tracked team and synced issues.');
     } catch (err) {
       addToast({ type: 'error', title: 'Failed to remove developer', message: err instanceof Error ? err.message : 'Request failed' });
     } finally {
       setRemovingAccountId(null);
     }
-  }, [addToast, invalidateTeamAndWorkload]);
+  }, [addToast, syncTeamMembershipChange]);
 
   const hasChanges = saving || triggerSync.isPending || resetting || teamActionLoading;
 

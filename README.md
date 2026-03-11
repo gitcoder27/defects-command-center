@@ -118,6 +118,22 @@ npm install
 npm run dev:server
 ```
 
+## Development Vs Production On This VPS
+
+This VPS now keeps development and production in separate directories:
+
+- development workspace: `/home/ubuntu/Development/defects-command-center`
+- production checkout: `/home/ubuntu/apps/defects-command-center-prod`
+
+The live `defects-dashboard` service runs from the production checkout. Building in the development workspace does not update the public site.
+
+Safe validation commands for development:
+
+```bash
+npm run typecheck
+npm run build:check
+```
+
 Health endpoint:
 
 ```bash
