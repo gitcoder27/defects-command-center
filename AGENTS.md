@@ -75,6 +75,7 @@ Windows users can use `run-node20.ps1` modes:
 - Server routes should stay thin. Put validation in Zod schemas and business logic in `src/services/`.
 - When adding a new backend capability, update the relevant route, service, and shared contract together.
 - Be careful with auth and role expectations. Manager-only and developer-only flows are intentionally separated.
+- Never create a component longer than 150 lines. If it exceeds this, split it into smaller components automatically. Always separate UI from logic.
 
 ## Testing Guidelines
 - Framework: Vitest in both workspaces.
