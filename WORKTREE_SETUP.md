@@ -103,6 +103,20 @@ git checkout main
 git pull --ff-only
 ```
 
+If the Codex worktrees are disposable and you want to snap both of them to the current local `main` commit in one command:
+
+```bash
+cd /home/ubuntu/Development/defects-command-center
+npm run sync:worktrees
+```
+
+If a worktree has changes you want to throw away, use the force mode:
+
+```bash
+cd /home/ubuntu/Development/defects-command-center
+bash scripts/sync-worktrees.sh --force
+```
+
 Reuse an existing worktree:
 
 ```bash
