@@ -7,6 +7,9 @@ import type {
   TrackerCheckIn,
   TeamTrackerBoardResponse,
   TrackerBoardSummary,
+  TrackerAttentionItem,
+  TrackerAttentionReason,
+  TrackerAttentionReasonCode,
   Developer,
   TrackerIssueAssignment,
   UserRole,
@@ -95,6 +98,59 @@ function buildCarryForwardKey(
   return JSON.stringify([item.jiraKey ?? null, item.title, item.note ?? null]);
 }
 
+const ATTENTION_REASON_META: Record<
+  TrackerAttentionReasonCode,
+  { label: string; priority: number }
+> = {
+  blocked: { label: "Blocked", priority: 1 },
+  at_risk: { label: "At Risk", priority: 2 },
+  stale: { label: "Stale follow-up", priority: 3 },
+  no_current: { label: "No current item", priority: 4 },
+  waiting: { label: "Waiting", priority: 5 },
+};
+
+function buildAttentionReasons(
+  day: TrackerDeveloperDay
+): TrackerAttentionReason[] {
+  const reasons: TrackerAttentionReasonCode[] = [];
+
+  if (day.status === "blocked") {
+    reasons.push("blocked");
+  }
+  if (day.status === "at_risk") {
+    reasons.push("at_risk");
+  }
+  if (day.isStale) {
+    reasons.push("stale");
+  }
+  if (!day.currentItem && day.status !== "done_for_today") {
+    reasons.push("no_current");
+  }
+  if (day.status === "waiting") {
+    reasons.push("waiting");
+  }
+
+  return reasons.map((code) => ({
+    code,
+    label: ATTENTION_REASON_META[code].label,
+    priority: ATTENTION_REASON_META[code].priority,
+  }));
+}
+
+function getAttentionSortTuple(item: TrackerAttentionItem): [number, number, number, string] {
+  const highestPriority = item.reasons[0]?.priority ?? Number.MAX_SAFE_INTEGER;
+  const lastCheckInTime = item.lastCheckInAt
+    ? new Date(item.lastCheckInAt).getTime()
+    : 0;
+
+  return [
+    highestPriority,
+    -item.reasons.length,
+    lastCheckInTime,
+    item.developer.displayName.toLowerCase(),
+  ];
+}
+
 export class TeamTrackerService {
   async getBoard(date: string): Promise<TeamTrackerBoardResponse> {
     const devRows = await db
@@ -111,7 +167,8 @@ export class TeamTrackerService {
     }
 
     const summary = this.computeSummary(devDays);
-    return { date, developers: devDays, summary };
+    const attentionQueue = this.computeAttentionQueue(devDays);
+    return { date, developers: devDays, summary, attentionQueue };
   }
 
   async getDeveloperDay(
@@ -583,6 +640,46 @@ export class TeamTrackerService {
       noCurrent: days.filter((d) => !d.currentItem).length,
       doneForToday: days.filter((d) => d.status === "done_for_today").length,
     };
+  }
+
+  private computeAttentionQueue(days: TrackerDeveloperDay[]): TrackerAttentionItem[] {
+    const queue: TrackerAttentionItem[] = [];
+
+    for (const day of days) {
+      const reasons = buildAttentionReasons(day);
+      if (reasons.length === 0) {
+        continue;
+      }
+
+      queue.push({
+        developer: day.developer,
+        status: day.status,
+        reasons,
+        lastCheckInAt: day.lastCheckInAt,
+        isStale: day.isStale,
+        hasCurrentItem: Boolean(day.currentItem),
+        plannedCount: day.plannedItems.length,
+      });
+    }
+
+    return queue.sort((left, right) => {
+      const [leftPriority, leftReasonCount, leftCheckInTime, leftName] =
+        getAttentionSortTuple(left);
+      const [rightPriority, rightReasonCount, rightCheckInTime, rightName] =
+        getAttentionSortTuple(right);
+
+      if (leftPriority !== rightPriority) {
+        return leftPriority - rightPriority;
+      }
+      if (leftReasonCount !== rightReasonCount) {
+        return leftReasonCount - rightReasonCount;
+      }
+      if (leftCheckInTime !== rightCheckInTime) {
+        return leftCheckInTime - rightCheckInTime;
+      }
+
+      return leftName.localeCompare(rightName);
+    });
   }
 
   private async getDeveloperByAccountId(accountId: string): Promise<Developer> {

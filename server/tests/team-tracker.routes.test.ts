@@ -157,6 +157,49 @@ describe("team tracker routes", () => {
     expect(res.body?.developers[0]?.developer.accountId).toBe("dev-1");
   });
 
+  it("GET /api/team-tracker returns a ranked attention queue", async () => {
+    await db.insert(developers).values([
+      { accountId: "dev-3", displayName: "Cara Diaz", email: null, avatarUrl: null, isActive: 1 },
+      { accountId: "dev-4", displayName: "Derek Long", email: null, avatarUrl: null, isActive: 1 },
+      { accountId: "dev-5", displayName: "Evan Park", email: null, avatarUrl: null, isActive: 1 },
+      { accountId: "dev-6", displayName: "Fiona West", email: null, avatarUrl: null, isActive: 1 },
+    ]);
+
+    await trackerService.updateDay("dev-1", "2026-03-07", { status: "blocked" });
+    await trackerService.updateDay("dev-3", "2026-03-07", { status: "at_risk" });
+    await trackerService.updateDay("dev-4", "2026-03-07", { status: "waiting" });
+    await trackerService.addCheckIn("dev-4", "2026-03-07", { summary: "Waiting on QA handoff" });
+    const waitingItem = await trackerService.addItem("dev-4", "2026-03-07", {
+      title: "Follow up with QA",
+    });
+    await trackerService.setCurrentItem(waitingItem.id);
+
+    await trackerService.addCheckIn("dev-6", "2026-03-07", { summary: "Planning next work" });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/team-tracker?date=2026-03-07",
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.attentionQueue.map((item: any) => item.developer.accountId)).toEqual([
+      "dev-1",
+      "dev-3",
+      "dev-5",
+      "dev-6",
+      "dev-4",
+    ]);
+    expect(res.body?.attentionQueue[0]?.reasons.map((reason: any) => reason.code)).toEqual([
+      "blocked",
+      "stale",
+      "no_current",
+    ]);
+    expect(res.body?.attentionQueue[4]?.reasons.map((reason: any) => reason.code)).toEqual([
+      "waiting",
+    ]);
+  });
+
   it("PATCH /api/team-tracker/:accountId/day updates capacity", async () => {
     const app = createTestApp();
 

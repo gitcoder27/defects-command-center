@@ -286,10 +286,34 @@ export interface TrackerDeveloperDay {
   updatedAt: string;
 }
 
+export type TrackerAttentionReasonCode =
+  | "blocked"
+  | "at_risk"
+  | "stale"
+  | "no_current"
+  | "waiting";
+
+export interface TrackerAttentionReason {
+  code: TrackerAttentionReasonCode;
+  label: string;
+  priority: number;
+}
+
+export interface TrackerAttentionItem {
+  developer: Developer;
+  status: TrackerDeveloperStatus;
+  reasons: TrackerAttentionReason[];
+  lastCheckInAt?: string;
+  isStale: boolean;
+  hasCurrentItem: boolean;
+  plannedCount: number;
+}
+
 export interface TeamTrackerBoardResponse {
   date: string;
   developers: TrackerDeveloperDay[];
   summary: TrackerBoardSummary;
+  attentionQueue: TrackerAttentionItem[];
 }
 
 export interface MyDayResponse {

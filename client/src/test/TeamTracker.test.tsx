@@ -83,6 +83,27 @@ const mockBoard: TeamTrackerBoardResponse = {
     noCurrent: 1,
     doneForToday: 0,
   },
+  attentionQueue: [
+    {
+      developer: { accountId: 'dev-2', displayName: 'Bob Jones', isActive: true },
+      status: 'blocked',
+      reasons: [
+        { code: 'blocked', label: 'Blocked', priority: 1 },
+        { code: 'stale', label: 'Stale follow-up', priority: 3 },
+      ],
+      isStale: true,
+      hasCurrentItem: true,
+      plannedCount: 2,
+    },
+    {
+      developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+      status: 'on_track',
+      reasons: [{ code: 'no_current', label: 'No current item', priority: 4 }],
+      isStale: false,
+      hasCurrentItem: false,
+      plannedCount: 0,
+    },
+  ],
 };
 
 vi.mock('@/hooks/useTeamTracker', () => ({
@@ -125,6 +146,14 @@ vi.mock('framer-motion', async () => {
 });
 
 import { TeamTrackerPage } from '@/components/team-tracker/TeamTrackerPage';
+
+function clickDeveloperCard(name: string) {
+  const target = screen.getAllByText(name).find((element) => element.closest('[class*="dashboard-panel"]'));
+  if (!target) {
+    throw new Error(`Could not find developer card for ${name}`);
+  }
+  fireEvent.click(target);
+}
 
 describe('TeamTrackerPage', () => {
   beforeEach(() => {
@@ -170,8 +199,8 @@ describe('TeamTrackerPage', () => {
         <TeamTrackerPage />
       </TestWrapper>
     );
-    expect(screen.getByText('Alice Smith')).toBeInTheDocument();
-    expect(screen.getByText('Bob Jones')).toBeInTheDocument();
+    expect(screen.getAllByText('Alice Smith').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Bob Jones').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders summary strip with counts', () => {
@@ -183,6 +212,24 @@ describe('TeamTrackerPage', () => {
     // Multiple "Blocked" elements exist (summary strip + card pill), use getAllByText
     expect(screen.getAllByText('Blocked').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Stale').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders the attention queue in ranked order with reason chips', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    const queue = screen.getByText('Needs Attention Now').closest('section');
+    expect(queue).not.toBeNull();
+
+    const queueView = within(queue!);
+    const bob = queueView.getByText('Bob Jones');
+    const alice = queueView.getByText('Alice Smith');
+    expect(bob.compareDocumentPosition(alice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(queueView.getByText('Stale follow-up')).toBeInTheDocument();
+    expect(queueView.getByText('No current item')).toBeInTheDocument();
   });
 
   it('shows blocked status pill on blocked developer', () => {
@@ -225,7 +272,7 @@ describe('TeamTrackerPage', () => {
         <TeamTrackerPage />
       </TestWrapper>
     );
-    expect(screen.getByText('No current item')).toBeInTheDocument();
+    expect(screen.getAllByText('No current item').length).toBeGreaterThanOrEqual(1);
   });
 
   it('filters by summary chip', () => {
@@ -241,7 +288,7 @@ describe('TeamTrackerPage', () => {
       fireEvent.click(filterButton);
       // After filter, Alice should not be visible since she is on_track
       // But Bob should be visible since he is blocked
-      expect(screen.getByText('Bob Jones')).toBeInTheDocument();
+      expect(screen.getAllByText('Bob Jones').length).toBeGreaterThanOrEqual(1);
     }
   });
 
@@ -251,12 +298,8 @@ describe('TeamTrackerPage', () => {
         <TeamTrackerPage />
       </TestWrapper>
     );
-    const aliceCard = screen.getByText('Alice Smith').closest('[class*="dashboard-panel"]');
-    if (aliceCard) {
-      fireEvent.click(aliceCard);
-      // Drawer should appear with full name
-      expect(screen.getAllByText('Alice Smith').length).toBeGreaterThanOrEqual(1);
-    }
+    clickDeveloperCard('Alice Smith');
+    expect(screen.getAllByText('Alice Smith').length).toBeGreaterThanOrEqual(1);
   });
 
   it('carries forward the selected board date to the next day', () => {
@@ -341,8 +384,8 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByText('Bob Jones'));
-    fireEvent.click(screen.getByRole('button', { name: /add task/i }));
+    clickDeveloperCard('Bob Jones');
+    fireEvent.click(screen.getAllByRole('button', { name: /add task/i }).at(-1)!);
     fireEvent.change(screen.getByPlaceholderText('Describe the work in one line'), {
       target: { value: 'Investigate API latency spike' },
     });
@@ -351,7 +394,7 @@ describe('TeamTrackerPage', () => {
       target: { value: 'AM-456' },
     });
     fireEvent.click(screen.getByText('Investigate API latency'));
-    fireEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /^add task$/i }).at(-1)!);
 
     expect(mockAddTrackerItemMutate).toHaveBeenCalledWith({
       accountId: 'dev-2',
@@ -406,7 +449,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByText('Bob Jones'));
+    clickDeveloperCard('Bob Jones');
     const dragHandles = screen.getAllByTitle('Drag to reorder');
     // Bob has 2 planned items, each should have a drag handle
     expect(dragHandles.length).toBe(2);
@@ -419,7 +462,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByText('Bob Jones'));
+    clickDeveloperCard('Bob Jones');
     fireEvent.change(screen.getByDisplayValue('4'), {
       target: { value: '5' },
     });
@@ -438,7 +481,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByText('Bob Jones'));
+    clickDeveloperCard('Bob Jones');
     fireEvent.click(screen.getAllByTitle('Edit note')[0]!);
     const noteEditor = screen.getAllByRole('textbox').find((element) => element.tagName === 'TEXTAREA');
     expect(noteEditor).toBeDefined();
@@ -462,7 +505,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByText('Bob Jones'));
+    clickDeveloperCard('Bob Jones');
     // Click the current item title in the drawer (the first clickable title)
     const editableTitles = screen.getAllByTitle('Click to edit title');
     fireEvent.click(editableTitles[0]!);

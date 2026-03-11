@@ -14,6 +14,7 @@ import {
 import { useIssues } from '@/hooks/useIssues';
 import { getLocalIsoDate, shiftLocalIsoDate } from '@/lib/utils';
 import { TrackerSummaryStrip, type SummaryFilter } from './TrackerSummaryStrip';
+import { AttentionQueue } from './AttentionQueue';
 import { TrackerBoard } from './TrackerBoard';
 import { DeveloperTrackerDrawer } from './DeveloperTrackerDrawer';
 import type { AppView } from '@/App';
@@ -313,16 +314,19 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
             </div>
           </div>
         ) : board ? (
-          <TrackerBoard
-            developers={board.developers}
-            filter={summaryFilter}
-            onOpenDrawer={setDrawerAccountId}
-            onSetCurrent={handleSetCurrent}
-            onMarkDone={handleMarkDone}
-            onQuickAdd={(params) => addItem.mutate(params)}
-            issues={issues}
-            isQuickAddPending={addItem.isPending}
-          />
+          <>
+            <AttentionQueue items={board.attentionQueue} onOpenDrawer={setDrawerAccountId} />
+            <TrackerBoard
+              developers={board.developers}
+              filter={summaryFilter}
+              onOpenDrawer={setDrawerAccountId}
+              onSetCurrent={handleSetCurrent}
+              onMarkDone={handleMarkDone}
+              onQuickAdd={(params) => addItem.mutate(params)}
+              issues={issues}
+              isQuickAddPending={addItem.isPending}
+            />
+          </>
         ) : (
           <div className="flex items-center justify-center py-20">
             <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>

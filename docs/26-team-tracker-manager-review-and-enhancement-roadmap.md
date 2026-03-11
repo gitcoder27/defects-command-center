@@ -3,7 +3,7 @@
 ## Team Tracker Manager Review And Enhancement Roadmap
 
 **Date:** March 11, 2026  
-**Status:** Proposed  
+**Status:** Active roadmap with partial implementation tracking  
 **Audience:** Product, frontend, backend  
 **Related docs:** `docs/07-team-tracker-prd.md`, `docs/08-team-tracker-implementation-plan.md`, `docs/11-team-tracker-gap-findings.md`, `docs/12-developer-workspace-requirements.md`
 
@@ -37,6 +37,14 @@ The working conclusion is:
 - **Current state:** good foundation, usable MVP
 - **Product verdict:** not yet fully sufficient as the manager's primary high-confidence command view
 - **Next direction:** improve attention management, risk clarity, change visibility, and scalability of the board
+
+### 1.1 Implementation Tracking
+
+Use this section to record roadmap items that have moved from proposal to implementation.
+
+| Date | Item | Status | Notes |
+|---|---|---|---|
+| March 11, 2026 | `TTM-01` Attention Queue | Implemented | Added backend-ranked attention queue data and a Team Tracker "Needs Attention Now" section with ranked developers, reason chips, and quick-open access into the drawer. Daily clear/snooze controls are still deferred. |
 
 ---
 
@@ -181,6 +189,10 @@ This section defines the proposed backlog items that can later be broken into se
 
 Add a dedicated, ranked "Needs Attention Now" section above the board so the manager can immediately see the highest-priority follow-ups.
 
+**Implementation status**
+
+Implemented on March 11, 2026.
+
 **What it should add**
 
 - ranked developers needing attention
@@ -188,6 +200,17 @@ Add a dedicated, ranked "Needs Attention Now" section above the board so the man
 - visible reason chips for why the person is in the queue
 - quick open into the developer drawer
 - optional ability to clear or snooze an attention item for the day
+
+**Delivered now**
+
+- backend-computed attention queue on the Team Tracker board response
+- ranked ordering using `blocked > at risk > stale > no current > waiting`
+- visible reason chips in the new top-of-page queue
+- quick open from the queue into the developer drawer
+
+**Deferred from original scope**
+
+- clear or snooze for the day
 
 **Why it matters**
 
