@@ -1,4 +1,4 @@
-import type { TrackerDeveloperDay } from '@/types';
+import type { TrackerDeveloperDay, Issue } from '@/types';
 import { DeveloperTrackerCard } from './DeveloperTrackerCard';
 import type { SummaryFilter } from './TrackerSummaryStrip';
 
@@ -8,6 +8,9 @@ interface TrackerBoardProps {
   onOpenDrawer: (accountId: string) => void;
   onSetCurrent: (itemId: number) => void;
   onMarkDone: (itemId: number) => void;
+  onQuickAdd: (params: { accountId: string; title: string; jiraKey?: string; note?: string }) => void;
+  issues?: Issue[];
+  isQuickAddPending?: boolean;
 }
 
 function applyFilter(days: TrackerDeveloperDay[], filter: SummaryFilter): TrackerDeveloperDay[] {
@@ -29,7 +32,7 @@ function applyFilter(days: TrackerDeveloperDay[], filter: SummaryFilter): Tracke
   }
 }
 
-export function TrackerBoard({ developers, filter, onOpenDrawer, onSetCurrent, onMarkDone }: TrackerBoardProps) {
+export function TrackerBoard({ developers, filter, onOpenDrawer, onSetCurrent, onMarkDone, onQuickAdd, issues, isQuickAddPending }: TrackerBoardProps) {
   const filtered = applyFilter(developers, filter);
 
   if (filtered.length === 0) {
@@ -57,6 +60,9 @@ export function TrackerBoard({ developers, filter, onOpenDrawer, onSetCurrent, o
           onOpenDrawer={onOpenDrawer}
           onSetCurrent={onSetCurrent}
           onMarkDone={onMarkDone}
+          onQuickAdd={onQuickAdd}
+          issues={issues}
+          isQuickAddPending={isQuickAddPending}
         />
       ))}
     </div>

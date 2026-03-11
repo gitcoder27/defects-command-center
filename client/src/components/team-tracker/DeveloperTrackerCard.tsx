@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, MessageSquare, AlertTriangle } from 'lucide-react';
-import type { TrackerDeveloperDay } from '@/types';
+import { Clock, MessageSquare, AlertTriangle, Plus } from 'lucide-react';
+import type { TrackerDeveloperDay, Issue } from '@/types';
 import { TrackerStatusPill } from './TrackerStatusPill';
 import { TrackerItemRow } from './TrackerItemRow';
+import { QuickAddTaskModal } from './QuickAddTaskModal';
 import { formatRelativeTime } from '@/lib/utils';
 
 interface DeveloperTrackerCardProps {
@@ -11,6 +13,9 @@ interface DeveloperTrackerCardProps {
   onOpenDrawer: (accountId: string) => void;
   onSetCurrent: (itemId: number) => void;
   onMarkDone: (itemId: number) => void;
+  onQuickAdd: (params: { accountId: string; title: string; jiraKey?: string; note?: string }) => void;
+  issues?: Issue[];
+  isQuickAddPending?: boolean;
 }
 
 export function DeveloperTrackerCard({
@@ -19,7 +24,11 @@ export function DeveloperTrackerCard({
   onOpenDrawer,
   onSetCurrent,
   onMarkDone,
+  onQuickAdd,
+  issues,
+  isQuickAddPending,
 }: DeveloperTrackerCardProps) {
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const assignedTodayCount = (day.currentItem ? 1 : 0) + day.plannedItems.length;
   const loadLabel = day.capacityUnits ? `${assignedTodayCount}/${day.capacityUnits}` : `${assignedTodayCount}`;
   const initials = day.developer.displayName
@@ -134,29 +143,62 @@ export function DeveloperTrackerCard({
 
       {/* Footer */}
       <div
-        className="flex items-center gap-3 pt-2 mt-auto"
+        className="flex items-center gap-2 pt-2 mt-auto"
         style={{ borderTop: '1px solid var(--border)' }}
       >
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <Clock size={10} style={{ color: 'var(--text-muted)' }} />
           <span className="text-[10px]" style={{ color: day.isStale ? 'var(--warning)' : 'var(--text-muted)' }}>
             {day.lastCheckInAt ? formatRelativeTime(day.lastCheckInAt) : 'No check-in'}
           </span>
         </div>
         {day.checkIns.length > 0 && (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             <MessageSquare size={10} style={{ color: 'var(--text-muted)' }} />
             <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
               {day.checkIns.length}
             </span>
           </div>
         )}
-        {day.managerNotes && (
-          <span className="text-[10px] truncate ml-auto" style={{ color: 'var(--text-muted)', maxWidth: 100 }}>
-            {day.managerNotes}
-          </span>
-        )}
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          {day.managerNotes && (
+            <span className="text-[10px] truncate" style={{ color: 'var(--text-muted)', maxWidth: 80 }}>
+              {day.managerNotes}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setQuickAddOpen(true);
+            }}
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium transition-all hover:brightness-125"
+            style={{
+              background: 'var(--accent-glow)',
+              color: 'var(--accent)',
+              border: '1px solid color-mix(in srgb, var(--accent) 28%, transparent)',
+            }}
+            title="Quick add a task"
+          >
+            <Plus size={9} />
+            Add task
+          </button>
+        </div>
       </div>
+
+      {/* Quick-add modal (portal) */}
+      <QuickAddTaskModal
+        open={quickAddOpen}
+        developerName={day.developer.displayName}
+        developerAccountId={day.developer.accountId}
+        issues={issues}
+        isPending={isQuickAddPending}
+        onAdd={(params) => {
+          onQuickAdd(params);
+          setQuickAddOpen(false);
+        }}
+        onClose={() => setQuickAddOpen(false)}
+      />
     </motion.div>
   );
 }

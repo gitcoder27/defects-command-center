@@ -15,6 +15,7 @@ interface AddTrackerItemFormProps {
 
 export function AddTrackerItemForm({ onAdd, issues, isPending }: AddTrackerItemFormProps) {
   const [open, setOpen] = useState(false);
+  const isOpen = open;
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
   const [jiraSearch, setJiraSearch] = useState('');
@@ -59,7 +60,7 @@ export function AddTrackerItemForm({ onAdd, issues, isPending }: AddTrackerItemF
     resetForm();
   };
 
-  if (!open) {
+  if (!isOpen) {
     return (
       <button
         type="button"

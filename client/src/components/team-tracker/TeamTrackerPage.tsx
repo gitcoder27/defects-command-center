@@ -319,6 +319,9 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
             onOpenDrawer={setDrawerAccountId}
             onSetCurrent={handleSetCurrent}
             onMarkDone={handleMarkDone}
+            onQuickAdd={(params) => addItem.mutate(params)}
+            issues={issues}
+            isQuickAddPending={addItem.isPending}
           />
         ) : (
           <div className="flex items-center justify-center py-20">
