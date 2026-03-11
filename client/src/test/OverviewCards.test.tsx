@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { OverviewCards } from '@/components/overview/OverviewCards';
+import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { TestWrapper } from '@/test/wrapper';
 import type { OverviewCounts } from '@/types';
 
@@ -23,6 +24,19 @@ const mockOverview: OverviewCounts = {
 vi.mock('@/hooks/useOverview', () => ({
   useOverview: () => ({ data: mockOverview, isLoading: false }),
 }));
+
+function ThemeToggleHarness(props: React.ComponentProps<typeof OverviewCards>) {
+  const { toggleTheme } = useTheme();
+
+  return (
+    <>
+      <button type="button" onClick={toggleTheme}>
+        Toggle theme
+      </button>
+      <OverviewCards {...props} />
+    </>
+  );
+}
 
 describe('OverviewCards', () => {
   const onFilterChange = vi.fn();
@@ -87,5 +101,31 @@ describe('OverviewCards', () => {
     );
 
     expect(screen.getByTestId('overview-cards-strip')).toHaveClass('flex', 'overflow-x-auto');
+  });
+
+  it('uses theme-aware color tokens for the active total defects count across theme switches', () => {
+    render(
+      <ThemeProvider>
+        <TestWrapper>
+          <ThemeToggleHarness activeFilter="all" onFilterChange={onFilterChange} />
+        </TestWrapper>
+      </ThemeProvider>
+    );
+
+    const totalCard = screen.getByRole('button', { name: /total defects/i });
+    const totalCount = totalCard.querySelector('.tabular-nums');
+    expect(totalCount).toBeTruthy();
+    if (!totalCount) {
+      throw new Error('Expected active Total Defects count element');
+    }
+
+    expect(totalCount.getAttribute('style')).toContain('var(--text-primary)');
+    expect(totalCount.getAttribute('style')).not.toContain('#0f172a');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle theme' }));
+
+    expect(document.documentElement).toHaveClass('dark');
+    expect(totalCount.getAttribute('style')).toContain('var(--text-primary)');
+    expect(totalCount.getAttribute('style')).not.toContain('#0f172a');
   });
 });

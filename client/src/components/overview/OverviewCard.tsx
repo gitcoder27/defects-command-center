@@ -35,7 +35,10 @@ function AnimatedCounter({ value, duration = 600 }: { value: number; duration?: 
 }
 
 export function OverviewCard({ label, count, color, isActive, onClick, delay = 0 }: OverviewCardProps) {
-  const activeCountColor = `color-mix(in srgb, ${color} 22%, #0f172a 78%)`;
+  const activeCountColor = `color-mix(in srgb, ${color} 38%, var(--text-primary) 62%)`;
+  const activeBackground = `linear-gradient(160deg, ${color}16 0%, color-mix(in srgb, var(--bg-secondary) 84%, var(--bg-elevated) 16%) 72%)`;
+  const inactiveBackground =
+    'linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-elevated) 8%) 0%, color-mix(in srgb, var(--bg-primary) 90%, var(--bg-secondary) 10%) 100%)';
 
   return (
     <motion.button
@@ -46,11 +49,11 @@ export function OverviewCard({ label, count, color, isActive, onClick, delay = 0
       aria-pressed={isActive}
       className="w-full cursor-pointer transition-all duration-200 rounded-[10px] border px-2 py-1.5 text-left overflow-hidden relative min-h-[48px]"
       style={{
-        background: isActive
-          ? `linear-gradient(160deg, ${color}16 0%, color-mix(in srgb, var(--bg-secondary) 93%, white 7%) 72%)`
-          : 'linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 94%, white 6%) 0%, color-mix(in srgb, var(--bg-primary) 90%, var(--bg-secondary) 10%) 100%)',
+        background: isActive ? activeBackground : inactiveBackground,
         borderColor: isActive ? `${color}70` : 'var(--border)',
-        boxShadow: isActive ? `0 14px 32px ${color}18, inset 0 1px 0 rgba(255,255,255,0.06)` : 'var(--soft-shadow)',
+        boxShadow: isActive
+          ? `0 14px 32px ${color}18, inset 0 1px 0 color-mix(in srgb, var(--bg-elevated) 26%, transparent)`
+          : 'var(--soft-shadow)',
       }}
       whileHover={{ y: -1, scale: 1.005 }}
     >
@@ -94,7 +97,9 @@ export function OverviewCard({ label, count, color, isActive, onClick, delay = 0
             className="text-[18px] font-semibold tabular-nums leading-none md:text-[20px]"
             style={{
               color: count === 0 ? 'var(--text-muted)' : isActive ? activeCountColor : 'var(--text-primary)',
-              textShadow: isActive ? `0 1px 0 rgba(255,255,255,0.14)` : 'none',
+              textShadow: isActive
+                ? '0 1px 0 color-mix(in srgb, var(--bg-elevated) 32%, transparent)'
+                : 'none',
             }}
           >
             <AnimatedCounter value={count} />
