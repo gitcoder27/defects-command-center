@@ -102,3 +102,11 @@ Windows users can use `run-node20.ps1` modes:
   - screenshots/GIFs for UI changes
   - linked issue(s) and any config, auth, backup, or schema impacts
 - Do not commit secrets; use `.env.example` as the template for local `.env`.
+
+## Worktree Workflow
+- Main integration workspace: `/home/ubuntu/Development/defects-command-center` on `main`. Keep this as the Cursor/testing workspace.
+- Codex worktree A: `/home/ubuntu/Development/defects-command-center-codex-a` on `task/codex-a`.
+- Codex worktree B: `/home/ubuntu/Development/defects-command-center-codex-b` on `task/codex-b`.
+- Start each checkout from its own root with `npm run dev`; ports come from that checkout's root `.env` and optional `.env.local`.
+- Safe validation: `npm run typecheck`, `npm run build:check`, `npm run test`, `npm run test --workspace=client`.
+- Keep branches task-scoped and small. Do not broaden a worktree change beyond the assigned task.

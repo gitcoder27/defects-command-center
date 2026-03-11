@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef, useCallback, useMemo, type ReactNode } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ExternalLink, Plus, Tag, FileText, Check, Briefcase } from 'lucide-react';
+import { X, ExternalLink } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useIssueDetail } from '@/hooks/useIssueDetail';
 import { useUpdateIssue } from '@/hooks/useUpdateIssue';
@@ -10,65 +10,21 @@ import { useTrackerIssueAssignments } from '@/hooks/useTeamTracker';
 import { useConfig } from '@/hooks/useConfig';
 import { useIssueTagActions } from '@/hooks/useIssueTagActions';
 import { useToast } from '@/context/ToastContext';
-import { IssueDetails } from './IssueDetails';
 import { SuggestionBar } from './SuggestionBar';
 import { CommentForm } from './CommentForm';
-import { PRIORITY_OPTIONS } from '@/lib/constants';
+import { TriageNotesEditor } from './TriageNotesEditor';
+import { TriageTagBar } from './TriageTagBar';
+import { TriageProperties } from './TriageProperties';
+import { TriageTrackerSection } from './TriageTrackerSection';
+import { TriageDeskSection } from './TriageDeskSection';
 import { formatIssueDescription } from '@/lib/issue-description';
-import { formatDate, formatRelativeTime, getLocalIsoDate, priorityColor } from '@/lib/utils';
-import type { Developer } from '@/types';
+import { getLocalIsoDate } from '@/lib/utils';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
 
 interface TriagePanelProps {
   issueKey?: string;
   onClose: () => void;
   onOpenManagerDesk?: () => void;
-}
-
-function firstName(name: string): string {
-  return name.trim().split(/\s+/)[0] ?? name;
-}
-
-function trackerStateLabel(state: 'planned' | 'in_progress' | 'done' | 'dropped'): string {
-  switch (state) {
-    case 'in_progress':
-      return 'Current work';
-    case 'done':
-      return 'Done';
-    case 'dropped':
-      return 'Dropped';
-    default:
-      return 'Planned';
-  }
-}
-
-function PropertyCard({
-  label,
-  children,
-  accent,
-}: {
-  label: string;
-  children: ReactNode;
-  accent?: string;
-}) {
-  return (
-    <div
-      className="rounded-xl px-3 py-3"
-      style={{
-        background: 'var(--bg-tertiary)',
-        border: '1px solid var(--border)',
-        borderTop: accent ? `2px solid ${accent}` : undefined,
-      }}
-    >
-      <span
-        className="text-[11px] font-semibold uppercase block"
-        style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}
-      >
-        {label}
-      </span>
-      <div className="mt-2">{children}</div>
-    </div>
-  );
 }
 
 export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePanelProps) {
@@ -85,55 +41,20 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
   const updateIssue = useUpdateIssue();
   const { addToast } = useToast();
   const [editingField, setEditingField] = useState<string | null>(null);
-  const [showTagPicker, setShowTagPicker] = useState(false);
-  const [newTagName, setNewTagName] = useState('');
   const [notesValue, setNotesValue] = useState('');
   const [notesSaved, setNotesSaved] = useState(true);
-  const [trackerAccountId, setTrackerAccountId] = useState<string | undefined>();
-  const [trackerTaskTitle, setTrackerTaskTitle] = useState('');
-  const [trackerAddedAccountId, setTrackerAddedAccountId] = useState<string | undefined>();
   const [deskCaptureOpen, setDeskCaptureOpen] = useState(false);
   const notesTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const renderedDescription = useMemo(() => formatIssueDescription(issue?.description), [issue?.description]);
-  const selectedTrackerDeveloper = useMemo(
-    () => developers?.find((dev) => dev.accountId === trackerAccountId),
-    [developers, trackerAccountId]
-  );
   const activeTrackerAssignments = trackerAssignments.data ?? [];
   const firstLinkedDeveloperAccountId = activeTrackerAssignments[0]?.developer.accountId;
 
-  // Sync local notes state with issue data
   useEffect(() => {
     if (issue) {
       setNotesValue(issue.analysisNotes ?? '');
       setNotesSaved(true);
-      setTrackerTaskTitle('');
-      setTrackerAddedAccountId(undefined);
     }
   }, [issue?.jiraKey, issue?.analysisNotes]);
-
-  useEffect(() => {
-    if (!developers?.length) {
-      setTrackerAccountId(undefined);
-      return;
-    }
-
-    setTrackerAccountId((current) => {
-      if (current && developers.some((dev) => dev.accountId === current)) {
-        return current;
-      }
-
-      if (issue?.assigneeId && developers.some((dev) => dev.accountId === issue.assigneeId)) {
-        return issue.assigneeId;
-      }
-
-      if (firstLinkedDeveloperAccountId && developers.some((dev) => dev.accountId === firstLinkedDeveloperAccountId)) {
-        return firstLinkedDeveloperAccountId;
-      }
-
-      return developers[0]?.accountId;
-    });
-  }, [developers, firstLinkedDeveloperAccountId, issue?.assigneeId, issue?.jiraKey]);
 
   const saveNotes = useCallback(
     (value: string) => {
@@ -166,23 +87,11 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
-
       switch (e.key) {
-        case 'Escape':
-          onClose();
-          break;
-        case 'a':
-          e.preventDefault();
-          setEditingField('assignee');
-          break;
-        case 'p':
-          e.preventDefault();
-          setEditingField('priority');
-          break;
-        case 'd':
-          e.preventDefault();
-          setEditingField('dueDate');
-          break;
+        case 'Escape': onClose(); break;
+        case 'a': e.preventDefault(); setEditingField('assignee'); break;
+        case 'p': e.preventDefault(); setEditingField('priority'); break;
+        case 'd': e.preventDefault(); setEditingField('dueDate'); break;
       }
     };
     window.addEventListener('keydown', handler);
@@ -198,48 +107,39 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
             type: 'error',
             title: `Failed to update ${key}`,
             message: err.message,
-            action: {
-              label: 'Retry',
-              onClick: () => handleUpdate(key, update),
-            },
+            action: { label: 'Retry', onClick: () => handleUpdate(key, update) },
           });
         },
       }
     );
   };
 
-  const handleAddToTracker = useCallback(() => {
-    const trimmedTitle = trackerTaskTitle.trim();
-    if (!issue || !selectedTrackerDeveloper || !trimmedTitle) {
-      return;
-    }
-
-    addTrackerItem.mutate(
-      {
-        accountId: selectedTrackerDeveloper.accountId,
-        jiraKey: issue.jiraKey,
-        title: trimmedTitle,
-      },
-      {
-        onSuccess: () => {
-          setTrackerAddedAccountId(selectedTrackerDeveloper.accountId);
-          setTrackerTaskTitle('');
-          addToast({
-            type: 'success',
-            title: `${issue.jiraKey} added to ${firstName(selectedTrackerDeveloper.displayName)}'s plan`,
-            message: `Tracker queue updated for ${trackerDate}.`,
-          });
-        },
-        onError: (err) => {
-          addToast({
-            type: 'error',
-            title: `Failed to add ${issue.jiraKey} to Team Tracker`,
-            message: err.message,
-          });
-        },
-      }
-    );
-  }, [addToast, addTrackerItem, issue, selectedTrackerDeveloper, trackerDate, trackerTaskTitle]);
+  const handleAddToTracker = useCallback(
+    (accountId: string, title: string) => {
+      if (!issue) return;
+      const dev = developers?.find((d) => d.accountId === accountId);
+      addTrackerItem.mutate(
+        { accountId, jiraKey: issue.jiraKey, title },
+        {
+          onSuccess: () => {
+            addToast({
+              type: 'success',
+              title: `${issue.jiraKey} added to ${dev?.displayName ?? 'plan'}`,
+              message: `Tracker queue updated for ${trackerDate}.`,
+            });
+          },
+          onError: (err) => {
+            addToast({
+              type: 'error',
+              title: `Failed to add ${issue.jiraKey} to Team Tracker`,
+              message: err.message,
+            });
+          },
+        }
+      );
+    },
+    [addToast, addTrackerItem, developers, issue, trackerDate]
+  );
 
   return (
     <AnimatePresence>
@@ -249,553 +149,112 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
           initial={{ x: '100%', opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: '100%', opacity: 0 }}
-          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full sm:w-[720px] sm:min-w-[720px] lg:w-[800px] lg:min-w-[800px] max-w-full h-full overflow-y-auto border-l flex flex-col"
+          transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full sm:w-[640px] sm:min-w-[640px] lg:w-[720px] lg:min-w-[720px] max-w-full h-full overflow-y-auto border-l flex flex-col"
           style={{
             background: 'var(--bg-secondary)',
             borderColor: 'var(--border)',
-            boxShadow: '-8px 0 24px rgba(0,0,0,0.5)',
+            boxShadow: '-6px 0 20px rgba(0,0,0,0.4)',
           }}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+          {/* Sticky header */}
+          <div
+            className="flex items-center justify-between px-4 py-2.5 border-b sticky top-0 z-10"
+            style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)', backdropFilter: 'blur(12px)' }}
+          >
             <button onClick={onClose} className="p-1 rounded hover:bg-[var(--bg-tertiary)] transition-colors">
-              <X size={16} style={{ color: 'var(--text-secondary)' }} />
+              <X size={15} style={{ color: 'var(--text-secondary)' }} />
             </button>
             {issue && (
-              <a
-                href={config?.jiraBaseUrl ? `${config.jiraBaseUrl}/browse/${issue.jiraKey}` : undefined}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-1 rounded hover:bg-[var(--bg-tertiary)] transition-colors"
-                title="Open in Jira"
-                style={{ pointerEvents: config?.jiraBaseUrl ? 'auto' : 'none', opacity: config?.jiraBaseUrl ? 1 : 0.4 }}
-              >
-                <ExternalLink size={16} style={{ color: 'var(--text-secondary)' }} />
-              </a>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
+                  {issue.jiraKey}
+                </span>
+                <a
+                  href={config?.jiraBaseUrl ? `${config.jiraBaseUrl}/browse/${issue.jiraKey}` : undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1 rounded hover:bg-[var(--bg-tertiary)] transition-colors"
+                  title="Open in Jira"
+                  style={{ pointerEvents: config?.jiraBaseUrl ? 'auto' : 'none', opacity: config?.jiraBaseUrl ? 1 : 0.4 }}
+                >
+                  <ExternalLink size={14} style={{ color: 'var(--text-muted)' }} />
+                </a>
+              </div>
             )}
           </div>
 
           {isLoading ? (
-            <div className="p-5 flex flex-col gap-3">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-6 rounded animate-pulse" style={{ background: 'var(--bg-tertiary)' }} />
+            <div className="p-4 flex flex-col gap-2.5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-5 rounded animate-pulse" style={{ background: 'var(--bg-tertiary)' }} />
               ))}
             </div>
           ) : issue ? (
-            <div className="flex flex-col gap-5 p-5 flex-1">
-              {/* Issue key & title */}
-              <div>
-                <span className="font-mono text-[14px] font-medium" style={{ color: 'var(--accent)' }}>
-                  {issue.jiraKey}
-                </span>
-                <h2 className="text-[16px] font-semibold mt-1" style={{ color: 'var(--text-primary)' }}>
-                  {issue.summary}
-                </h2>
-              </div>
+            <div className="flex flex-col gap-0 p-4 flex-1">
+              {/* Title */}
+              <h2 className="text-[15px] font-semibold leading-snug mb-4" style={{ color: 'var(--text-primary)' }}>
+                {issue.summary}
+              </h2>
 
-              {/* Analysis Notes */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-semibold uppercase flex items-center gap-1.5" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-                    <FileText size={12} /> Analysis & Notes
-                  </span>
-                  {!notesSaved && (
-                    <span className="text-[10px] italic" style={{ color: 'var(--warning)' }}>Saving...</span>
-                  )}
-                  {notesSaved && notesValue && (
-                    <span className="text-[10px]" style={{ color: 'var(--success)' }}>Saved</span>
-                  )}
-                </div>
-                <textarea
-                  value={notesValue}
-                  onChange={(e) => handleNotesChange(e.target.value)}
-                  onBlur={() => { if (!notesSaved) saveNotes(notesValue); }}
-                  placeholder="Write your analysis, observations, root cause, action items..."
-                  rows={5}
-                  className="w-full px-3 py-2 rounded-md text-[13px] leading-relaxed resize-y focus:outline-none focus:ring-1"
-                  style={{
-                    background: 'var(--bg-tertiary)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border)',
-                    outlineColor: 'var(--accent)',
-                    minHeight: '80px',
-                  }}
-                />
-              </div>
+              {/* Notes — the primary workspace tool */}
+              <TriageNotesEditor
+                value={notesValue}
+                onChange={handleNotesChange}
+                onBlurSave={() => { if (!notesSaved) saveNotes(notesValue); }}
+                isSaved={notesSaved}
+              />
 
               {/* Tags */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-semibold uppercase flex items-center gap-1.5" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-                    <Tag size={12} /> Tags
-                  </span>
-                  <button
-                    onClick={() => setShowTagPicker((p) => !p)}
-                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors"
-                    title={showTagPicker ? 'Hide tag editor' : 'Add tag'}
-                    aria-label={showTagPicker ? 'Hide tag editor' : 'Add tag'}
-                    style={{
-                      color: 'var(--text-secondary)',
-                      background: showTagPicker ? 'var(--bg-secondary)' : 'transparent',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    <Plus size={14} style={{ color: 'var(--text-muted)' }} />
-                    {showTagPicker ? 'Close' : 'Add Tag'}
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {issue.localTags.map((tag) => (
-                    <button
-                      key={tag.id}
-                      onClick={() => toggleTag(tag.id)}
-                      disabled={isTagMutationPending}
-                      className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 hover:opacity-80 transition-opacity disabled:cursor-wait disabled:opacity-60"
-                      style={{ background: `${tag.color}25`, color: tag.color, border: `1px solid ${tag.color}40` }}
-                      title={`Remove "${tag.name}"`}
-                    >
-                      {tag.name} ×
-                    </button>
-                  ))}
-                  {issue.localTags.length === 0 && !showTagPicker && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>No tags assigned</span>
-                      <button
-                        type="button"
-                        onClick={() => setShowTagPicker(true)}
-                        className="text-[11px] font-medium"
-                        style={{ color: 'var(--accent)' }}
-                      >
-                        Add one
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {showTagPicker && (
-                  <div className="rounded-md p-2 flex flex-col gap-2" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
-                    {allTags.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {allTags.map((tag) => {
-                          const isAssigned = assignedTagIds.has(tag.id);
-                          return (
-                            <button
-                              key={tag.id}
-                              onClick={() => toggleTag(tag.id)}
-                              disabled={isTagMutationPending}
-                              className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 transition-opacity disabled:cursor-wait disabled:opacity-60"
-                              style={{
-                                background: isAssigned ? `${tag.color}40` : `${tag.color}15`,
-                                color: tag.color,
-                                border: `1px solid ${tag.color}${isAssigned ? '80' : '30'}`,
-                                opacity: isAssigned ? 1 : 0.7,
-                              }}
-                            >
-                              {isAssigned && <Check size={10} />}
-                              {tag.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                    <div className="flex gap-1.5">
-                      <input
-                        type="text"
-                        value={newTagName}
-                        onChange={(e) => setNewTagName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            createOrAssignTag(newTagName, { onSuccess: () => setNewTagName('') });
-                          }
-                        }}
-                        placeholder="New tag name..."
-                        className="flex-1 text-[12px] px-2 py-1 rounded focus:outline-none focus:ring-1"
-                        style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)', outlineColor: 'var(--accent)' }}
-                      />
-                      <button
-                        onClick={() => createOrAssignTag(newTagName, { onSuccess: () => setNewTagName('') })}
-                        disabled={!newTagName.trim() || isTagMutationPending}
-                        className="text-[11px] px-2 py-1 rounded font-medium disabled:opacity-40 transition-colors"
-                        style={{ background: 'var(--accent)', color: '#fff' }}
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                )}
+              <TriageTagBar
+                tags={issue.localTags}
+                allTags={allTags}
+                assignedTagIds={assignedTagIds}
+                isPending={isTagMutationPending}
+                onToggle={toggleTag}
+                onCreate={createOrAssignTag}
+              />
+
+              {/* Suggestions banner */}
+              <div className="mt-1">
+                <SuggestionBar issue={issue} />
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-semibold uppercase flex items-center gap-1.5" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-                    <Plus size={12} /> Team Tracker
-                  </span>
-                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                    Today
-                  </span>
-                </div>
-                <div
-                  className="rounded-xl px-3 py-3"
-                  style={{
-                    background: 'var(--bg-tertiary)',
-                    border: '1px solid var(--border)',
-                  }}
-                >
-                  {developers && developers.length > 0 ? (
-                    <>
-                      <div className="mb-3">
-                        <label
-                          htmlFor="tracker-task-title"
-                          className="text-[11px] font-semibold uppercase block mb-1.5"
-                          style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}
-                        >
-                          Task
-                        </label>
-                        <input
-                          id="tracker-task-title"
-                          type="text"
-                          value={trackerTaskTitle}
-                          onChange={(event) => setTrackerTaskTitle(event.target.value)}
-                          placeholder="Describe the work for this defect"
-                          className="w-full rounded-lg px-3 py-2 text-[12px] outline-none"
-                          style={{
-                            background: 'var(--bg-secondary)',
-                            color: 'var(--text-primary)',
-                            border: '1px solid var(--border)',
-                          }}
-                        />
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {developers.map((dev) => {
-                          const isSelected = trackerAccountId === dev.accountId;
-                          const isAssigned = issue?.assigneeId === dev.accountId;
-                          const wasJustAdded = trackerAddedAccountId === dev.accountId;
-                          const linkedTaskCount = activeTrackerAssignments.filter((assignment) => assignment.developer.accountId === dev.accountId).length;
+              {/* Team Tracker inline */}
+              {developers && (
+                <TriageTrackerSection
+                  issueKey={issue.jiraKey}
+                  issueAssigneeId={issue.assigneeId}
+                  developers={developers}
+                  assignments={activeTrackerAssignments}
+                  trackerDate={trackerDate}
+                  firstLinkedAccountId={firstLinkedDeveloperAccountId}
+                  onAdd={handleAddToTracker}
+                  isAdding={addTrackerItem.isPending}
+                />
+              )}
 
-                          return (
-                            <button
-                              key={dev.accountId}
-                              type="button"
-                              onClick={() => setTrackerAccountId(dev.accountId)}
-                              aria-pressed={isSelected}
-                              className="rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors"
-                              style={{
-                                background: isSelected
-                                  ? 'color-mix(in srgb, var(--accent-glow) 76%, var(--bg-secondary) 24%)'
-                                  : 'var(--bg-secondary)',
-                                color: isSelected ? 'var(--accent)' : 'var(--text-secondary)',
-                                border: `1px solid ${isSelected ? 'var(--border-active)' : 'var(--border)'}`,
-                              }}
-                            >
-                              <span className="flex items-center gap-1.5">
-                                {wasJustAdded && <Check size={12} />}
-                                <span>{dev.displayName}</span>
-                                {isAssigned && (
-                                  <span
-                                    className="rounded-full px-1.5 py-0.5 text-[10px]"
-                                    style={{
-                                      background: isSelected ? 'rgba(255,255,255,0.55)' : 'var(--bg-tertiary)',
-                                      color: isSelected ? 'var(--accent)' : 'var(--text-muted)',
-                                    }}
-                                  >
-                                    Assigned
-                                  </span>
-                                )}
-                                {linkedTaskCount > 0 && (
-                                  <span
-                                    className="rounded-full px-1.5 py-0.5 text-[10px]"
-                                    style={{
-                                      background: isSelected ? 'rgba(255,255,255,0.55)' : 'var(--bg-tertiary)',
-                                      color: isSelected ? 'var(--accent)' : 'var(--text-muted)',
-                                    }}
-                                  >
-                                    {linkedTaskCount} linked
-                                  </span>
-                                )}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {activeTrackerAssignments.length > 0 && (
-                        <div
-                          className="mt-3 rounded-lg px-3 py-2"
-                          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
-                        >
-                          <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-                            Linked Today
-                          </div>
-                          <div className="mt-1.5 space-y-1">
-                            {activeTrackerAssignments.map((assignment) => (
-                              <div key={assignment.itemId} className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                                {`${assignment.developer.displayName} • ${trackerStateLabel(assignment.state)} • ${assignment.title}`}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      <div className="mt-3 flex items-center justify-between gap-3">
-                        <div className="min-w-0 text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                          {selectedTrackerDeveloper
-                            ? activeTrackerAssignments.length > 0
-                              ? `${activeTrackerAssignments.length} linked task${activeTrackerAssignments.length === 1 ? ' uses' : 's use'} ${issue.jiraKey} today`
-                              : `${selectedTrackerDeveloper.displayName} for ${trackerDate}`
-                            : 'Choose a developer'}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleAddToTracker}
-                          disabled={!selectedTrackerDeveloper || addTrackerItem.isPending || !trackerTaskTitle.trim()}
-                          className="shrink-0 rounded-lg px-3 py-2 text-[12px] font-medium disabled:opacity-40"
-                          style={{
-                            background: 'var(--accent-glow)',
-                            color: 'var(--accent)',
-                            border: '1px solid color-mix(in srgb, var(--accent) 28%, transparent)',
-                          }}
-                        >
-                          {addTrackerItem.isPending
-                            ? 'Adding...'
-                            : selectedTrackerDeveloper
-                              ? `Add Task to ${firstName(selectedTrackerDeveloper.displayName)}`
-                              : 'Add to Team Tracker'}
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                      No active team members available.
-                    </div>
-                  )}
-                </div>
-              </div>
+              {/* Manager Desk */}
+              <TriageDeskSection issue={issue} onCapture={() => setDeskCaptureOpen(true)} />
 
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-semibold uppercase flex items-center gap-1.5" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-                    <Briefcase size={12} /> Manager Desk
-                  </span>
-                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                    Today
-                  </span>
-                </div>
-                <div
-                  className="rounded-xl px-3 py-3"
-                  style={{
-                    background: 'linear-gradient(135deg, color-mix(in srgb, var(--md-accent-glow) 72%, var(--bg-tertiary) 28%), var(--bg-tertiary))',
-                    border: '1px solid rgba(217,169,78,0.18)',
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                        Capture a manager follow-up from this issue
-                      </div>
-                      <div className="mt-1 text-[11px] leading-5" style={{ color: 'var(--text-secondary)' }}>
-                        The issue link is attached automatically so it lands in your desk with source context intact.
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setDeskCaptureOpen(true)}
-                      className="shrink-0 rounded-lg px-3 py-2 text-[12px] font-medium transition-colors"
-                      style={{
-                        background: 'rgba(217,169,78,0.16)',
-                        color: 'var(--md-accent)',
-                        border: '1px solid rgba(217,169,78,0.24)',
-                      }}
-                    >
-                      Add to Manager Desk
-                    </button>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    <span
-                      className="rounded-full px-2.5 py-1 text-[11px] font-medium"
-                      style={{
-                        background: 'rgba(255,255,255,0.04)',
-                        color: 'var(--md-accent)',
-                        border: '1px solid rgba(217,169,78,0.16)',
-                      }}
-                    >
-                      Issue {issue.jiraKey}
-                    </span>
-                    {issue.assigneeName && (
-                      <span
-                        className="rounded-full px-2.5 py-1 text-[11px] font-medium"
-                        style={{
-                          background: 'rgba(16,185,129,0.1)',
-                          color: 'var(--success)',
-                          border: '1px solid rgba(16,185,129,0.18)',
-                        }}
-                      >
-                        {issue.assigneeName}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+              {/* Compact properties */}
+              <TriageProperties
+                issue={issue}
+                developers={developers}
+                editingField={editingField}
+                onEditField={setEditingField}
+                onUpdate={handleUpdate}
+                jiraAspenSeverityField={config?.jiraAspenSeverityField}
+              />
 
-              {/* Triage properties */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-                    Triage Properties
-                  </span>
-                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                    Shortcuts: <span className="font-mono">P</span> priority, <span className="font-mono">A</span> assignee, <span className="font-mono">D</span> due date
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <PropertyCard label="ASPEN Severity" accent="rgba(99,102,241,0.3)">
-                    {!config?.jiraAspenSeverityField ? (
-                      <span className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
-                        Configure the Jira field in Settings
-                      </span>
-                    ) : (
-                      <span
-                        className="inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-semibold"
-                        style={{
-                          background: issue.aspenSeverity ? 'rgba(99,102,241,0.16)' : 'var(--bg-secondary)',
-                          color: issue.aspenSeverity ? 'var(--accent)' : 'var(--text-muted)',
-                          border: '1px solid var(--border)',
-                        }}
-                      >
-                        {issue.aspenSeverity ?? 'Not set'}
-                      </span>
-                    )}
-                  </PropertyCard>
-
-                  <PropertyCard label="Priority" accent={priorityColor(issue.priorityName)}>
-                    {editingField === 'priority' ? (
-                      <select
-                        autoFocus
-                        value={issue.priorityName}
-                        onChange={(e) => {
-                          handleUpdate(issue.jiraKey, { priorityName: e.target.value });
-                          setEditingField(null);
-                        }}
-                        onBlur={() => setEditingField(null)}
-                        className="w-full text-[13px] px-3 py-2 rounded-md"
-                        style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-active)' }}
-                      >
-                        {PRIORITY_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                    ) : (
-                      <button
-                        onClick={() => setEditingField('priority')}
-                        className="w-full text-left rounded-md px-3 py-2 transition-colors"
-                        style={{ background: 'var(--bg-secondary)', color: priorityColor(issue.priorityName), border: '1px solid var(--border)' }}
-                      >
-                        <span className="text-[13px] font-semibold">{issue.priorityName}</span>
-                        <span className="text-[11px] ml-2" style={{ color: 'var(--text-muted)' }}>Edit</span>
-                      </button>
-                    )}
-                  </PropertyCard>
-
-                  <PropertyCard label="Assignee">
-                    {editingField === 'assignee' ? (
-                      <select
-                        autoFocus
-                        value={issue.assigneeId ?? ''}
-                        onChange={(e) => {
-                          handleUpdate(issue.jiraKey, { assigneeId: e.target.value || undefined });
-                          setEditingField(null);
-                        }}
-                        onBlur={() => setEditingField(null)}
-                        className="w-full text-[13px] px-3 py-2 rounded-md"
-                        style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-active)' }}
-                      >
-                        <option value="">Unassigned</option>
-                        {developers?.map((d: Developer) => (
-                          <option key={d.accountId} value={d.accountId}>{d.displayName}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <button
-                        onClick={() => setEditingField('assignee')}
-                        className="w-full text-left rounded-md px-3 py-2 transition-colors"
-                        style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                      >
-                        <span className="text-[13px] font-medium">{issue.assigneeName ?? 'Unassigned'}</span>
-                        <span className="text-[11px] ml-2" style={{ color: 'var(--text-muted)' }}>Edit</span>
-                      </button>
-                    )}
-                  </PropertyCard>
-
-                  <PropertyCard label="Due Date">
-                    {editingField === 'dueDate' ? (
-                      <input
-                        type="date"
-                        autoFocus
-                        value={issue.developmentDueDate ?? issue.dueDate ?? ''}
-                        onChange={(e) => {
-                          handleUpdate(issue.jiraKey, { developmentDueDate: e.target.value });
-                          setEditingField(null);
-                        }}
-                        onBlur={() => setEditingField(null)}
-                        className="w-full text-[13px] px-3 py-2 rounded-md"
-                        style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-active)' }}
-                      />
-                    ) : (
-                      <button
-                        onClick={() => setEditingField('dueDate')}
-                        className="w-full text-left rounded-md px-3 py-2 transition-colors"
-                        style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                      >
-                        <span className="text-[13px] font-medium">{formatDate(issue.developmentDueDate ?? issue.dueDate ?? undefined)}</span>
-                        <span className="text-[11px] ml-2" style={{ color: 'var(--text-muted)' }}>Edit</span>
-                      </button>
-                    )}
-                  </PropertyCard>
-
-                  <PropertyCard label="Blocked" accent={issue.flagged ? 'rgba(239,68,68,0.4)' : undefined}>
-                    <button
-                      onClick={() => handleUpdate(issue.jiraKey, { flagged: !issue.flagged })}
-                      className="w-full text-left rounded-md px-3 py-2 transition-colors"
-                      style={{
-                        background: issue.flagged ? 'rgba(239,68,68,0.12)' : 'var(--bg-secondary)',
-                        color: issue.flagged ? 'var(--danger)' : 'var(--text-secondary)',
-                        border: '1px solid var(--border)',
-                      }}
-                    >
-                      <span className="text-[13px] font-semibold">{issue.flagged ? 'Blocked' : 'Not Blocked'}</span>
-                      <span className="text-[11px] ml-2" style={{ color: 'var(--text-muted)' }}>
-                        {issue.flagged ? 'Click to clear' : 'Click to mark'}
-                      </span>
-                    </button>
-                  </PropertyCard>
-
-                  <PropertyCard label="Last Updated">
-                    <span className="font-mono text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-                      {formatRelativeTime(issue.updatedAt)}
-                    </span>
-                  </PropertyCard>
-
-                  <div className="md:col-span-2">
-                    <IssueDetails issue={issue} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Suggestions */}
-              <SuggestionBar issue={issue} />
-
-              {/* Description */}
+              {/* Description — collapsible */}
               {renderedDescription && (
-                <div>
-                  <span className="text-[11px] font-semibold uppercase mb-2 block" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-                    Description
-                  </span>
-                  <div className="text-[13px] leading-relaxed prose prose-invert prose-sm max-w-none" style={{ color: 'var(--text-secondary)' }}>
-                    <ReactMarkdown>{renderedDescription}</ReactMarkdown>
-                  </div>
-                </div>
+                <DescriptionSection content={renderedDescription} />
               )}
 
               {/* Comments */}
-              <div>
-                <span className="text-[11px] font-semibold uppercase mb-2 block" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-                  Comments
-                </span>
+              <div className="triage-section">
+                <span className="triage-section-label mb-1.5 block">Comment</span>
                 <CommentForm issueKey={issue.jiraKey} />
               </div>
             </div>
@@ -819,5 +278,39 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
         />
       )}
     </AnimatePresence>
+  );
+}
+
+/* Collapsible description — avoids dominating the panel for long Jira descriptions */
+function DescriptionSection({ content }: { content: string }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="triage-section">
+      <button
+        type="button"
+        onClick={() => setExpanded((p) => !p)}
+        className="triage-section-label flex items-center gap-1 mb-1"
+      >
+        Description
+        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{expanded ? '▾' : '▸'}</span>
+      </button>
+      {expanded && (
+        <div
+          className="text-[12px] leading-relaxed prose prose-invert prose-sm max-w-none"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          <ReactMarkdown>{content}</ReactMarkdown>
+        </div>
+      )}
+      {!expanded && (
+        <div
+          className="text-[11.5px] leading-relaxed line-clamp-2 cursor-pointer"
+          onClick={() => setExpanded(true)}
+          style={{ color: 'var(--text-muted)' }}
+        >
+          <ReactMarkdown>{content}</ReactMarkdown>
+        </div>
+      )}
+    </div>
   );
 }
