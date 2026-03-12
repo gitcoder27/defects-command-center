@@ -30,7 +30,9 @@ interface FilterSidebarProps {
   activeFilter: FilterType;
   activeDeveloper?: string;
   onFilterChange: (filter: FilterType) => void;
+  onClearFilter: () => void;
   onDeveloperChange: (accountId?: string) => void;
+  onClearDeveloper: () => void;
   selectedTagId?: number;
   noTagsFilter: boolean;
   onTagToggle: (tagId: number) => void;
@@ -85,38 +87,30 @@ function getInitials(name: string): string {
 
 interface SectionProps {
   title: string;
-  countLabel: string;
   open: boolean;
   onToggle: () => void;
+  onClear?: () => void;
+  showClear?: boolean;
+  clearLabel?: string;
   children: ReactNode;
 }
 
-function SidebarSection({ title, countLabel, open, onToggle, children }: SectionProps) {
+function SidebarSection({ title, open, onToggle, onClear, showClear = false, clearLabel, children }: SectionProps) {
   return (
     <section
-      className="rounded-[14px] border p-1"
+      className="rounded-[20px] border p-1.5"
       style={{
         borderColor: 'var(--border)',
         background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)',
       }}
     >
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between gap-3 px-1.5 py-1 text-left"
-        aria-expanded={open}
-      >
-        <div className="min-w-0">
-          <div className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
-            {title}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span
-            className="text-[10px] font-mono px-2 py-1 rounded-full"
-            style={{ color: 'var(--text-muted)', background: 'var(--bg-tertiary)' }}
-          >
-            {countLabel}
-          </span>
+      <div className="flex items-center justify-between px-1.5 py-1">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex items-center gap-2 cursor-pointer group min-w-0"
+          aria-expanded={open}
+        >
           <ChevronRight
             size={14}
             className="transition-transform duration-200"
@@ -125,8 +119,30 @@ function SidebarSection({ title, countLabel, open, onToggle, children }: Section
               transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
             }}
           />
-        </div>
-      </button>
+          <div className="min-w-0 text-left">
+            <div className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
+              {title}
+            </div>
+          </div>
+        </button>
+        {showClear && onClear ? (
+          <button
+            type="button"
+            onClick={onClear}
+            className="h-7 w-7 rounded-lg transition-colors flex items-center justify-center flex-shrink-0"
+            title={clearLabel}
+            aria-label={clearLabel}
+            style={{ background: 'var(--bg-tertiary)' }}
+          >
+            <X size={10} style={{ color: 'var(--text-muted)' }} />
+          </button>
+        ) : (
+          <div
+            aria-hidden="true"
+            className="h-7 w-7 flex-shrink-0"
+          />
+        )}
+      </div>
       {open && <div className="pt-1.5">{children}</div>}
     </section>
   );
@@ -136,7 +152,9 @@ export function FilterSidebar({
   activeFilter,
   activeDeveloper,
   onFilterChange,
+  onClearFilter,
   onDeveloperChange,
+  onClearDeveloper,
   selectedTagId,
   noTagsFilter,
   onTagToggle,
@@ -235,9 +253,11 @@ export function FilterSidebar({
         <div className="flex-1 overflow-y-auto px-1.5 py-1.5 space-y-1.5">
           <SidebarSection
             title="Filters"
-            countLabel={`${FILTER_KEYS.length}`}
             open={filtersOpen}
             onToggle={() => setFiltersOpen((prev) => !prev)}
+            onClear={onClearFilter}
+            showClear={activeFilter !== 'all'}
+            clearLabel="Clear filter selection"
           >
             <div className="flex flex-col gap-1">
               <FilterButton
@@ -280,9 +300,11 @@ export function FilterSidebar({
           {workload && workload.length > 0 && (
             <SidebarSection
               title="Developers"
-              countLabel={`${workload.length}`}
               open={developersOpen}
               onToggle={() => setDevelopersOpen((prev) => !prev)}
+              onClear={onClearDeveloper}
+              showClear={Boolean(activeDeveloper)}
+              clearLabel="Clear developer selection"
             >
               <div className="flex flex-col gap-1">
                 {workload.map((dev) => (

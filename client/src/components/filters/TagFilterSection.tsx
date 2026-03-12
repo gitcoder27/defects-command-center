@@ -69,15 +69,21 @@ export function TagFilterSection({
             </div>
           </div>
         </button>
-        {hasActiveFilters && (
+        {hasActiveFilters ? (
           <button
             onClick={onClear}
-            className="h-8 w-8 rounded-xl transition-colors flex items-center justify-center"
+            className="h-7 w-7 rounded-lg transition-colors flex items-center justify-center flex-shrink-0"
             title="Clear tag filters"
+            aria-label="Clear tag filters"
             style={{ background: 'var(--bg-tertiary)' }}
           >
-            <X size={12} style={{ color: 'var(--text-muted)' }} />
+            <X size={10} style={{ color: 'var(--text-muted)' }} />
           </button>
+        ) : (
+          <div
+            aria-hidden="true"
+            className="h-7 w-7 flex-shrink-0"
+          />
         )}
       </div>
 

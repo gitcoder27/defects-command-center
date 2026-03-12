@@ -64,7 +64,9 @@ vi.mock('@/hooks/useTagCounts', () => ({
 
 describe('FilterSidebar', () => {
   const onFilterChange = vi.fn();
+  const onClearFilter = vi.fn();
   const onDeveloperChange = vi.fn();
+  const onClearDeveloper = vi.fn();
   const onTagToggle = vi.fn();
   const onNoTagsToggle = vi.fn();
   const onClearTagFilters = vi.fn();
@@ -75,7 +77,9 @@ describe('FilterSidebar', () => {
   const defaultProps = {
     activeFilter: 'all' as const,
     onFilterChange,
+    onClearFilter,
     onDeveloperChange,
+    onClearDeveloper,
     selectedTagId: undefined as number | undefined,
     noTagsFilter: false,
     onTagToggle,
@@ -105,7 +109,9 @@ describe('FilterSidebar', () => {
 
   beforeEach(() => {
     onFilterChange.mockClear();
+    onClearFilter.mockClear();
     onDeveloperChange.mockClear();
+    onClearDeveloper.mockClear();
     onTagToggle.mockClear();
     onNoTagsToggle.mockClear();
     onClearTagFilters.mockClear();
@@ -268,5 +274,27 @@ describe('FilterSidebar', () => {
 
     expect(screen.getByRole('button', { name: /All/ })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: /Alice/ })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('shows a clear button for an active filter selection', () => {
+    render(
+      <TestWrapper>
+        <FilterSidebar {...defaultProps} activeFilter="blocked" />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filter selection' }));
+    expect(onClearFilter).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a clear button for an active developer selection', () => {
+    render(
+      <TestWrapper>
+        <FilterSidebar {...defaultProps} activeDeveloper="alice-1" />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear developer selection' }));
+    expect(onClearDeveloper).toHaveBeenCalledTimes(1);
   });
 });

@@ -92,8 +92,22 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
     closeSidebarOnCompact();
   }, [closeSidebarOnCompact, setFilterState]);
 
+  const handleClearFilter = useCallback(() => {
+    setFilterState((prev) => ({ ...prev, activeFilter: 'all' }));
+    setSelectedIssueKey(undefined);
+    setFocusedIndex(-1);
+    closeSidebarOnCompact();
+  }, [closeSidebarOnCompact, setFilterState]);
+
   const handleDeveloperChange = useCallback((accountId?: string) => {
     setFilterState((prev) => ({ ...prev, activeDeveloper: accountId }));
+    setSelectedIssueKey(undefined);
+    setFocusedIndex(-1);
+    closeSidebarOnCompact();
+  }, [closeSidebarOnCompact, setFilterState]);
+
+  const handleClearDeveloper = useCallback(() => {
+    setFilterState((prev) => ({ ...prev, activeDeveloper: undefined }));
     setSelectedIssueKey(undefined);
     setFocusedIndex(-1);
     closeSidebarOnCompact();
@@ -262,7 +276,9 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
               activeFilter={activeFilter}
               activeDeveloper={activeDeveloper}
               onFilterChange={handleFilterChange}
+              onClearFilter={handleClearFilter}
               onDeveloperChange={handleDeveloperChange}
+              onClearDeveloper={handleClearDeveloper}
               selectedTagId={selectedTagId}
               noTagsFilter={noTagsFilter}
               onTagToggle={handleTagToggle}

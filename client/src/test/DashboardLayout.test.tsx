@@ -39,9 +39,25 @@ vi.mock('@/components/alerts/ErrorBanner', () => ({
 }));
 
 vi.mock('@/components/filters/FilterSidebar', () => ({
-  FilterSidebar: (props: { onCollapse?: () => void }) => {
+  FilterSidebar: (props: {
+    onCollapse?: () => void;
+    onFilterChange?: (filter: 'blocked') => void;
+    onClearFilter?: () => void;
+    onDeveloperChange?: (accountId?: string) => void;
+    onClearDeveloper?: () => void;
+    onTagToggle?: (tagId: number) => void;
+  }) => {
     filterSidebarSpy(props);
-    return <button onClick={props.onCollapse}>Sidebar</button>;
+    return (
+      <div>
+        <button onClick={props.onCollapse}>Sidebar</button>
+        <button onClick={() => props.onFilterChange?.('blocked')}>Sidebar Blocked</button>
+        <button onClick={() => props.onDeveloperChange?.('dev-2')}>Sidebar Developer</button>
+        <button onClick={() => props.onTagToggle?.(1)}>Sidebar Tag</button>
+        <button onClick={props.onClearFilter}>Sidebar Clear Filter</button>
+        <button onClick={props.onClearDeveloper}>Sidebar Clear Developer</button>
+      </div>
+    );
   },
 }));
 
@@ -155,6 +171,68 @@ describe('DashboardLayout', () => {
     expect(lastTableCall.filter).toBe('all');
     expect(lastTableCall.assigneeFilter).toBeUndefined();
     expect(lastTableCall.tagId).toBeUndefined();
+    expect(lastTableCall.noTags).toBe(false);
+  });
+
+  it('clears only the primary filter back to all from the sidebar header action', () => {
+    render(<DashboardLayout />);
+
+    fireEvent.click(screen.getByText('Sidebar Blocked'));
+    fireEvent.click(screen.getByText('Sidebar Developer'));
+    fireEvent.click(screen.getByText('Sidebar Tag'));
+    fireEvent.click(screen.getByText('Sidebar Clear Filter'));
+
+    const lastSidebarCall = filterSidebarSpy.mock.calls.at(-1)?.[0] as {
+      activeFilter: string;
+      activeDeveloper?: string;
+      selectedTagId?: number;
+      noTagsFilter: boolean;
+    };
+    const lastTableCall = defectTableSpy.mock.calls.at(-1)?.[0] as {
+      filter: string;
+      assigneeFilter?: string;
+      tagId?: number;
+      noTags?: boolean;
+    };
+
+    expect(lastSidebarCall.activeFilter).toBe('all');
+    expect(lastSidebarCall.activeDeveloper).toBe('dev-2');
+    expect(lastSidebarCall.selectedTagId).toBe(1);
+    expect(lastSidebarCall.noTagsFilter).toBe(false);
+    expect(lastTableCall.filter).toBe('all');
+    expect(lastTableCall.assigneeFilter).toBe('dev-2');
+    expect(lastTableCall.tagId).toBe(1);
+    expect(lastTableCall.noTags).toBe(false);
+  });
+
+  it('clears only the active developer from the sidebar header action', () => {
+    render(<DashboardLayout />);
+
+    fireEvent.click(screen.getByText('New Card'));
+    fireEvent.click(screen.getByText('Sidebar Developer'));
+    fireEvent.click(screen.getByText('Sidebar Tag'));
+    fireEvent.click(screen.getByText('Sidebar Clear Developer'));
+
+    const lastSidebarCall = filterSidebarSpy.mock.calls.at(-1)?.[0] as {
+      activeFilter: string;
+      activeDeveloper?: string;
+      selectedTagId?: number;
+      noTagsFilter: boolean;
+    };
+    const lastTableCall = defectTableSpy.mock.calls.at(-1)?.[0] as {
+      filter: string;
+      assigneeFilter?: string;
+      tagId?: number;
+      noTags?: boolean;
+    };
+
+    expect(lastSidebarCall.activeFilter).toBe('new');
+    expect(lastSidebarCall.activeDeveloper).toBeUndefined();
+    expect(lastSidebarCall.selectedTagId).toBe(1);
+    expect(lastSidebarCall.noTagsFilter).toBe(false);
+    expect(lastTableCall.filter).toBe('new');
+    expect(lastTableCall.assigneeFilter).toBeUndefined();
+    expect(lastTableCall.tagId).toBe(1);
     expect(lastTableCall.noTags).toBe(false);
   });
 });
