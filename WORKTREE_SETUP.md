@@ -65,6 +65,7 @@ Codex agent A:
 ```env
 PORT=3003
 VITE_PORT=5174
+VITE_API_PORT=3003
 DASHBOARD_DB_PATH=data/dashboard.codex-a.db
 ```
 
@@ -73,8 +74,12 @@ Codex agent B:
 ```env
 PORT=3004
 VITE_PORT=5175
+VITE_API_PORT=3004
 DASHBOARD_DB_PATH=data/dashboard.codex-b.db
 ```
+
+The frontend dev proxy should always use `VITE_API_PORT` or `VITE_API_PROXY_TARGET`.
+Do not rely on `PORT` to steer Vite, because shell-level `PORT` overrides can accidentally point localhost traffic at production.
 
 ## Merge Task Branches Locally Into Main
 

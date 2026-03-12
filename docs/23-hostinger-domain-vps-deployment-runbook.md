@@ -111,6 +111,8 @@ That means:
 - building in the development workspace does not update the public site
 - production has its own `client/dist`, `server/dist`, `.env`, and `data/`
 - development and production SQLite files are separate unless you explicitly point them at the same path
+- the production domain is proxied by `nginx` to `127.0.0.1:3001`
+- local Vite dev should proxy to `127.0.0.1:3002`, not `3001`
 
 For compile-only validation in the development workspace, prefer:
 
@@ -119,6 +121,30 @@ cd /home/ubuntu/Development/defects-command-center
 npm run typecheck
 npm run build:check
 ```
+
+For local interactive development in the development workspace, use dedicated client proxy env vars:
+
+```env
+PORT=3002
+VITE_API_PORT=3002
+```
+
+If you must point the local frontend at a non-local API, set `VITE_API_PROXY_TARGET` explicitly and opt in with `ALLOW_REMOTE_DEV_PROXY=true`.
+
+Quick separation check when both dev and prod are running on the same VPS:
+
+```bash
+curl -s http://127.0.0.1:3002/api/auth/bootstrap
+curl -s http://127.0.0.1:5173/api/auth/bootstrap
+curl -s http://127.0.0.1:3001/api/auth/bootstrap
+```
+
+Expected:
+
+- `5173` matches `3002`
+- `3001` may differ
+
+If `5173` matches `3001`, the Vite process is proxying to production and must be restarted with the correct env.
 
 ### What Production Actually Runs
 

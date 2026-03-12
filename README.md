@@ -43,7 +43,8 @@ JIRA_BASE_URL=https://your-domain.atlassian.net
 JIRA_EMAIL=your-email@company.com
 JIRA_API_TOKEN=your-api-token
 JIRA_PROJECT_KEY=PROJ
-PORT=3001
+PORT=3002
+VITE_API_PORT=3002
 ```
 
 Security note: `JIRA_API_TOKEN` is read only from environment variables and is never stored in the database.
@@ -107,7 +108,7 @@ Use two terminals in repo root:
 Then open:
 
 - Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:3001`
+- Backend API: `http://localhost:3002`
 
 If `5173` is in use, Vite will automatically use `5174` (or next available port).
 
@@ -134,10 +135,26 @@ npm run typecheck
 npm run build:check
 ```
 
+Local dev proxy safety:
+
+- the backend bind port is controlled by `PORT`
+- the frontend dev proxy is controlled by `VITE_API_PORT` or `VITE_API_PROXY_TARGET`
+- the frontend no longer derives its proxy target from `PORT`
+- `npm run dev` refuses to proxy to a non-local host unless `ALLOW_REMOTE_DEV_PROXY=true` is set
+
+Quick verification on the VPS after starting dev:
+
+```bash
+curl -s http://127.0.0.1:3002/api/auth/bootstrap
+curl -s http://127.0.0.1:5173/api/auth/bootstrap
+```
+
+Those two responses should match. They should not match production on `http://127.0.0.1:3001`.
+
 Health endpoint:
 
 ```bash
-GET http://localhost:3001/api/health
+GET http://localhost:3002/api/health
 ```
 
 Expected response:
@@ -160,10 +177,10 @@ Manual operations:
 
 ```bash
 # List backups
-GET http://localhost:3001/api/backups
+GET http://localhost:3002/api/backups
 
 # Create a backup immediately
-POST http://localhost:3001/api/backups/run
+POST http://localhost:3002/api/backups/run
 ```
 
 Restore a backup only while the server is stopped:
