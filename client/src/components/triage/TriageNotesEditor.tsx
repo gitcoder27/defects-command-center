@@ -21,9 +21,18 @@ export function TriageNotesEditor({ value, onChange, onBlurSave, isSaved }: Tria
     el.style.height = `${Math.min(Math.max(el.scrollHeight, minH), maxH)}px`;
   }, []);
 
+  const scrollToBottom = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, []);
+
   useEffect(() => {
     autoResize();
-  }, [value, autoResize]);
+    if (!isFocused) {
+      scrollToBottom();
+    }
+  }, [value, autoResize, isFocused, scrollToBottom]);
 
   return (
     <div className="triage-section">

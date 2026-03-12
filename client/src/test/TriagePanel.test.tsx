@@ -30,6 +30,11 @@ function buildMockIssue(overrides: Partial<Issue> = {}): Issue {
 }
 
 let mockIssue: Issue = buildMockIssue();
+let mockSuggestions = {
+  prioritySuggestion: { data: null as { suggested: string } | null },
+  dueDateSuggestion: { data: null as { suggested: string } | null },
+  assigneeSuggestion: { data: null as { reason: string; developer: Developer }[] | null },
+};
 
 const mockDevelopers: Developer[] = [
   { accountId: 'alice-1', displayName: 'Alice', isActive: true },
@@ -44,11 +49,7 @@ vi.mock('@/hooks/useIssueDetail', () => ({
 }));
 
 vi.mock('@/hooks/useSuggestions', () => ({
-  useSuggestions: () => ({
-    prioritySuggestion: { data: null },
-    dueDateSuggestion: { data: null },
-    assigneeSuggestion: { data: null },
-  }),
+  useSuggestions: () => mockSuggestions,
 }));
 
 vi.mock('@/hooks/useUpdateIssue', () => ({
@@ -88,6 +89,11 @@ describe('TriagePanel', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-07T12:00:00.000Z'));
     mockIssue = buildMockIssue();
+    mockSuggestions = {
+      prioritySuggestion: { data: null },
+      dueDateSuggestion: { data: null },
+      assigneeSuggestion: { data: null },
+    };
     mockAddTrackerItemMutate.mockReset();
     mockTrackerAssignments = [];
     onClose.mockReset();
@@ -166,6 +172,33 @@ describe('TriagePanel', () => {
     expect(screen.getAllByText('Assignee')).toHaveLength(1);
     expect(screen.getAllByText('Due Date')).toHaveLength(1);
     expect(screen.getAllByText('Blocked')).toHaveLength(1);
+  });
+
+  it('allows collapsing properties and keeps suggestions below that section', () => {
+    mockSuggestions = {
+      prioritySuggestion: { data: { suggested: 'High' } },
+      dueDateSuggestion: { data: null },
+      assigneeSuggestion: { data: null },
+    };
+
+    render(
+      <TestWrapper>
+        <TriagePanel issueKey="PROJ-101" onClose={onClose} />
+      </TestWrapper>
+    );
+
+    const propertiesToggle = screen.getByRole('button', { name: /properties/i });
+    const suggestionsHeading = screen.getByText('Suggestions');
+
+    expect(propertiesToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Priority')).toBeInTheDocument();
+    expect(propertiesToggle.compareDocumentPosition(suggestionsHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(propertiesToggle);
+
+    expect(propertiesToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Priority')).not.toBeInTheDocument();
+    expect(screen.getByText('Suggestions')).toBeInTheDocument();
   });
 
   it('renders description with markdown', () => {

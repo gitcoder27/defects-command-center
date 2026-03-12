@@ -302,6 +302,10 @@ export class SyncEngine {
     const { jiraKey, ...updateRow } = row;
     const compactedUpdate = this.compactRow(updateRow);
     const nextRow = { ...existingRow, ...compactedUpdate } as typeof issues.$inferSelect;
+    if (this.shouldRestoreExcluded(existingRow, nextRow)) {
+      compactedUpdate.excluded = 0;
+      nextRow.excluded = 0;
+    }
     const changed = this.hasTrackedChange(existingRow, nextRow);
     if (changed) {
       compactedUpdate.scopeChangedAt = row.lastReconciledAt ?? row.syncedAt ?? new Date().toISOString();
@@ -445,6 +449,15 @@ export class SyncEngine {
       previous.teamScopeState !== next.teamScopeState ||
       previous.syncScopeState !== next.syncScopeState ||
       previous.statusCategory !== next.statusCategory;
+  }
+
+  private shouldRestoreExcluded(
+    previous: typeof issues.$inferSelect,
+    next: Partial<typeof issues.$inferInsert> & typeof issues.$inferSelect
+  ): boolean {
+    return previous.excluded === 1 &&
+      previous.teamScopeState === "out_of_team" &&
+      next.teamScopeState !== "out_of_team";
   }
 
   private async recordScopeHistory(

@@ -215,11 +215,6 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
                 onCreate={createOrAssignTag}
               />
 
-              {/* Suggestions banner */}
-              <div className="mt-1">
-                <SuggestionBar issue={issue} />
-              </div>
-
               {/* Team Tracker inline */}
               {developers && (
                 <TriageTrackerSection
@@ -246,6 +241,11 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
                 onUpdate={handleUpdate}
                 jiraAspenSeverityField={config?.jiraAspenSeverityField}
               />
+
+              {/* Suggestions banner */}
+              <div className="mt-1">
+                <SuggestionBar issue={issue} />
+              </div>
 
               {/* Description — collapsible */}
               {renderedDescription && (
