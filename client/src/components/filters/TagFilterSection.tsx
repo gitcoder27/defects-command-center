@@ -52,7 +52,7 @@ export function TagFilterSection({
       <div className="flex items-center justify-between px-1.5 py-1">
         <button
           onClick={onToggleCollapse}
-          className="flex items-center gap-2 cursor-pointer group min-w-0"
+          className="flex flex-1 items-center gap-2 cursor-pointer group min-w-0 text-left"
           aria-expanded={!collapsed}
         >
           <ChevronRight

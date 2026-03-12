@@ -108,7 +108,7 @@ function SidebarSection({ title, open, onToggle, onClear, showClear = false, cle
         <button
           type="button"
           onClick={onToggle}
-          className="flex items-center gap-2 cursor-pointer group min-w-0"
+          className="flex flex-1 items-center gap-2 cursor-pointer group min-w-0 text-left"
           aria-expanded={open}
         >
           <ChevronRight
