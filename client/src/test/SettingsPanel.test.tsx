@@ -369,7 +369,7 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('removes a team member and triggers an immediate sync', async () => {
+  it('removes a team member only after inline confirmation and triggers an immediate sync', async () => {
     mockMutateAsync.mockResolvedValue({ status: 'success', issuesSynced: 2, startedAt: '', completedAt: '' });
 
     render(
@@ -381,6 +381,11 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /team members/i }));
     fireEvent.click(await screen.findByRole('button', { name: /remove taylor dev from team/i }));
 
+    expect(mockDelete).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /confirm removing taylor dev from team/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /confirm removing taylor dev from team/i }));
+
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalledWith('/team/developers/dev-1');
       expect(mockMutateAsync).toHaveBeenCalledTimes(1);
@@ -390,6 +395,27 @@ describe('SettingsPage', () => {
         message: 'Developer removed from tracked team and synced issues.',
       }));
     });
+  });
+
+  it('dismisses the inline team-member removal confirmation when clicking outside', async () => {
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /team members/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /remove taylor dev from team/i }));
+
+    expect(screen.getByRole('button', { name: /confirm removing taylor dev from team/i })).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /confirm removing taylor dev from team/i })).not.toBeInTheDocument();
+    });
+
+    expect(mockDelete).not.toHaveBeenCalled();
   });
 
   it('does not trigger an immediate sync when adding team members fails', async () => {

@@ -6,6 +6,7 @@ import {
   RefreshCw,
   Search,
   AlertTriangle,
+  Check,
   Loader2,
   LogOut,
   UserPlus,
@@ -90,6 +91,7 @@ export function SettingsPage() {
   const [debouncedDiscoveredSearch, setDebouncedDiscoveredSearch] = useState('');
   const [selectedAddUsers, setSelectedAddUsers] = useState<Set<string>>(new Set());
   const [savingTeam, setSavingTeam] = useState(false);
+  const [confirmRemoveAccountId, setConfirmRemoveAccountId] = useState<string | null>(null);
   const [removingAccountId, setRemovingAccountId] = useState<string | null>(null);
   const discoverRequestRef = useRef(0);
 
@@ -515,6 +517,7 @@ export function SettingsPage() {
     setRemovingAccountId(accountId);
     try {
       await api.delete(`/team/developers/${encodeURIComponent(accountId)}`);
+      setConfirmRemoveAccountId((current) => (current === accountId ? null : current));
       await syncTeamMembershipChange('Developer removed from tracked team and synced issues.');
     } catch (err) {
       addToast({ type: 'error', title: 'Failed to remove developer', message: err instanceof Error ? err.message : 'Request failed' });
@@ -1058,17 +1061,15 @@ export function SettingsPage() {
                                 <p className="truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{member.displayName}</p>
                                 <p className="truncate text-[10px]" style={{ color: 'var(--text-muted)' }}>{member.email ?? member.accountId}</p>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveMember(member.accountId)}
-                                disabled={teamActionLoading}
-                                className="flex h-6 w-6 items-center justify-center rounded-md transition-colors disabled:opacity-50"
-                                style={{ background: 'var(--settings-input-bg)', color: 'var(--text-secondary)', border: 'var(--settings-input-border)' }}
-                                title="Remove from team"
-                                aria-label={`Remove ${member.displayName} from team`}
-                              >
-                                {isRemoving ? <Loader2 size={12} className="animate-spin" /> : <UserMinus size={12} />}
-                              </button>
+                              <TeamMemberRemoveAction
+                                member={member}
+                                confirming={confirmRemoveAccountId === member.accountId}
+                                removing={isRemoving}
+                                disabled={teamActionLoading && !isRemoving}
+                                onStartConfirm={() => setConfirmRemoveAccountId(member.accountId)}
+                                onCancel={() => setConfirmRemoveAccountId((current) => (current === member.accountId ? null : current))}
+                                onConfirm={() => void handleRemoveMember(member.accountId)}
+                              />
                             </div>
                           );
                         })
@@ -1689,6 +1690,100 @@ function UserAccountDeleteAction({
     >
       <UserMinus size={12} />
       Delete
+    </button>
+  );
+}
+
+function TeamMemberRemoveAction({
+  member,
+  confirming,
+  removing,
+  disabled,
+  onStartConfirm,
+  onCancel,
+  onConfirm,
+}: {
+  member: DiscoveredUser;
+  confirming: boolean;
+  removing: boolean;
+  disabled: boolean;
+  onStartConfirm: () => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!confirming || removing) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        onCancel();
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onCancel();
+      }
+    };
+
+    window.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [confirming, removing, onCancel]);
+
+  if (confirming) {
+    return (
+      <motion.div
+        ref={containerRef}
+        initial={{ opacity: 0, x: 6 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="flex items-center gap-1.5"
+      >
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={removing}
+          className="flex h-6 w-6 items-center justify-center rounded-md transition-colors disabled:opacity-50"
+          style={{ background: 'var(--settings-danger-soft-bg)', color: 'var(--danger-muted)', border: 'var(--settings-danger-soft-border)' }}
+          aria-label={`Confirm removing ${member.displayName} from team`}
+          title="Confirm removal"
+        >
+          {removing ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={removing}
+          className="flex h-6 w-6 items-center justify-center rounded-md transition-colors disabled:opacity-50"
+          style={{ background: 'var(--settings-input-bg)', color: 'var(--text-secondary)', border: 'var(--settings-input-border)' }}
+          aria-label={`Cancel removing ${member.displayName} from team`}
+          title="Cancel removal"
+        >
+          <X size={12} />
+        </button>
+      </motion.div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onStartConfirm}
+      disabled={disabled}
+      className="flex h-6 w-6 items-center justify-center rounded-md transition-colors disabled:opacity-50"
+      style={{ background: 'var(--settings-input-bg)', color: 'var(--text-secondary)', border: 'var(--settings-input-border)' }}
+      title="Remove from team"
+      aria-label={`Remove ${member.displayName} from team`}
+    >
+      <UserMinus size={12} />
     </button>
   );
 }
