@@ -48,6 +48,11 @@ describe('Header', () => {
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(screen.getByText('Team Tracker')).toBeInTheDocument();
     expect(screen.getByText('Manager Desk')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /open team tracker in new tab/i })).toHaveAttribute('href', '/team-tracker');
+    expect(screen.getByRole('link', { name: /open team tracker in new tab/i })).toHaveAttribute('target', '_blank');
+    expect(screen.getByRole('link', { name: /open manager desk in new tab/i })).toHaveAttribute('href', '/manager-desk');
+    expect(screen.getByRole('link', { name: /open manager desk in new tab/i })).toHaveAttribute('target', '_blank');
+    expect(screen.queryByRole('link', { name: /open dashboard in new tab/i })).not.toBeInTheDocument();
     expect(screen.queryByText('My Day')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /open settings/i })).toBeInTheDocument();
     expect(screen.queryByText('Settings')).not.toBeInTheDocument();
