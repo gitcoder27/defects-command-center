@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Check, CheckCircle2, ChevronDown, ChevronUp, GripVertical, Play, Save, StickyNote, X, XCircle } from 'lucide-react';
 import type { TrackerItemState, TrackerWorkItem } from '@/types';
-import { Play, CheckCircle2, XCircle, GripVertical, StickyNote, Save, PencilLine, Check, X } from 'lucide-react';
 import { JiraIssueLink } from '@/components/JiraIssueLink';
 import { formatDate, priorityColor } from '@/lib/utils';
+import { TrackerItemRowActions } from './TrackerItemRowActions';
+import { TrackerItemRowDetails } from './TrackerItemRowDetails';
 
 interface TrackerItemRowProps {
   item: TrackerWorkItem;
@@ -17,6 +19,7 @@ interface TrackerItemRowProps {
   canMoveDown?: boolean;
   compact?: boolean;
   draggable?: boolean;
+  showDetailsToggle?: boolean;
 }
 
 const stateIcons: Record<TrackerItemState, { icon: typeof Play; color: string }> = {
@@ -39,41 +42,44 @@ export function TrackerItemRow({
   canMoveDown = false,
   compact,
   draggable,
+  showDetailsToggle = false,
 }: TrackerItemRowProps) {
   const [noteEditing, setNoteEditing] = useState(false);
   const [draftNote, setDraftNote] = useState(item.note ?? '');
   const [titleEditing, setTitleEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(item.title);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
+  useEffect(() => setDraftNote(item.note ?? ''), [item.id, item.note]);
+  useEffect(() => setDraftTitle(item.title), [item.id, item.title]);
   useEffect(() => {
-    setDraftNote(item.note ?? '');
-  }, [item.note, item.id]);
-
-  useEffect(() => {
-    setDraftTitle(item.title);
-  }, [item.title, item.id]);
-
-  const commitTitle = () => {
-    const trimmed = draftTitle.trim();
-    if (trimmed && trimmed !== item.title) {
-      onUpdateTitle?.(item.id, trimmed);
-    }
+    setDetailsOpen(false);
+    setNoteEditing(false);
     setTitleEditing(false);
-  };
+  }, [item.id]);
 
   const stateInfo = stateIcons[item.state] ?? stateIcons.planned;
   const Icon = stateInfo.icon;
   const isActive = item.state === 'in_progress';
   const isDone = item.state === 'done' || item.state === 'dropped';
-  const jiraLabel = item.jiraSummary && item.jiraSummary !== item.title
-    ? `${item.jiraKey} · ${item.jiraSummary}`
-    : item.jiraKey;
-  const jiraMeta = [
-    item.jiraPriorityName,
-    item.jiraDueDate ? `Due ${formatDate(item.jiraDueDate)}` : undefined,
-  ]
-    .filter(Boolean)
-    .join(' • ');
+  const isTitleEditable = !compact && Boolean(onUpdateTitle) && !isDone;
+  const canShowDetails = showDetailsToggle && !compact;
+  const detailsRegionId = `tracker-item-details-${item.id}`;
+  const jiraLabel = item.jiraSummary && item.jiraSummary !== item.title ? `${item.jiraKey} · ${item.jiraSummary}` : item.jiraKey;
+  const jiraMeta = [item.jiraPriorityName, item.jiraDueDate ? `Due ${formatDate(item.jiraDueDate)}` : undefined].filter(Boolean).join(' • ');
+
+  const commitTitle = () => {
+    const trimmed = draftTitle.trim();
+    if (trimmed && trimmed !== item.title) onUpdateTitle?.(item.id, trimmed);
+    setTitleEditing(false);
+  };
+
+  const commitNote = () => {
+    onUpdateNote?.(item.id, draftNote.trim() || undefined);
+    setNoteEditing(false);
+  };
+
+  const toggleDetails = () => setDetailsOpen((open) => !open);
 
   return (
     <div
@@ -93,65 +99,95 @@ export function TrackerItemRow({
           <GripVertical size={14} />
         </div>
       ) : (
-        <Icon
-          size={compact ? 12 : 14}
-          style={{ color: stateInfo.color, flexShrink: 0 }}
-        />
+        <Icon size={compact ? 12 : 14} style={{ color: stateInfo.color, flexShrink: 0 }} />
       )}
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          {titleEditing && !compact && onUpdateTitle ? (
-            <div className="flex items-center gap-1 flex-1 min-w-0">
-              <input
-                autoFocus
-                value={draftTitle}
-                onChange={(e) => setDraftTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commitTitle();
-                  if (e.key === 'Escape') { setDraftTitle(item.title); setTitleEditing(false); }
-                }}
-                className="flex-1 min-w-0 rounded px-1.5 py-0.5 text-[12px] outline-none"
-                style={{
-                  background: 'var(--bg-tertiary)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-active)',
-                }}
-                aria-label="Edit title"
-              />
+        <div className="flex items-start gap-1.5">
+          <div className="flex-1 min-w-0">
+            {titleEditing && isTitleEditable ? (
+              <div className="flex items-center gap-1 min-w-0">
+                <input
+                  autoFocus
+                  value={draftTitle}
+                  onChange={(event) => setDraftTitle(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') commitTitle();
+                    if (event.key === 'Escape') {
+                      setDraftTitle(item.title);
+                      setTitleEditing(false);
+                    }
+                  }}
+                  className="flex-1 min-w-0 rounded px-1.5 py-0.5 text-[12px] outline-none"
+                  style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-active)' }}
+                  aria-label="Edit title"
+                />
+                <button onClick={commitTitle} className="h-5 w-5 rounded flex items-center justify-center shrink-0" style={{ color: 'var(--success)' }} title="Save title">
+                  <Check size={10} />
+                </button>
+                <button
+                  onClick={() => {
+                    setDraftTitle(item.title);
+                    setTitleEditing(false);
+                  }}
+                  className="h-5 w-5 rounded flex items-center justify-center shrink-0"
+                  style={{ color: 'var(--text-muted)' }}
+                  title="Cancel"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            ) : isTitleEditable ? (
               <button
-                onClick={commitTitle}
-                className="h-5 w-5 rounded flex items-center justify-center shrink-0"
-                style={{ color: 'var(--success)' }}
-                title="Save title"
+                type="button"
+                onClick={() => {
+                  setDetailsOpen(false);
+                  setTitleEditing(true);
+                }}
+                className="block w-full min-w-0 text-left"
+                aria-label={`Edit title: ${item.title}`}
+                title={item.title}
               >
-                <Check size={10} />
+                <span
+                  className="block truncate text-[12px] hover:underline"
+                  style={{ color: 'var(--text-primary)', textDecoration: isDone ? 'line-through' : 'none' }}
+                >
+                  {item.title}
+                </span>
               </button>
-              <button
-                onClick={() => { setDraftTitle(item.title); setTitleEditing(false); }}
-                className="h-5 w-5 rounded flex items-center justify-center shrink-0"
-                style={{ color: 'var(--text-muted)' }}
-                title="Cancel"
+            ) : (
+              <span
+                className="block truncate text-[12px]"
+                style={{ color: isDone ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: isDone ? 'line-through' : 'none' }}
+                title={item.title}
               >
-                <X size={10} />
-              </button>
-            </div>
-          ) : (
-            <span
-              className={`text-[12px] truncate${!compact && onUpdateTitle && !isDone ? ' cursor-pointer hover:underline' : ''}`}
-              style={{
-                color: isDone ? 'var(--text-muted)' : 'var(--text-primary)',
-                textDecoration: isDone ? 'line-through' : 'none',
+                {item.title}
+              </span>
+            )}
+          </div>
+
+          {canShowDetails && !titleEditing && (
+            <button
+              type="button"
+              onClick={toggleDetails}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  toggleDetails();
+                }
               }}
-              onClick={() => {
-                if (!compact && onUpdateTitle && !isDone) setTitleEditing(true);
-              }}
-              title={!compact && onUpdateTitle && !isDone ? 'Click to edit title' : undefined}
+              className="mt-[1px] h-5 w-5 shrink-0 rounded flex items-center justify-center"
+              style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+              aria-expanded={detailsOpen}
+              aria-controls={detailsRegionId}
+              aria-label={`${detailsOpen ? 'Hide' : 'Show'} task details for ${item.title}`}
+              title={detailsOpen ? 'Hide details' : 'Show details'}
             >
-              {item.title}
-            </span>
+              {detailsOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+            </button>
           )}
         </div>
+
         {item.jiraKey && (
           <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
             <span className="text-[9px] font-semibold uppercase shrink-0" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
@@ -170,9 +206,9 @@ export function TrackerItemRow({
           </div>
         )}
         {item.note && !compact && !noteEditing && (
-          <div className="flex items-center gap-1 mt-0.5">
+          <div className="mt-0.5 flex items-center gap-1">
             <StickyNote size={10} style={{ color: 'var(--text-muted)' }} />
-            <span className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
+            <span className="truncate text-[10px]" style={{ color: 'var(--text-muted)' }}>
               {item.note}
             </span>
           </div>
@@ -184,21 +220,10 @@ export function TrackerItemRow({
               onChange={(event) => setDraftNote(event.target.value)}
               rows={2}
               className="w-full rounded-lg px-2 py-1.5 text-[11px] outline-none resize-none"
-              style={{
-                background: 'var(--bg-tertiary)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-active)',
-              }}
+              style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-active)' }}
             />
             <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => {
-                  onUpdateNote?.(item.id, draftNote.trim() || undefined);
-                  setNoteEditing(false);
-                }}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px]"
-                style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
-              >
+              <button onClick={commitNote} className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px]" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
                 <Save size={10} />
                 Save
               </button>
@@ -215,73 +240,26 @@ export function TrackerItemRow({
             </div>
           </div>
         )}
+        {canShowDetails && detailsOpen && !titleEditing && !noteEditing && (
+          <TrackerItemRowDetails regionId={detailsRegionId} title={item.title} note={item.note} />
+        )}
       </div>
 
       {!isDone && (
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          {!draggable && item.state === 'planned' && onMoveUp && (
-            <button
-              onClick={() => onMoveUp(item.id)}
-              disabled={!canMoveUp}
-              className="h-6 w-6 rounded-md flex items-center justify-center transition-colors disabled:opacity-30"
-              style={{ background: 'var(--bg-tertiary)' }}
-              title="Move up"
-            >
-              <GripVertical size={10} style={{ color: 'var(--text-secondary)' }} />
-            </button>
-          )}
-          {!draggable && item.state === 'planned' && onMoveDown && (
-            <button
-              onClick={() => onMoveDown(item.id)}
-              disabled={!canMoveDown}
-              className="h-6 w-6 rounded-md flex items-center justify-center transition-colors disabled:opacity-30"
-              style={{ background: 'var(--bg-tertiary)' }}
-              title="Move down"
-            >
-              <GripVertical size={10} style={{ color: 'var(--text-secondary)' }} />
-            </button>
-          )}
-          {item.state !== 'in_progress' && onSetCurrent && (
-            <button
-              onClick={() => onSetCurrent(item.id)}
-              className="h-6 w-6 rounded-md flex items-center justify-center transition-colors"
-              style={{ background: 'var(--bg-tertiary)' }}
-              title="Set as current"
-            >
-              <Play size={10} style={{ color: 'var(--accent)' }} />
-            </button>
-          )}
-          {!compact && onUpdateNote && (
-            <button
-              onClick={() => setNoteEditing((editing) => !editing)}
-              className="h-6 w-6 rounded-md flex items-center justify-center transition-colors"
-              style={{ background: 'var(--bg-tertiary)' }}
-              title="Edit note"
-            >
-              <PencilLine size={10} style={{ color: item.note ? 'var(--accent)' : 'var(--text-secondary)' }} />
-            </button>
-          )}
-          {onMarkDone && (
-            <button
-              onClick={() => onMarkDone(item.id)}
-              className="h-6 w-6 rounded-md flex items-center justify-center transition-colors"
-              style={{ background: 'var(--bg-tertiary)' }}
-              title="Mark done"
-            >
-              <CheckCircle2 size={10} style={{ color: 'var(--success)' }} />
-            </button>
-          )}
-          {onDrop && (
-            <button
-              onClick={() => onDrop(item.id)}
-              className="h-6 w-6 rounded-md flex items-center justify-center transition-colors"
-              style={{ background: 'var(--bg-tertiary)' }}
-              title="Drop"
-            >
-              <XCircle size={10} style={{ color: 'var(--text-muted)' }} />
-            </button>
-          )}
-        </div>
+        <TrackerItemRowActions
+          itemId={item.id}
+          itemState={item.state}
+          draggable={draggable}
+          canMoveUp={canMoveUp}
+          canMoveDown={canMoveDown}
+          hasNote={Boolean(item.note)}
+          onSetCurrent={onSetCurrent}
+          onMarkDone={onMarkDone}
+          onDrop={onDrop}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+          onToggleNoteEditor={!compact && onUpdateNote ? () => setNoteEditing((editing) => !editing) : undefined}
+        />
       )}
     </div>
   );

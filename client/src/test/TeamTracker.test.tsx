@@ -531,6 +531,59 @@ describe('TeamTrackerPage', () => {
     expect(dragHandles.length).toBe(2);
   });
 
+  it('reveals full task details for current and planned drawer items without affecting the collapsed layout', () => {
+    const bob = mockBoard.developers[1]!;
+    const originalCurrentItem = bob.currentItem;
+    const originalPlannedItems = bob.plannedItems;
+
+    bob.currentItem = originalCurrentItem
+      ? {
+          ...originalCurrentItem,
+          title: 'Fix login bug affecting the enterprise customer SSO rollout this morning',
+          note: 'Coordinate with QA before shipping.\nEscalate if repro still fails after patch.',
+        }
+      : undefined;
+    bob.plannedItems = originalPlannedItems.map((item, index) =>
+      index === 0
+        ? {
+            ...item,
+            title: 'Review regression checklist for the authentication hardening follow-up',
+            note: 'Check dashboard alerts and confirm release notes.',
+          }
+        : item
+    );
+
+    try {
+      render(
+        <TestWrapper>
+          <TeamTrackerPage />
+        </TestWrapper>
+      );
+
+      clickDeveloperCard('Bob Jones');
+
+      const detailButtons = screen.getAllByRole('button', { name: /show task details for/i });
+      expect(detailButtons.length).toBeGreaterThanOrEqual(3);
+
+      fireEvent.click(detailButtons[0]!);
+      const currentDetails = screen.getByRole('region', {
+        name: /task details for fix login bug affecting the enterprise customer sso rollout this morning/i,
+      });
+      expect(within(currentDetails).getByText('Full title')).toBeInTheDocument();
+      expect(within(currentDetails).getByText(/coordinate with qa before shipping/i)).toBeInTheDocument();
+
+      fireEvent.click(detailButtons[1]!);
+      const plannedDetails = screen.getByRole('region', {
+        name: /task details for review regression checklist for the authentication hardening follow-up/i,
+      });
+      expect(within(plannedDetails).getByText('Notes')).toBeInTheDocument();
+      expect(within(plannedDetails).getByText(/check dashboard alerts and confirm release notes/i)).toBeInTheDocument();
+    } finally {
+      bob.currentItem = originalCurrentItem;
+      bob.plannedItems = originalPlannedItems;
+    }
+  });
+
   it('saves daily capacity from the drawer', () => {
     render(
       <TestWrapper>
@@ -582,9 +635,7 @@ describe('TeamTrackerPage', () => {
     );
 
     clickDeveloperCard('Bob Jones');
-    // Click the current item title in the drawer (the first clickable title)
-    const editableTitles = screen.getAllByTitle('Click to edit title');
-    fireEvent.click(editableTitles[0]!);
+    fireEvent.click(screen.getByRole('button', { name: /edit title: fix login bug/i }));
     const titleInput = screen.getByLabelText('Edit title');
     expect(titleInput).toBeInTheDocument();
     fireEvent.change(titleInput, { target: { value: 'Fix login bug (urgent)' } });
@@ -768,6 +819,94 @@ describe('TrackerItemRow', () => {
     // Should revert and not call the callback
     expect(onUpdateTitle).not.toHaveBeenCalled();
     expect(screen.getByText('Keep this title')).toBeInTheDocument();
+  });
+
+  it('reveals full title and note when details are toggled on', async () => {
+    const { TrackerItemRow } = await import('@/components/team-tracker/TrackerItemRow');
+
+    render(
+      <TrackerItemRow
+        item={{
+          id: 7,
+          dayId: 1,
+          itemType: 'custom',
+          title: 'Investigate the regional export failure that only appears after the nightly sync',
+          note: 'Capture the exact failure mode.\nConfirm whether the queued retry path is still intact.',
+          state: 'planned',
+          position: 0,
+          createdAt: '2026-03-07T08:00:00Z',
+          updatedAt: '2026-03-07T08:00:00Z',
+        }}
+        showDetailsToggle
+      />
+    );
+
+    expect(
+      screen.queryByRole('region', { name: /task details for investigate the regional export failure/i })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /show task details for investigate the regional export failure/i }));
+
+    const details = screen.getByRole('region', { name: /task details for investigate the regional export failure/i });
+    expect(within(details).getByText('Full title')).toBeInTheDocument();
+    expect(within(details).getByText(/capture the exact failure mode/i)).toBeInTheDocument();
+  });
+
+  it('keeps title editing separate from the details reveal', async () => {
+    const { TrackerItemRow } = await import('@/components/team-tracker/TrackerItemRow');
+    const onUpdateTitle = vi.fn();
+
+    render(
+      <TrackerItemRow
+        item={{
+          id: 8,
+          dayId: 1,
+          itemType: 'custom',
+          title: 'Follow up with infra on rollout sequencing',
+          note: 'Details should stay closed when editing starts.',
+          state: 'planned',
+          position: 0,
+          createdAt: '2026-03-07T08:00:00Z',
+          updatedAt: '2026-03-07T08:00:00Z',
+        }}
+        onUpdateTitle={onUpdateTitle}
+        showDetailsToggle
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /edit title: follow up with infra on rollout sequencing/i }));
+
+    expect(screen.getByLabelText('Edit title')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: /task details for follow up with infra on rollout sequencing/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('supports keyboard activation for the details toggle', async () => {
+    const { TrackerItemRow } = await import('@/components/team-tracker/TrackerItemRow');
+
+    render(
+      <TrackerItemRow
+        item={{
+          id: 9,
+          dayId: 1,
+          itemType: 'custom',
+          title: 'Validate keyboard access for task details',
+          note: 'This should open without a mouse.',
+          state: 'planned',
+          position: 0,
+          createdAt: '2026-03-07T08:00:00Z',
+          updatedAt: '2026-03-07T08:00:00Z',
+        }}
+        showDetailsToggle
+      />
+    );
+
+    const toggle = screen.getByRole('button', { name: /show task details for validate keyboard access for task details/i });
+    toggle.focus();
+    fireEvent.keyDown(toggle, { key: 'Enter' });
+
+    expect(screen.getByRole('region', { name: /task details for validate keyboard access for task details/i })).toBeInTheDocument();
   });
 });
 

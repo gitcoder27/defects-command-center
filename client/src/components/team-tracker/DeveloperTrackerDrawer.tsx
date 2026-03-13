@@ -340,6 +340,7 @@ export function DeveloperTrackerDrawer({
                 {day.currentItem ? (
                   <TrackerItemRow
                     item={day.currentItem}
+                    showDetailsToggle
                     onUpdateNote={(itemId, note) => onUpdateItemNote({ itemId, note })}
                     onUpdateTitle={(itemId, title) => onUpdateItemTitle({ itemId, title })}
                     onSetCurrent={onSetCurrent}
@@ -385,6 +386,7 @@ export function DeveloperTrackerDrawer({
                         <TrackerItemRow
                           item={item}
                           draggable
+                          showDetailsToggle
                           onUpdateNote={(itemId, note) => onUpdateItemNote({ itemId, note })}
                           onUpdateTitle={(itemId, title) => onUpdateItemTitle({ itemId, title })}
                           onSetCurrent={onSetCurrent}
