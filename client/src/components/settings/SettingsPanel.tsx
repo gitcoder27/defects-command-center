@@ -1016,9 +1016,9 @@ export function SettingsPage() {
 
               {/* ── TEAM MEMBERS ────── */}
               {activeSection === 'team' ? (
-                <div className="grid gap-5 xl:grid-cols-2">
+                <div className="grid items-start gap-5 lg:grid-cols-2">
                   {/* Tracked team */}
-                  <div>
+                  <div className="min-w-0">
                     <div className="mb-2.5 flex items-center justify-between">
                       <SettingsGroupLabel>Tracked Team</SettingsGroupLabel>
                       <span
@@ -1078,7 +1078,7 @@ export function SettingsPage() {
                   </div>
 
                   {/* Jira directory */}
-                  <div>
+                  <div className="min-w-0">
                     <div className="mb-2.5 flex items-center justify-between">
                       <SettingsGroupLabel>Jira Directory</SettingsGroupLabel>
                       <button
