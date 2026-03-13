@@ -6,7 +6,8 @@ import { appSessions, appUsers } from "../db/schema";
 import { HttpError } from "../middleware/errorHandler";
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
-export const SESSION_COOKIE_NAME = "dcc_session";
+const DEFAULT_SESSION_COOKIE_NAME = "dcc_session";
+export const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME?.trim() || DEFAULT_SESSION_COOKIE_NAME;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 interface CreateUserParams {

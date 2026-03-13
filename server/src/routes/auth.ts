@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { AuthBootstrapResponse, AuthSessionResponse, AuthUser } from "shared/types";
 import { validate } from "../middleware/validate";
 import { requireAuth, requireManager } from "../middleware/auth";
-import { AuthService, clearSessionCookie, serializeSessionCookie } from "../services/auth.service";
+import { AuthService, clearSessionCookie, serializeSessionCookie, SESSION_COOKIE_NAME } from "../services/auth.service";
 
 const loginSchema = z.object({
   body: z.object({
@@ -88,7 +88,7 @@ export function createAuthRouter(authService: AuthService): Router {
       // If users already exist, only a logged-in manager can create new users.
       if (!isBootstrap) {
         const cookies = parseCookieHeader(req.headers.cookie);
-        const sessionId = cookies["dcc_session"];
+        const sessionId = cookies[SESSION_COOKIE_NAME];
         if (!sessionId) {
           res.status(401).json({ error: "Authentication required", status: 401 });
           return;
