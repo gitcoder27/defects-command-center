@@ -31,6 +31,9 @@ import {
   PRIORITY_LABELS,
 } from '@/types/manager-desk';
 import { JiraIssueLink } from '@/components/JiraIssueLink';
+import { AssigneeField } from './AssigneeField';
+import { AssigneePill } from './AssigneePill';
+import { LinkedIssueSnapshot } from './LinkedIssueSnapshot';
 
 interface Props {
   item: ManagerDeskItem | null;
@@ -157,6 +160,9 @@ function DrawerContent({
   );
 
   const isDone = item.status === 'done' || item.status === 'cancelled';
+  const linkedIssueKeys = item.links
+    .filter((link) => link.linkType === 'issue' && Boolean(link.issueKey))
+    .map((link) => link.issueKey!);
 
   return (
     <>
@@ -186,6 +192,7 @@ function DrawerContent({
               <MetaChip label={STATUS_LABELS[item.status]} tone={isDone ? 'success' : 'neutral'} />
               <MetaChip label={CATEGORY_LABELS[item.category]} tone="neutral" />
               <MetaChip label={PRIORITY_LABELS[item.priority]} tone={item.priority === 'critical' ? 'danger' : 'neutral'} />
+              <AssigneePill assignee={item.assignee} />
             </div>
           </div>
 
@@ -321,6 +328,12 @@ function DrawerContent({
               onToggleCollapse={() => toggleSection('details')}
             >
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <AssigneeField
+                    item={item}
+                    onChange={(accountId) => onUpdate(item.id, { assigneeDeveloperAccountId: accountId })}
+                  />
+                </div>
                 <FieldSelect
                   label="Kind"
                   value={item.kind}
@@ -391,104 +404,108 @@ function DrawerContent({
               </div>
             </SectionCard>
 
-            <SectionCard
-              eyebrow="Linked Context"
-              title="Connected people and work"
-              description="Attach the issue, developer, or external team involved in this item."
-              collapsed={collapsedSections.links}
-              onToggleCollapse={() => toggleSection('links')}
-            >
-              <div className="flex flex-wrap gap-1.5">
-                <LinkActionButton
-                  label="Issue"
-                  icon={<Bug size={10} />}
-                  onClick={() => setShowLinkSearch('issue')}
-                />
-                <LinkActionButton
-                  label="Developer"
-                  icon={<UserCircle size={10} />}
-                  onClick={() => setShowLinkSearch('developer')}
-                />
-                <LinkActionButton
-                  label="External"
-                  icon={<Users size={10} />}
-                  onClick={() => setShowLinkSearch('external')}
-                />
-              </div>
+            <div className="space-y-4">
+              <LinkedIssueSnapshot issueKeys={linkedIssueKeys} />
 
-              {item.links.length > 0 ? (
-                <div className="mt-3 space-y-1.5">
-                  {item.links.map((link) => (
-                    <div
-                      key={link.id}
-                      className="group flex items-center gap-2 rounded-xl px-3 py-2"
-                      style={{
-                        background: 'color-mix(in srgb, var(--bg-secondary) 92%, transparent)',
-                        border: '1px solid var(--border)',
-                      }}
-                    >
-                      {link.linkType === 'issue' && <Bug size={12} style={{ color: 'var(--accent)' }} />}
-                      {link.linkType === 'developer' && <UserCircle size={12} style={{ color: 'var(--info)' }} />}
-                      {link.linkType === 'external_group' && <Users size={12} style={{ color: 'var(--text-secondary)' }} />}
-                      {link.linkType === 'issue' && link.issueKey ? (
-                        <JiraIssueLink
-                          issueKey={link.issueKey}
-                          className="flex-1 truncate text-[12px] font-medium"
-                          style={{ color: 'var(--text-primary)' }}
-                        >
-                          {link.displayLabel}
-                        </JiraIssueLink>
-                      ) : (
-                        <span className="flex-1 truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                          {link.displayLabel}
-                        </span>
-                      )}
-                      <button
-                        onClick={() => handleDeleteLink(link.id)}
-                        className="transition-opacity group-hover:opacity-100 xl:opacity-0"
-                        style={{ color: 'var(--text-muted)' }}
-                        aria-label={`Remove linked context ${link.displayLabel}`}
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div
-                  className="mt-3 rounded-xl px-3 py-3 text-[12px]"
-                  style={{
-                    background: 'color-mix(in srgb, var(--bg-secondary) 78%, transparent)',
-                    color: 'var(--text-muted)',
-                    border: '1px dashed var(--border)',
-                  }}
-                >
-                  No linked context yet.
-                </div>
-              )}
-
-              {showLinkSearch && (
-                <div className="mt-3">
-                  <LinkSearchPanel
-                    type={showLinkSearch}
-                    itemId={item.id}
-                    onClose={() => setShowLinkSearch(null)}
-                    addLink={addLink}
+              <SectionCard
+                eyebrow="Linked Context"
+                title="Connected people and work"
+                description="Attach the issue, developer, or external team involved in this item."
+                collapsed={collapsedSections.links}
+                onToggleCollapse={() => toggleSection('links')}
+              >
+                <div className="flex flex-wrap gap-1.5">
+                  <LinkActionButton
+                    label="Issue"
+                    icon={<Bug size={10} />}
+                    onClick={() => setShowLinkSearch('issue')}
+                  />
+                  <LinkActionButton
+                    label="Developer"
+                    icon={<UserCircle size={10} />}
+                    onClick={() => setShowLinkSearch('developer')}
+                  />
+                  <LinkActionButton
+                    label="External"
+                    icon={<Users size={10} />}
+                    onClick={() => setShowLinkSearch('external')}
                   />
                 </div>
-              )}
 
-              <div className="mt-4 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
-                <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
-                  Activity
+                {item.links.length > 0 ? (
+                  <div className="mt-3 space-y-1.5">
+                    {item.links.map((link) => (
+                      <div
+                        key={link.id}
+                        className="group flex items-center gap-2 rounded-xl px-3 py-2"
+                        style={{
+                          background: 'color-mix(in srgb, var(--bg-secondary) 92%, transparent)',
+                          border: '1px solid var(--border)',
+                        }}
+                      >
+                        {link.linkType === 'issue' && <Bug size={12} style={{ color: 'var(--accent)' }} />}
+                        {link.linkType === 'developer' && <UserCircle size={12} style={{ color: 'var(--info)' }} />}
+                        {link.linkType === 'external_group' && <Users size={12} style={{ color: 'var(--text-secondary)' }} />}
+                        {link.linkType === 'issue' && link.issueKey ? (
+                          <JiraIssueLink
+                            issueKey={link.issueKey}
+                            className="flex-1 truncate text-[12px] font-medium"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            {link.displayLabel}
+                          </JiraIssueLink>
+                        ) : (
+                          <span className="flex-1 truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                            {link.displayLabel}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => handleDeleteLink(link.id)}
+                          className="transition-opacity group-hover:opacity-100 xl:opacity-0"
+                          style={{ color: 'var(--text-muted)' }}
+                          aria-label={`Remove linked context ${link.displayLabel}`}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    className="mt-3 rounded-xl px-3 py-3 text-[12px]"
+                    style={{
+                      background: 'color-mix(in srgb, var(--bg-secondary) 78%, transparent)',
+                      color: 'var(--text-muted)',
+                      border: '1px dashed var(--border)',
+                    }}
+                  >
+                    No linked context yet.
+                  </div>
+                )}
+
+                {showLinkSearch && (
+                  <div className="mt-3">
+                    <LinkSearchPanel
+                      type={showLinkSearch}
+                      itemId={item.id}
+                      onClose={() => setShowLinkSearch(null)}
+                      addLink={addLink}
+                    />
+                  </div>
+                )}
+
+                <div className="mt-4 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+                  <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
+                    Activity
+                  </div>
+                  <div className="mt-2 space-y-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    <div>Created {formatSafe(item.createdAt)}</div>
+                    <div>Updated {formatSafe(item.updatedAt)}</div>
+                    {item.completedAt && <div>Completed {formatSafe(item.completedAt)}</div>}
+                  </div>
                 </div>
-                <div className="mt-2 space-y-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                  <div>Created {formatSafe(item.createdAt)}</div>
-                  <div>Updated {formatSafe(item.updatedAt)}</div>
-                  {item.completedAt && <div>Completed {formatSafe(item.completedAt)}</div>}
-                </div>
-              </div>
-            </SectionCard>
+              </SectionCard>
+            </div>
           </div>
         </div>
       </div>
@@ -1259,28 +1276,19 @@ function LinkSearchPanel({
       {type === 'issue' && issues && issues.length > 0 && (
         <div className="max-h-40 overflow-y-auto border-t" style={{ borderColor: 'var(--border)' }}>
           {issues.map((issue) => (
-            <div
+            <button
               key={issue.jiraKey}
-              className="flex items-center gap-2 px-3 py-2 transition-colors hover:opacity-80"
+              onClick={() => handleSelectIssue(issue.jiraKey)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:opacity-80"
               style={{ background: 'transparent' }}
             >
-              <JiraIssueLink
-                issueKey={issue.jiraKey}
-                stopPropagation
-                className="text-[11px] font-mono font-bold shrink-0"
-                style={{ color: 'var(--accent)' }}
-              >
+              <span className="text-[11px] font-mono font-bold" style={{ color: 'var(--accent)' }}>
                 {issue.jiraKey}
-              </JiraIssueLink>
-              <button
-                type="button"
-                onClick={() => handleSelectIssue(issue.jiraKey)}
-                className="flex-1 truncate text-left text-[11px]"
-                style={{ color: 'var(--text-secondary)' }}
-              >
+              </span>
+              <span className="flex-1 truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>
                 {issue.summary}
-              </button>
-            </div>
+              </span>
+            </button>
           ))}
         </div>
       )}

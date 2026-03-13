@@ -430,6 +430,12 @@ export interface ManagerDeskLink {
   createdAt: string;
 }
 
+export interface ManagerDeskAssignee {
+  accountId: string;
+  displayName: string;
+  avatarUrl?: string;
+}
+
 export interface ManagerDeskItem {
   id: number;
   dayId: number;
@@ -438,6 +444,7 @@ export interface ManagerDeskItem {
   category: ManagerDeskCategory;
   status: ManagerDeskStatus;
   priority: ManagerDeskPriority;
+  assigneeDeveloperAccountId?: string;
   participants?: string;
   contextNote?: string;
   nextAction?: string;
@@ -446,6 +453,7 @@ export interface ManagerDeskItem {
   plannedEndAt?: string;
   followUpAt?: string;
   completedAt?: string;
+  assignee?: ManagerDeskAssignee;
   createdAt: string;
   updatedAt: string;
   links: ManagerDeskLink[];

@@ -31,6 +31,8 @@ export function useCreateManagerDeskItem(date: string) {
       api.post<ManagerDeskItem>('/manager-desk/items', payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
     },
   });
 }
@@ -44,6 +46,8 @@ export function useUpdateManagerDeskItem(date: string) {
       api.patch<ManagerDeskItem>(`/manager-desk/items/${itemId}`, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
     },
   });
 }
@@ -57,6 +61,8 @@ export function useDeleteManagerDeskItem(date: string) {
       api.delete<{ deleted: boolean }>(`/manager-desk/items/${itemId}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
     },
   });
 }
@@ -70,6 +76,8 @@ export function useAddManagerDeskLink(date: string) {
       api.post<ManagerDeskLink>(`/manager-desk/items/${itemId}/links`, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
     },
   });
 }
@@ -83,6 +91,8 @@ export function useRemoveManagerDeskLink(date: string) {
       api.delete<{ deleted: boolean }>(`/manager-desk/items/${itemId}/links/${linkId}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
     },
   });
 }
@@ -97,6 +107,8 @@ export function useCarryForwardManagerDesk(date: string) {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['manager-desk', date] });
       qc.invalidateQueries({ queryKey: ['manager-desk', variables.toDate] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
     },
   });
 }
