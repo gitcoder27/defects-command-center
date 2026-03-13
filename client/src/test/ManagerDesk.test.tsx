@@ -7,6 +7,53 @@ import type {
   ManagerDeskSummary,
 } from '@/types/manager-desk';
 
+const mockIssuesByKey = {
+  'PROJ-221': {
+    jiraKey: 'PROJ-221',
+    summary: 'Rahul blocker on review flow',
+    description: '### Detail\nInvestigate the review flow regression.',
+    aspenSeverity: 'High',
+    priorityName: 'High',
+    priorityId: '1',
+    statusName: 'In Progress',
+    statusCategory: 'indeterminate',
+    assigneeId: 'bob-2',
+    assigneeName: 'Bob Jones',
+    reporterName: 'Lead',
+    component: 'Review Flow',
+    labels: ['review'],
+    dueDate: '2026-03-10',
+    developmentDueDate: '2026-03-09',
+    flagged: true,
+    createdAt: '2026-03-07T08:00:00.000Z',
+    updatedAt: '2026-03-08T09:00:00.000Z',
+    localTags: [],
+    analysisNotes: 'Root cause points to the handoff validation step.',
+  },
+  'PROJ-321': {
+    jiraKey: 'PROJ-321',
+    summary: 'Investigate design gap in review flow',
+    description: 'Follow up with design on the error-state coverage.',
+    aspenSeverity: 'Medium',
+    priorityName: 'Medium',
+    priorityId: '2',
+    statusName: 'To Do',
+    statusCategory: 'new',
+    assigneeId: 'alice-1',
+    assigneeName: 'Alice Smith',
+    reporterName: 'Lead',
+    component: 'Design',
+    labels: ['design'],
+    dueDate: '2026-03-12',
+    developmentDueDate: undefined,
+    flagged: false,
+    createdAt: '2026-03-07T08:00:00.000Z',
+    updatedAt: '2026-03-08T08:00:00.000Z',
+    localTags: [],
+    analysisNotes: '',
+  },
+} as const;
+
 // ── Mock data ───────────────────────────────────────────
 
 const mockSummary: ManagerDeskSummary = {
@@ -42,6 +89,12 @@ const mockDayResponse: ManagerDeskDayResponse = {
       title: 'Analyze root cause for DEF-241',
       status: 'planned',
       priority: 'high',
+      assignee: {
+        accountId: 'alice-1',
+        displayName: 'Alice Smith',
+        avatarUrl: 'https://example.com/alice.png',
+      },
+      links: [{ id: 11, itemId: 1, linkType: 'issue', issueKey: 'PROJ-221', displayLabel: 'PROJ-221', createdAt: '2026-03-08T09:00:00Z' }],
       nextAction: 'Follow up with QA after design review',
       outcome: 'Root cause and workaround captured',
     }),
@@ -121,6 +174,29 @@ vi.mock('@/context/ThemeContext', () => ({
 vi.mock('@/context/ToastContext', () => ({
   useToast: () => ({
     addToast: vi.fn(),
+  }),
+}));
+
+vi.mock('@/hooks/useDevelopers', () => ({
+  useDevelopers: () => ({
+    data: [
+      { accountId: 'alice-1', displayName: 'Alice Smith', isActive: true },
+      { accountId: 'bob-2', displayName: 'Bob Jones', isActive: true },
+    ],
+    isLoading: false,
+  }),
+}));
+
+vi.mock('@/hooks/useIssueDetail', () => ({
+  useIssueDetail: (key?: string) => ({
+    data: key ? mockIssuesByKey[key as keyof typeof mockIssuesByKey] : undefined,
+    isLoading: false,
+  }),
+}));
+
+vi.mock('@/hooks/useConfig', () => ({
+  useConfig: () => ({
+    data: { jiraBaseUrl: 'https://test.atlassian.net', isConfigured: true },
   }),
 }));
 
@@ -217,6 +293,7 @@ describe('ManagerDeskPage', () => {
     expect(screen.getByText('Design sync with onshore')).toBeInTheDocument();
     expect(screen.getByText('Waiting on QA feedback')).toBeInTheDocument();
     expect(screen.getByText('Quick inbox thought')).toBeInTheDocument();
+    expect(screen.getAllByText('Alice Smith').length).toBeGreaterThanOrEqual(1);
   });
 
   it('calls create mutation when quick capture is submitted', () => {
@@ -314,6 +391,74 @@ describe('ManagerDeskPage', () => {
     expect(screen.getByRole('button', { name: /expand action & outcome/i })).toBeInTheDocument();
     expect(screen.getByText('Next Action saved')).toBeInTheDocument();
     expect(screen.getByText('Outcome saved')).toBeInTheDocument();
+    expect(screen.getByLabelText('Assigned To')).toHaveValue('alice-1');
+  });
+
+  it('updates the assigned team member from the drawer', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+    fireEvent.change(screen.getByLabelText('Assigned To'), { target: { value: 'bob-2' } });
+
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      {
+        itemId: 1,
+        assigneeDeveloperAccountId: 'bob-2',
+      },
+      expect.anything(),
+    );
+  });
+
+  it('shows a triage-style Jira snapshot for linked issues in the drawer', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+
+    expect(screen.getByText('Triage snapshot')).toBeInTheDocument();
+    expect(screen.getByText('Rahul blocker on review flow')).toBeInTheDocument();
+    expect(screen.getByText('Analysis Notes')).toBeInTheDocument();
+    expect(screen.getByText(/Root cause points to the handoff validation step/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /open in jira/i })).toHaveAttribute(
+      'href',
+      'https://test.atlassian.net/browse/PROJ-221',
+    );
+  });
+
+  it('switches between linked Jira issues when multiple issue links exist', () => {
+    currentMockDay = {
+      ...mockDayResponse,
+      items: mockDayResponse.items.map((item) =>
+        item.id === 1
+          ? {
+              ...item,
+              links: [
+                { id: 11, itemId: 1, linkType: 'issue', issueKey: 'PROJ-221', displayLabel: 'PROJ-221', createdAt: '2026-03-08T09:00:00Z' },
+                { id: 12, itemId: 1, linkType: 'issue', issueKey: 'PROJ-321', displayLabel: 'PROJ-321', createdAt: '2026-03-08T09:05:00Z' },
+              ],
+            }
+          : item,
+      ),
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+    fireEvent.click(screen.getByRole('button', { name: 'PROJ-321' }));
+
+    expect(screen.getByText('Investigate design gap in review flow')).toBeInTheDocument();
+    expect(screen.getByText(/Follow up with design on the error-state coverage/i)).toBeInTheDocument();
   });
 
   it('debounces context note updates from the drawer', () => {

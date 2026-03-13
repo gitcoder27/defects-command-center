@@ -15,6 +15,7 @@ import {
 import { format, parseISO, isPast } from 'date-fns';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
 import { KIND_LABELS, CATEGORY_LABELS, PRIORITY_LABELS } from '@/types/manager-desk';
+import { AssigneePill } from './AssigneePill';
 
 interface Props {
   item: ManagerDeskItem;
@@ -149,6 +150,8 @@ export function DeskItemCard({
             >
               {item.title}
             </span>
+
+            {item.assignee && <AssigneePill assignee={item.assignee} size="sm" tone="neutral" />}
 
             {/* Priority pip */}
             {item.priority !== 'low' && !isDone && (

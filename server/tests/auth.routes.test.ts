@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import express from "express";
 import { createAuthRouter } from "../src/routes/auth";
 import { notFoundHandler, errorHandler } from "../src/middleware/errorHandler";
-import { AuthService } from "../src/services/auth.service";
+import { AuthService, SESSION_COOKIE_NAME } from "../src/services/auth.service";
 import { resetDatabase } from "./helpers/db";
 import { invoke } from "./helpers/http";
 
@@ -75,7 +75,7 @@ describe("auth routes", () => {
       role: "developer",
       developerAccountId: "dev-1",
     });
-    expect(res.headers["set-cookie"]).toContain("dcc_session=");
+    expect(res.headers["set-cookie"]).toContain(`${SESSION_COOKIE_NAME}=`);
     expect(res.headers["set-cookie"]).toContain("HttpOnly");
   });
 
@@ -113,7 +113,7 @@ describe("auth routes", () => {
       username: "manager",
       role: "manager",
     });
-    expect(created.headers["set-cookie"]).toContain("dcc_session=");
+    expect(created.headers["set-cookie"]).toContain(`${SESSION_COOKIE_NAME}=`);
   });
 
   it("POST /api/auth/register requires a manager session after bootstrap", async () => {
@@ -303,7 +303,7 @@ describe("auth routes", () => {
     });
 
     const cookie = login.headers["set-cookie"];
-    expect(cookie).toContain("dcc_session=");
+    expect(cookie).toContain(`${SESSION_COOKIE_NAME}=`);
 
     const logout = await invoke(app, {
       method: "POST",

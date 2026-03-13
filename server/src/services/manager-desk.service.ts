@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, like, or } from "drizzle-orm";
 import type {
+  ManagerDeskAssignee,
   ManagerDeskCategory,
   ManagerDeskDayResponse,
   ManagerDeskDeveloperLookupItem,
@@ -21,6 +22,7 @@ import {
   managerDeskLinks,
 } from "../db/schema";
 import { HttpError } from "../middleware/errorHandler";
+import { TeamTrackerService } from "./team-tracker.service";
 
 interface ManagerDeskLinkInput {
   linkType: ManagerDeskLinkType;
@@ -36,6 +38,7 @@ interface CreateManagerDeskItemParams {
   category?: ManagerDeskCategory;
   status?: ManagerDeskStatus;
   priority?: ManagerDeskPriority;
+  assigneeDeveloperAccountId?: string | null;
   participants?: string | null;
   contextNote?: string | null;
   nextAction?: string | null;
@@ -52,6 +55,7 @@ interface UpdateManagerDeskItemParams {
   category?: ManagerDeskCategory;
   status?: ManagerDeskStatus;
   priority?: ManagerDeskPriority;
+  assigneeDeveloperAccountId?: string | null;
   participants?: string | null;
   contextNote?: string | null;
   nextAction?: string | null;
@@ -132,6 +136,8 @@ function getCarryForwardStatus(status: ManagerDeskStatus): ManagerDeskStatus {
 }
 
 export class ManagerDeskService {
+  constructor(private readonly trackerService = new TeamTrackerService()) {}
+
   async getDay(managerAccountId: string, date: string): Promise<ManagerDeskDayResponse> {
     const day = await this.ensureDay(managerAccountId, date);
     const itemRows = await db
@@ -139,9 +145,18 @@ export class ManagerDeskService {
       .from(managerDeskItems)
       .where(eq(managerDeskItems.dayId, day.id));
     const linksByItemId = await this.getLinksByItemIds(itemRows.map((item) => item.id));
+    const assigneesByAccountId = await this.getAssigneeMap(itemRows);
     const items = itemRows
       .sort(compareItemRows)
-      .map((item) => this.mapItem(item, linksByItemId.get(item.id) ?? []));
+      .map((item) =>
+        this.mapItem(
+          item,
+          linksByItemId.get(item.id) ?? [],
+          item.assigneeDeveloperAccountId
+            ? assigneesByAccountId.get(item.assigneeDeveloperAccountId) ?? undefined
+            : undefined
+        )
+      );
 
     return {
       date,
@@ -164,6 +179,9 @@ export class ManagerDeskService {
 
     const normalizedLinks = await this.normalizeLinkInputs(params.links ?? []);
     this.assertNoDuplicateLinks(normalizedLinks);
+    const assigneeDeveloperAccountId = await this.normalizeAssigneeAccountId(
+      params.assigneeDeveloperAccountId
+    );
 
     const now = nowIso();
     const inserted = await db
@@ -176,6 +194,7 @@ export class ManagerDeskService {
         category: params.category ?? "other",
         status: params.status ?? "inbox",
         priority: params.priority ?? "medium",
+        assigneeDeveloperAccountId,
         participants: normalizeOptionalText(params.participants) ?? null,
         contextNote: normalizeOptionalText(params.contextNote) ?? null,
         nextAction: normalizeOptionalText(params.nextAction) ?? null,
@@ -204,6 +223,14 @@ export class ManagerDeskService {
         createdAt: now,
       });
     }
+
+    await this.syncTrackerAssignment(
+      item.id,
+      assigneeDeveloperAccountId,
+      params.date,
+      title,
+      normalizedLinks
+    );
 
     return this.getItemById(managerAccountId, item.id);
   }
@@ -237,6 +264,11 @@ export class ManagerDeskService {
     }
     if (updates.priority !== undefined) {
       setFields.priority = updates.priority;
+    }
+    if (updates.assigneeDeveloperAccountId !== undefined) {
+      setFields.assigneeDeveloperAccountId = await this.normalizeAssigneeAccountId(
+        updates.assigneeDeveloperAccountId
+      );
     }
     if (updates.participants !== undefined) {
       setFields.participants = normalizeOptionalText(updates.participants) ?? null;
@@ -273,11 +305,33 @@ export class ManagerDeskService {
       .set(setFields)
       .where(eq(managerDeskItems.id, itemId));
 
+    const updatedItem = await this.getOwnedItemRow(managerAccountId, itemId);
+    const updatedLinks = await this.getNormalizedLinksByItemId(itemId);
+    const day = await this.getDayById(updatedItem.dayId);
+    if (!day) {
+      throw new Error(`Manager desk day ${updatedItem.dayId} was not found`);
+    }
+
+    await this.syncTrackerAssignment(
+      itemId,
+      updatedItem.assigneeDeveloperAccountId,
+      day.date,
+      updatedItem.title,
+      updatedLinks
+    );
+
     return this.getItemById(managerAccountId, itemId);
   }
 
   async deleteItem(managerAccountId: string, itemId: number): Promise<void> {
     await this.getOwnedItemRow(managerAccountId, itemId);
+    await this.trackerService.syncManagerDeskItem({
+      managerDeskItemId: itemId,
+      assigneeDeveloperAccountId: null,
+      date: "",
+      title: "",
+      issueKeys: [],
+    });
     await db.delete(managerDeskLinks).where(eq(managerDeskLinks.itemId, itemId));
     await db.delete(managerDeskItems).where(eq(managerDeskItems.id, itemId));
   }
@@ -317,6 +371,18 @@ export class ManagerDeskService {
       throw new Error("Failed to load manager desk link after insert");
     }
 
+    const item = await this.getOwnedItemRow(managerAccountId, itemId);
+    const day = await this.getDayById(item.dayId);
+    if (day) {
+      await this.syncTrackerAssignment(
+        itemId,
+        item.assigneeDeveloperAccountId,
+        day.date,
+        item.title,
+        await this.getNormalizedLinksByItemId(itemId)
+      );
+    }
+
     return createdLink;
   }
 
@@ -337,6 +403,18 @@ export class ManagerDeskService {
     }
 
     await db.delete(managerDeskLinks).where(eq(managerDeskLinks.id, linkId));
+
+    const item = await this.getOwnedItemRow(managerAccountId, itemId);
+    const day = await this.getDayById(item.dayId);
+    if (day) {
+      await this.syncTrackerAssignment(
+        itemId,
+        item.assigneeDeveloperAccountId,
+        day.date,
+        item.title,
+        await this.getNormalizedLinksByItemId(itemId)
+      );
+    }
   }
 
   async carryForward(
@@ -402,6 +480,7 @@ export class ManagerDeskService {
         .values({
           dayId: targetDay.id,
           sourceItemId: item.id,
+          assigneeDeveloperAccountId: item.assigneeDeveloperAccountId,
           title: item.title,
           kind: item.kind,
           category: item.category,
@@ -435,6 +514,19 @@ export class ManagerDeskService {
           createdAt: now,
         });
       }
+
+      await this.syncTrackerAssignment(
+        carriedItem.id,
+        carriedItem.assigneeDeveloperAccountId,
+        params.toDate,
+        carriedItem.title,
+        (sourceLinksByItemId.get(item.id) ?? []).map((link) => ({
+          linkType: link.linkType as ManagerDeskLinkType,
+          issueKey: link.issueKey ?? undefined,
+          developerAccountId: link.developerAccountId ?? undefined,
+          externalLabel: link.externalLabel ?? undefined,
+        }))
+      );
 
       existingSourceItemIds.add(item.id);
       created += 1;
@@ -576,7 +668,14 @@ export class ManagerDeskService {
   ): Promise<ManagerDeskItem> {
     const item = await this.getOwnedItemRow(managerAccountId, itemId);
     const linksByItemId = await this.getLinksByItemIds([item.id]);
-    return this.mapItem(item, linksByItemId.get(item.id) ?? []);
+    const assigneesByAccountId = await this.getAssigneeMap([item]);
+    return this.mapItem(
+      item,
+      linksByItemId.get(item.id) ?? [],
+      item.assigneeDeveloperAccountId
+        ? assigneesByAccountId.get(item.assigneeDeveloperAccountId) ?? undefined
+        : undefined
+    );
   }
 
   private async getOwnedItemRow(
@@ -689,7 +788,45 @@ export class ManagerDeskService {
     return new Map(rows.map((row) => [row.accountId, row.displayName]));
   }
 
-  private mapItem(item: ManagerDeskItemRow, links: ManagerDeskLink[]): ManagerDeskItem {
+  private async getAssigneeMap(
+    items: Pick<ManagerDeskItemRow, "assigneeDeveloperAccountId">[]
+  ): Promise<Map<string, ManagerDeskAssignee>> {
+    const assigneeIds = [...new Set(
+      items
+        .map((item) => item.assigneeDeveloperAccountId)
+        .filter((accountId): accountId is string => Boolean(accountId))
+    )];
+
+    if (assigneeIds.length === 0) {
+      return new Map();
+    }
+
+    const rows = await db
+      .select({
+        accountId: developers.accountId,
+        displayName: developers.displayName,
+        avatarUrl: developers.avatarUrl,
+      })
+      .from(developers)
+      .where(inArray(developers.accountId, assigneeIds));
+
+    return new Map(
+      rows.map((row) => [
+        row.accountId,
+        {
+          accountId: row.accountId,
+          displayName: row.displayName,
+          avatarUrl: row.avatarUrl ?? undefined,
+        },
+      ])
+    );
+  }
+
+  private mapItem(
+    item: ManagerDeskItemRow,
+    links: ManagerDeskLink[],
+    assignee?: ManagerDeskAssignee
+  ): ManagerDeskItem {
     return {
       id: item.id,
       dayId: item.dayId,
@@ -698,6 +835,7 @@ export class ManagerDeskService {
       category: item.category as ManagerDeskCategory,
       status: item.status as ManagerDeskStatus,
       priority: item.priority as ManagerDeskPriority,
+      assigneeDeveloperAccountId: item.assigneeDeveloperAccountId ?? undefined,
       participants: item.participants ?? undefined,
       contextNote: item.contextNote ?? undefined,
       nextAction: item.nextAction ?? undefined,
@@ -706,6 +844,7 @@ export class ManagerDeskService {
       plannedEndAt: item.plannedEndAt ?? undefined,
       followUpAt: item.followUpAt ?? undefined,
       completedAt: item.completedAt ?? undefined,
+      assignee,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       links,
@@ -767,6 +906,62 @@ export class ManagerDeskService {
       normalized.push(await this.normalizeLinkInput(link));
     }
     return normalized;
+  }
+
+  private async getNormalizedLinksByItemId(itemId: number): Promise<NormalizedManagerDeskLink[]> {
+    const rows = (await this.getRawLinksByItemIds([itemId])).get(itemId) ?? [];
+    return rows.map((row) => ({
+      linkType: row.linkType as ManagerDeskLinkType,
+      issueKey: row.issueKey ?? undefined,
+      developerAccountId: row.developerAccountId ?? undefined,
+      externalLabel: row.externalLabel ?? undefined,
+    }));
+  }
+
+  private async normalizeAssigneeAccountId(
+    accountId: string | null | undefined
+  ): Promise<string | null | undefined> {
+    if (accountId === undefined) {
+      return undefined;
+    }
+    if (accountId === null) {
+      return null;
+    }
+
+    const normalized = accountId.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    const rows = await db
+      .select({ accountId: developers.accountId })
+      .from(developers)
+      .where(and(eq(developers.accountId, normalized), eq(developers.isActive, 1)))
+      .limit(1);
+
+    if (!rows[0]) {
+      throw new HttpError(400, `Active team member ${normalized} was not found`);
+    }
+
+    return normalized;
+  }
+
+  private async syncTrackerAssignment(
+    managerDeskItemId: number,
+    assigneeDeveloperAccountId: string | null | undefined,
+    date: string,
+    title: string,
+    links: NormalizedManagerDeskLink[]
+  ): Promise<void> {
+    await this.trackerService.syncManagerDeskItem({
+      managerDeskItemId,
+      assigneeDeveloperAccountId,
+      date,
+      title,
+      issueKeys: links
+        .filter((link) => link.linkType === "issue" && link.issueKey)
+        .map((link) => link.issueKey!),
+    });
   }
 
   private async normalizeLinkInput(

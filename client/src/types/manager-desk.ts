@@ -54,6 +54,8 @@ export interface ManagerDeskItem {
   category: ManagerDeskCategory;
   status: ManagerDeskStatus;
   priority: ManagerDeskPriority;
+  assigneeDeveloperAccountId?: string;
+  assignee?: ManagerDeskAssignee;
   participants?: string;
   contextNote?: string;
   nextAction?: string;
@@ -105,6 +107,13 @@ export interface ManagerDeskDeveloperLookupItem {
   avatarUrl?: string;
 }
 
+export interface ManagerDeskAssignee {
+  accountId: string;
+  displayName: string;
+  email?: string;
+  avatarUrl?: string;
+}
+
 // ── Create / Update payloads ────────────────────────────
 
 export interface ManagerDeskCreateItemPayload {
@@ -114,6 +123,7 @@ export interface ManagerDeskCreateItemPayload {
   category?: ManagerDeskCategory;
   status?: ManagerDeskStatus;
   priority?: ManagerDeskPriority;
+  assigneeDeveloperAccountId?: string | null;
   participants?: string;
   contextNote?: string;
   nextAction?: string;
@@ -134,6 +144,7 @@ export interface ManagerDeskUpdateItemPayload {
   category?: ManagerDeskCategory;
   status?: ManagerDeskStatus;
   priority?: ManagerDeskPriority;
+  assigneeDeveloperAccountId?: string | null;
   participants?: string;
   contextNote?: string;
   nextAction?: string;

@@ -386,6 +386,7 @@ export class TeamTrackerService {
       jiraKey?: string;
       title: string;
       note?: string;
+      managerDeskItemId?: number;
     }
   ): Promise<TrackerWorkItem> {
     const day = await this.ensureDay(date, accountId);
@@ -421,6 +422,7 @@ export class TeamTrackerService {
       .insert(teamTrackerItems)
       .values({
         dayId: day.id,
+        managerDeskItemId: params.managerDeskItemId ?? null,
         itemType: normalizedJiraKey ? "jira" : "custom",
         jiraKey: normalizedJiraKey ?? null,
         title: params.title,
@@ -433,6 +435,66 @@ export class TeamTrackerService {
       .returning();
 
     return this.getItemById(inserted[0]!.id);
+  }
+
+  async syncManagerDeskItem(params: {
+    managerDeskItemId: number;
+    assigneeDeveloperAccountId?: string | null;
+    date: string;
+    title: string;
+    issueKeys: string[];
+  }): Promise<void> {
+    const existing = await this.getManagerDeskTrackerItem(params.managerDeskItemId);
+
+    if (!params.assigneeDeveloperAccountId) {
+      if (existing) {
+        await this.deleteItem(existing.id);
+      }
+      return;
+    }
+
+    await this.getDeveloperByAccountId(params.assigneeDeveloperAccountId);
+
+    const normalizedIssueKeys = [...new Set(params.issueKeys.map((key) => key.trim()).filter(Boolean))];
+    const jiraKey = normalizedIssueKeys.length === 1 ? normalizedIssueKeys[0] : undefined;
+
+    if (jiraKey) {
+      const issueRows = await db
+        .select({ jiraKey: issues.jiraKey })
+        .from(issues)
+        .where(eq(issues.jiraKey, jiraKey))
+        .limit(1);
+      if (!issueRows[0]) {
+        throw new HttpError(400, `Jira issue ${jiraKey} is not available in synced issues`);
+      }
+    }
+
+    if (existing) {
+      const currentDay = await this.getDayById(existing.dayId);
+      if (
+        currentDay?.developerAccountId === params.assigneeDeveloperAccountId &&
+        currentDay.date === params.date
+      ) {
+        await db
+          .update(teamTrackerItems)
+          .set({
+            itemType: jiraKey ? "jira" : "custom",
+            jiraKey: jiraKey ?? null,
+            title: params.title,
+            updatedAt: nowIso(),
+          })
+          .where(eq(teamTrackerItems.id, existing.id));
+        return;
+      }
+
+      await this.deleteItem(existing.id);
+    }
+
+    await this.addItem(params.assigneeDeveloperAccountId, params.date, {
+      jiraKey,
+      title: params.title,
+      managerDeskItemId: params.managerDeskItemId,
+    });
   }
 
   async updateItem(
@@ -927,6 +989,30 @@ export class TeamTrackerService {
     return rows.map((row) =>
       mapItem(row, row.jiraKey ? issueContextMap.get(row.jiraKey) : undefined)
     );
+  }
+
+  private async getManagerDeskTrackerItem(
+    managerDeskItemId: number
+  ): Promise<typeof teamTrackerItems.$inferSelect | undefined> {
+    const rows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, managerDeskItemId))
+      .limit(1);
+
+    return rows[0];
+  }
+
+  private async getDayById(
+    dayId: number
+  ): Promise<typeof teamTrackerDays.$inferSelect | undefined> {
+    const rows = await db
+      .select()
+      .from(teamTrackerDays)
+      .where(eq(teamTrackerDays.id, dayId))
+      .limit(1);
+
+    return rows[0];
   }
 
   private async getIssueContextMap(

@@ -121,6 +121,7 @@ export const teamTrackerDays = sqliteTable("team_tracker_days", {
 export const teamTrackerItems = sqliteTable("team_tracker_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   dayId: integer("day_id").notNull(),
+  managerDeskItemId: integer("manager_desk_item_id"),
   itemType: text("item_type").notNull(),
   jiraKey: text("jira_key"),
   title: text("title").notNull(),
@@ -155,6 +156,7 @@ export const managerDeskItems = sqliteTable("manager_desk_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   dayId: integer("day_id").notNull(),
   sourceItemId: integer("source_item_id"),
+  assigneeDeveloperAccountId: text("assignee_developer_account_id"),
   title: text("title").notNull(),
   kind: text("kind").notNull(),
   category: text("category").notNull(),

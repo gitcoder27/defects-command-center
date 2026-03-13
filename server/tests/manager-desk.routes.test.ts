@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import express from "express";
+import { eq } from "drizzle-orm";
 import { createManagerDeskRouter } from "../src/routes/manager-desk";
 import { errorHandler, notFoundHandler } from "../src/middleware/errorHandler";
 import { AuthService, serializeSessionCookie } from "../src/services/auth.service";
 import { ManagerDeskService } from "../src/services/manager-desk.service";
 import { resetDatabase, db } from "./helpers/db";
-import { developers, issues } from "../src/db/schema";
+import { developers, issues, teamTrackerDays, teamTrackerItems } from "../src/db/schema";
 import { invoke } from "./helpers/http";
 
 const authService = new AuthService();
@@ -221,6 +222,7 @@ describe("manager desk routes", () => {
         category: "design",
         status: "planned",
         priority: "high",
+        assigneeDeveloperAccountId: "dev-1",
         participants: "Onshore Design Team",
         contextNote: "Need alignment on API edge cases before implementation starts.",
         nextAction: "Review open assumptions from yesterday.",
@@ -241,6 +243,10 @@ describe("manager desk routes", () => {
       category: "design",
       status: "planned",
       priority: "high",
+      assignee: {
+        accountId: "dev-1",
+        displayName: "Alice Smith",
+      },
       participants: "Onshore Design Team",
       contextNote: "Need alignment on API edge cases before implementation starts.",
       nextAction: "Review open assumptions from yesterday.",
@@ -260,6 +266,27 @@ describe("manager desk routes", () => {
         }),
       ],
     });
+
+    const trackerDayRows = await db
+      .select()
+      .from(teamTrackerDays)
+      .where(eq(teamTrackerDays.developerAccountId, "dev-1"));
+    expect(trackerDayRows[0]?.date).toBe("2026-03-08");
+
+    const trackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, res.body.id));
+    expect(trackerRows).toEqual([
+      expect.objectContaining({
+        dayId: trackerDayRows[0]?.id,
+        managerDeskItemId: res.body.id,
+        itemType: "jira",
+        jiraKey: "PROJ-321",
+        title: "Prepare discussion points for design sync",
+        state: "planned",
+      }),
+    ]);
   });
 
   it("PATCH /api/manager-desk/items/:itemId manages done transitions and clearing optional fields", async () => {
@@ -311,6 +338,107 @@ describe("manager desk routes", () => {
     expect(reopened.body?.status).toBe("planned");
     expect("completedAt" in reopened.body).toBe(false);
     expect("contextNote" in reopened.body).toBe(false);
+  });
+
+  it("reassigns mirrored tracker work to the new owner and resets it to planned", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Coordinate review follow-up",
+        assigneeDeveloperAccountId: "dev-1",
+        links: [{ linkType: "issue", issueKey: "PROJ-221" }],
+      },
+    });
+
+    const originalTracker = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, created.body.id));
+    expect(originalTracker[0]).toBeDefined();
+
+    await db
+      .update(teamTrackerItems)
+      .set({
+        state: "in_progress",
+        note: "Developer-owned note",
+      })
+      .where(eq(teamTrackerItems.id, originalTracker[0]!.id));
+
+    const reassigned = await invoke(app, {
+      method: "PATCH",
+      url: `/api/manager-desk/items/${created.body.id}`,
+      headers: { cookie },
+      body: {
+        assigneeDeveloperAccountId: "dev-2",
+      },
+    });
+
+    expect(reassigned.status).toBe(200);
+    expect(reassigned.body?.assignee).toEqual({
+      accountId: "dev-2",
+      displayName: "Rahul Sharma",
+      avatarUrl: "https://example.com/rahul.png",
+    });
+
+    const trackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, created.body.id));
+    expect(trackerRows).toHaveLength(1);
+    expect(trackerRows[0]).toMatchObject({
+      managerDeskItemId: created.body.id,
+      itemType: "jira",
+      jiraKey: "PROJ-221",
+      title: "Coordinate review follow-up",
+      state: "planned",
+      note: null,
+    });
+
+    const targetDay = await db
+      .select()
+      .from(teamTrackerDays)
+      .where(eq(teamTrackerDays.id, trackerRows[0]!.dayId));
+    expect(targetDay[0]?.developerAccountId).toBe("dev-2");
+  });
+
+  it("clearing the assignee removes the mirrored tracker item", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Custom manager follow-up",
+        assigneeDeveloperAccountId: "dev-1",
+      },
+    });
+
+    const cleared = await invoke(app, {
+      method: "PATCH",
+      url: `/api/manager-desk/items/${created.body.id}`,
+      headers: { cookie },
+      body: {
+        assigneeDeveloperAccountId: null,
+      },
+    });
+
+    expect(cleared.status).toBe(200);
+    expect("assignee" in cleared.body).toBe(false);
+
+    const trackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, created.body.id));
+    expect(trackerRows).toHaveLength(0);
   });
 
   it("POST /api/manager-desk/items/:itemId/links adds issue, developer, and external links and rejects duplicates", async () => {
