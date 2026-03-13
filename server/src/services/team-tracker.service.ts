@@ -443,6 +443,7 @@ export class TeamTrackerService {
     date: string;
     title: string;
     issueKeys: string[];
+    note?: string | null;
   }): Promise<void> {
     const existing = await this.getManagerDeskTrackerItem(params.managerDeskItemId);
 
@@ -493,6 +494,7 @@ export class TeamTrackerService {
     await this.addItem(params.assigneeDeveloperAccountId, params.date, {
       jiraKey,
       title: params.title,
+      note: params.note ?? undefined,
       managerDeskItemId: params.managerDeskItemId,
     });
   }

@@ -6,7 +6,13 @@ import { errorHandler, notFoundHandler } from "../src/middleware/errorHandler";
 import { AuthService, serializeSessionCookie } from "../src/services/auth.service";
 import { ManagerDeskService } from "../src/services/manager-desk.service";
 import { resetDatabase, db } from "./helpers/db";
-import { developers, issues, teamTrackerDays, teamTrackerItems } from "../src/db/schema";
+import {
+  developers,
+  issues,
+  managerDeskItems,
+  teamTrackerDays,
+  teamTrackerItems,
+} from "../src/db/schema";
 import { invoke } from "./helpers/http";
 
 const authService = new AuthService();
@@ -338,6 +344,67 @@ describe("manager desk routes", () => {
     expect(reopened.body?.status).toBe("planned");
     expect("completedAt" in reopened.body).toBe(false);
     expect("contextNote" in reopened.body).toBe(false);
+  });
+
+  it("does not mirror closed items and removes tracker work when an assigned item is closed", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const closed = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Already resolved follow-up",
+        status: "done",
+        assigneeDeveloperAccountId: "dev-1",
+      },
+    });
+
+    expect(closed.status).toBe(201);
+
+    const closedTrackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, closed.body.id));
+    expect(closedTrackerRows).toHaveLength(0);
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Investigate active blocker",
+        status: "planned",
+        assigneeDeveloperAccountId: "dev-1",
+      },
+    });
+
+    const originalTrackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, created.body.id));
+    expect(originalTrackerRows).toHaveLength(1);
+
+    const completed = await invoke(app, {
+      method: "PATCH",
+      url: `/api/manager-desk/items/${created.body.id}`,
+      headers: { cookie },
+      body: {
+        status: "cancelled",
+      },
+    });
+
+    expect(completed.status).toBe(200);
+    expect(completed.body?.status).toBe("cancelled");
+
+    const removedTrackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, created.body.id));
+    expect(removedTrackerRows).toHaveLength(0);
   });
 
   it("reassigns mirrored tracker work to the new owner and resets it to planned", async () => {
@@ -688,5 +755,70 @@ describe("manager desk routes", () => {
 
     expect(repeat.status).toBe(200);
     expect(repeat.body).toEqual({ created: 0 });
+  });
+
+  it("carry-forward preserves tracker notes for mirrored manager desk items", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Continue review follow-up",
+        status: "in_progress",
+        assigneeDeveloperAccountId: "dev-1",
+        links: [{ linkType: "issue", issueKey: "PROJ-321" }],
+      },
+    });
+
+    const sourceTrackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, created.body.id));
+    expect(sourceTrackerRows).toHaveLength(1);
+
+    await db
+      .update(teamTrackerItems)
+      .set({
+        note: "Carry forward after confirming edge-case repro steps.",
+      })
+      .where(eq(teamTrackerItems.id, sourceTrackerRows[0]!.id));
+
+    const carryForward = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/carry-forward",
+      headers: { cookie },
+      body: {
+        fromDate: "2026-03-08",
+        toDate: "2026-03-09",
+        itemIds: [created.body.id],
+      },
+    });
+
+    expect(carryForward.status).toBe(200);
+    expect(carryForward.body).toEqual({ created: 1 });
+
+    const carriedItems = await db
+      .select()
+      .from(managerDeskItems)
+      .where(eq(managerDeskItems.sourceItemId, created.body.id));
+    const carriedItem = carriedItems[0];
+    expect(carriedItem).toBeDefined();
+
+    const carriedTrackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, carriedItem.id));
+    expect(carriedTrackerRows).toEqual([
+      expect.objectContaining({
+        managerDeskItemId: carriedItem.id,
+        jiraKey: "PROJ-321",
+        note: "Carry forward after confirming edge-case repro steps.",
+        state: "planned",
+      }),
+    ]);
   });
 });

@@ -20,6 +20,7 @@ import {
   managerDeskDays,
   managerDeskItems,
   managerDeskLinks,
+  teamTrackerItems,
 } from "../db/schema";
 import { HttpError } from "../middleware/errorHandler";
 import { TeamTrackerService } from "./team-tracker.service";
@@ -229,7 +230,8 @@ export class ManagerDeskService {
       assigneeDeveloperAccountId,
       params.date,
       title,
-      normalizedLinks
+      normalizedLinks,
+      item.status as ManagerDeskStatus
     );
 
     return this.getItemById(managerAccountId, item.id);
@@ -317,7 +319,8 @@ export class ManagerDeskService {
       updatedItem.assigneeDeveloperAccountId,
       day.date,
       updatedItem.title,
-      updatedLinks
+      updatedLinks,
+      updatedItem.status as ManagerDeskStatus
     );
 
     return this.getItemById(managerAccountId, itemId);
@@ -379,7 +382,8 @@ export class ManagerDeskService {
         item.assigneeDeveloperAccountId,
         day.date,
         item.title,
-        await this.getNormalizedLinksByItemId(itemId)
+        await this.getNormalizedLinksByItemId(itemId),
+        item.status as ManagerDeskStatus
       );
     }
 
@@ -412,7 +416,8 @@ export class ManagerDeskService {
         item.assigneeDeveloperAccountId,
         day.date,
         item.title,
-        await this.getNormalizedLinksByItemId(itemId)
+        await this.getNormalizedLinksByItemId(itemId),
+        item.status as ManagerDeskStatus
       );
     }
   }
@@ -464,6 +469,9 @@ export class ManagerDeskService {
         .filter((itemId): itemId is number => typeof itemId === "number")
     );
     const sourceLinksByItemId = await this.getRawLinksByItemIds(
+      eligibleItems.map((item) => item.id)
+    );
+    const sourceTrackerNotesByItemId = await this.getTrackerNotesByManagerDeskItemIds(
       eligibleItems.map((item) => item.id)
     );
 
@@ -525,7 +533,9 @@ export class ManagerDeskService {
           issueKey: link.issueKey ?? undefined,
           developerAccountId: link.developerAccountId ?? undefined,
           externalLabel: link.externalLabel ?? undefined,
-        }))
+        })),
+        carriedItem.status as ManagerDeskStatus,
+        sourceTrackerNotesByItemId.get(item.id)
       );
 
       existingSourceItemIds.add(item.id);
@@ -951,17 +961,44 @@ export class ManagerDeskService {
     assigneeDeveloperAccountId: string | null | undefined,
     date: string,
     title: string,
-    links: NormalizedManagerDeskLink[]
+    links: NormalizedManagerDeskLink[],
+    status: ManagerDeskStatus,
+    note?: string | null
   ): Promise<void> {
     await this.trackerService.syncManagerDeskItem({
       managerDeskItemId,
-      assigneeDeveloperAccountId,
+      assigneeDeveloperAccountId: isOpenStatus(status) ? assigneeDeveloperAccountId : null,
       date,
       title,
       issueKeys: links
         .filter((link) => link.linkType === "issue" && link.issueKey)
         .map((link) => link.issueKey!),
+      note,
     });
+  }
+
+  private async getTrackerNotesByManagerDeskItemIds(
+    itemIds: number[]
+  ): Promise<Map<number, string | null>> {
+    if (itemIds.length === 0) {
+      return new Map();
+    }
+
+    const rows = await db
+      .select({
+        managerDeskItemId: teamTrackerItems.managerDeskItemId,
+        note: teamTrackerItems.note,
+      })
+      .from(teamTrackerItems)
+      .where(inArray(teamTrackerItems.managerDeskItemId, itemIds));
+
+    return new Map(
+      rows
+        .filter((row): row is { managerDeskItemId: number; note: string | null } => {
+          return row.managerDeskItemId !== null;
+        })
+        .map((row) => [row.managerDeskItemId, row.note])
+    );
   }
 
   private async normalizeLinkInput(
