@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
+import { JiraIssueLink } from '@/components/JiraIssueLink';
 import type { TrackerWorkItem } from '@/types';
 import { formatRelativeTime } from '@/lib/utils';
 
@@ -36,11 +37,11 @@ export function CompletedWork({ items }: CompletedWorkProps) {
               </div>
               {item.jiraKey && (
                 <div className="mt-0.5">
-                  <span className="font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                  <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>
                     {item.jiraSummary && item.jiraSummary !== item.title
                       ? `${item.jiraKey} · ${item.jiraSummary}`
                       : item.jiraKey}
-                  </span>
+                  </JiraIssueLink>
                 </div>
               )}
               {item.note && (

@@ -11,6 +11,10 @@ vi.mock('@/lib/api', () => ({
   },
 }));
 
+vi.mock('@/hooks/useConfig', () => ({
+  useConfig: () => ({ data: { jiraBaseUrl: 'https://test.atlassian.net', isConfigured: true } }),
+}));
+
 describe('AddTaskForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -49,5 +53,26 @@ describe('AddTaskForm', () => {
     await waitFor(() => {
       expect(mockGet).toHaveBeenCalledWith('/my-day/issues');
     });
+  });
+
+  it('keeps the Jira key link separate from picker selection', async () => {
+    render(
+      <TestWrapper>
+        <AddTaskForm onAdd={vi.fn()} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /add task/i }));
+    fireEvent.click(screen.getByRole('button', { name: /attach jira/i }));
+    fireEvent.change(screen.getByPlaceholderText(/search by key or summary/i), {
+      target: { value: 'AM-123' },
+    });
+
+    const jiraLink = await screen.findByRole('link', { name: 'AM-123' });
+    fireEvent.click(jiraLink);
+    expect(screen.queryByLabelText(/remove linked jira/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Fix login issue'));
+    expect(screen.getByLabelText(/remove linked jira/i)).toBeInTheDocument();
   });
 });

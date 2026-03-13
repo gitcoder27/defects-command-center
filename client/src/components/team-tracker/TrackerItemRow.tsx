@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { TrackerItemState, TrackerWorkItem } from '@/types';
 import { Play, CheckCircle2, XCircle, GripVertical, StickyNote, Save, PencilLine, Check, X } from 'lucide-react';
+import { JiraIssueLink } from '@/components/JiraIssueLink';
 import { formatDate, priorityColor } from '@/lib/utils';
 
 interface TrackerItemRowProps {
@@ -156,9 +157,9 @@ export function TrackerItemRow({
             <span className="text-[9px] font-semibold uppercase shrink-0" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
               Jira
             </span>
-            <span className="font-mono text-[10px] truncate" style={{ color: 'var(--accent)' }}>
+            <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[10px] truncate" style={{ color: 'var(--accent)' }}>
               {jiraLabel}
-            </span>
+            </JiraIssueLink>
           </div>
         )}
         {jiraMeta && (

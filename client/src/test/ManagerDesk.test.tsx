@@ -124,6 +124,10 @@ vi.mock('@/context/ToastContext', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useConfig', () => ({
+  useConfig: () => ({ data: { jiraBaseUrl: 'https://test.atlassian.net', isConfigured: true } }),
+}));
+
 // Minimal framer-motion stub
 vi.mock('framer-motion', async () => {
   const actual = await vi.importActual<typeof import('framer-motion')>('framer-motion');
@@ -397,6 +401,41 @@ describe('ManagerDeskPage', () => {
     expect(screen.queryByLabelText('Context / Notes')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /expand context \/ notes/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /collapse operational settings/i })).toBeInTheDocument();
+  });
+
+  it('renders linked Jira context in the detail drawer as an external link', () => {
+    currentMockDay = {
+      ...mockDayResponse,
+      items: [
+        mockItem({
+          ...mockDayResponse.items[0],
+          links: [
+            {
+              id: 501,
+              itemId: 1,
+              linkType: 'issue',
+              issueKey: 'AM-241',
+              displayLabel: 'AM-241',
+              createdAt: '2026-03-08T09:00:00Z',
+            },
+          ],
+        }),
+        ...mockDayResponse.items.slice(1),
+      ],
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+
+    expect(screen.getByRole('link', { name: 'AM-241' })).toHaveAttribute(
+      'href',
+      'https://test.atlassian.net/browse/AM-241',
+    );
   });
 
   it('opens the bulk carry forward dialog with all open items selected by default', () => {

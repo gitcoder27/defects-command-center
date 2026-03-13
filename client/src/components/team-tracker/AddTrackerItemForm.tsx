@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, Plus, Search, X } from 'lucide-react';
+import { JiraIssueLink } from '@/components/JiraIssueLink';
 
 interface AddTrackerItemFormProps {
   onAdd: (params: { title: string; jiraKey?: string; note?: string }) => void;
@@ -130,9 +131,9 @@ export function AddTrackerItemForm({ onAdd, issues, isPending }: AddTrackerItemF
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <Link size={10} style={{ color: 'var(--accent)' }} />
-                <span className="font-mono text-[10px] font-semibold" style={{ color: 'var(--accent)' }}>
+                <JiraIssueLink issueKey={selectedIssue.jiraKey} className="font-mono text-[10px] font-semibold" style={{ color: 'var(--accent)' }}>
                   {selectedIssue.jiraKey}
-                </span>
+                </JiraIssueLink>
               </div>
               <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                 {selectedIssue.summary}
@@ -181,25 +182,33 @@ export function AddTrackerItemForm({ onAdd, issues, isPending }: AddTrackerItemF
                 style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
               >
                 {filteredIssues.map((issue) => (
-                  <button
+                  <div
                     key={issue.jiraKey}
-                    type="button"
-                    onClick={() => {
-                      setSelectedIssue({ jiraKey: issue.jiraKey, summary: issue.summary });
-                      setJiraPickerOpen(false);
-                    }}
-                    className="w-full text-left px-2.5 py-2 transition-colors hover:bg-white/5"
+                    className="px-2.5 py-2 transition-colors hover:bg-white/5"
                     style={{ borderBottom: '1px solid var(--border)' }}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] font-semibold shrink-0" style={{ color: 'var(--accent)' }}>
+                      <JiraIssueLink
+                        issueKey={issue.jiraKey}
+                        stopPropagation
+                        className="font-mono text-[10px] font-semibold shrink-0"
+                        style={{ color: 'var(--accent)' }}
+                      >
                         {issue.jiraKey}
-                      </span>
-                      <span className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>
+                      </JiraIssueLink>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedIssue({ jiraKey: issue.jiraKey, summary: issue.summary });
+                          setJiraPickerOpen(false);
+                        }}
+                        className="min-w-0 flex-1 truncate text-left text-[11px]"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
                         {issue.summary}
-                      </span>
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}

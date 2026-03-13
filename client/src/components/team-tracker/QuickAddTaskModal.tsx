@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, Plus, Search, X, Zap } from 'lucide-react';
+import { JiraIssueLink } from '@/components/JiraIssueLink';
 import type { Issue } from '@/types';
 
 interface QuickAddTaskModalProps {
@@ -273,9 +274,9 @@ export function QuickAddTaskModal({
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <Link size={11} style={{ color: 'var(--accent)' }} />
-                        <span className="font-mono text-[11px] font-semibold" style={{ color: 'var(--accent)' }}>
+                        <JiraIssueLink issueKey={selectedIssue.jiraKey} className="font-mono text-[11px] font-semibold" style={{ color: 'var(--accent)' }}>
                           {selectedIssue.jiraKey}
-                        </span>
+                        </JiraIssueLink>
                       </div>
                       <div className="text-[12px] mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>
                         {selectedIssue.summary}
@@ -336,24 +337,32 @@ export function QuickAddTaskModal({
                         style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
                       >
                         {filteredIssues.map((issue) => (
-                          <button
+                          <div
                             key={issue.jiraKey}
-                            type="button"
-                            onClick={() => {
-                              setSelectedIssue({ jiraKey: issue.jiraKey, summary: issue.summary });
-                              setJiraPickerOpen(false);
-                              setJiraSearch('');
-                            }}
-                            className="w-full text-left px-3 py-2 transition-colors hover:bg-white/5 flex items-center gap-2.5"
+                            className="flex items-center gap-2.5 px-3 py-2 transition-colors hover:bg-white/5"
                             style={{ borderBottom: '1px solid var(--border)' }}
                           >
-                            <span className="font-mono text-[10px] font-semibold shrink-0" style={{ color: 'var(--accent)' }}>
+                            <JiraIssueLink
+                              issueKey={issue.jiraKey}
+                              stopPropagation
+                              className="font-mono text-[10px] font-semibold shrink-0"
+                              style={{ color: 'var(--accent)' }}
+                            >
                               {issue.jiraKey}
-                            </span>
-                            <span className="text-[12px] truncate" style={{ color: 'var(--text-secondary)' }}>
+                            </JiraIssueLink>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedIssue({ jiraKey: issue.jiraKey, summary: issue.summary });
+                                setJiraPickerOpen(false);
+                                setJiraSearch('');
+                              }}
+                              className="min-w-0 flex-1 truncate text-left text-[12px]"
+                              style={{ color: 'var(--text-secondary)' }}
+                            >
                               {issue.summary}
-                            </span>
-                          </button>
+                            </button>
+                          </div>
                         ))}
                       </div>
                     )}

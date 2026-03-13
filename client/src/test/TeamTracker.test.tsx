@@ -204,6 +204,10 @@ vi.mock('@/hooks/useIssues', () => ({
   useIssues: () => ({ data: mockIssues }),
 }));
 
+vi.mock('@/hooks/useConfig', () => ({
+  useConfig: () => ({ data: { jiraBaseUrl: 'https://test.atlassian.net', isConfigured: true } }),
+}));
+
 // Minimal framer-motion stub for tests
 vi.mock('framer-motion', async () => {
   const actual = await vi.importActual<typeof import('framer-motion')>('framer-motion');
@@ -632,6 +636,7 @@ describe('TrackerItemRow', () => {
     expect(screen.getByText('AM-456')).toBeInTheDocument();
     expect(screen.getByText('Deploy fix')).toBeInTheDocument();
     expect(screen.getByText('Highest • Due Mar 9')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'AM-456' })).toHaveAttribute('href', 'https://test.atlassian.net/browse/AM-456');
   });
 
   it('renders a task without Jira metadata', async () => {
@@ -826,5 +831,35 @@ describe('AddTrackerItemForm', () => {
       title: 'Fix alert rendering regression',
       note: 'Needs pairing with QA',
     });
+  });
+
+  it('keeps Jira links separate from issue selection in the picker', async () => {
+    const { AddTrackerItemForm } = await import('@/components/team-tracker/AddTrackerItemForm');
+
+    render(
+      <AddTrackerItemForm
+        onAdd={vi.fn()}
+        issues={[
+          {
+            jiraKey: 'AM-789',
+            summary: 'Fix alert regression',
+            priorityName: 'High',
+            dueDate: '2026-03-10',
+          },
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Add Task'));
+    fireEvent.click(screen.getByText('Attach Jira'));
+    fireEvent.change(screen.getByPlaceholderText('Search Jira issues'), {
+      target: { value: 'AM-789' },
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: 'AM-789' }));
+    expect(screen.queryByLabelText(/remove linked jira/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Fix alert regression'));
+    expect(screen.getByLabelText(/remove linked jira/i)).toBeInTheDocument();
   });
 });

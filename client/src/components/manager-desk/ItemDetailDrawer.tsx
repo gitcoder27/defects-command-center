@@ -30,6 +30,7 @@ import {
   STATUS_LABELS,
   PRIORITY_LABELS,
 } from '@/types/manager-desk';
+import { JiraIssueLink } from '@/components/JiraIssueLink';
 
 interface Props {
   item: ManagerDeskItem | null;
@@ -429,9 +430,19 @@ function DrawerContent({
                       {link.linkType === 'issue' && <Bug size={12} style={{ color: 'var(--accent)' }} />}
                       {link.linkType === 'developer' && <UserCircle size={12} style={{ color: 'var(--info)' }} />}
                       {link.linkType === 'external_group' && <Users size={12} style={{ color: 'var(--text-secondary)' }} />}
-                      <span className="flex-1 truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                        {link.displayLabel}
-                      </span>
+                      {link.linkType === 'issue' && link.issueKey ? (
+                        <JiraIssueLink
+                          issueKey={link.issueKey}
+                          className="flex-1 truncate text-[12px] font-medium"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          {link.displayLabel}
+                        </JiraIssueLink>
+                      ) : (
+                        <span className="flex-1 truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                          {link.displayLabel}
+                        </span>
+                      )}
                       <button
                         onClick={() => handleDeleteLink(link.id)}
                         className="transition-opacity group-hover:opacity-100 xl:opacity-0"
@@ -1248,19 +1259,28 @@ function LinkSearchPanel({
       {type === 'issue' && issues && issues.length > 0 && (
         <div className="max-h-40 overflow-y-auto border-t" style={{ borderColor: 'var(--border)' }}>
           {issues.map((issue) => (
-            <button
+            <div
               key={issue.jiraKey}
-              onClick={() => handleSelectIssue(issue.jiraKey)}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:opacity-80"
+              className="flex items-center gap-2 px-3 py-2 transition-colors hover:opacity-80"
               style={{ background: 'transparent' }}
             >
-              <span className="text-[11px] font-mono font-bold" style={{ color: 'var(--accent)' }}>
+              <JiraIssueLink
+                issueKey={issue.jiraKey}
+                stopPropagation
+                className="text-[11px] font-mono font-bold shrink-0"
+                style={{ color: 'var(--accent)' }}
+              >
                 {issue.jiraKey}
-              </span>
-              <span className="flex-1 truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+              </JiraIssueLink>
+              <button
+                type="button"
+                onClick={() => handleSelectIssue(issue.jiraKey)}
+                className="flex-1 truncate text-left text-[11px]"
+                style={{ color: 'var(--text-secondary)' }}
+              >
                 {issue.summary}
-              </span>
-            </button>
+              </button>
+            </div>
           ))}
         </div>
       )}

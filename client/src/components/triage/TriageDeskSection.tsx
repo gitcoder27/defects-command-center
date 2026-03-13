@@ -1,4 +1,5 @@
 import { Briefcase } from 'lucide-react';
+import { JiraIssueLink } from '@/components/JiraIssueLink';
 import type { Issue } from '@/types';
 
 interface TriageDeskSectionProps {
@@ -26,12 +27,13 @@ export function TriageDeskSection({ issue, onCapture }: TriageDeskSectionProps) 
             Add follow-up to desk
           </div>
           <div className="mt-0.5 flex flex-wrap gap-1">
-            <span
+            <JiraIssueLink
+              issueKey={issue.jiraKey}
               className="rounded-full px-1.5 py-[1px] text-[10px] font-medium"
               style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--md-accent)', border: '1px solid rgba(217,169,78,0.14)' }}
             >
               {issue.jiraKey}
-            </span>
+            </JiraIssueLink>
             {issue.assigneeName && (
               <span
                 className="rounded-full px-1.5 py-[1px] text-[10px] font-medium"

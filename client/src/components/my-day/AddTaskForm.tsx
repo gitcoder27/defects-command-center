@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, Plus, Search, X } from 'lucide-react';
 import { useMyDayIssues } from '@/hooks/useIssues';
+import { JiraIssueLink } from '@/components/JiraIssueLink';
 import { formatDate } from '@/lib/utils';
 
 interface AddTaskFormProps {
@@ -140,12 +141,13 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <Link size={12} style={{ color: 'var(--accent)' }} />
-                  <span
+                  <JiraIssueLink
+                    issueKey={selectedIssue.jiraKey}
                     className="font-mono text-[11px] font-semibold shrink-0"
                     style={{ color: 'var(--accent)' }}
                   >
                     {selectedIssue.jiraKey}
-                  </span>
+                  </JiraIssueLink>
                 </div>
                 <div className="text-[12px] mt-1" style={{ color: 'var(--text-primary)' }}>
                   {selectedIssue.summary}
@@ -195,29 +197,31 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
                 style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
               >
                 {filteredIssues.map((issue) => (
-                  <button
+                  <div
                     key={issue.jiraKey}
-                    type="button"
-                    onClick={() => {
-                      setSelectedIssue({ jiraKey: issue.jiraKey, summary: issue.summary });
-                      setJiraPickerOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-2 transition-colors hover:bg-white/5"
+                    className="px-3 py-2 transition-colors hover:bg-white/5"
                     style={{ borderBottom: '1px solid var(--border)' }}
                   >
                     <div className="flex items-center gap-2">
-                      <span
+                      <JiraIssueLink
+                        issueKey={issue.jiraKey}
+                        stopPropagation
                         className="font-mono text-[10px] font-semibold shrink-0"
                         style={{ color: 'var(--accent)' }}
                       >
                         {issue.jiraKey}
-                      </span>
-                      <span
-                        className="text-[12px] truncate"
+                      </JiraIssueLink>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedIssue({ jiraKey: issue.jiraKey, summary: issue.summary });
+                          setJiraPickerOpen(false);
+                        }}
+                        className="min-w-0 flex-1 truncate text-left text-[12px]"
                         style={{ color: 'var(--text-secondary)' }}
                       >
                         {issue.summary}
-                      </span>
+                      </button>
                     </div>
                     {(issue.priorityName || issue.developmentDueDate || issue.dueDate) && (
                       <div className="mt-0.5 text-[10px]" style={{ color: 'var(--text-muted)' }}>
@@ -231,7 +235,7 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
                           .join(' · ')}
                       </div>
                     )}
-                  </button>
+                  </div>
                 ))}
               </div>
             )}

@@ -9,6 +9,7 @@ import { AddTrackerItemForm } from './AddTrackerItemForm';
 import { TrackerSignalBadges } from './TrackerSignalBadges';
 import { formatRelativeTime } from '@/lib/utils';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
+import { JiraIssueLink } from '@/components/JiraIssueLink';
 
 interface DeveloperTrackerDrawerProps {
   day: TrackerDeveloperDay | undefined;
@@ -477,7 +478,10 @@ export function DeveloperTrackerDrawer({
                       </div>
                       {day.currentItem?.jiraKey && (
                         <div className="mt-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                          Current tracker context: <span style={{ color: 'var(--text-primary)' }}>{day.currentItem.jiraKey}</span>
+                          Current tracker context:{' '}
+                          <JiraIssueLink issueKey={day.currentItem.jiraKey} style={{ color: 'var(--text-primary)' }}>
+                            {day.currentItem.jiraKey}
+                          </JiraIssueLink>
                         </div>
                       )}
                     </div>

@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { XCircle } from 'lucide-react';
+import { JiraIssueLink } from '@/components/JiraIssueLink';
 import type { TrackerWorkItem } from '@/types';
 
 interface DroppedWorkProps {
@@ -38,11 +39,11 @@ export function DroppedWork({ items }: DroppedWorkProps) {
               </div>
               {item.jiraKey && (
                 <div className="mt-0.5">
-                  <span className="font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                  <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>
                     {item.jiraSummary && item.jiraSummary !== item.title
                       ? `${item.jiraKey} · ${item.jiraSummary}`
                       : item.jiraKey}
-                  </span>
+                  </JiraIssueLink>
                 </div>
               )}
               {item.note && (

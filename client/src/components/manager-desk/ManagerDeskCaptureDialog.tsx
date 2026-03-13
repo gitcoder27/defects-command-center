@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Briefcase,
@@ -14,6 +14,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { useToast } from '@/context/ToastContext';
 import { useCreateManagerDeskItem } from '@/hooks/useManagerDesk';
+import { JiraIssueLink } from '@/components/JiraIssueLink';
 import { getLocalIsoDate } from '@/lib/utils';
 import type {
   ManagerDeskCategory,
@@ -101,6 +102,8 @@ export function ManagerDeskCaptureDialog({
   const createItem = useCreateManagerDeskItem(captureDate);
   const { addToast } = useToast();
   const titleRef = useRef<HTMLInputElement>(null);
+  const dialogTitleId = useId();
+  const dialogDescriptionId = useId();
   const [title, setTitle] = useState(initialTitle);
   const [kind, setKind] = useState<ManagerDeskItemKind>(initialKind);
   const [category, setCategory] = useState<ManagerDeskCategory>(initialCategory);
@@ -182,17 +185,21 @@ export function ManagerDeskCaptureDialog({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 18, scale: 0.96 }}
         transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed inset-x-4 top-[8vh] z-[81] mx-auto w-full max-w-[640px] overflow-hidden rounded-[26px]"
+        className="fixed inset-x-4 top-3 bottom-3 z-[81] mx-auto flex w-auto max-w-[640px] min-h-0 flex-col overflow-hidden rounded-[26px] md:inset-x-6 md:top-6 md:bottom-6"
         style={{
           background:
             'linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 94%, rgba(217,169,78,0.05)) 0%, var(--bg-secondary) 100%)',
           border: '1px solid color-mix(in srgb, var(--md-accent) 18%, var(--border-strong) 82%)',
           boxShadow: '0 30px 80px rgba(0, 0, 0, 0.42)',
         }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={dialogTitleId}
+        aria-describedby={dialogDescriptionId}
         onClick={(event) => event.stopPropagation()}
       >
         <div
-          className="px-5 py-4 border-b"
+          className="shrink-0 border-b px-4 py-3 sm:px-5 sm:py-4"
           style={{
             borderColor: 'color-mix(in srgb, var(--md-accent) 14%, var(--border) 86%)',
             background:
@@ -213,10 +220,10 @@ export function ManagerDeskCaptureDialog({
                   <Plus size={18} />
                 </div>
                 <div>
-                  <div className="text-[16px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  <div id={dialogTitleId} className="text-[15px] font-semibold sm:text-[16px]" style={{ color: 'var(--text-primary)' }}>
                     {heading}
                   </div>
-                  <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+                  <div id={dialogDescriptionId} className="text-[11px] sm:text-[12px]" style={{ color: 'var(--text-secondary)' }}>
                     {description}
                   </div>
                 </div>
@@ -249,6 +256,31 @@ export function ManagerDeskCaptureDialog({
             {contextChips.map((chip) => {
               const accent = chipAccent(chip.tone);
               const Icon = accent.Icon;
+              const chipContent = (
+                <>
+                  <Icon size={12} />
+                  <span className="opacity-80">{chip.label}</span>
+                  <span>{chip.value}</span>
+                </>
+              );
+
+              if (chip.tone === 'issue') {
+                return (
+                  <JiraIssueLink
+                    key={`${chip.label}-${chip.value}`}
+                    issueKey={chip.value}
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium"
+                    style={{
+                      background: accent.background,
+                      color: accent.color,
+                      border: `1px solid ${accent.border}`,
+                    }}
+                  >
+                    {chipContent}
+                  </JiraIssueLink>
+                );
+              }
+
               return (
                 <div
                   key={`${chip.label}-${chip.value}`}
@@ -259,16 +291,15 @@ export function ManagerDeskCaptureDialog({
                     border: `1px solid ${accent.border}`,
                   }}
                 >
-                  <Icon size={12} />
-                  <span className="opacity-80">{chip.label}</span>
-                  <span>{chip.value}</span>
+                  {chipContent}
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="space-y-4 px-5 py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
+          <div className="space-y-4">
           <div>
             <label
               htmlFor="manager-desk-capture-title"
@@ -404,38 +435,41 @@ export function ManagerDeskCaptureDialog({
               </div>
             )}
           </div>
+          </div>
         </div>
 
         <div
-          className="flex flex-col gap-3 border-t px-5 py-4 md:flex-row md:items-center md:justify-between"
+          className="shrink-0 border-t px-4 py-3 sm:px-5 sm:py-4"
           style={{ borderColor: 'var(--border)' }}
         >
-          <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
-            This lands in your Manager Desk inbox for <span style={{ color: 'var(--text-primary)' }}>{formattedDate}</span>.
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl px-3.5 py-2 text-[12px] font-medium transition-colors"
-              style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!title.trim() || createItem.isPending}
-              className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-[12px] font-semibold transition-all disabled:opacity-50"
-              style={{
-                background: 'var(--md-accent)',
-                color: '#111',
-                boxShadow: '0 10px 24px rgba(217,169,78,0.18)',
-              }}
-            >
-              <Briefcase size={13} />
-              {createItem.isPending ? 'Saving...' : 'Add To Manager Desk'}
-            </button>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="text-[11px] sm:text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+              This lands in your Manager Desk inbox for <span style={{ color: 'var(--text-primary)' }}>{formattedDate}</span>.
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl px-3.5 py-2 text-[12px] font-medium transition-colors"
+                style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!title.trim() || createItem.isPending}
+                className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-[12px] font-semibold transition-all disabled:opacity-50"
+                style={{
+                  background: 'var(--md-accent)',
+                  color: '#111',
+                  boxShadow: '0 10px 24px rgba(217,169,78,0.18)',
+                }}
+              >
+                <Briefcase size={13} />
+                {createItem.isPending ? 'Saving...' : 'Add To Manager Desk'}
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>

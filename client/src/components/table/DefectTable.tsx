@@ -24,6 +24,7 @@ import { useConfig } from '@/hooks/useConfig';
 import { useExcludeIssue } from '@/hooks/useExcludeIssue';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
+import { JiraIssueLink } from '@/components/JiraIssueLink';
 import { isOverdue, isDueToday, isStale } from '@/lib/utils';
 import type { Issue, FilterType } from '@/types';
 
@@ -222,10 +223,8 @@ export function DefectTable({
             ? `${config.jiraBaseUrl}/browse/${jiraKey}`
             : undefined;
           return href ? (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
+            <JiraIssueLink
+              issueKey={jiraKey}
               data-jira-link
               className="font-mono text-[13px] font-medium relative group/id cursor-pointer whitespace-nowrap"
               style={{
@@ -247,7 +246,7 @@ export function DefectTable({
                   style={{ background: 'var(--accent)' }}
                 />
               )}
-            </a>
+            </JiraIssueLink>
           ) : (
             <span
               className="font-mono text-[13px] font-medium whitespace-nowrap"

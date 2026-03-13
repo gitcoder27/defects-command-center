@@ -20,6 +20,7 @@ import { TriageDeskSection } from './TriageDeskSection';
 import { formatIssueDescription } from '@/lib/issue-description';
 import { getLocalIsoDate } from '@/lib/utils';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
+import { JiraIssueLink } from '@/components/JiraIssueLink';
 
 interface TriagePanelProps {
   issueKey?: string;
@@ -167,9 +168,13 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
             </button>
             {issue && (
               <div className="flex items-center gap-2">
-                <span className="font-mono text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
+                <JiraIssueLink
+                  issueKey={issue.jiraKey}
+                  className="font-mono text-[13px] font-semibold"
+                  style={{ color: 'var(--accent)' }}
+                >
                   {issue.jiraKey}
-                </span>
+                </JiraIssueLink>
                 <a
                   href={config?.jiraBaseUrl ? `${config.jiraBaseUrl}/browse/${issue.jiraKey}` : undefined}
                   target="_blank"
