@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { RefreshCw, Moon, Sun, PanelLeftOpen, Radar, Settings, Users, Briefcase, Plus } from 'lucide-react';
+import { RefreshCw, Moon, Sun, PanelLeftOpen, Radar, Settings, Plus } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
@@ -8,6 +8,7 @@ import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { formatRelativeTime } from '@/lib/utils';
 import type { AppView } from '@/App';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
+import { HeaderNav } from '@/components/layout/HeaderNav';
 
 interface HeaderProps {
   onOpenMobileSidebar?: () => void;
@@ -65,49 +66,7 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange }: Header
               </div>
             </div>
             {onViewChange && (
-              <div
-                className="flex items-center rounded-xl p-0.5 gap-0.5"
-                style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
-              >
-                <button
-                  onClick={() => onViewChange('dashboard')}
-                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors"
-                  style={{
-                    background: activeView === 'dashboard' ? 'var(--bg-elevated)' : 'transparent',
-                    color: activeView === 'dashboard' ? 'var(--accent)' : 'var(--text-muted)',
-                    boxShadow: activeView === 'dashboard' ? 'var(--soft-shadow)' : 'none',
-                  }}
-                >
-                  <Radar size={12} />
-                  Dashboard
-                </button>
-                <button
-                  onClick={() => onViewChange('team-tracker')}
-                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors"
-                  style={{
-                    background: activeView === 'team-tracker' ? 'var(--bg-elevated)' : 'transparent',
-                    color: activeView === 'team-tracker' ? 'var(--accent)' : 'var(--text-muted)',
-                    boxShadow: activeView === 'team-tracker' ? 'var(--soft-shadow)' : 'none',
-                  }}
-                >
-                  <Users size={12} />
-                  Team Tracker
-                </button>
-                {user?.role === 'manager' && (
-                  <button
-                    onClick={() => onViewChange('manager-desk')}
-                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors"
-                    style={{
-                      background: activeView === 'manager-desk' ? 'var(--bg-elevated)' : 'transparent',
-                      color: activeView === 'manager-desk' ? 'var(--md-accent)' : 'var(--text-muted)',
-                      boxShadow: activeView === 'manager-desk' ? 'var(--soft-shadow)' : 'none',
-                    }}
-                  >
-                    <Briefcase size={12} />
-                    Manager Desk
-                  </button>
-                )}
-              </div>
+              <HeaderNav activeView={activeView} isManager={user?.role === 'manager'} onViewChange={onViewChange} />
             )}
           </div>
 

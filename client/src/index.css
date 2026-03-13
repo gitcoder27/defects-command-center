@@ -147,6 +147,28 @@ body::after {
   backdrop-filter: blur(10px);
 }
 
+.workspace-nav-new-tab {
+  opacity: 0;
+  transform: translateX(-2px);
+  pointer-events: none;
+}
+
+.workspace-nav-chip:hover .workspace-nav-new-tab,
+.workspace-nav-chip:focus-within .workspace-nav-new-tab,
+.workspace-nav-new-tab:focus-visible {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .workspace-nav-new-tab {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+}
+
 /* My Day page enhancements */
 .my-day-section {
   background: linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 80%, transparent) 0%, color-mix(in srgb, var(--bg-primary) 60%, transparent) 100%);
