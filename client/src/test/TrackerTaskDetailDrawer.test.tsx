@@ -1,0 +1,166 @@
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
+
+const mockUseTrackerSharedTaskDetail = vi.fn();
+const mockUpdateManagerDeskItemMutate = vi.fn();
+const mockDeleteManagerDeskItemMutate = vi.fn();
+const mockUpdateTrackerItemMutate = vi.fn();
+const mockUpdateTrackerItemMutateAsync = vi.fn().mockResolvedValue(undefined);
+const mockSetCurrentItemMutate = vi.fn();
+
+vi.mock('@/hooks/useManagerDesk', () => ({
+  useTrackerSharedTaskDetail: (...args: unknown[]) => mockUseTrackerSharedTaskDetail(...args),
+  useUpdateManagerDeskItem: () => ({ mutate: mockUpdateManagerDeskItemMutate, isPending: false }),
+  useDeleteManagerDeskItem: () => ({ mutate: mockDeleteManagerDeskItemMutate, isPending: false }),
+}));
+
+vi.mock('@/hooks/useTeamTrackerMutations', () => ({
+  useUpdateTrackerItem: () => ({
+    mutate: mockUpdateTrackerItemMutate,
+    mutateAsync: mockUpdateTrackerItemMutateAsync,
+    isPending: false,
+  }),
+  useSetCurrentItem: () => ({ mutate: mockSetCurrentItemMutate, isPending: false }),
+}));
+
+vi.mock('@/components/team-tracker/TrackerTaskExecutionPanel', () => ({
+  TrackerTaskExecutionPanel: () => <div>Execution panel</div>,
+}));
+
+vi.mock('@/components/manager-desk/ItemDetailDrawer', () => ({
+  ItemDetailDrawer: ({
+    item,
+    open,
+    ariaLabel,
+    topSlot,
+    placeholder,
+  }: {
+    item: { title: string } | null;
+    open: boolean;
+    ariaLabel?: string;
+    topSlot?: ReactNode;
+    placeholder?: ReactNode;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label={ariaLabel}>
+        {item ? <div>{item.title}</div> : placeholder}
+        {topSlot}
+      </div>
+    ) : null,
+}));
+
+import { TrackerTaskDetailDrawer } from '@/components/team-tracker/TrackerTaskDetailDrawer';
+
+describe('TrackerTaskDetailDrawer', () => {
+  beforeEach(() => {
+    mockUseTrackerSharedTaskDetail.mockReset();
+    mockUpdateManagerDeskItemMutate.mockReset();
+    mockDeleteManagerDeskItemMutate.mockReset();
+    mockUpdateTrackerItemMutate.mockReset();
+    mockUpdateTrackerItemMutateAsync.mockClear();
+    mockSetCurrentItemMutate.mockReset();
+  });
+
+  it('renders loading content inside the drawer while detail is fetching', () => {
+    mockUseTrackerSharedTaskDetail.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(
+      <TrackerTaskDetailDrawer
+        trackerItemId={10}
+        initialManagerDeskItemId={110}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('dialog', { name: /team tracker task detail/i })).toBeInTheDocument();
+    expect(screen.getByText('Loading task detail')).toBeInTheDocument();
+    expect(screen.getByText(/shared manager desk task and execution context/i)).toBeInTheDocument();
+  });
+
+  it('renders the item detail content once the shared detail is loaded', () => {
+    mockUseTrackerSharedTaskDetail.mockReturnValue({
+      data: {
+        date: '2026-03-14',
+        developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+        managerDeskItem: {
+          id: 110,
+          dayId: 1,
+          title: 'Fix login bug',
+          kind: 'action',
+          category: 'analysis',
+          status: 'planned',
+          priority: 'high',
+          createdAt: '2026-03-14T09:00:00Z',
+          updatedAt: '2026-03-14T09:00:00Z',
+          links: [],
+        },
+        trackerItem: {
+          id: 10,
+          dayId: 1,
+          managerDeskItemId: 110,
+          itemType: 'jira',
+          title: 'Fix login bug',
+          state: 'planned',
+          position: 0,
+          createdAt: '2026-03-14T09:00:00Z',
+          updatedAt: '2026-03-14T09:00:00Z',
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(
+      <TrackerTaskDetailDrawer
+        trackerItemId={10}
+        initialManagerDeskItemId={110}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('dialog', { name: /team tracker task detail/i })).toBeInTheDocument();
+    expect(screen.getByText('Fix login bug')).toBeInTheDocument();
+    expect(screen.getByText('Execution panel')).toBeInTheDocument();
+    expect(screen.queryByText('Loading task detail')).not.toBeInTheDocument();
+  });
+
+  it('closes immediately when the selected task is cleared', () => {
+    mockUseTrackerSharedTaskDetail.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    const { rerender } = render(
+      <TrackerTaskDetailDrawer
+        trackerItemId={10}
+        initialManagerDeskItemId={110}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('dialog', { name: /team tracker task detail/i })).toBeInTheDocument();
+
+    rerender(
+      <TrackerTaskDetailDrawer
+        trackerItemId={null}
+        initialManagerDeskItemId={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole('dialog', { name: /team tracker task detail/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading task detail')).not.toBeInTheDocument();
+  });
+});

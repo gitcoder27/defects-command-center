@@ -45,6 +45,7 @@ interface Props {
   topSlot?: ReactNode;
   ariaLabel?: string;
   showLinkedIssueDescription?: boolean;
+  placeholder?: ReactNode;
 }
 
 type FieldSaveState = 'idle' | 'dirty' | 'saving' | 'saved';
@@ -66,35 +67,40 @@ export function ItemDetailDrawer({
   topSlot,
   ariaLabel = 'Manager Desk item detail',
   showLinkedIssueDescription = true,
+  placeholder,
 }: Props) {
-  if (!item) return null;
+  if (!open) {
+    return null;
+  }
 
   return (
     <AnimatePresence>
-      {open && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40"
-            style={{ background: 'rgba(2, 6, 23, 0.46)', backdropFilter: 'blur(3px)' }}
-            onClick={onClose}
-          />
+      <>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-40"
+          style={{ background: 'rgba(2, 6, 23, 0.46)', backdropFilter: 'blur(3px)' }}
+          onClick={onClose}
+        />
 
-          <motion.aside
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-2xl flex-col overflow-hidden"
-            style={{
-              background: 'var(--bg-primary)',
-              borderLeft: '1px solid var(--border)',
-              boxShadow: '-28px 0 72px rgba(15, 23, 42, 0.22)',
-            }}
-            aria-label={ariaLabel}
-          >
+        <motion.aside
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+          className="fixed right-0 top-0 z-50 flex h-full w-full max-w-2xl flex-col overflow-hidden"
+          style={{
+            background: 'var(--bg-primary)',
+            borderLeft: '1px solid var(--border)',
+            boxShadow: '-28px 0 72px rgba(15, 23, 42, 0.22)',
+          }}
+          aria-label={ariaLabel}
+          role="dialog"
+          aria-modal="true"
+        >
+          {item ? (
             <DrawerContent
               item={item}
               date={date}
@@ -104,9 +110,11 @@ export function ItemDetailDrawer({
               topSlot={topSlot}
               showLinkedIssueDescription={showLinkedIssueDescription}
             />
-          </motion.aside>
-        </>
-      )}
+          ) : (
+            placeholder ?? null
+          )}
+        </motion.aside>
+      </>
     </AnimatePresence>
   );
 }
