@@ -10,8 +10,9 @@ interface HeaderNavProps {
 
 export function HeaderNav({ activeView, isManager, onViewChange }: HeaderNavProps) {
   return (
-    <div
-      className="flex items-center rounded-xl p-0.5 gap-0.5"
+    <nav
+      aria-label="Workspace navigation"
+      className="grid min-w-0 auto-cols-fr grid-flow-col items-center gap-0.5 rounded-xl p-0.5 lg:min-w-[460px]"
       style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
     >
       <WorkspaceNavLink
@@ -20,6 +21,8 @@ export function HeaderNav({ activeView, isManager, onViewChange }: HeaderNavProp
         active={activeView === 'dashboard'}
         accentColor="var(--accent)"
         onClick={() => onViewChange('dashboard')}
+        newTabHref="/"
+        newTabLabel="Open Dashboard in new tab"
       />
       <WorkspaceNavLink
         label="Team Tracker"
@@ -41,6 +44,6 @@ export function HeaderNav({ activeView, isManager, onViewChange }: HeaderNavProp
           newTabLabel="Open Manager Desk in new tab"
         />
       )}
-    </div>
+    </nav>
   );
 }

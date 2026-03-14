@@ -149,7 +149,7 @@ body::after {
 
 .workspace-nav-new-tab {
   opacity: 0;
-  transform: translateX(-2px);
+  transform: translate3d(6px, -50%, 0);
   pointer-events: none;
 }
 
@@ -157,14 +157,14 @@ body::after {
 .workspace-nav-chip:focus-within .workspace-nav-new-tab,
 .workspace-nav-new-tab:focus-visible {
   opacity: 1;
-  transform: translateX(0);
+  transform: translate3d(0, -50%, 0);
   pointer-events: auto;
 }
 
 @media (hover: none), (pointer: coarse) {
   .workspace-nav-new-tab {
     opacity: 1;
-    transform: translateX(0);
+    transform: translate3d(0, -50%, 0);
     pointer-events: auto;
   }
 }

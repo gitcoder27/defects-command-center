@@ -39,7 +39,7 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange }: Header
           className="dashboard-panel rounded-[14px] px-2.5 py-1.5 md:px-3 md:py-1.5 flex flex-col gap-1 lg:flex-row lg:items-center lg:justify-between"
           style={{ borderColor: 'var(--border-strong)' }}
         >
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
             {onOpenMobileSidebar && (
               <button
                 onClick={onOpenMobileSidebar}
@@ -66,7 +66,9 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange }: Header
               </div>
             </div>
             {onViewChange && (
-              <HeaderNav activeView={activeView} isManager={user?.role === 'manager'} onViewChange={onViewChange} />
+              <div className="basis-full lg:basis-auto">
+                <HeaderNav activeView={activeView} isManager={user?.role === 'manager'} onViewChange={onViewChange} />
+              </div>
             )}
           </div>
 

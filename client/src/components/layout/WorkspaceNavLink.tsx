@@ -20,6 +20,8 @@ export function WorkspaceNavLink({
   newTabHref,
   newTabLabel,
 }: WorkspaceNavLinkProps) {
+  const hasNewTabAction = Boolean(newTabHref && newTabLabel && !active);
+
   const buttonStyle = {
     background: active ? 'var(--bg-elevated)' : 'transparent',
     color: active ? accentColor : 'var(--text-muted)',
@@ -33,25 +35,25 @@ export function WorkspaceNavLink({
   };
 
   return (
-    <div className="workspace-nav-chip flex items-center gap-0.5">
+    <div className="workspace-nav-chip group relative min-w-0">
       <button
         type="button"
         onClick={onClick}
-        className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors"
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg px-9 py-1.5 text-[11px] font-medium transition-colors"
         style={buttonStyle}
       >
-        <Icon size={12} />
-        {label}
+        <Icon size={12} className="shrink-0" />
+        <span className="truncate">{label}</span>
       </button>
 
-      {newTabHref && newTabLabel && (
+      {hasNewTabAction && (
         <a
           href={newTabHref}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={newTabLabel}
           title={newTabLabel}
-          className="workspace-nav-new-tab flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-active)]"
+          className="workspace-nav-new-tab absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-active)]"
           style={newTabStyle}
         >
           <ExternalLink size={12} />
