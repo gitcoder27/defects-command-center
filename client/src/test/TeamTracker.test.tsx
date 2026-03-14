@@ -7,6 +7,7 @@ const mockCarryForwardMutate = vi.fn();
 const mockUpdateDayMutate = vi.fn();
 const mockUpdateAvailabilityMutate = vi.fn();
 const mockUpdateTrackerItemMutate = vi.fn();
+const mockCreateManagerDeskItemMutate = vi.fn();
 const mockAddTrackerItemMutate = vi.fn();
 const mockRefetchBoard = vi.fn();
 const mockRefetchCarryForwardPreview = vi.fn();
@@ -88,6 +89,7 @@ const mockBoard: TeamTrackerBoardResponse = {
       currentItem: {
         id: 10,
         dayId: 2,
+        managerDeskItemId: 110,
         itemType: 'jira',
         jiraKey: 'AM-123',
         jiraPriorityName: 'High',
@@ -102,6 +104,7 @@ const mockBoard: TeamTrackerBoardResponse = {
         {
           id: 11,
           dayId: 2,
+          managerDeskItemId: 111,
           itemType: 'custom',
           title: 'Code review',
           state: 'planned',
@@ -112,6 +115,7 @@ const mockBoard: TeamTrackerBoardResponse = {
         {
           id: 12,
           dayId: 2,
+          managerDeskItemId: 112,
           itemType: 'custom',
           title: 'Follow up with QA',
           state: 'planned',
@@ -204,12 +208,37 @@ vi.mock('@/hooks/useTeamTrackerMutations', () => ({
   useCarryForward: () => ({ mutate: mockCarryForwardMutate, isPending: false }),
 }));
 
+vi.mock('@/hooks/useManagerDesk', () => ({
+  useCreateManagerDeskItem: () => ({ mutate: mockCreateManagerDeskItemMutate, isPending: false }),
+}));
+
 vi.mock('@/hooks/useIssues', () => ({
   useIssues: () => ({ data: mockIssues }),
 }));
 
 vi.mock('@/hooks/useConfig', () => ({
   useConfig: () => ({ data: { jiraBaseUrl: 'https://test.atlassian.net', isConfigured: true } }),
+}));
+
+vi.mock('@/components/team-tracker/TrackerTaskDetailDrawer', () => ({
+  TrackerTaskDetailDrawer: ({
+    trackerItemId,
+    initialManagerDeskItemId,
+    onClose,
+  }: {
+    trackerItemId: number | null;
+    initialManagerDeskItemId: number | null;
+    onClose: () => void;
+  }) =>
+    trackerItemId === null ? null : (
+      <div role="dialog" aria-label="Team Tracker task detail">
+        <span>{`Shared task detail for item ${trackerItemId}`}</span>
+        {initialManagerDeskItemId !== null ? <span>{`Shared manager task ${initialManagerDeskItemId}`}</span> : null}
+        <button type="button" onClick={onClose}>
+          Close shared task detail
+        </button>
+      </div>
+    ),
 }));
 
 // Minimal framer-motion stub for tests
@@ -239,6 +268,7 @@ describe('TeamTrackerPage', () => {
     mockUpdateDayMutate.mockReset();
     mockUpdateAvailabilityMutate.mockReset();
     mockUpdateTrackerItemMutate.mockReset();
+    mockCreateManagerDeskItemMutate.mockReset();
     mockAddTrackerItemMutate.mockReset();
     mockRefetchBoard.mockReset();
     mockRefetchCarryForwardPreview.mockReset();
@@ -408,6 +438,19 @@ describe('TeamTrackerPage', () => {
     expect(screen.getAllByText('Alice Smith').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('opens the shared task detail drawer when clicking a task on the board', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByText('Fix login bug'));
+
+    expect(screen.getByRole('dialog', { name: /team tracker task detail/i })).toBeInTheDocument();
+    expect(screen.getByText('Shared task detail for item 10')).toBeInTheDocument();
+  });
+
   it('carries forward the selected board date to the next day', () => {
     render(
       <TestWrapper>
@@ -460,7 +503,7 @@ describe('TeamTrackerPage', () => {
     expect(window.sessionStorage.getItem('team-tracker:carry-forward-prompt:2026-03-07')).toBe('dismissed');
   });
 
-  it('adds a Jira-linked item from the drawer using the synced issue picker', () => {
+  it('creates a Manager Desk-backed Jira task from the drawer using the synced issue picker', () => {
     mockIssues = [
       {
         jiraKey: 'AM-456',
@@ -502,11 +545,13 @@ describe('TeamTrackerPage', () => {
     fireEvent.click(screen.getByText('Investigate API latency'));
     fireEvent.click(screen.getAllByRole('button', { name: /^add task$/i }).at(-1)!);
 
-    expect(mockAddTrackerItemMutate).toHaveBeenCalledWith({
-      accountId: 'dev-2',
-      jiraKey: 'AM-456',
+    expect(mockCreateManagerDeskItemMutate).toHaveBeenCalledWith({
+      assigneeDeveloperAccountId: 'dev-2',
+      contextNote: undefined,
+      date: '2026-03-07',
+      links: [{ issueKey: 'AM-456', linkType: 'issue' }],
+      status: 'planned',
       title: 'Investigate API latency spike',
-      note: undefined,
     });
   });
 
@@ -561,57 +606,18 @@ describe('TeamTrackerPage', () => {
     expect(dragHandles.length).toBe(2);
   });
 
-  it('reveals full task details for current and planned drawer items without affecting the collapsed layout', () => {
-    const bob = mockBoard.developers[1]!;
-    const originalCurrentItem = bob.currentItem;
-    const originalPlannedItems = bob.plannedItems;
-
-    bob.currentItem = originalCurrentItem
-      ? {
-          ...originalCurrentItem,
-          title: 'Fix login bug affecting the enterprise customer SSO rollout this morning',
-          note: 'Coordinate with QA before shipping.\nEscalate if repro still fails after patch.',
-        }
-      : undefined;
-    bob.plannedItems = originalPlannedItems.map((item, index) =>
-      index === 0
-        ? {
-            ...item,
-            title: 'Review regression checklist for the authentication hardening follow-up',
-            note: 'Check dashboard alerts and confirm release notes.',
-          }
-        : item
+  it('opens the shared task detail drawer when clicking a task inside the developer drawer', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
     );
 
-    try {
-      render(
-        <TestWrapper>
-          <TeamTrackerPage />
-        </TestWrapper>
-      );
+    clickDeveloperCard('Bob Jones');
+    fireEvent.click(screen.getAllByRole('button', { name: /code review/i }).at(-1)!);
 
-      clickDeveloperCard('Bob Jones');
-
-      const detailButtons = screen.getAllByRole('button', { name: /show task details for/i });
-      expect(detailButtons.length).toBeGreaterThanOrEqual(3);
-
-      fireEvent.click(detailButtons[0]!);
-      const currentDetails = screen.getByRole('region', {
-        name: /task details for fix login bug affecting the enterprise customer sso rollout this morning/i,
-      });
-      expect(within(currentDetails).getByText('Full title')).toBeInTheDocument();
-      expect(within(currentDetails).getByText(/coordinate with qa before shipping/i)).toBeInTheDocument();
-
-      fireEvent.click(detailButtons[1]!);
-      const plannedDetails = screen.getByRole('region', {
-        name: /task details for review regression checklist for the authentication hardening follow-up/i,
-      });
-      expect(within(plannedDetails).getByText('Notes')).toBeInTheDocument();
-      expect(within(plannedDetails).getByText(/check dashboard alerts and confirm release notes/i)).toBeInTheDocument();
-    } finally {
-      bob.currentItem = originalCurrentItem;
-      bob.plannedItems = originalPlannedItems;
-    }
+    expect(screen.getByRole('dialog', { name: /team tracker task detail/i })).toBeInTheDocument();
+    expect(screen.getByText('Shared task detail for item 11')).toBeInTheDocument();
   });
 
   it('saves daily capacity from the drawer', () => {
@@ -633,48 +639,17 @@ describe('TeamTrackerPage', () => {
     });
   });
 
-  it('updates an existing item note from the drawer', () => {
+  it('closes the shared task detail drawer from its close action', () => {
     render(
       <TestWrapper>
         <TeamTrackerPage />
       </TestWrapper>
     );
 
-    clickDeveloperCard('Bob Jones');
-    fireEvent.click(screen.getAllByTitle('Edit note')[0]!);
-    const noteEditor = screen.getAllByRole('textbox').find((element) => element.tagName === 'TEXTAREA');
-    expect(noteEditor).toBeDefined();
-    fireEvent.change(noteEditor!, {
-      target: { value: 'Needs a tighter ETA' },
-    });
-    const saveButton = within(noteEditor!.parentElement as HTMLElement).getByText('Save');
-    expect(saveButton).toBeDefined();
-    fireEvent.click(saveButton!);
+    fireEvent.click(screen.getByText('Fix login bug'));
+    fireEvent.click(screen.getByRole('button', { name: /close shared task detail/i }));
 
-    expect(mockUpdateTrackerItemMutate).toHaveBeenCalledWith({
-      itemId: 10,
-      note: 'Needs a tighter ETA',
-    });
-  });
-
-  it('edits an item title from the drawer via click-to-edit', () => {
-    render(
-      <TestWrapper>
-        <TeamTrackerPage />
-      </TestWrapper>
-    );
-
-    clickDeveloperCard('Bob Jones');
-    fireEvent.click(screen.getByRole('button', { name: /edit title: fix login bug/i }));
-    const titleInput = screen.getByLabelText('Edit title');
-    expect(titleInput).toBeInTheDocument();
-    fireEvent.change(titleInput, { target: { value: 'Fix login bug (urgent)' } });
-    fireEvent.click(screen.getByTitle('Save title'));
-
-    expect(mockUpdateTrackerItemMutate).toHaveBeenCalledWith({
-      itemId: 10,
-      title: 'Fix login bug (urgent)',
-    });
+    expect(screen.queryByRole('dialog', { name: /team tracker task detail/i })).not.toBeInTheDocument();
   });
 });
 
@@ -849,6 +824,35 @@ describe('TrackerItemRow', () => {
     // Should revert and not call the callback
     expect(onUpdateTitle).not.toHaveBeenCalled();
     expect(screen.getByText('Keep this title')).toBeInTheDocument();
+  });
+
+  it('opens shared task detail when an onOpen handler is provided', async () => {
+    const { TrackerItemRow } = await import('@/components/team-tracker/TrackerItemRow');
+    const onOpen = vi.fn();
+
+    render(
+      <TrackerItemRow
+        item={{
+          id: 16,
+          dayId: 1,
+          itemType: 'custom',
+          title: 'Shared task launch checklist',
+          state: 'planned',
+          position: 0,
+          createdAt: '2026-03-07T08:00:00Z',
+          updatedAt: '2026-03-07T08:00:00Z',
+        }}
+        onOpen={onOpen}
+        onUpdateTitle={vi.fn()}
+        showDetailsToggle
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /shared task launch checklist/i }));
+
+    expect(onOpen).toHaveBeenCalledWith(16, undefined);
+    expect(screen.queryByRole('button', { name: /show task details for/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Edit title')).not.toBeInTheDocument();
   });
 
   it('reveals full title and note when details are toggled on', async () => {

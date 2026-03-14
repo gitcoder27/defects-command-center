@@ -284,6 +284,7 @@ export interface TrackerCheckIn {
 export interface TrackerWorkItem {
   id: number;
   dayId: number;
+  managerDeskItemId?: number;
   itemType: TrackerItemType;
   jiraKey?: string;
   jiraSummary?: string;

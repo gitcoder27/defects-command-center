@@ -2,13 +2,12 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, ArrowRight, ChevronLeft, ChevronRight, RefreshCw, X } from 'lucide-react';
 import { useTeamTracker, useCarryForwardPreview } from '@/hooks/useTeamTracker';
+import { useCreateManagerDeskItem } from '@/hooks/useManagerDesk';
 import {
   useUpdateDay,
   useUpdateAvailability,
-  useAddTrackerItem,
   useSetCurrentItem,
   useUpdateTrackerItem,
-  useDeleteTrackerItem,
   useAddCheckIn,
   useCarryForward,
 } from '@/hooks/useTeamTrackerMutations';
@@ -20,6 +19,7 @@ import { InactiveDeveloperTray } from './InactiveDeveloperTray';
 import { TrackerBoard } from './TrackerBoard';
 import { DeveloperTrackerDrawer } from './DeveloperTrackerDrawer';
 import { AvailabilityDialog } from './AvailabilityDialog';
+import { TrackerTaskDetailDrawer } from './TrackerTaskDetailDrawer';
 import type { AppView } from '@/App';
 import type { TrackerDeveloperDay } from '@/types';
 
@@ -59,6 +59,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   const [date, setDate] = useState(getLocalIsoDate);
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
   const [drawerAccountId, setDrawerAccountId] = useState<string | undefined>();
+  const [selectedTask, setSelectedTask] = useState<{ trackerItemId: number; managerDeskItemId?: number } | null>(null);
   const [availabilityTarget, setAvailabilityTarget] = useState<TrackerDeveloperDay | undefined>();
   const [carryPromptDismissed, setCarryPromptDismissed] = useState(() => readCarryForwardPromptState(getLocalIsoDate()));
 
@@ -72,12 +73,11 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   const previousDate = useMemo(() => shiftLocalIsoDate(date, -1), [date]);
   const carryForwardPreview = useCarryForwardPreview(previousDate, date, !carryPromptDismissed);
 
+  const createManagerDeskItem = useCreateManagerDeskItem(date);
   const updateDay = useUpdateDay(date);
   const updateAvailability = useUpdateAvailability(date);
-  const addItem = useAddTrackerItem(date);
   const setCurrent = useSetCurrentItem(date);
   const updateItem = useUpdateTrackerItem(date);
-  const deleteItem = useDeleteTrackerItem(date);
   const addCheckIn = useAddCheckIn(date);
   const carryForward = useCarryForward();
 
@@ -105,6 +105,25 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
       updateItem.mutate({ itemId, state: 'dropped' });
     },
     [updateItem]
+  );
+
+  const handleOpenTaskDetail = useCallback((itemId: number, managerDeskItemId?: number) => {
+    setDrawerAccountId(undefined);
+    setSelectedTask({ trackerItemId: itemId, managerDeskItemId });
+  }, []);
+
+  const handleCreateTask = useCallback(
+    (params: { accountId: string; title: string; jiraKey?: string; note?: string }) => {
+      createManagerDeskItem.mutate({
+        date,
+        title: params.title,
+        status: 'planned',
+        assigneeDeveloperAccountId: params.accountId,
+        contextNote: params.note,
+        links: params.jiraKey ? [{ linkType: 'issue', issueKey: params.jiraKey }] : undefined,
+      });
+    },
+    [createManagerDeskItem, date]
   );
 
   const handleCarryForward = useCallback(() => {
@@ -136,6 +155,10 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
 
   useEffect(() => {
     setCarryPromptDismissed(readCarryForwardPromptState(date));
+  }, [date]);
+
+  useEffect(() => {
+    setSelectedTask(null);
   }, [date]);
 
   const isToday = date === getLocalIsoDate();
@@ -361,12 +384,13 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
               developers={board.developers}
               filter={summaryFilter}
               onOpenDrawer={setDrawerAccountId}
+              onOpenTaskDetail={handleOpenTaskDetail}
               onMarkInactive={handleMarkInactive}
               onSetCurrent={handleSetCurrent}
               onMarkDone={handleMarkDone}
-              onQuickAdd={(params) => addItem.mutate(params)}
+              onQuickAdd={handleCreateTask}
               issues={issues}
-              isQuickAddPending={addItem.isPending}
+              isQuickAddPending={createManagerDeskItem.isPending}
             />
           </>
         ) : (
@@ -384,18 +408,23 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
         open={!!drawerAccountId}
         onClose={() => setDrawerAccountId(undefined)}
         onUpdateDay={(params) => updateDay.mutate(params)}
-        onAddItem={(params) => addItem.mutate(params)}
+        onAddItem={handleCreateTask}
+        onOpenTaskDetail={handleOpenTaskDetail}
         onReorderPlannedItem={(params) => updateItem.mutate(params)}
         onUpdateItemNote={(params) => updateItem.mutate(params)}
         onUpdateItemTitle={(params) => updateItem.mutate(params)}
         onSetCurrent={handleSetCurrent}
         onMarkDone={handleMarkDone}
         onDropItem={handleDropItem}
-        onDeleteItem={(id) => deleteItem.mutate(id)}
         onAddCheckIn={(params) => addCheckIn.mutate(params)}
         onOpenManagerDesk={onViewChange ? () => onViewChange('manager-desk') : undefined}
         issues={issues}
-        isAddItemPending={addItem.isPending}
+        isAddItemPending={createManagerDeskItem.isPending}
+      />
+      <TrackerTaskDetailDrawer
+        trackerItemId={selectedTask?.trackerItemId ?? null}
+        initialManagerDeskItemId={selectedTask?.managerDeskItemId ?? null}
+        onClose={() => setSelectedTask(null)}
       />
       <AvailabilityDialog
         open={!!availabilityTarget}

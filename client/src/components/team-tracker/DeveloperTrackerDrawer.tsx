@@ -17,13 +17,13 @@ interface DeveloperTrackerDrawerProps {
   onClose: () => void;
   onUpdateDay: (params: { accountId: string; status?: TrackerDeveloperStatus; capacityUnits?: number | null; managerNotes?: string }) => void;
   onAddItem: (params: { accountId: string; jiraKey?: string; title: string; note?: string }) => void;
+  onOpenTaskDetail: (itemId: number, managerDeskItemId?: number) => void;
   onReorderPlannedItem: (params: { itemId: number; position: number }) => void;
   onUpdateItemNote: (params: { itemId: number; note?: string }) => void;
   onUpdateItemTitle: (params: { itemId: number; title: string }) => void;
   onSetCurrent: (itemId: number) => void;
   onMarkDone: (itemId: number) => void;
   onDropItem: (itemId: number) => void;
-  onDeleteItem: (itemId: number) => void;
   onAddCheckIn: (params: { accountId: string; summary: string; status?: TrackerDeveloperStatus }) => void;
   onOpenManagerDesk?: () => void;
   issues?: Issue[];
@@ -38,13 +38,13 @@ export function DeveloperTrackerDrawer({
   onClose,
   onUpdateDay,
   onAddItem,
+  onOpenTaskDetail,
   onReorderPlannedItem,
   onUpdateItemNote,
   onUpdateItemTitle,
   onSetCurrent,
   onMarkDone,
   onDropItem,
-  onDeleteItem,
   onAddCheckIn,
   onOpenManagerDesk,
   issues,
@@ -296,7 +296,8 @@ export function DeveloperTrackerDrawer({
                 {day.currentItem ? (
                   <TrackerItemRow
                     item={day.currentItem}
-                    showDetailsToggle
+                    hideActions
+                    onOpen={onOpenTaskDetail}
                     onUpdateNote={(itemId, note) => onUpdateItemNote({ itemId, note })}
                     onUpdateTitle={(itemId, title) => onUpdateItemTitle({ itemId, title })}
                     onSetCurrent={onSetCurrent}
@@ -342,7 +343,8 @@ export function DeveloperTrackerDrawer({
                         <TrackerItemRow
                           item={item}
                           draggable
-                          showDetailsToggle
+                          hideActions
+                          onOpen={onOpenTaskDetail}
                           onUpdateNote={(itemId, note) => onUpdateItemNote({ itemId, note })}
                           onUpdateTitle={(itemId, title) => onUpdateItemTitle({ itemId, title })}
                           onSetCurrent={onSetCurrent}
@@ -370,7 +372,7 @@ export function DeveloperTrackerDrawer({
                   </div>
                   <div className="space-y-0.5">
                     {day.completedItems.map((item) => (
-                      <TrackerItemRow key={item.id} item={item} compact />
+                      <TrackerItemRow key={item.id} item={item} compact hideActions onOpen={onOpenTaskDetail} />
                     ))}
                   </div>
                 </div>
@@ -384,16 +386,7 @@ export function DeveloperTrackerDrawer({
                   </div>
                   <div className="space-y-0.5">
                     {day.droppedItems.map((item) => (
-                      <div key={item.id} className="flex items-center gap-2">
-                        <TrackerItemRow item={item} compact />
-                        <button
-                          onClick={() => onDeleteItem(item.id)}
-                          className="text-[11px] shrink-0 px-1"
-                          style={{ color: 'var(--danger)' }}
-                        >
-                          Remove
-                        </button>
-                      </div>
+                      <TrackerItemRow key={item.id} item={item} compact hideActions onOpen={onOpenTaskDetail} />
                     ))}
                   </div>
                 </div>

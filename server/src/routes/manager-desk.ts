@@ -136,6 +136,14 @@ const itemIdParamSchema = z.object({
   query: z.any().optional(),
 });
 
+const trackerItemIdParamSchema = z.object({
+  params: z.object({
+    trackerItemId: z.string().regex(/^\d+$/, "Invalid tracker item id"),
+  }),
+  body: z.any().optional(),
+  query: z.any().optional(),
+});
+
 const updateItemSchema = z.object({
   params: z.object({
     itemId: z.string().regex(/^\d+$/, "Invalid item id"),
@@ -221,6 +229,34 @@ export function createManagerDeskRouter(
     try {
       const day = await managerDeskService.getDay(req.auth!.user.accountId, req.query.date as string);
       res.json(day);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get(
+    "/tracker-items/:trackerItemId/detail",
+    validate(trackerItemIdParamSchema),
+    async (req, res, next) => {
+      try {
+        const detail = await managerDeskService.getTrackerTaskDetail(
+          req.auth!.user.accountId,
+          parseInt(req.params.trackerItemId as string, 10)
+        );
+        res.json(detail);
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.get("/items/:itemId/detail", validate(itemIdParamSchema), async (req, res, next) => {
+    try {
+      const detail = await managerDeskService.getTaskDetailByItemId(
+        req.auth!.user.accountId,
+        parseInt(req.params.itemId as string, 10)
+      );
+      res.json(detail);
     } catch (error) {
       next(error);
     }

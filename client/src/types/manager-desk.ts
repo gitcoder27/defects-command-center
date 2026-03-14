@@ -1,3 +1,5 @@
+import type { Developer, DeveloperAvailability, TrackerWorkItem } from '@/types';
+
 /**
  * Manager Desk — client-local types (mirrors the backend contract from
  * docs/16-manager-desk-frontend-handoff.md). These live here until the
@@ -90,6 +92,13 @@ export interface ManagerDeskDayResponse {
   summary: ManagerDeskSummary;
 }
 
+export interface TrackerSharedTaskDetailResponse {
+  date: string;
+  developer: Developer;
+  managerDeskItem: ManagerDeskItem;
+  trackerItem: TrackerWorkItem;
+}
+
 // ── Lookup Shapes ───────────────────────────────────────
 
 export interface ManagerDeskIssueLookupItem {
@@ -105,7 +114,7 @@ export interface ManagerDeskDeveloperLookupItem {
   displayName: string;
   email?: string;
   avatarUrl?: string;
-  availability?: import('@/types').DeveloperAvailability;
+  availability?: DeveloperAvailability;
 }
 
 export interface ManagerDeskAssignee {
@@ -113,7 +122,7 @@ export interface ManagerDeskAssignee {
   displayName: string;
   email?: string;
   avatarUrl?: string;
-  availability?: import('@/types').DeveloperAvailability;
+  availability?: DeveloperAvailability;
 }
 
 // ── Create / Update payloads ────────────────────────────

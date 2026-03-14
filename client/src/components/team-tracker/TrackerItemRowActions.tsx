@@ -34,7 +34,10 @@ export function TrackerItemRowActions({
     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
       {!draggable && itemState === 'planned' && onMoveUp && (
         <button
-          onClick={() => onMoveUp(itemId)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onMoveUp(itemId);
+          }}
           disabled={!canMoveUp}
           className="h-6 w-6 rounded-md flex items-center justify-center transition-colors disabled:opacity-30"
           style={{ background: 'var(--bg-tertiary)' }}
@@ -45,7 +48,10 @@ export function TrackerItemRowActions({
       )}
       {!draggable && itemState === 'planned' && onMoveDown && (
         <button
-          onClick={() => onMoveDown(itemId)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onMoveDown(itemId);
+          }}
           disabled={!canMoveDown}
           className="h-6 w-6 rounded-md flex items-center justify-center transition-colors disabled:opacity-30"
           style={{ background: 'var(--bg-tertiary)' }}
@@ -56,7 +62,10 @@ export function TrackerItemRowActions({
       )}
       {itemState !== 'in_progress' && onSetCurrent && (
         <button
-          onClick={() => onSetCurrent(itemId)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSetCurrent(itemId);
+          }}
           className="h-6 w-6 rounded-md flex items-center justify-center transition-colors"
           style={{ background: 'var(--bg-tertiary)' }}
           title="Set as current"
@@ -66,7 +75,10 @@ export function TrackerItemRowActions({
       )}
       {onToggleNoteEditor && (
         <button
-          onClick={onToggleNoteEditor}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleNoteEditor();
+          }}
           className="h-6 w-6 rounded-md flex items-center justify-center transition-colors"
           style={{ background: 'var(--bg-tertiary)' }}
           title="Edit note"
@@ -76,7 +88,10 @@ export function TrackerItemRowActions({
       )}
       {onMarkDone && (
         <button
-          onClick={() => onMarkDone(itemId)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onMarkDone(itemId);
+          }}
           className="h-6 w-6 rounded-md flex items-center justify-center transition-colors"
           style={{ background: 'var(--bg-tertiary)' }}
           title="Mark done"
@@ -86,7 +101,10 @@ export function TrackerItemRowActions({
       )}
       {onDrop && (
         <button
-          onClick={() => onDrop(itemId)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDrop(itemId);
+          }}
           className="h-6 w-6 rounded-md flex items-center justify-center transition-colors"
           style={{ background: 'var(--bg-tertiary)' }}
           title="Drop"

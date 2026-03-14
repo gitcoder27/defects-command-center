@@ -12,6 +12,8 @@ import type {
   ManagerDeskPriority,
   ManagerDeskStatus,
   ManagerDeskSummary,
+  TrackerItemState,
+  TrackerSharedTaskDetailResponse,
 } from "shared/types";
 import { db } from "../db/connection";
 import {
@@ -135,6 +137,13 @@ function getCarryForwardStatus(status: ManagerDeskStatus): ManagerDeskStatus {
     return "planned";
   }
   return status;
+}
+
+function getLegacyTrackerManagerDeskStatus(state: TrackerItemState): ManagerDeskStatus {
+  if (state === "in_progress") {
+    return "in_progress";
+  }
+  return "planned";
 }
 
 export class ManagerDeskService {
@@ -627,6 +636,48 @@ export class ManagerDeskService {
       });
   }
 
+  async getTrackerTaskDetail(
+    managerAccountId: string,
+    trackerItemId: number
+  ): Promise<TrackerSharedTaskDetailResponse> {
+    const trackerContext = await this.trackerService.getItemDetailContext(trackerItemId);
+    const managerDeskItemId =
+      trackerContext.trackerItem.managerDeskItemId ??
+      (await this.createManagerDeskItemFromTrackerItem(managerAccountId, trackerContext));
+
+    const managerDeskItem = await this.getItemById(managerAccountId, managerDeskItemId);
+
+    return {
+      date: trackerContext.date,
+      developer: trackerContext.developer,
+      managerDeskItem,
+      trackerItem: {
+        ...trackerContext.trackerItem,
+        managerDeskItemId,
+      },
+    };
+  }
+
+  async getTaskDetailByItemId(
+    managerAccountId: string,
+    itemId: number
+  ): Promise<TrackerSharedTaskDetailResponse> {
+    const managerDeskItem = await this.getItemById(managerAccountId, itemId);
+    const trackerContext =
+      await this.trackerService.getItemDetailContextForManagerDeskItem(itemId);
+
+    if (!trackerContext) {
+      throw new HttpError(404, "Task is no longer assigned in Team Tracker");
+    }
+
+    return {
+      date: trackerContext.date,
+      developer: trackerContext.developer,
+      managerDeskItem,
+      trackerItem: trackerContext.trackerItem,
+    };
+  }
+
   async ensureDay(
     managerAccountId: string,
     date: string
@@ -1024,6 +1075,57 @@ export class ManagerDeskService {
         })
         .map((row) => [row.managerDeskItemId, row.note])
     );
+  }
+
+  private async createManagerDeskItemFromTrackerItem(
+    managerAccountId: string,
+    trackerContext: Awaited<ReturnType<TeamTrackerService["getItemDetailContext"]>>
+  ): Promise<number> {
+    const day = await this.ensureDay(managerAccountId, trackerContext.date);
+    const now = nowIso();
+    const inserted = await db
+      .insert(managerDeskItems)
+      .values({
+        dayId: day.id,
+        sourceItemId: null,
+        assigneeDeveloperAccountId: trackerContext.developer.accountId,
+        title: trackerContext.trackerItem.title,
+        kind: "action",
+        category: "other",
+        status: getLegacyTrackerManagerDeskStatus(trackerContext.trackerItem.state),
+        priority: "medium",
+        participants: null,
+        contextNote: trackerContext.trackerItem.note ?? null,
+        nextAction: null,
+        outcome: null,
+        plannedStartAt: null,
+        plannedEndAt: null,
+        followUpAt: null,
+        completedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    const item = inserted[0];
+    if (!item) {
+      throw new Error("Failed to create manager desk item from tracker item");
+    }
+
+    if (trackerContext.trackerItem.jiraKey) {
+      await db.insert(managerDeskLinks).values({
+        itemId: item.id,
+        linkType: "issue",
+        issueKey: trackerContext.trackerItem.jiraKey,
+        developerAccountId: null,
+        externalLabel: null,
+        createdAt: now,
+      });
+    }
+
+    await this.trackerService.linkManagerDeskItem(trackerContext.trackerItem.id, item.id);
+
+    return item.id;
   }
 
   private async normalizeLinkInput(

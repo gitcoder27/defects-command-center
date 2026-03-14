@@ -264,6 +264,7 @@ export interface TrackerCheckIn {
 export interface TrackerWorkItem {
   id: number;
   dayId: number;
+  managerDeskItemId?: number;
   itemType: TrackerItemType;
   jiraKey?: string;
   jiraSummary?: string;
@@ -494,6 +495,13 @@ export interface ManagerDeskDayResponse {
   date: string;
   items: ManagerDeskItem[];
   summary: ManagerDeskSummary;
+}
+
+export interface TrackerSharedTaskDetailResponse {
+  date: string;
+  developer: Developer;
+  managerDeskItem: ManagerDeskItem;
+  trackerItem: TrackerWorkItem;
 }
 
 export interface ManagerDeskIssueLookupItem {

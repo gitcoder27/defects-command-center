@@ -8,6 +8,7 @@ import { TrackerItemRowDetails } from './TrackerItemRowDetails';
 
 interface TrackerItemRowProps {
   item: TrackerWorkItem;
+  onOpen?: (id: number, managerDeskItemId?: number) => void;
   onSetCurrent?: (id: number) => void;
   onMarkDone?: (id: number) => void;
   onDrop?: (id: number) => void;
@@ -20,6 +21,7 @@ interface TrackerItemRowProps {
   compact?: boolean;
   draggable?: boolean;
   showDetailsToggle?: boolean;
+  hideActions?: boolean;
 }
 
 const stateIcons: Record<TrackerItemState, { icon: typeof Play; color: string }> = {
@@ -31,6 +33,7 @@ const stateIcons: Record<TrackerItemState, { icon: typeof Play; color: string }>
 
 export function TrackerItemRow({
   item,
+  onOpen,
   onSetCurrent,
   onMarkDone,
   onDrop,
@@ -43,6 +46,7 @@ export function TrackerItemRow({
   compact,
   draggable,
   showDetailsToggle = false,
+  hideActions = false,
 }: TrackerItemRowProps) {
   const [noteEditing, setNoteEditing] = useState(false);
   const [draftNote, setDraftNote] = useState(item.note ?? '');
@@ -62,8 +66,9 @@ export function TrackerItemRow({
   const Icon = stateInfo.icon;
   const isActive = item.state === 'in_progress';
   const isDone = item.state === 'done' || item.state === 'dropped';
-  const isTitleEditable = !compact && Boolean(onUpdateTitle) && !isDone;
-  const canShowDetails = showDetailsToggle && !compact;
+  const canOpen = Boolean(onOpen) && !noteEditing && !titleEditing;
+  const isTitleEditable = !compact && Boolean(onUpdateTitle) && !isDone && !canOpen;
+  const canShowDetails = showDetailsToggle && !compact && !canOpen;
   const detailsRegionId = `tracker-item-details-${item.id}`;
   const jiraLabel = item.jiraSummary && item.jiraSummary !== item.title ? `${item.jiraKey} · ${item.jiraSummary}` : item.jiraKey;
   const jiraMeta = [item.jiraPriorityName, item.jiraDueDate ? `Due ${formatDate(item.jiraDueDate)}` : undefined].filter(Boolean).join(' • ');
@@ -80,18 +85,32 @@ export function TrackerItemRow({
   };
 
   const toggleDetails = () => setDetailsOpen((open) => !open);
+  const handleOpen = () => onOpen?.(item.id, item.managerDeskItemId);
 
   return (
     <div
-      className="group flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors"
+      className={`group flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors ${canOpen ? 'cursor-pointer' : ''}`}
       style={{
         background: isActive ? 'rgba(6, 182, 212, 0.06)' : 'transparent',
         borderLeft: isActive ? '2px solid var(--accent)' : '2px solid transparent',
       }}
+      onClick={canOpen ? (event) => {
+        event.stopPropagation();
+        handleOpen();
+      } : undefined}
+      onKeyDown={canOpen ? (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleOpen();
+        }
+      } : undefined}
+      role={canOpen ? 'button' : undefined}
+      tabIndex={canOpen ? 0 : undefined}
     >
       {draggable ? (
         <div
           data-drag-handle
+          onClick={(event) => event.stopPropagation()}
           className="cursor-grab active:cursor-grabbing touch-none shrink-0 flex items-center justify-center h-5 w-5 rounded"
           style={{ color: 'var(--text-muted)' }}
           title="Drag to reorder"
@@ -245,7 +264,7 @@ export function TrackerItemRow({
         )}
       </div>
 
-      {!isDone && (
+      {!isDone && !hideActions && (
         <TrackerItemRowActions
           itemId={item.id}
           itemState={item.state}

@@ -101,6 +101,7 @@ export function useUpdateTrackerItem(date: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
     },
@@ -114,6 +115,7 @@ export function useDeleteTrackerItem(date: string) {
       api.delete(`/team-tracker/items/${itemId}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
     },

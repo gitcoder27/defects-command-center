@@ -135,6 +135,7 @@ function mapItem(
   return {
     id: row.id,
     dayId: row.dayId,
+    managerDeskItemId: row.managerDeskItemId ?? undefined,
     itemType: row.jiraKey ? "jira" : "custom",
     jiraKey: row.jiraKey ?? undefined,
     jiraSummary: issueContext?.summary ?? undefined,
@@ -761,6 +762,97 @@ export class TeamTrackerService {
     });
   }
 
+  async getItemDetailContext(itemId: number): Promise<{
+    date: string;
+    developer: Developer;
+    trackerItem: TrackerWorkItem;
+  }> {
+    const rows = await db
+      .select({
+        item: teamTrackerItems,
+        date: teamTrackerDays.date,
+        developer: developers,
+      })
+      .from(teamTrackerItems)
+      .innerJoin(teamTrackerDays, eq(teamTrackerDays.id, teamTrackerItems.dayId))
+      .innerJoin(developers, eq(developers.accountId, teamTrackerDays.developerAccountId))
+      .where(eq(teamTrackerItems.id, itemId))
+      .limit(1);
+
+    const row = rows[0];
+    if (!row) {
+      throw new HttpError(404, "Item not found");
+    }
+
+    const issueContextMap = await this.getIssueContextMap(
+      row.item.jiraKey ? [row.item.jiraKey] : []
+    );
+
+    return {
+      date: row.date,
+      developer: mapDeveloper(row.developer),
+      trackerItem: mapItem(
+        row.item,
+        row.item.jiraKey ? issueContextMap.get(row.item.jiraKey) : undefined
+      ),
+    };
+  }
+
+  async getItemDetailContextForManagerDeskItem(
+    managerDeskItemId: number
+  ): Promise<
+    | {
+        date: string;
+        developer: Developer;
+        trackerItem: TrackerWorkItem;
+      }
+    | null
+  > {
+    const rows = await db
+      .select({
+        item: teamTrackerItems,
+        date: teamTrackerDays.date,
+        developer: developers,
+      })
+      .from(teamTrackerItems)
+      .innerJoin(teamTrackerDays, eq(teamTrackerDays.id, teamTrackerItems.dayId))
+      .innerJoin(developers, eq(developers.accountId, teamTrackerDays.developerAccountId))
+      .where(eq(teamTrackerItems.managerDeskItemId, managerDeskItemId))
+      .limit(1);
+
+    const row = rows[0];
+    if (!row) {
+      return null;
+    }
+
+    const issueContextMap = await this.getIssueContextMap(
+      row.item.jiraKey ? [row.item.jiraKey] : []
+    );
+
+    return {
+      date: row.date,
+      developer: mapDeveloper(row.developer),
+      trackerItem: mapItem(
+        row.item,
+        row.item.jiraKey ? issueContextMap.get(row.item.jiraKey) : undefined
+      ),
+    };
+  }
+
+  async linkManagerDeskItem(
+    itemId: number,
+    managerDeskItemId: number
+  ): Promise<TrackerWorkItem> {
+    await this.getItemRow(itemId);
+
+    await db
+      .update(teamTrackerItems)
+      .set({ managerDeskItemId })
+      .where(eq(teamTrackerItems.id, itemId));
+
+    return this.getItemById(itemId);
+  }
+
   async previewCarryForward(fromDate: string, toDate: string): Promise<number> {
     const dayRows = await db
       .select()
@@ -776,7 +868,11 @@ export class TeamTrackerService {
         .where(eq(teamTrackerItems.dayId, dayRow.id));
 
       const unfinished = items
-        .filter((i) => i.state === "planned" || i.state === "in_progress")
+        .filter(
+          (i) =>
+            (i.state === "planned" || i.state === "in_progress") &&
+            i.managerDeskItemId === null
+        )
         .sort((a, b) => a.position - b.position);
 
       if (unfinished.length === 0) {
@@ -820,7 +916,9 @@ export class TeamTrackerService {
         .where(eq(teamTrackerItems.dayId, dayRow.id));
 
       const unfinished = items.filter(
-        (i) => i.state === "planned" || i.state === "in_progress"
+        (i) =>
+          (i.state === "planned" || i.state === "in_progress") &&
+          i.managerDeskItemId === null
       );
 
       if (unfinished.length === 0) continue;
@@ -832,7 +930,7 @@ export class TeamTrackerService {
         .where(eq(teamTrackerItems.dayId, newDay.id));
       const remainingToCarry = this.buildRemainingCarryForwardMap(
         unfinished,
-        targetItems
+        targetItems.filter((item) => item.managerDeskItemId === null)
       );
 
       let nextPosition =
@@ -1148,10 +1246,12 @@ export class TeamTrackerService {
       return [];
     }
 
-    return db
+    const items = await db
       .select()
       .from(teamTrackerItems)
       .where(eq(teamTrackerItems.dayId, targetDay.id));
+
+    return items.filter((item) => item.managerDeskItemId === null);
   }
 
   private async reorderItem(

@@ -423,6 +423,23 @@ describe("TeamTrackerService", () => {
       expect(carryable).toBe(1);
     });
 
+    it("ignores Manager Desk-linked items when previewing carry-forward work", async () => {
+      await service.addItem("dev-1", "2026-03-06", {
+        title: "Shared task owned by Manager Desk",
+        managerDeskItemId: 42,
+      });
+      await service.addItem("dev-1", "2026-03-06", {
+        title: "Standalone tracker task",
+      });
+
+      const carryable = await service.previewCarryForward(
+        "2026-03-06",
+        "2026-03-07"
+      );
+
+      expect(carryable).toBe(1);
+    });
+
     it("carries unfinished items to the next day", async () => {
       await service.addItem("dev-1", "2026-03-06", {
         title: "Unfinished task",
@@ -440,6 +457,28 @@ describe("TeamTrackerService", () => {
         (d) => d.developer.accountId === "dev-1"
       )!;
       expect(devDay.plannedItems.some((i) => i.title === "Unfinished task")).toBe(true);
+    });
+
+    it("does not carry Manager Desk-linked items into the next day", async () => {
+      await service.addItem("dev-1", "2026-03-06", {
+        title: "Shared task owned by Manager Desk",
+        managerDeskItemId: 77,
+      });
+      await service.addItem("dev-1", "2026-03-06", {
+        title: "Standalone tracker task",
+      });
+
+      const carried = await service.carryForward("2026-03-06", "2026-03-07");
+
+      expect(carried).toBe(1);
+
+      const board = await service.getBoard("2026-03-07");
+      const devDay = board.developers.find(
+        (d) => d.developer.accountId === "dev-1"
+      )!;
+      expect(devDay.plannedItems.map((item) => item.title)).toEqual([
+        "Standalone tracker task",
+      ]);
     });
 
     it("skips items already present on the target day and is safe to retry", async () => {

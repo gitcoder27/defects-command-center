@@ -177,6 +177,81 @@ describe("manager desk routes", () => {
     expect(res.body?.error).toBe("Manager access required");
   });
 
+  it("GET /api/manager-desk/tracker-items/:trackerItemId/detail lazily converts tracker-only work into a shared manager desk task", async () => {
+    const trackerItem = await trackerService.addItem("dev-1", "2026-03-08", {
+      jiraKey: "PROJ-221",
+      title: "Follow up from tracker",
+      note: "Execution detail captured in tracker",
+    });
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const first = await invoke(app, {
+      method: "GET",
+      url: `/api/manager-desk/tracker-items/${trackerItem.id}/detail`,
+      headers: { cookie },
+    });
+
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({
+      date: "2026-03-08",
+      developer: {
+        accountId: "dev-1",
+        displayName: "Alice Smith",
+      },
+      trackerItem: {
+        id: trackerItem.id,
+        managerDeskItemId: first.body.managerDeskItem.id,
+        jiraKey: "PROJ-221",
+        note: "Execution detail captured in tracker",
+      },
+      managerDeskItem: {
+        title: "Follow up from tracker",
+        status: "planned",
+        contextNote: "Execution detail captured in tracker",
+        assignee: {
+          accountId: "dev-1",
+          displayName: "Alice Smith",
+        },
+        links: [
+          expect.objectContaining({
+            linkType: "issue",
+            issueKey: "PROJ-221",
+            displayLabel: "PROJ-221",
+          }),
+        ],
+      },
+    });
+
+    const second = await invoke(app, {
+      method: "GET",
+      url: `/api/manager-desk/tracker-items/${trackerItem.id}/detail`,
+      headers: { cookie },
+    });
+
+    expect(second.status).toBe(200);
+    expect(second.body?.managerDeskItem?.id).toBe(first.body?.managerDeskItem?.id);
+
+    const linkedTrackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.id, trackerItem.id));
+    expect(linkedTrackerRows[0]?.managerDeskItemId).toBe(first.body?.managerDeskItem?.id);
+
+    const managerDeskRows = await db
+      .select()
+      .from(managerDeskItems)
+      .where(eq(managerDeskItems.id, first.body?.managerDeskItem?.id));
+    expect(managerDeskRows).toHaveLength(1);
+
+    const mirroredTrackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, first.body?.managerDeskItem?.id));
+    expect(mirroredTrackerRows).toHaveLength(1);
+    expect(mirroredTrackerRows[0]?.id).toBe(trackerItem.id);
+  });
+
   it("POST /api/manager-desk/items quick-captures an inbox item with defaults", async () => {
     const app = createTestApp();
     const res = await invoke(app, {

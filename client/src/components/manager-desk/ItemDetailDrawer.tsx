@@ -42,6 +42,8 @@ interface Props {
   onClose: () => void;
   onUpdate: (itemId: number, updates: Record<string, unknown>) => void;
   onDelete: (itemId: number) => void;
+  topSlot?: ReactNode;
+  ariaLabel?: string;
 }
 
 type FieldSaveState = 'idle' | 'dirty' | 'saving' | 'saved';
@@ -53,7 +55,16 @@ const sectionSurfaceStyle = {
   boxShadow: 'var(--soft-shadow)',
 } as const;
 
-export function ItemDetailDrawer({ item, open, date, onClose, onUpdate, onDelete }: Props) {
+export function ItemDetailDrawer({
+  item,
+  open,
+  date,
+  onClose,
+  onUpdate,
+  onDelete,
+  topSlot,
+  ariaLabel = 'Manager Desk item detail',
+}: Props) {
   if (!item) return null;
 
   return (
@@ -80,7 +91,7 @@ export function ItemDetailDrawer({ item, open, date, onClose, onUpdate, onDelete
               borderLeft: '1px solid var(--border)',
               boxShadow: '-28px 0 72px rgba(15, 23, 42, 0.22)',
             }}
-            aria-label="Manager Desk item detail"
+            aria-label={ariaLabel}
           >
             <DrawerContent
               item={item}
@@ -88,6 +99,7 @@ export function ItemDetailDrawer({ item, open, date, onClose, onUpdate, onDelete
               onClose={onClose}
               onUpdate={onUpdate}
               onDelete={onDelete}
+              topSlot={topSlot}
             />
           </motion.aside>
         </>
@@ -102,12 +114,14 @@ function DrawerContent({
   onClose,
   onUpdate,
   onDelete,
+  topSlot,
 }: {
   item: ManagerDeskItem;
   date: string;
   onClose: () => void;
   onUpdate: (itemId: number, updates: Record<string, unknown>) => void;
   onDelete: (itemId: number) => void;
+  topSlot?: ReactNode;
 }) {
   const addLink = useAddManagerDeskLink(date);
   const removeLink = useRemoveManagerDeskLink(date);
@@ -275,6 +289,8 @@ function DrawerContent({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="space-y-4 p-4 md:p-5">
+          {topSlot}
+
           <DraftTextArea
             key={`${item.id}-context`}
             label="Context / Notes"

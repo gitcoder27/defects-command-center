@@ -10,6 +10,7 @@ import type {
   ManagerDeskCarryForwardPayload,
   ManagerDeskIssueLookupItem,
   ManagerDeskDeveloperLookupItem,
+  TrackerSharedTaskDetailResponse,
 } from '@/types/manager-desk';
 
 // ── Day query ───────────────────────────────────────────
@@ -19,6 +20,25 @@ export function useManagerDesk(date: string) {
     queryKey: ['manager-desk', date],
     queryFn: () => api.get<ManagerDeskDayResponse>(`/manager-desk?date=${date}`),
     refetchInterval: 30_000,
+  });
+}
+
+export function useTrackerSharedTaskDetail(params: {
+  trackerItemId: number | null;
+  managerDeskItemId: number | null;
+}) {
+  const { trackerItemId, managerDeskItemId } = params;
+  return useQuery<TrackerSharedTaskDetailResponse>({
+    queryKey: ['manager-desk', 'task-detail', managerDeskItemId, trackerItemId],
+    queryFn: () => {
+      if (managerDeskItemId !== null) {
+        return api.get<TrackerSharedTaskDetailResponse>(`/manager-desk/items/${managerDeskItemId}/detail`);
+      }
+
+      return api.get<TrackerSharedTaskDetailResponse>(`/manager-desk/tracker-items/${trackerItemId}/detail`);
+    },
+    enabled: trackerItemId !== null || managerDeskItemId !== null,
+    staleTime: 0,
   });
 }
 
@@ -44,8 +64,31 @@ export function useUpdateManagerDeskItem(date: string) {
   return useMutation({
     mutationFn: ({ itemId, ...body }: ManagerDeskUpdateItemPayload & { itemId: number }) =>
       api.patch<ManagerDeskItem>(`/manager-desk/items/${itemId}`, body),
-    onSuccess: () => {
+    onSuccess: (item) => {
+      qc.setQueriesData<TrackerSharedTaskDetailResponse>(
+        { queryKey: ['manager-desk', 'task-detail'] },
+        (existing) => {
+          if (!existing || existing.managerDeskItem.id !== item.id) {
+            return existing;
+          }
+
+          return {
+            ...existing,
+            managerDeskItem: item,
+            developer: item.assignee
+              ? {
+                  ...existing.developer,
+                  accountId: item.assignee.accountId,
+                  displayName: item.assignee.displayName,
+                  avatarUrl: item.assignee.avatarUrl,
+                  availability: item.assignee.availability,
+                }
+              : existing.developer,
+          };
+        }
+      );
       qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
     },
@@ -61,6 +104,7 @@ export function useDeleteManagerDeskItem(date: string) {
       api.delete<{ deleted: boolean }>(`/manager-desk/items/${itemId}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
     },
@@ -76,6 +120,7 @@ export function useAddManagerDeskLink(date: string) {
       api.post<ManagerDeskLink>(`/manager-desk/items/${itemId}/links`, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
     },
@@ -91,6 +136,7 @@ export function useRemoveManagerDeskLink(date: string) {
       api.delete<{ deleted: boolean }>(`/manager-desk/items/${itemId}/links/${linkId}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
     },

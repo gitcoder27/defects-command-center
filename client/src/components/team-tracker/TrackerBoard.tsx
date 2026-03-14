@@ -6,6 +6,7 @@ interface TrackerBoardProps {
   developers: TrackerDeveloperDay[];
   filter: SummaryFilter;
   onOpenDrawer: (accountId: string) => void;
+  onOpenTaskDetail: (itemId: number, managerDeskItemId?: number) => void;
   onMarkInactive: (day: TrackerDeveloperDay) => void;
   onSetCurrent: (itemId: number) => void;
   onMarkDone: (itemId: number) => void;
@@ -43,6 +44,7 @@ export function TrackerBoard({
   developers,
   filter,
   onOpenDrawer,
+  onOpenTaskDetail,
   onMarkInactive,
   onSetCurrent,
   onMarkDone,
@@ -75,6 +77,7 @@ export function TrackerBoard({
           day={day}
           index={i}
           onOpenDrawer={onOpenDrawer}
+          onOpenTaskDetail={onOpenTaskDetail}
           onMarkInactive={onMarkInactive}
           onSetCurrent={onSetCurrent}
           onMarkDone={onMarkDone}

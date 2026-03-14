@@ -12,6 +12,7 @@ interface DeveloperTrackerCardProps {
   day: TrackerDeveloperDay;
   index: number;
   onOpenDrawer: (accountId: string) => void;
+  onOpenTaskDetail: (itemId: number, managerDeskItemId?: number) => void;
   onMarkInactive: (day: TrackerDeveloperDay) => void;
   onSetCurrent: (itemId: number) => void;
   onMarkDone: (itemId: number) => void;
@@ -24,6 +25,7 @@ export function DeveloperTrackerCard({
   day,
   index,
   onOpenDrawer,
+  onOpenTaskDetail,
   onMarkInactive,
   onSetCurrent,
   onMarkDone,
@@ -112,7 +114,14 @@ export function DeveloperTrackerCard({
           <div className="text-[9px] font-semibold uppercase mb-0.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
             Working on
           </div>
-          <TrackerItemRow item={day.currentItem} compact onSetCurrent={onSetCurrent} onMarkDone={onMarkDone} />
+          <TrackerItemRow
+            item={day.currentItem}
+            compact
+            hideActions
+            onOpen={onOpenTaskDetail}
+            onSetCurrent={onSetCurrent}
+            onMarkDone={onMarkDone}
+          />
         </div>
       ) : (
         <div
@@ -136,6 +145,8 @@ export function DeveloperTrackerCard({
                 key={item.id}
                 item={item}
                 compact
+                hideActions
+                onOpen={onOpenTaskDetail}
                 onSetCurrent={onSetCurrent}
                 onMarkDone={onMarkDone}
               />
