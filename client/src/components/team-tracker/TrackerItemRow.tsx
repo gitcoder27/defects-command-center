@@ -118,7 +118,7 @@ export function TrackerItemRow({
                       setTitleEditing(false);
                     }
                   }}
-                  className="flex-1 min-w-0 rounded px-1.5 py-0.5 text-[12px] outline-none"
+                  className="flex-1 min-w-0 rounded px-1.5 py-0.5 text-[13px] outline-none"
                   style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-active)' }}
                   aria-label="Edit title"
                 />
@@ -149,7 +149,7 @@ export function TrackerItemRow({
                 title={item.title}
               >
                 <span
-                  className="block truncate text-[12px] hover:underline"
+                  className="block truncate text-[13px] hover:underline"
                   style={{ color: 'var(--text-primary)', textDecoration: isDone ? 'line-through' : 'none' }}
                 >
                   {item.title}
@@ -157,7 +157,7 @@ export function TrackerItemRow({
               </button>
             ) : (
               <span
-                className="block truncate text-[12px]"
+                className="block truncate text-[13px]"
                 style={{ color: isDone ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: isDone ? 'line-through' : 'none' }}
                 title={item.title}
               >
@@ -190,25 +190,25 @@ export function TrackerItemRow({
 
         {item.jiraKey && (
           <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
-            <span className="text-[9px] font-semibold uppercase shrink-0" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+            <span className="text-[11px] font-semibold uppercase shrink-0" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
               Jira
             </span>
-            <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[10px] truncate" style={{ color: 'var(--accent)' }}>
+            <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[11px] truncate" style={{ color: 'var(--accent)' }}>
               {jiraLabel}
             </JiraIssueLink>
           </div>
         )}
         {jiraMeta && (
           <div className="mt-0.5">
-            <span className="text-[10px]" style={{ color: item.jiraPriorityName ? priorityColor(item.jiraPriorityName) : 'var(--text-muted)' }}>
+            <span className="text-[11px]" style={{ color: item.jiraPriorityName ? priorityColor(item.jiraPriorityName) : 'var(--text-muted)' }}>
               {jiraMeta}
             </span>
           </div>
         )}
         {item.note && !compact && !noteEditing && (
-          <div className="mt-0.5 flex items-center gap-1">
-            <StickyNote size={10} style={{ color: 'var(--text-muted)' }} />
-            <span className="truncate text-[10px]" style={{ color: 'var(--text-muted)' }}>
+          <div className="mt-1 flex items-start gap-1.5">
+            <StickyNote size={12} className="shrink-0 mt-[2px]" style={{ color: 'var(--text-muted)' }} />
+            <span className="text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
               {item.note}
             </span>
           </div>
@@ -219,12 +219,12 @@ export function TrackerItemRow({
               value={draftNote}
               onChange={(event) => setDraftNote(event.target.value)}
               rows={2}
-              className="w-full rounded-lg px-2 py-1.5 text-[11px] outline-none resize-none"
+              className="w-full rounded-lg px-2 py-1.5 text-[13px] outline-none resize-none"
               style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-active)' }}
             />
             <div className="flex items-center gap-1.5">
-              <button onClick={commitNote} className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px]" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
-                <Save size={10} />
+              <button onClick={commitNote} className="flex items-center gap-1 rounded-lg px-2 py-1 text-[12px]" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
+                <Save size={11} />
                 Save
               </button>
               <button
@@ -232,7 +232,7 @@ export function TrackerItemRow({
                   setDraftNote(item.note ?? '');
                   setNoteEditing(false);
                 }}
-                className="text-[10px]"
+                className="text-[12px]"
                 style={{ color: 'var(--text-muted)' }}
               >
                 Cancel

@@ -16,18 +16,18 @@ export function TrackerItemRowDetails({ regionId, title, note }: TrackerItemRowD
         border: '1px solid var(--border)',
       }}
     >
-      <div className="text-[9px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+      <div className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
         Full title
       </div>
-      <div className="mt-1 text-[11px] break-words" style={{ color: 'var(--text-primary)' }}>
+      <div className="mt-1 text-[13px] leading-5 break-words" style={{ color: 'var(--text-primary)' }}>
         {title}
       </div>
       {note && (
         <>
-          <div className="mt-2 text-[9px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+          <div className="mt-2 text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
             Notes
           </div>
-          <div className="mt-1 whitespace-pre-wrap break-words text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+          <div className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>
             {note}
           </div>
         </>

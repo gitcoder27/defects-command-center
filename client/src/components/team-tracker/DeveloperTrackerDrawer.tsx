@@ -189,7 +189,7 @@ export function DeveloperTrackerDrawer({
                   <div className="flex items-center gap-2 mt-0.5">
                     <TrackerStatusPill status={day.status} size="md" />
                     {day.lastCheckInAt && (
-                      <span className="text-[10px]" style={{ color: day.signals.freshness.staleByTime ? 'var(--warning)' : 'var(--text-muted)' }}>
+                      <span className="text-[11px]" style={{ color: day.signals.freshness.staleByTime ? 'var(--warning)' : 'var(--text-muted)' }}>
                         Last check-in {formatRelativeTime(day.lastCheckInAt)}
                       </span>
                     )}
@@ -221,7 +221,7 @@ export function DeveloperTrackerDrawer({
               </div>
 
               {/* Stats + Capacity — single row */}
-              <div className="flex items-center gap-3 text-[11px]">
+              <div className="flex items-center gap-3 text-[12px]">
                 <div className="flex items-center gap-2.5">
                   <span style={{ color: 'var(--text-muted)' }}>
                     Load{' '}
@@ -245,7 +245,7 @@ export function DeveloperTrackerDrawer({
                   </span>
                 </div>
                 <div className="ml-auto flex items-center gap-1.5">
-                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Cap</span>
+                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Cap</span>
                   <input
                     type="number"
                     min={1}
@@ -253,7 +253,7 @@ export function DeveloperTrackerDrawer({
                     value={capacityText}
                     onChange={(e) => setCapacityText(e.target.value)}
                     placeholder="–"
-                    className="w-10 rounded-md px-1.5 py-0.5 text-[11px] text-center outline-none font-mono"
+                    className="w-10 rounded-md px-1.5 py-0.5 text-[12px] text-center outline-none font-mono"
                     style={{
                       background: 'var(--bg-tertiary)',
                       color: 'var(--text-primary)',
@@ -262,7 +262,7 @@ export function DeveloperTrackerDrawer({
                   />
                   <button
                     onClick={handleSaveCapacity}
-                    className="rounded-md px-1.5 py-0.5 text-[10px] font-medium"
+                    className="rounded-md px-1.5 py-0.5 text-[11px] font-medium"
                     style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
                   >
                     Save
@@ -273,7 +273,7 @@ export function DeveloperTrackerDrawer({
                         setCapacityText('');
                         onUpdateDay({ accountId: day.developer.accountId, capacityUnits: null });
                       }}
-                      className="text-[10px]"
+                      className="text-[11px]"
                       style={{ color: 'var(--text-muted)' }}
                     >
                       Clear
@@ -290,7 +290,7 @@ export function DeveloperTrackerDrawer({
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
               {/* Current item */}
               <div>
-                <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                <div className="text-[11px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
                   Current Work
                 </div>
                 {day.currentItem ? (
@@ -304,7 +304,7 @@ export function DeveloperTrackerDrawer({
                     onDrop={onDropItem}
                   />
                 ) : (
-                  <div className="text-[12px] py-2" style={{ color: 'var(--text-muted)' }}>
+                  <div className="text-[13px] py-2" style={{ color: 'var(--text-muted)' }}>
                     No active item. Set one from the planned list.
                   </div>
                 )}
@@ -312,7 +312,7 @@ export function DeveloperTrackerDrawer({
 
               {/* Planned items */}
               <div>
-                <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                <div className="text-[11px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
                   Planned ({day.plannedItems.length})
                 </div>
                 {localPlannedItems.length > 0 ? (
@@ -365,7 +365,7 @@ export function DeveloperTrackerDrawer({
               {/* Completed items */}
               {day.completedItems.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                  <div className="text-[11px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
                     Completed ({day.completedItems.length})
                   </div>
                   <div className="space-y-0.5">
@@ -379,7 +379,7 @@ export function DeveloperTrackerDrawer({
               {/* Dropped items */}
               {day.droppedItems.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                  <div className="text-[11px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
                     Dropped ({day.droppedItems.length})
                   </div>
                   <div className="space-y-0.5">
@@ -388,7 +388,7 @@ export function DeveloperTrackerDrawer({
                         <TrackerItemRow item={item} compact />
                         <button
                           onClick={() => onDeleteItem(item.id)}
-                          className="text-[10px] shrink-0 px-1"
+                          className="text-[11px] shrink-0 px-1"
                           style={{ color: 'var(--danger)' }}
                         >
                           Remove
@@ -401,15 +401,14 @@ export function DeveloperTrackerDrawer({
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                  <div className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
                     Manager Desk
                   </div>
                   <button
                     type="button"
                     onClick={() => setDeskCaptureOpen(true)}
-                    className="text-[10px] font-medium"
-                    style={{ color: 'var(--md-accent)' }}
-                  >
+                    className="text-[11px] font-medium"
+                    style={{ color: 'var(--md-accent)' }}>
                     Capture Follow-Up
                   </button>
                 </div>
@@ -428,14 +427,14 @@ export function DeveloperTrackerDrawer({
                       <Briefcase size={14} />
                     </div>
                     <div className="min-w-0">
-                      <div className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                      <div className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
                         Keep your own follow-ups separate from the team queue
                       </div>
-                      <div className="mt-1 text-[11px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+                      <div className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
                         This capture links {day.developer.displayName} automatically and drops the task into today&apos;s Manager Desk inbox.
                       </div>
                       {day.currentItem?.jiraKey && (
-                        <div className="mt-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                        <div className="mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
                           Current tracker context:{' '}
                           <JiraIssueLink issueKey={day.currentItem.jiraKey} style={{ color: 'var(--text-primary)' }}>
                             {day.currentItem.jiraKey}
@@ -450,13 +449,13 @@ export function DeveloperTrackerDrawer({
               {/* Manager notes */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                  <div className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
                     Manager Notes
                   </div>
                   {!notesEditing && (
                     <button
                       onClick={() => { setNotesText(day.managerNotes ?? ''); setNotesEditing(true); }}
-                      className="text-[10px]"
+                      className="text-[11px]"
                       style={{ color: 'var(--accent)' }}
                     >
                       Edit
@@ -469,7 +468,7 @@ export function DeveloperTrackerDrawer({
                       value={notesText}
                       onChange={(e) => setNotesText(e.target.value)}
                       rows={3}
-                      className="w-full rounded-lg px-2 py-1.5 text-[12px] outline-none resize-none"
+                      className="w-full rounded-lg px-2 py-1.5 text-[13px] outline-none resize-none"
                       style={{
                         background: 'var(--bg-tertiary)',
                         color: 'var(--text-primary)',
@@ -479,14 +478,14 @@ export function DeveloperTrackerDrawer({
                     <div className="flex items-center gap-1">
                       <button
                         onClick={handleSaveNotes}
-                        className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px]"
+                        className="flex items-center gap-1 rounded-lg px-2 py-1 text-[12px]"
                         style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
                       >
-                        <Save size={10} /> Save
+                        <Save size={11} /> Save
                       </button>
                       <button
                         onClick={() => setNotesEditing(false)}
-                        className="text-[11px] px-1"
+                        className="text-[12px] px-1"
                         style={{ color: 'var(--text-muted)' }}
                       >
                         Cancel
@@ -494,7 +493,7 @@ export function DeveloperTrackerDrawer({
                     </div>
                   </div>
                 ) : (
-                  <div className="text-[12px]" style={{ color: day.managerNotes ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                  <div className="text-[13px] leading-5" style={{ color: day.managerNotes ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
                     {day.managerNotes || 'No notes yet.'}
                   </div>
                 )}
@@ -502,12 +501,12 @@ export function DeveloperTrackerDrawer({
 
               {/* Check-in history */}
               <div>
-                <div className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                <div className="text-[11px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
                   Check-ins ({day.checkIns.length})
                 </div>
                 <div className="space-y-1.5 mb-2">
                   {day.checkIns.length === 0 && (
-                    <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>No check-ins today.</div>
+                    <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>No check-ins today.</div>
                   )}
                   {[...day.checkIns].reverse().map((ci) => (
                     <div
@@ -515,8 +514,8 @@ export function DeveloperTrackerDrawer({
                       className="rounded-lg px-2.5 py-2"
                       style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
                     >
-                      <div className="text-[12px]" style={{ color: 'var(--text-primary)' }}>{ci.summary}</div>
-                      <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                      <div className="text-[13px] leading-5" style={{ color: 'var(--text-primary)' }}>{ci.summary}</div>
+                      <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
                         {formatRelativeTime(ci.createdAt)}
                       </div>
                     </div>
@@ -534,7 +533,7 @@ export function DeveloperTrackerDrawer({
                       if (e.key === 'Enter') handleCheckIn();
                     }}
                     placeholder="Add a check-in note..."
-                    className="flex-1 rounded-lg px-2 py-1.5 text-[12px] outline-none"
+                    className="flex-1 rounded-lg px-2 py-1.5 text-[13px] outline-none"
                     style={{
                       background: 'var(--bg-tertiary)',
                       color: 'var(--text-primary)',
@@ -544,7 +543,7 @@ export function DeveloperTrackerDrawer({
                   <button
                     onClick={handleCheckIn}
                     disabled={!checkInText.trim()}
-                    className="shrink-0 h-7 rounded-lg px-2 text-[11px] font-medium disabled:opacity-40 transition-colors"
+                    className="shrink-0 h-7 rounded-lg px-2 text-[12px] font-medium disabled:opacity-40 transition-colors"
                     style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
                   >
                     Save
