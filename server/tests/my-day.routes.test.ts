@@ -140,6 +140,31 @@ describe("my day routes", () => {
     );
   });
 
+  it("GET /api/my-day returns read-only availability metadata while inactive", async () => {
+    await trackerService.updateAvailability("dev-1", {
+      effectiveDate: "2026-03-07",
+      state: "inactive",
+      note: "PTO today",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/my-day?date=2026-03-07",
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.availability).toMatchObject({
+      state: "inactive",
+      note: "PTO today",
+      startDate: "2026-03-07",
+    });
+    expect(res.body?.isReadOnly).toBe(true);
+  });
+
   it("GET /api/my-day rejects unauthenticated requests", async () => {
     const app = createTestApp();
     const res = await invoke(app, {
@@ -221,6 +246,30 @@ describe("my day routes", () => {
       jiraSummary: "Linked Jira task",
       title: "Trace the failing login flow",
     });
+  });
+
+  it("POST /api/my-day/items rejects writes while the developer is inactive", async () => {
+    await trackerService.updateAvailability("dev-1", {
+      effectiveDate: "2026-03-07",
+      state: "inactive",
+      note: "PTO today",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/my-day/items",
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+      body: {
+        date: "2026-03-07",
+        title: "Should not save",
+      },
+    });
+
+    expect(res.status).toBe(409);
+    expect(res.body?.error).toBe("Developer is inactive on 2026-03-07");
   });
 
   it("GET /api/my-day/issues returns only Jira issues assigned to the authenticated developer", async () => {

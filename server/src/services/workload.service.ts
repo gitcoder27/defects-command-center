@@ -4,6 +4,7 @@ import { db } from "../db/connection";
 import { developers, issues, teamTrackerDays, teamTrackerItems } from "../db/schema";
 import { todayIsoDate } from "../utils/date";
 import { getEffectiveDueDate, isActiveTeamIssue } from "./issue-rules";
+import { DeveloperAvailabilityService } from "./developer-availability.service";
 
 const PRIORITY_WEIGHTS: Record<string, number> = {
   Highest: 5,
@@ -25,19 +26,38 @@ function isTrackerStale(lastCheckInAt: string | null, now = new Date()): boolean
 }
 
 export class WorkloadService {
-  async getDevelopers(): Promise<Developer[]> {
+  constructor(
+    private readonly availability = new DeveloperAvailabilityService()
+  ) {}
+
+  async getDevelopers(date?: string): Promise<Developer[]> {
     const rows = await db.select().from(developers).where(eq(developers.isActive, 1));
-    return rows.map((row) => ({
+    const mapped = rows.map((row) => ({
       accountId: row.accountId,
       displayName: row.displayName,
       email: row.email ?? undefined,
       avatarUrl: row.avatarUrl ?? undefined,
       isActive: row.isActive === 1,
     }));
+
+    if (!date) {
+      return mapped;
+    }
+
+    const availabilityByAccountId = await this.availability.getAvailabilityMapForDate(
+      mapped.map((developer) => developer.accountId),
+      date
+    );
+    return mapped.map((developer) => ({
+      ...developer,
+      availability: availabilityByAccountId.get(developer.accountId) ?? { state: "active" as const },
+    }));
   }
 
   async getTeamWorkload(date = todayIsoDate()): Promise<DeveloperWorkload[]> {
-    const devs = await this.getDevelopers();
+    const devs = (await this.getDevelopers(date)).filter(
+      (developer) => developer.availability?.state !== "inactive"
+    );
     const issueRows = await db.select().from(issues);
     const dayRows = await db
       .select()

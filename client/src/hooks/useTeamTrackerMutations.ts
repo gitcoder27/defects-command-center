@@ -35,6 +35,29 @@ export function useUpdateDay(date: string) {
   });
 }
 
+export function useUpdateAvailability(date: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: {
+      accountId: string;
+      state: 'active' | 'inactive';
+      note?: string;
+    }) =>
+      api.patch(`/team-tracker/${params.accountId}/availability`, {
+        effectiveDate: date,
+        state: params.state,
+        note: params.note,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
+      qc.invalidateQueries({ queryKey: ['alerts'] });
+      qc.invalidateQueries({ queryKey: ['manager-desk'] });
+      qc.invalidateQueries({ queryKey: ['my-day', date] });
+    },
+  });
+}
+
 export function useAddTrackerItem(date: string) {
   const qc = useQueryClient();
   return useMutation({

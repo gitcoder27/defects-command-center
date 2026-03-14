@@ -5,18 +5,20 @@ import { useAddManagerDeskLink, useManagerDeskDeveloperLookup, useManagerDeskIss
 export function LinkSearchPanel({
   type,
   itemId,
+  date,
   onClose,
   addLink,
 }: {
   type: 'issue' | 'developer' | 'external';
   itemId: number;
+  date?: string;
   onClose: () => void;
   addLink: ReturnType<typeof useAddManagerDeskLink>;
 }) {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const { data: issues } = useManagerDeskIssueLookup(query, type === 'issue');
-  const { data: developers } = useManagerDeskDeveloperLookup(query, type === 'developer');
+  const { data: developers } = useManagerDeskDeveloperLookup(query, date, type === 'developer');
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -123,7 +125,12 @@ function DeveloperResults({
   developers,
   onSelect,
 }: {
-  developers: Array<{ accountId: string; displayName: string; email?: string }>;
+  developers: Array<{
+    accountId: string;
+    displayName: string;
+    email?: string;
+    availability?: import('@/types').DeveloperAvailability;
+  }>;
   onSelect: (accountId: string) => void;
 }) {
   if (developers.length === 0) return null;
@@ -141,6 +148,14 @@ function DeveloperResults({
           <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>
             {developer.displayName}
           </span>
+          {developer.availability?.state === 'inactive' ? (
+            <span
+              className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase"
+              style={{ background: 'rgba(245, 158, 11, 0.12)', color: 'var(--warning)' }}
+            >
+              Inactive
+            </span>
+          ) : null}
           {developer.email ? (
             <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
               {developer.email}

@@ -54,7 +54,9 @@ export function AssigneePill({
     <span
       className="inline-flex max-w-full items-center gap-2 rounded-full border px-1.5 py-1 pr-2.5"
       style={toneStyle}
-      title={assignee.displayName}
+      title={assignee.availability?.state === 'inactive' && assignee.availability.note
+        ? `${assignee.displayName} — ${assignee.availability.note}`
+        : assignee.displayName}
     >
       <span
         className={`inline-flex ${avatarSize} shrink-0 items-center justify-center rounded-full font-bold uppercase tracking-[0.08em]`}
@@ -67,6 +69,14 @@ export function AssigneePill({
         {initialsFor(assignee.displayName) || 'TM'}
       </span>
       <span className={`truncate font-semibold ${textSize}`}>{assignee.displayName}</span>
+      {assignee.availability?.state === 'inactive' && (
+        <span
+          className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
+          style={{ background: 'rgba(245, 158, 11, 0.14)', color: 'var(--warning)' }}
+        >
+          Inactive
+        </span>
+      )}
     </span>
   );
 }

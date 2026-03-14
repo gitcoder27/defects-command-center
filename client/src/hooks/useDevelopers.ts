@@ -12,11 +12,15 @@ function isLegacyPlaceholder(dev: Developer): boolean {
   return accountId === 'dev-1' || accountId === 'lead-1' || name === 'dev' || name === 'lead';
 }
 
-export function useDevelopers() {
+export function useDevelopers(date?: string) {
   return useQuery<Developer[]>({
-    queryKey: ['developers'],
+    queryKey: ['developers', date],
     queryFn: async () => {
-      const res = await api.get<DevelopersResponse>('/team/developers');
+      const params = new URLSearchParams();
+      if (date) {
+        params.set('date', date);
+      }
+      const res = await api.get<DevelopersResponse>(`/team/developers${params.toString() ? `?${params.toString()}` : ''}`);
       return res.developers;
     },
     select: (developers) => developers.filter((dev) => !isLegacyPlaceholder(dev)),

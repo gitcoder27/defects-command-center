@@ -24,6 +24,7 @@ import {
 } from "../db/schema";
 import { HttpError } from "../middleware/errorHandler";
 import { TeamTrackerService } from "./team-tracker.service";
+import { DeveloperAvailabilityService } from "./developer-availability.service";
 
 interface ManagerDeskLinkInput {
   linkType: ManagerDeskLinkType;
@@ -137,7 +138,10 @@ function getCarryForwardStatus(status: ManagerDeskStatus): ManagerDeskStatus {
 }
 
 export class ManagerDeskService {
-  constructor(private readonly trackerService = new TeamTrackerService()) {}
+  constructor(
+    private readonly trackerService = new TeamTrackerService(),
+    private readonly availability = new DeveloperAvailabilityService()
+  ) {}
 
   async getDay(managerAccountId: string, date: string): Promise<ManagerDeskDayResponse> {
     const day = await this.ensureDay(managerAccountId, date);
@@ -146,7 +150,7 @@ export class ManagerDeskService {
       .from(managerDeskItems)
       .where(eq(managerDeskItems.dayId, day.id));
     const linksByItemId = await this.getLinksByItemIds(itemRows.map((item) => item.id));
-    const assigneesByAccountId = await this.getAssigneeMap(itemRows);
+    const assigneesByAccountId = await this.getAssigneeMap(itemRows, date);
     const items = itemRows
       .sort(compareItemRows)
       .map((item) =>
@@ -574,7 +578,7 @@ export class ManagerDeskService {
     }));
   }
 
-  async lookupDevelopers(query: string): Promise<ManagerDeskDeveloperLookupItem[]> {
+  async lookupDevelopers(query: string, date?: string): Promise<ManagerDeskDeveloperLookupItem[]> {
     const normalizedQuery = query.trim();
     if (!normalizedQuery) {
       return [];
@@ -601,12 +605,26 @@ export class ManagerDeskService {
       )
       .limit(20);
 
-    return rows.map((row) => ({
-      accountId: row.accountId,
-      displayName: row.displayName,
-      email: row.email ?? undefined,
-      avatarUrl: row.avatarUrl ?? undefined,
-    }));
+    const availabilityByAccountId = date
+      ? await this.availability.getAvailabilityMapForDate(
+          rows.map((row) => row.accountId),
+          date
+        )
+      : new Map();
+
+    return rows
+      .map((row) => ({
+        accountId: row.accountId,
+        displayName: row.displayName,
+        email: row.email ?? undefined,
+        avatarUrl: row.avatarUrl ?? undefined,
+        availability: availabilityByAccountId.get(row.accountId),
+      }))
+      .sort((left, right) => {
+        const leftInactive = left.availability?.state === "inactive" ? 1 : 0;
+        const rightInactive = right.availability?.state === "inactive" ? 1 : 0;
+        return leftInactive - rightInactive || left.displayName.localeCompare(right.displayName);
+      });
   }
 
   async ensureDay(
@@ -677,8 +695,9 @@ export class ManagerDeskService {
     itemId: number
   ): Promise<ManagerDeskItem> {
     const item = await this.getOwnedItemRow(managerAccountId, itemId);
+    const day = await this.getDayById(item.dayId);
     const linksByItemId = await this.getLinksByItemIds([item.id]);
-    const assigneesByAccountId = await this.getAssigneeMap([item]);
+    const assigneesByAccountId = await this.getAssigneeMap([item], day?.date);
     return this.mapItem(
       item,
       linksByItemId.get(item.id) ?? [],
@@ -799,7 +818,8 @@ export class ManagerDeskService {
   }
 
   private async getAssigneeMap(
-    items: Pick<ManagerDeskItemRow, "assigneeDeveloperAccountId">[]
+    items: Pick<ManagerDeskItemRow, "assigneeDeveloperAccountId">[],
+    date?: string
   ): Promise<Map<string, ManagerDeskAssignee>> {
     const assigneeIds = [...new Set(
       items
@@ -820,6 +840,10 @@ export class ManagerDeskService {
       .from(developers)
       .where(inArray(developers.accountId, assigneeIds));
 
+    const availabilityByAccountId = date
+      ? await this.availability.getAvailabilityMapForDate(assigneeIds, date)
+      : new Map();
+
     return new Map(
       rows.map((row) => [
         row.accountId,
@@ -827,6 +851,7 @@ export class ManagerDeskService {
           accountId: row.accountId,
           displayName: row.displayName,
           avatarUrl: row.avatarUrl ?? undefined,
+          availability: availabilityByAccountId.get(row.accountId),
         },
       ])
     );

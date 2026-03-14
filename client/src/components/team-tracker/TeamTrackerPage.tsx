@@ -4,6 +4,7 @@ import { Calendar, ArrowRight, ChevronLeft, ChevronRight, RefreshCw, X } from 'l
 import { useTeamTracker, useCarryForwardPreview } from '@/hooks/useTeamTracker';
 import {
   useUpdateDay,
+  useUpdateAvailability,
   useAddTrackerItem,
   useSetCurrentItem,
   useUpdateTrackerItem,
@@ -15,9 +16,12 @@ import { useIssues } from '@/hooks/useIssues';
 import { getLocalIsoDate, shiftLocalIsoDate } from '@/lib/utils';
 import { TrackerSummaryStrip, type SummaryFilter } from './TrackerSummaryStrip';
 import { AttentionQueue } from './AttentionQueue';
+import { InactiveDeveloperTray } from './InactiveDeveloperTray';
 import { TrackerBoard } from './TrackerBoard';
 import { DeveloperTrackerDrawer } from './DeveloperTrackerDrawer';
+import { AvailabilityDialog } from './AvailabilityDialog';
 import type { AppView } from '@/App';
+import type { TrackerDeveloperDay } from '@/types';
 
 function getCarryForwardPromptKey(date: string): string {
   return `team-tracker:carry-forward-prompt:${date}`;
@@ -55,6 +59,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   const [date, setDate] = useState(getLocalIsoDate);
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
   const [drawerAccountId, setDrawerAccountId] = useState<string | undefined>();
+  const [availabilityTarget, setAvailabilityTarget] = useState<TrackerDeveloperDay | undefined>();
   const [carryPromptDismissed, setCarryPromptDismissed] = useState(() => readCarryForwardPromptState(getLocalIsoDate()));
 
   const {
@@ -68,6 +73,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   const carryForwardPreview = useCarryForwardPreview(previousDate, date, !carryPromptDismissed);
 
   const updateDay = useUpdateDay(date);
+  const updateAvailability = useUpdateAvailability(date);
   const addItem = useAddTrackerItem(date);
   const setCurrent = useSetCurrentItem(date);
   const updateItem = useUpdateTrackerItem(date);
@@ -140,6 +146,36 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
     !carryForwardPreview.isLoading &&
     !carryForwardPreview.isError &&
     carryableFromPreviousDay > 0;
+
+  const handleMarkInactive = useCallback((day: TrackerDeveloperDay) => {
+    setAvailabilityTarget(day);
+  }, []);
+
+  const handleConfirmInactive = useCallback((note?: string) => {
+    if (!availabilityTarget) {
+      return;
+    }
+
+    updateAvailability.mutate(
+      {
+        accountId: availabilityTarget.developer.accountId,
+        state: 'inactive',
+        note,
+      },
+      {
+        onSuccess: () => {
+          setAvailabilityTarget(undefined);
+          if (drawerAccountId === availabilityTarget.developer.accountId) {
+            setDrawerAccountId(undefined);
+          }
+        },
+      }
+    );
+  }, [availabilityTarget, drawerAccountId, updateAvailability]);
+
+  const handleReactivate = useCallback((accountId: string) => {
+    updateAvailability.mutate({ accountId, state: 'active' });
+  }, [updateAvailability]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -316,10 +352,16 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
         ) : board ? (
           <>
             <AttentionQueue items={board.attentionQueue} onOpenDrawer={setDrawerAccountId} />
+            <InactiveDeveloperTray
+              items={board.inactiveDevelopers}
+              onReactivate={handleReactivate}
+              pendingAccountId={updateAvailability.isPending ? updateAvailability.variables?.accountId : undefined}
+            />
             <TrackerBoard
               developers={board.developers}
               filter={summaryFilter}
               onOpenDrawer={setDrawerAccountId}
+              onMarkInactive={handleMarkInactive}
               onSetCurrent={handleSetCurrent}
               onMarkDone={handleMarkDone}
               onQuickAdd={(params) => addItem.mutate(params)}
@@ -354,6 +396,14 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
         onOpenManagerDesk={onViewChange ? () => onViewChange('manager-desk') : undefined}
         issues={issues}
         isAddItemPending={addItem.isPending}
+      />
+      <AvailabilityDialog
+        open={!!availabilityTarget}
+        developerName={availabilityTarget?.developer.displayName}
+        date={date}
+        isPending={updateAvailability.isPending && updateAvailability.variables?.state === 'inactive'}
+        onClose={() => setAvailabilityTarget(undefined)}
+        onConfirm={handleConfirmInactive}
       />
     </div>
   );

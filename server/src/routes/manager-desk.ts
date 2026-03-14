@@ -203,6 +203,7 @@ const carryForwardSchema = z.object({
 const lookupSchema = z.object({
   query: z.object({
     q: z.string().max(200),
+    date: z.string().regex(dateRegex, "date must be YYYY-MM-DD").optional(),
   }),
   params: z.any().optional(),
   body: z.any().optional(),
@@ -309,7 +310,10 @@ export function createManagerDeskRouter(
 
   router.get("/lookups/developers", validate(lookupSchema), async (req, res, next) => {
     try {
-      const items = await managerDeskService.lookupDevelopers(req.query.q as string);
+      const items = await managerDeskService.lookupDevelopers(
+        req.query.q as string,
+        req.query.date as string | undefined
+      );
       res.json({ items });
     } catch (error) {
       next(error);

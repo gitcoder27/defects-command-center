@@ -6,6 +6,7 @@ interface TrackerBoardProps {
   developers: TrackerDeveloperDay[];
   filter: SummaryFilter;
   onOpenDrawer: (accountId: string) => void;
+  onMarkInactive: (day: TrackerDeveloperDay) => void;
   onSetCurrent: (itemId: number) => void;
   onMarkDone: (itemId: number) => void;
   onQuickAdd: (params: { accountId: string; title: string; jiraKey?: string; note?: string }) => void;
@@ -38,7 +39,17 @@ function applyFilter(days: TrackerDeveloperDay[], filter: SummaryFilter): Tracke
   }
 }
 
-export function TrackerBoard({ developers, filter, onOpenDrawer, onSetCurrent, onMarkDone, onQuickAdd, issues, isQuickAddPending }: TrackerBoardProps) {
+export function TrackerBoard({
+  developers,
+  filter,
+  onOpenDrawer,
+  onMarkInactive,
+  onSetCurrent,
+  onMarkDone,
+  onQuickAdd,
+  issues,
+  isQuickAddPending,
+}: TrackerBoardProps) {
   const filtered = applyFilter(developers, filter);
 
   if (filtered.length === 0) {
@@ -64,6 +75,7 @@ export function TrackerBoard({ developers, filter, onOpenDrawer, onSetCurrent, o
           day={day}
           index={i}
           onOpenDrawer={onOpenDrawer}
+          onMarkInactive={onMarkInactive}
           onSetCurrent={onSetCurrent}
           onMarkDone={onMarkDone}
           onQuickAdd={onQuickAdd}

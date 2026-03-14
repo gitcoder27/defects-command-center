@@ -161,6 +161,8 @@ describe('MyDayPage', () => {
       date: '2026-03-10',
       developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
       status: 'on_track',
+      availability: { state: 'active' },
+      isReadOnly: false,
       lastCheckInAt: '2026-03-10T08:30:00.000Z',
       currentItem: createItem({
         id: 101,

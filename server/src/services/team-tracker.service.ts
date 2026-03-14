@@ -26,6 +26,7 @@ import {
 import { getEffectiveDueDate } from "./issue-rules";
 import { HttpError } from "../middleware/errorHandler";
 import { SettingsService } from "./settings.service";
+import { DeveloperAvailabilityService } from "./developer-availability.service";
 
 interface TrackerSignalConfig {
   staleThresholdHours: number;
@@ -261,7 +262,10 @@ function getAttentionSortTuple(item: TrackerAttentionItem): [number, number, num
 }
 
 export class TeamTrackerService {
-  constructor(private readonly settings = new SettingsService()) {}
+  constructor(
+    private readonly settings = new SettingsService(),
+    private readonly availability = new DeveloperAvailabilityService()
+  ) {}
 
   async getBoard(date: string): Promise<TeamTrackerBoardResponse> {
     const signalConfig = await this.getSignalConfig();
@@ -271,16 +275,33 @@ export class TeamTrackerService {
       .where(eq(developers.isActive, 1));
 
     const devList: Developer[] = devRows.map(mapDeveloper);
+    const availabilityByAccountId = await this.availability.getAvailabilityMapForDate(
+      devList.map((dev) => dev.accountId),
+      date
+    );
+    const activeDevelopers = devList
+      .map((developer) => ({
+        ...developer,
+        availability: availabilityByAccountId.get(developer.accountId) ?? { state: "active" as const },
+      }))
+      .filter((developer) => developer.availability?.state !== "inactive");
+    const inactiveDevelopers = devList
+      .map((developer) => ({
+        developer,
+        availability: availabilityByAccountId.get(developer.accountId) ?? { state: "active" as const },
+      }))
+      .filter((item) => item.availability.state === "inactive")
+      .sort((left, right) => left.developer.displayName.localeCompare(right.developer.displayName));
 
     const devDays: TrackerDeveloperDay[] = [];
 
-    for (const dev of devList) {
+    for (const dev of activeDevelopers) {
       devDays.push(await this.buildDeveloperDay(date, dev, signalConfig));
     }
 
     const summary = this.computeSummary(devDays);
     const attentionQueue = this.computeAttentionQueue(devDays);
-    return { date, developers: devDays, summary, attentionQueue };
+    return { date, developers: devDays, inactiveDevelopers, summary, attentionQueue };
   }
 
   async getDeveloperDay(
@@ -290,7 +311,15 @@ export class TeamTrackerService {
   ): Promise<TrackerDeveloperDay> {
     const signalConfig = await this.getSignalConfig();
     const developer = await this.getDeveloperByAccountId(developerAccountId);
-    const day = await this.buildDeveloperDay(date, developer, signalConfig);
+    const availability = await this.availability.getAvailabilityForDate(developerAccountId, date);
+    const day = await this.buildDeveloperDay(
+      date,
+      {
+        ...developer,
+        availability,
+      },
+      signalConfig
+    );
 
     if (options?.includeManagerNotes === false) {
       return {
@@ -300,6 +329,21 @@ export class TeamTrackerService {
     }
 
     return day;
+  }
+
+  async getAvailabilityForDate(accountId: string, date: string) {
+    return this.availability.getAvailabilityForDate(accountId, date);
+  }
+
+  async updateAvailability(
+    accountId: string,
+    params: {
+      effectiveDate: string;
+      state: "active" | "inactive";
+      note?: string;
+    }
+  ) {
+    return this.availability.setAvailability({ accountId, ...params });
   }
 
   async ensureDay(
@@ -613,10 +657,11 @@ export class TeamTrackerService {
   async assertItemBelongsToDeveloper(
     itemId: number,
     developerAccountId: string
-  ): Promise<void> {
+  ): Promise<{ ownerAccountId: string; date: string }> {
     const rows = await db
       .select({
         ownerAccountId: teamTrackerDays.developerAccountId,
+        date: teamTrackerDays.date,
       })
       .from(teamTrackerItems)
       .innerJoin(teamTrackerDays, eq(teamTrackerDays.id, teamTrackerItems.dayId))
@@ -631,6 +676,8 @@ export class TeamTrackerService {
     if (row.ownerAccountId !== developerAccountId) {
       throw new HttpError(403, "Item does not belong to authenticated developer");
     }
+
+    return row;
   }
 
   async getIssueAssignments(
@@ -678,6 +725,10 @@ export class TeamTrackerService {
     if (matches.length === 0) {
       return [];
     }
+    const availabilityByAccountId = await this.availability.getAvailabilityMapForDate(
+      [...new Set(dayRows.map((row) => row.developerAccountId))],
+      date
+    );
     const developerRows = await db
       .select()
       .from(developers)
@@ -693,7 +744,7 @@ export class TeamTrackerService {
       }
 
       const developer = developerMap.get(accountId);
-      if (!developer) {
+      if (!developer || availabilityByAccountId.get(accountId)?.state === "inactive") {
         return [];
       }
 
@@ -924,6 +975,7 @@ export class TeamTrackerService {
       id: day.id,
       date,
       developer,
+      availability: developer.availability ?? { state: "active" },
       status: day.status as TrackerDeveloperStatus,
       capacityUnits: day.capacityUnits ?? undefined,
       managerNotes: day.managerNotes ?? undefined,

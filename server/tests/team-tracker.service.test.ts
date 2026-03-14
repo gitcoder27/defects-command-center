@@ -97,6 +97,29 @@ describe("TeamTrackerService", () => {
       expect(board.summary.total).toBe(2);
     });
 
+    it("moves inactive developers into the restore tray for the selected date", async () => {
+      await service.updateAvailability("dev-2", {
+        effectiveDate: "2026-03-07",
+        state: "inactive",
+        note: "PTO today",
+      });
+
+      const board = await service.getBoard("2026-03-07");
+
+      expect(board.developers.map((day) => day.developer.accountId)).toEqual(["dev-1"]);
+      expect(board.inactiveDevelopers).toEqual([
+        expect.objectContaining({
+          developer: expect.objectContaining({ accountId: "dev-2" }),
+          availability: expect.objectContaining({
+            state: "inactive",
+            note: "PTO today",
+            startDate: "2026-03-07",
+          }),
+        }),
+      ]);
+      expect(board.summary.total).toBe(1);
+    });
+
     it("groups items into current/planned/completed/dropped", async () => {
       const item1 = await service.addItem("dev-1", "2026-03-07", {
         title: "Task A",

@@ -7,6 +7,7 @@ import { CurrentTask } from './CurrentTask';
 import { CompletedWork } from './CompletedWork';
 import { DroppedWork } from './DroppedWork';
 import { QuickUpdates } from './QuickUpdates';
+import { MyDayInactiveBanner } from './MyDayInactiveBanner';
 
 interface MyDayLeftColumnProps {
   user: AuthUser | null;
@@ -24,6 +25,7 @@ interface MyDayLeftColumnProps {
   handleUpdateItemTitle: (id: number, title: string) => void;
   handleAddCheckIn: (summary: string) => void;
   addCheckInPending: boolean;
+  readOnly?: boolean;
 }
 
 const sectionVariants = {
@@ -47,6 +49,7 @@ export function MyDayLeftColumn({
   handleUpdateItemTitle,
   handleAddCheckIn,
   addCheckInPending,
+  readOnly,
 }: MyDayLeftColumnProps) {
   return (
     <div className="flex flex-col gap-6 w-full pb-8">
@@ -60,7 +63,11 @@ export function MyDayLeftColumn({
         onLogout={onLogout}
       />
 
-      <motion.section variants={sectionVariants}>
+      {day && day.availability.state === 'inactive' && (
+        <MyDayInactiveBanner availability={day.availability} />
+      )}
+
+      <motion.section variants={sectionVariants} className={readOnly ? 'pointer-events-none opacity-60' : undefined}>
         <div className="flex items-center gap-2 mb-3 pl-2">
           <Zap size={14} className="text-[var(--text-muted)]" />
           <h2 className="text-[12px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
@@ -76,7 +83,7 @@ export function MyDayLeftColumn({
         </div>
       </motion.section>
 
-      <motion.section variants={sectionVariants}>
+      <motion.section variants={sectionVariants} className={readOnly ? 'pointer-events-none opacity-60' : undefined}>
         <div className="flex items-center gap-2 mb-3 pl-2">
           <Target size={14} className="text-[var(--text-muted)]" />
           <h2 className="text-[12px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
@@ -135,7 +142,7 @@ export function MyDayLeftColumn({
         </motion.section>
       )}
 
-      <motion.section variants={sectionVariants} className="mt-2">
+      <motion.section variants={sectionVariants} className={`mt-2 ${readOnly ? 'pointer-events-none opacity-60' : ''}`}>
         <div className="flex items-center gap-2 mb-3 pl-2">
           <MessageSquare size={14} className="text-[var(--text-muted)]" />
           <h2 className="text-[12px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">

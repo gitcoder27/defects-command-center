@@ -118,6 +118,16 @@ export const teamTrackerDays = sqliteTable("team_tracker_days", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const developerAvailabilityPeriods = sqliteTable("developer_availability_periods", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  developerAccountId: text("developer_account_id").notNull(),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date"),
+  note: text("note"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const teamTrackerItems = sqliteTable("team_tracker_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   dayId: integer("day_id").notNull(),

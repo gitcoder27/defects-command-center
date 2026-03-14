@@ -129,6 +129,16 @@ CREATE TABLE IF NOT EXISTS team_tracker_days (
   UNIQUE(date, developer_account_id)
 );
 
+CREATE TABLE IF NOT EXISTS developer_availability_periods (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  developer_account_id  TEXT NOT NULL,
+  start_date            TEXT NOT NULL,
+  end_date              TEXT,
+  note                  TEXT,
+  created_at            TEXT NOT NULL,
+  updated_at            TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS team_tracker_items (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   day_id        INTEGER NOT NULL,
@@ -205,6 +215,7 @@ CREATE INDEX IF NOT EXISTS idx_app_sessions_user ON app_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_app_sessions_expires ON app_sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_tracker_days_date ON team_tracker_days(date);
 CREATE INDEX IF NOT EXISTS idx_tracker_days_dev ON team_tracker_days(developer_account_id);
+CREATE INDEX IF NOT EXISTS idx_dev_availability_dev_dates ON developer_availability_periods(developer_account_id, start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_tracker_items_day ON team_tracker_items(day_id);
 CREATE INDEX IF NOT EXISTS idx_tracker_checkins_day ON team_tracker_checkins(day_id);
 CREATE INDEX IF NOT EXISTS idx_manager_desk_days_manager_date ON manager_desk_days(manager_account_id, date);
@@ -233,6 +244,8 @@ const alterStatements = [
   "ALTER TABLE issues ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE team_tracker_days ADD COLUMN capacity_units INTEGER",
   "ALTER TABLE team_tracker_days ADD COLUMN status_updated_at TEXT",
+  "CREATE TABLE IF NOT EXISTS developer_availability_periods (id INTEGER PRIMARY KEY AUTOINCREMENT, developer_account_id TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT, note TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+  "CREATE INDEX IF NOT EXISTS idx_dev_availability_dev_dates ON developer_availability_periods(developer_account_id, start_date, end_date)",
   "ALTER TABLE team_tracker_checkins ADD COLUMN author_type TEXT NOT NULL DEFAULT 'manager'",
   "ALTER TABLE team_tracker_checkins ADD COLUMN author_account_id TEXT",
   "ALTER TABLE team_tracker_items ADD COLUMN manager_desk_item_id INTEGER",

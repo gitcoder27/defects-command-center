@@ -28,6 +28,18 @@ const updateDaySchema = z.object({
   query: z.any().optional(),
 });
 
+const updateAvailabilitySchema = z.object({
+  params: z.object({
+    accountId: z.string().regex(/^[A-Za-z0-9:_-]+$/, "Invalid account id"),
+  }),
+  body: z.object({
+    effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    state: z.enum(["active", "inactive"]),
+    note: z.string().max(500).optional(),
+  }),
+  query: z.any().optional(),
+});
+
 const addItemSchema = z.object({
   params: z.object({
     accountId: z.string().regex(/^[A-Za-z0-9:_-]+$/, "Invalid account id"),
@@ -157,6 +169,20 @@ export function createTeamTrackerRouter(
           managerNotes,
         });
         res.json(day);
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.patch(
+    "/:accountId/availability",
+    validate(updateAvailabilitySchema),
+    async (req, res, next) => {
+      try {
+        const accountId = req.params.accountId as string;
+        const availability = await trackerService.updateAvailability(accountId, req.body);
+        res.json(availability);
       } catch (error) {
         next(error);
       }

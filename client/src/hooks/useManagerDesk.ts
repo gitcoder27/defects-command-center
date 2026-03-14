@@ -129,12 +129,16 @@ export function useManagerDeskIssueLookup(query: string, enabled = true) {
   });
 }
 
-export function useManagerDeskDeveloperLookup(query: string, enabled = true) {
+export function useManagerDeskDeveloperLookup(query: string, date?: string, enabled = true) {
   return useQuery<ManagerDeskDeveloperLookupItem[]>({
-    queryKey: ['manager-desk', 'lookup-developers', query],
+    queryKey: ['manager-desk', 'lookup-developers', query, date],
     queryFn: async () => {
+      const params = new URLSearchParams({ q: query });
+      if (date) {
+        params.set('date', date);
+      }
       const res = await api.get<{ items: ManagerDeskDeveloperLookupItem[] }>(
-        `/manager-desk/lookups/developers?q=${encodeURIComponent(query)}`
+        `/manager-desk/lookups/developers?${params.toString()}`
       );
       return res.items;
     },

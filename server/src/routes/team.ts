@@ -38,6 +38,14 @@ const saveDevelopersSchema = z.object({
   query: z.any().optional(),
 });
 
+const developersQuerySchema = z.object({
+  query: z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  }).optional(),
+  body: z.any().optional(),
+  params: z.any().optional(),
+});
+
 const discoverSchema = z.object({
   body: z
     .object({
@@ -82,10 +90,10 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
     }
   });
 
-  router.get("/developers", async (_req, res, next) => {
+  router.get("/developers", validate(developersQuerySchema), async (req, res, next) => {
     try {
       await normalizeLegacyDevelopers();
-      const developers = await workloadService.getDevelopers();
+      const developers = await workloadService.getDevelopers(req.query.date as string | undefined);
       res.json({ developers });
     } catch (error) {
       next(error);

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, MessageSquare, AlertTriangle, Plus } from 'lucide-react';
+import { Clock, MessageSquare, AlertTriangle, Plus, UserMinus } from 'lucide-react';
 import type { TrackerDeveloperDay, Issue } from '@/types';
 import { TrackerStatusPill } from './TrackerStatusPill';
 import { TrackerItemRow } from './TrackerItemRow';
@@ -12,6 +12,7 @@ interface DeveloperTrackerCardProps {
   day: TrackerDeveloperDay;
   index: number;
   onOpenDrawer: (accountId: string) => void;
+  onMarkInactive: (day: TrackerDeveloperDay) => void;
   onSetCurrent: (itemId: number) => void;
   onMarkDone: (itemId: number) => void;
   onQuickAdd: (params: { accountId: string; title: string; jiraKey?: string; note?: string }) => void;
@@ -23,6 +24,7 @@ export function DeveloperTrackerCard({
   day,
   index,
   onOpenDrawer,
+  onMarkInactive,
   onSetCurrent,
   onMarkDone,
   onQuickAdd,
@@ -176,6 +178,23 @@ export function DeveloperTrackerCard({
               {day.managerNotes}
             </span>
           )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMarkInactive(day);
+            }}
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium transition-all hover:brightness-125"
+            style={{
+              background: 'rgba(245, 158, 11, 0.1)',
+              color: 'var(--warning)',
+              border: '1px solid rgba(245, 158, 11, 0.2)',
+            }}
+            title="Mark developer inactive"
+          >
+            <UserMinus size={9} />
+            Inactive
+          </button>
           <button
             type="button"
             onClick={(e) => {

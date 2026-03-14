@@ -78,6 +78,16 @@ export interface Developer {
   email?: string;
   avatarUrl?: string;
   isActive: boolean;
+  availability?: DeveloperAvailability;
+}
+
+export type DeveloperAvailabilityState = "active" | "inactive";
+
+export interface DeveloperAvailability {
+  state: DeveloperAvailabilityState;
+  startDate?: string;
+  endDate?: string;
+  note?: string;
 }
 
 export interface DeveloperWorkload {
@@ -272,6 +282,7 @@ export interface TrackerDeveloperDay {
   id: number;
   date: string;
   developer: Developer;
+  availability: DeveloperAvailability;
   status: TrackerDeveloperStatus;
   capacityUnits?: number;
   managerNotes?: string;
@@ -320,8 +331,14 @@ export interface TrackerAttentionItem {
 export interface TeamTrackerBoardResponse {
   date: string;
   developers: TrackerDeveloperDay[];
+  inactiveDevelopers: InactiveDeveloperListItem[];
   summary: TrackerBoardSummary;
   attentionQueue: TrackerAttentionItem[];
+}
+
+export interface InactiveDeveloperListItem {
+  developer: Developer;
+  availability: DeveloperAvailability;
 }
 
 export interface MyDayResponse {
@@ -329,6 +346,8 @@ export interface MyDayResponse {
   developer: Developer;
   status: TrackerDeveloperStatus;
   capacityUnits?: number;
+  availability: DeveloperAvailability;
+  isReadOnly: boolean;
   lastCheckInAt?: string;
   currentItem?: TrackerWorkItem;
   plannedItems: TrackerWorkItem[];
@@ -434,6 +453,7 @@ export interface ManagerDeskAssignee {
   accountId: string;
   displayName: string;
   avatarUrl?: string;
+  availability?: DeveloperAvailability;
 }
 
 export interface ManagerDeskItem {
@@ -489,4 +509,5 @@ export interface ManagerDeskDeveloperLookupItem {
   displayName: string;
   email?: string;
   avatarUrl?: string;
+  availability?: DeveloperAvailability;
 }

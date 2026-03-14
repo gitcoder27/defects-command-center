@@ -20,6 +20,7 @@ interface MyDayRightColumnProps {
   addItemPending: boolean;
   completedCount: number;
   totalTasks: number;
+  readOnly?: boolean;
 }
 
 const sectionVariants = {
@@ -41,6 +42,7 @@ export function MyDayRightColumn({
   addItemPending,
   completedCount,
   totalTasks,
+  readOnly,
 }: MyDayRightColumnProps) {
   return (
     <div className="flex flex-col gap-6">
@@ -51,7 +53,7 @@ export function MyDayRightColumn({
         totalTasks={totalTasks}
       />
 
-      <motion.section variants={sectionVariants}>
+      <motion.section variants={sectionVariants} className={readOnly ? 'pointer-events-none opacity-60' : undefined}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <ListTodo size={14} style={{ color: 'var(--text-muted)' }} />

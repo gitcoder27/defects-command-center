@@ -5,6 +5,7 @@ import type {
   TrackerWorkItem,
 } from "shared/types";
 import { TeamTrackerService } from "./team-tracker.service";
+import { HttpError } from "../middleware/errorHandler";
 
 interface AddMyDayItemParams {
   date: string;
@@ -32,6 +33,9 @@ export class MyDayService {
       date: day.date,
       developer: day.developer,
       status: day.status,
+      capacityUnits: day.capacityUnits,
+      availability: day.availability,
+      isReadOnly: day.availability.state === "inactive",
       lastCheckInAt: day.lastCheckInAt,
       currentItem: day.currentItem,
       plannedItems: day.plannedItems,
@@ -47,11 +51,13 @@ export class MyDayService {
     date: string,
     status?: TrackerDeveloperStatus
   ): Promise<MyDayResponse> {
+    await this.assertAvailable(accountId, date);
     await this.trackerService.updateDay(accountId, date, { status });
     return this.getMyDay(accountId, date);
   }
 
   async addItem(accountId: string, params: AddMyDayItemParams): Promise<TrackerWorkItem> {
+    await this.assertAvailable(accountId, params.date);
     return this.trackerService.addItem(accountId, params.date, {
       jiraKey: params.jiraKey,
       title: params.title,
@@ -64,17 +70,20 @@ export class MyDayService {
     itemId: number,
     updates: UpdateMyDayItemParams
   ): Promise<TrackerWorkItem> {
-    await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId);
+    const ownership = await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId);
+    await this.assertAvailable(accountId, ownership.date);
     return this.trackerService.updateItem(itemId, updates);
   }
 
   async deleteItem(accountId: string, itemId: number): Promise<void> {
-    await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId);
+    const ownership = await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId);
+    await this.assertAvailable(accountId, ownership.date);
     await this.trackerService.deleteItem(itemId);
   }
 
   async setCurrentItem(accountId: string, itemId: number): Promise<TrackerWorkItem> {
-    await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId);
+    const ownership = await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId);
+    await this.assertAvailable(accountId, ownership.date);
     return this.trackerService.setCurrentItem(itemId);
   }
 
@@ -86,6 +95,7 @@ export class MyDayService {
       status?: TrackerDeveloperStatus;
     }
   ): Promise<TrackerCheckIn> {
+    await this.assertAvailable(accountId, date);
     return this.trackerService.addCheckIn(
       accountId,
       date,
@@ -98,5 +108,12 @@ export class MyDayService {
         accountId,
       }
     );
+  }
+
+  private async assertAvailable(accountId: string, date: string): Promise<void> {
+    const availability = await this.trackerService.getAvailabilityForDate(accountId, date);
+    if (availability.state === "inactive") {
+      throw new HttpError(409, `Developer is inactive on ${date}`);
+    }
   }
 }

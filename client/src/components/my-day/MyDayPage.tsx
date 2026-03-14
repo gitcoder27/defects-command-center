@@ -86,6 +86,7 @@ export function MyDayPage() {
   const completedCount = day?.completedItems.length ?? 0;
   const plannedCount = day?.plannedItems.length ?? 0;
   const totalTasks = completedCount + plannedCount + (day?.currentItem ? 1 : 0);
+  const isReadOnly = Boolean(day?.isReadOnly);
 
   return (
     <div className="h-full overflow-y-auto" style={{ background: 'var(--bg-canvas)' }}>
@@ -109,6 +110,7 @@ export function MyDayPage() {
               handleUpdateItemTitle={handleUpdateItemTitle}
               handleAddCheckIn={handleAddCheckIn}
               addCheckInPending={addCheckInPending}
+              readOnly={isReadOnly}
             />
           </div>
 
@@ -128,6 +130,7 @@ export function MyDayPage() {
               addItemPending={addItemPending}
               completedCount={completedCount}
               totalTasks={totalTasks}
+              readOnly={isReadOnly}
             />
           </div>
         </motion.div>

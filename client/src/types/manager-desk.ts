@@ -105,6 +105,7 @@ export interface ManagerDeskDeveloperLookupItem {
   displayName: string;
   email?: string;
   avatarUrl?: string;
+  availability?: import('@/types').DeveloperAvailability;
 }
 
 export interface ManagerDeskAssignee {
@@ -112,6 +113,7 @@ export interface ManagerDeskAssignee {
   displayName: string;
   email?: string;
   avatarUrl?: string;
+  availability?: import('@/types').DeveloperAvailability;
 }
 
 // ── Create / Update payloads ────────────────────────────

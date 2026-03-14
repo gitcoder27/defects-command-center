@@ -5,6 +5,7 @@ import { createManagerDeskRouter } from "../src/routes/manager-desk";
 import { errorHandler, notFoundHandler } from "../src/middleware/errorHandler";
 import { AuthService, serializeSessionCookie } from "../src/services/auth.service";
 import { ManagerDeskService } from "../src/services/manager-desk.service";
+import { TeamTrackerService } from "../src/services/team-tracker.service";
 import { resetDatabase, db } from "./helpers/db";
 import {
   developers,
@@ -17,6 +18,7 @@ import { invoke } from "./helpers/http";
 
 const authService = new AuthService();
 const managerDeskService = new ManagerDeskService();
+const trackerService = new TeamTrackerService();
 
 async function seedDevelopers() {
   await db.insert(developers).values([
@@ -647,6 +649,39 @@ describe("manager desk routes", () => {
         displayName: "Rahul Sharma",
         email: "rahul@example.com",
         avatarUrl: "https://example.com/rahul.png",
+      },
+    ]);
+  });
+
+  it("GET /api/manager-desk/lookups/developers includes inactive metadata when a date is provided", async () => {
+    await trackerService.updateAvailability("dev-2", {
+      effectiveDate: "2026-03-08",
+      state: "inactive",
+      note: "PTO today",
+    });
+
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+    const developerLookup = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk/lookups/developers?q=rahul&date=2026-03-08",
+      headers: {
+        cookie,
+      },
+    });
+
+    expect(developerLookup.status).toBe(200);
+    expect(developerLookup.body?.items).toEqual([
+      {
+        accountId: "dev-2",
+        displayName: "Rahul Sharma",
+        email: "rahul@example.com",
+        avatarUrl: "https://example.com/rahul.png",
+        availability: {
+          state: "inactive",
+          note: "PTO today",
+          startDate: "2026-03-08",
+        },
       },
     ]);
   });

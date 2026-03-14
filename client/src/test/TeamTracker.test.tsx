@@ -5,6 +5,7 @@ import type { TeamTrackerBoardResponse, TrackerDeveloperDay, Issue } from '@/typ
 
 const mockCarryForwardMutate = vi.fn();
 const mockUpdateDayMutate = vi.fn();
+const mockUpdateAvailabilityMutate = vi.fn();
 const mockUpdateTrackerItemMutate = vi.fn();
 const mockAddTrackerItemMutate = vi.fn();
 const mockRefetchBoard = vi.fn();
@@ -42,6 +43,7 @@ const mockDay: (overrides?: Partial<TrackerDeveloperDay>) => TrackerDeveloperDay
   id: 1,
   date: '2026-03-07',
   developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+  availability: { state: 'active' },
   status: 'on_track',
   plannedItems: [],
   completedItems: [],
@@ -120,6 +122,7 @@ const mockBoard: TeamTrackerBoardResponse = {
       ],
     }),
   ],
+  inactiveDevelopers: [],
   summary: {
     total: 2,
     stale: 1,
@@ -192,6 +195,7 @@ vi.mock('@/hooks/useTeamTracker', () => ({
 
 vi.mock('@/hooks/useTeamTrackerMutations', () => ({
   useUpdateDay: () => ({ mutate: mockUpdateDayMutate }),
+  useUpdateAvailability: () => ({ mutate: mockUpdateAvailabilityMutate, isPending: false, variables: undefined }),
   useAddTrackerItem: () => ({ mutate: mockAddTrackerItemMutate, isPending: false }),
   useSetCurrentItem: () => ({ mutate: vi.fn() }),
   useUpdateTrackerItem: () => ({ mutate: mockUpdateTrackerItemMutate }),
@@ -233,12 +237,14 @@ describe('TeamTrackerPage', () => {
     vi.setSystemTime(new Date('2026-03-07T12:00:00.000Z'));
     mockCarryForwardMutate.mockReset();
     mockUpdateDayMutate.mockReset();
+    mockUpdateAvailabilityMutate.mockReset();
     mockUpdateTrackerItemMutate.mockReset();
     mockAddTrackerItemMutate.mockReset();
     mockRefetchBoard.mockReset();
     mockRefetchCarryForwardPreview.mockReset();
     mockCarryForwardPreviewValue = 0;
     mockIssues = [];
+    mockBoard.inactiveDevelopers = [];
     window.sessionStorage.clear();
   });
 
@@ -306,6 +312,30 @@ describe('TeamTrackerPage', () => {
     expect(queueView.getByText('Stale with risk')).toBeInTheDocument();
     expect(queueView.getByText('Overdue linked work')).toBeInTheDocument();
     expect(queueView.getByText('No current item')).toBeInTheDocument();
+  });
+
+  it('renders the inactive restore tray and reactivates developers from it', () => {
+    mockBoard.inactiveDevelopers = [
+      {
+        developer: { accountId: 'dev-3', displayName: 'Cara Diaz', isActive: true },
+        availability: { state: 'inactive', startDate: '2026-03-07', note: 'PTO today' },
+      },
+    ];
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /show inactive developers/i }));
+
+    expect(screen.getByText('Cara Diaz')).toBeInTheDocument();
+    expect(screen.getByText('PTO today')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Active' }));
+
+    expect(mockUpdateAvailabilityMutate).toHaveBeenCalledWith({ accountId: 'dev-3', state: 'active' });
   });
 
   it('shows blocked status pill on blocked developer', () => {
