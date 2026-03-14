@@ -9,116 +9,121 @@ vi.mock("../src/config", () => ({
   },
 }));
 
-const mockedIssues = [
-  {
-    jiraKey: "PROJ-1",
-    summary: "Unassigned today",
-    description: null,
-    aspenSeverity: "2",
-    priorityName: "High",
-    priorityId: "1",
-    statusName: "To Do",
-    statusCategory: "new",
-    assigneeId: "lead-1",
-    assigneeName: "Lead",
-    reporterName: "Reporter",
-    component: "A",
-    labels: JSON.stringify(["customer"]),
-    dueDate: "2026-03-05",
-    developmentDueDate: null,
-    flagged: 0,
-    createdAt: "2026-03-05T08:00:00.000Z",
-    updatedAt: "2026-03-05T08:00:00.000Z",
-    syncedAt: "2026-03-05T08:00:00.000Z",
-    teamScopeState: "in_team",
-    syncScopeState: "active",
-    lastSeenInScopedSyncAt: "2026-03-05T08:00:00.000Z",
-    lastReconciledAt: "2026-03-05T08:00:00.000Z",
-    scopeChangedAt: null,
-    analysisNotes: null,
-  },
-  {
-    jiraKey: "PROJ-2",
-    summary: "Overdue blocked",
-    description: null,
-    aspenSeverity: "1",
-    priorityName: "Highest",
-    priorityId: "2",
-    statusName: "In Progress",
-    statusCategory: "indeterminate",
-    assigneeId: "dev-1",
-    assigneeName: "Dev 1",
-    reporterName: "Reporter",
-    component: "B",
-    labels: JSON.stringify(["production"]),
-    dueDate: "2026-03-01",
-    developmentDueDate: null,
-    flagged: 1,
-    createdAt: "2026-03-04T08:00:00.000Z",
-    updatedAt: "2026-03-02T08:00:00.000Z",
-    syncedAt: "2026-03-05T08:00:00.000Z",
-    teamScopeState: "in_team",
-    syncScopeState: "active",
-    lastSeenInScopedSyncAt: "2026-03-05T08:00:00.000Z",
-    lastReconciledAt: "2026-03-05T08:00:00.000Z",
-    scopeChangedAt: null,
-    analysisNotes: null,
-  },
-  {
-    jiraKey: "PROJ-3",
-    summary: "Done issue",
-    description: null,
-    aspenSeverity: null,
-    priorityName: "Low",
-    priorityId: "3",
-    statusName: "Done",
-    statusCategory: "done",
-    assigneeId: "dev-2",
-    assigneeName: "Dev 2",
-    reporterName: "Reporter",
-    component: "C",
-    labels: JSON.stringify([]),
-    dueDate: "2026-03-01",
-    developmentDueDate: null,
-    flagged: 0,
-    createdAt: "2026-03-01T08:00:00.000Z",
-    updatedAt: "2026-03-05T08:00:00.000Z",
-    syncedAt: "2026-03-05T08:00:00.000Z",
-    teamScopeState: "in_team",
-    syncScopeState: "active",
-    lastSeenInScopedSyncAt: "2026-03-05T08:00:00.000Z",
-    lastReconciledAt: "2026-03-05T08:00:00.000Z",
-    scopeChangedAt: null,
-    analysisNotes: null,
-  },
-  {
-    jiraKey: "PROJ-4",
-    summary: "In progress",
-    description: null,
-    aspenSeverity: "3",
-    priorityName: "Medium",
-    priorityId: "4",
-    statusName: "In Progress",
-    statusCategory: "indeterminate",
-    assigneeId: "dev-1",
-    assigneeName: "Dev 1",
-    reporterName: "Reporter",
-    component: "B",
-    labels: JSON.stringify([]),
-    dueDate: "2026-03-07",
-    developmentDueDate: null,
-    flagged: 0,
-    createdAt: "2026-03-03T08:00:00.000Z",
-    updatedAt: "2026-03-05T08:00:00.000Z",
-    syncedAt: "2026-03-05T08:00:00.000Z",
-    teamScopeState: "in_team",
-    syncScopeState: "active",
-    lastSeenInScopedSyncAt: "2026-03-05T08:00:00.000Z",
-    lastReconciledAt: "2026-03-05T08:00:00.000Z",
-    scopeChangedAt: null,
-    analysisNotes: null,
-  },
-];
+function buildMockedIssues() {
+  return [
+    {
+      jiraKey: "PROJ-1",
+      summary: "Unassigned today",
+      description: null,
+      aspenSeverity: "2",
+      priorityName: "High",
+      priorityId: "1",
+      statusName: "To Do",
+      statusCategory: "new",
+      assigneeId: "lead-1",
+      assigneeName: "Lead",
+      reporterName: "Reporter",
+      component: "A",
+      labels: JSON.stringify(["customer"]),
+      dueDate: "2026-03-05",
+      developmentDueDate: null,
+      flagged: 0,
+      createdAt: "2026-03-05T08:00:00.000Z",
+      updatedAt: "2026-03-05T08:00:00.000Z",
+      syncedAt: "2026-03-05T08:00:00.000Z",
+      teamScopeState: "in_team",
+      syncScopeState: "active",
+      lastSeenInScopedSyncAt: "2026-03-05T08:00:00.000Z",
+      lastReconciledAt: "2026-03-05T08:00:00.000Z",
+      scopeChangedAt: null,
+      analysisNotes: null,
+    },
+    {
+      jiraKey: "PROJ-2",
+      summary: "Overdue blocked",
+      description: null,
+      aspenSeverity: "1",
+      priorityName: "Highest",
+      priorityId: "2",
+      statusName: "In Progress",
+      statusCategory: "indeterminate",
+      assigneeId: "dev-1",
+      assigneeName: "Dev 1",
+      reporterName: "Reporter",
+      component: "B",
+      labels: JSON.stringify(["production"]),
+      dueDate: "2026-03-01",
+      developmentDueDate: null,
+      flagged: 1,
+      createdAt: "2026-03-04T08:00:00.000Z",
+      updatedAt: "2026-03-02T08:00:00.000Z",
+      syncedAt: "2026-03-05T08:00:00.000Z",
+      teamScopeState: "in_team",
+      syncScopeState: "active",
+      lastSeenInScopedSyncAt: "2026-03-05T08:00:00.000Z",
+      lastReconciledAt: "2026-03-05T08:00:00.000Z",
+      scopeChangedAt: null,
+      analysisNotes: null,
+    },
+    {
+      jiraKey: "PROJ-3",
+      summary: "Done issue",
+      description: null,
+      aspenSeverity: null,
+      priorityName: "Low",
+      priorityId: "3",
+      statusName: "Done",
+      statusCategory: "done",
+      assigneeId: "dev-2",
+      assigneeName: "Dev 2",
+      reporterName: "Reporter",
+      component: "C",
+      labels: JSON.stringify([]),
+      dueDate: "2026-03-01",
+      developmentDueDate: null,
+      flagged: 0,
+      createdAt: "2026-03-01T08:00:00.000Z",
+      updatedAt: "2026-03-05T08:00:00.000Z",
+      syncedAt: "2026-03-05T08:00:00.000Z",
+      teamScopeState: "in_team",
+      syncScopeState: "active",
+      lastSeenInScopedSyncAt: "2026-03-05T08:00:00.000Z",
+      lastReconciledAt: "2026-03-05T08:00:00.000Z",
+      scopeChangedAt: null,
+      analysisNotes: null,
+    },
+    {
+      jiraKey: "PROJ-4",
+      summary: "In progress",
+      description: null,
+      aspenSeverity: "3",
+      priorityName: "Medium",
+      priorityId: "4",
+      statusName: "In Progress",
+      statusCategory: "indeterminate",
+      assigneeId: "dev-1",
+      assigneeName: "Dev 1",
+      reporterName: "Reporter",
+      component: "B",
+      labels: JSON.stringify([]),
+      dueDate: "2026-03-07",
+      developmentDueDate: null,
+      flagged: 0,
+      createdAt: "2026-03-03T08:00:00.000Z",
+      updatedAt: "2026-03-05T08:00:00.000Z",
+      syncedAt: "2026-03-05T08:00:00.000Z",
+      teamScopeState: "in_team",
+      syncScopeState: "active",
+      lastSeenInScopedSyncAt: "2026-03-05T08:00:00.000Z",
+      lastReconciledAt: "2026-03-05T08:00:00.000Z",
+      scopeChangedAt: null,
+      analysisNotes: null,
+    },
+  ];
+}
+
+let mockedIssues = buildMockedIssues();
+let lastIssueUpdate: Record<string, unknown> | undefined;
 
 const mockedDevelopers = [
   { accountId: "lead-1", displayName: "Lead", isActive: 1 },
@@ -162,6 +167,26 @@ const mockedIssueScopeHistory = [
   },
 ];
 
+function getWhereValue(condition: any, columnName: string) {
+  const chunks = condition?.queryChunks;
+  if (!Array.isArray(chunks)) {
+    return undefined;
+  }
+
+  const hasColumn = chunks.some((chunk) => chunk?.name === columnName);
+  if (!hasColumn) {
+    return undefined;
+  }
+
+  return chunks.find((chunk) => chunk && typeof chunk === "object" && "value" in chunk)?.value;
+}
+
+function buildResolvedQuery<T>(rows: T[]) {
+  const promise: any = Promise.resolve(rows);
+  promise.limit = async (limit: number) => rows.slice(0, limit);
+  return promise;
+}
+
 vi.mock("../src/db/connection", () => {
   const db = {
     select: () => ({
@@ -182,14 +207,19 @@ vi.mock("../src/db/connection", () => {
         if (table?.jiraKey) {
           const query: any = Promise.resolve(mockedIssues);
           query.orderBy = async () => mockedIssues;
-          query.where = () => ({ limit: async () => mockedIssues });
+          query.where = () => buildResolvedQuery(mockedIssues.filter((issue) => issue.jiraKey === "PROJ-2"));
           query.limit = async () => mockedIssues;
           query.innerJoin = () => async () => [];
           return query;
         }
         if (table?.accountId && table?.displayName) {
           return {
-            where: () => Promise.resolve(mockedDevelopers),
+            where: () => {
+              const activeDevelopers = mockedDevelopers.filter((developer) => developer.isActive === 1);
+              const query = buildResolvedQuery(activeDevelopers);
+              query.limit = async () => mockedDevelopers.filter((developer) => developer.accountId === "dev-2");
+              return query;
+            },
             limit: async () => mockedDevelopers,
           };
         }
@@ -213,7 +243,19 @@ vi.mock("../src/db/connection", () => {
         };
       },
     }),
-    update: () => ({ set: () => ({ where: async () => undefined }) }),
+    update: () => ({
+      set: (values: Record<string, unknown>) => {
+        lastIssueUpdate = values;
+        return {
+          where: async () => {
+            const issue = mockedIssues.find((row) => row.jiraKey === "PROJ-2");
+            if (issue && lastIssueUpdate) {
+              Object.assign(issue, lastIssueUpdate);
+            }
+          },
+        };
+      },
+    }),
     insert: () => ({ values: () => ({ onConflictDoUpdate: async () => undefined }) }),
   };
   return { db };
@@ -238,6 +280,8 @@ describe("IssueService", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-05T12:00:00.000Z"));
+    mockedIssues = buildMockedIssues();
+    lastIssueUpdate = undefined;
   });
 
   afterEach(() => {
@@ -293,19 +337,21 @@ describe("IssueService", () => {
 
   it("updates issue fields and writes Jira payload", async () => {
     const updated = await service.update("PROJ-2", {
-      assigneeId: "dev-9",
+      assigneeId: "dev-2",
       priorityName: "Low",
       dueDate: "2026-03-10",
       flagged: false,
     });
 
     expect(jiraClient.updateIssue).toHaveBeenCalledWith("PROJ-2", expect.objectContaining({
-      assignee: { accountId: "dev-9" },
+      assignee: { accountId: "dev-2" },
       priority: { name: "Low" },
       duedate: "2026-03-10",
       customfield_10021: null,
     }));
     expect(updated).toBeDefined();
+    expect(updated.assigneeId).toBe("dev-2");
+    expect(lastIssueUpdate?.assigneeName).toBe("Dev 2");
   });
 
   it("adds comment through Jira client", async () => {

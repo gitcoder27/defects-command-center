@@ -100,6 +100,7 @@ export class IssueService {
     const localUpdate: Partial<typeof issues.$inferInsert> = {};
     if (payload.assigneeId !== undefined) {
       localUpdate.assigneeId = payload.assigneeId;
+      localUpdate.assigneeName = await this.resolveAssigneeName(payload.assigneeId);
       localUpdate.teamScopeState = await this.resolveTeamScopeState(payload.assigneeId);
       localUpdate.syncScopeState = "active";
       localUpdate.lastReconciledAt = updatedAt;
@@ -299,6 +300,15 @@ export class IssueService {
     const rows = await db.select().from(developers).where(eq(developers.isActive, 1));
     const activeTeamIds = new Set(rows.map((row) => row.accountId));
     return activeTeamIds.has(assigneeId) ? "in_team" : "out_of_team";
+  }
+
+  private async resolveAssigneeName(assigneeId?: string): Promise<string | null> {
+    if (!assigneeId) {
+      return null;
+    }
+
+    const rows = await db.select().from(developers).where(eq(developers.accountId, assigneeId)).limit(1);
+    return rows[0]?.displayName ?? null;
   }
 
   private async getRecentlyAssignedIssueKeys(dayAgo: Date): Promise<Set<string>> {
