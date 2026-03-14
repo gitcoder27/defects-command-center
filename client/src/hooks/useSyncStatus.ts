@@ -2,10 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { SyncStatus } from '@/types';
 
-export function useSyncStatus() {
+interface UseSyncStatusOptions {
+  enabled?: boolean;
+}
+
+export function useSyncStatus(options?: UseSyncStatusOptions) {
+  const enabled = options?.enabled ?? true;
+
   return useQuery<SyncStatus>({
     queryKey: ['syncStatus'],
     queryFn: () => api.get('/sync/status'),
-    refetchInterval: 10_000,
+    refetchInterval: enabled ? 10_000 : false,
+    enabled,
   });
 }

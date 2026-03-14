@@ -5,6 +5,7 @@ import { ToastProvider } from '@/context/ToastContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useBootstrapState } from '@/hooks/useBootstrapState';
 import { useConfig } from '@/hooks/useConfig';
+import { useSyncRefreshCoordinator } from '@/hooks/useSyncRefreshCoordinator';
 import {
   DashboardLayout,
   DEFAULT_DASHBOARD_FILTER_STATE,
@@ -196,6 +197,9 @@ function AppContent() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const bootstrapQuery = useBootstrapState();
   const bootstrapState = bootstrapQuery.data;
+  const shouldCoordinateSyncRefresh = isAuthenticated && user?.role === 'manager';
+
+  useSyncRefreshCoordinator({ enabled: shouldCoordinateSyncRefresh });
 
   const [activeView, setActiveView] = useState<AppView>(() => pathToView(window.location.pathname));
   const [dashboardFilterState, setDashboardFilterState] = useState<DashboardFilterState>(DEFAULT_DASHBOARD_FILTER_STATE);

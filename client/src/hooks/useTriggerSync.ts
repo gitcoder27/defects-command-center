@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { invalidateSyncDependentQueries, SYNC_STATUS_QUERY_KEY } from '@/lib/sync-refresh';
 import type { SyncStatus } from '@/types';
 
 export function useTriggerSync() {
@@ -13,12 +14,9 @@ export function useTriggerSync() {
       }
       return result;
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['syncStatus'] });
-      queryClient.invalidateQueries({ queryKey: ['issues'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
-      queryClient.invalidateQueries({ queryKey: ['workload'] });
-      queryClient.invalidateQueries({ queryKey: ['alerts'] });
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: SYNC_STATUS_QUERY_KEY });
+      await invalidateSyncDependentQueries(queryClient);
     },
   });
 }
