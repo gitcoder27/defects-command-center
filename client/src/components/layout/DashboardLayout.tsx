@@ -36,11 +36,16 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ activeView, onViewChange, filterState, onFilterStateChange }: DashboardLayoutProps) {
   const [internalFilterState, setInternalFilterState] = useState<DashboardFilterState>(DEFAULT_DASHBOARD_FILTER_STATE);
   const [selectedIssueKey, setSelectedIssueKey] = useState<string | undefined>();
+  const [highlightedIssueKey, setHighlightedIssueKey] = useState<string | undefined>();
+  const [shouldClearHighlightedIssueOnInteraction, setShouldClearHighlightedIssueOnInteraction] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const hasAnimatedRef = useRef(false);
   const [hasAnimated, setHasAnimated] = useState(false);
+  const armHighlightClearTimeoutRef = useRef<number | null>(null);
+  const clearHighlightTimeoutRef = useRef<number | null>(null);
+  const selectedIssueKeyRef = useRef<string | undefined>(selectedIssueKey);
   const triggerSync = useTriggerSync();
 
   const isCompact = useMediaQuery('(max-width: 1023px)');
@@ -58,6 +63,8 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
 
     setInternalFilterState(nextState);
   }, [isControlled, onFilterStateChange, resolvedFilterState]);
+
+  selectedIssueKeyRef.current = selectedIssueKey;
 
   useEffect(() => {
     if (!isCompact) {
@@ -85,33 +92,90 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
     }
   }, [isCompact]);
 
+  const cancelHighlightClearTimers = useCallback(() => {
+    if (armHighlightClearTimeoutRef.current !== null) {
+      window.clearTimeout(armHighlightClearTimeoutRef.current);
+      armHighlightClearTimeoutRef.current = null;
+    }
+
+    if (clearHighlightTimeoutRef.current !== null) {
+      window.clearTimeout(clearHighlightTimeoutRef.current);
+      clearHighlightTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearIssueHighlight = useCallback(() => {
+    cancelHighlightClearTimers();
+    setSelectedIssueKey(undefined);
+    setHighlightedIssueKey(undefined);
+    setShouldClearHighlightedIssueOnInteraction(false);
+  }, [cancelHighlightClearTimers]);
+
+  const openIssue = useCallback((key: string) => {
+    cancelHighlightClearTimers();
+
+    if (selectedIssueKeyRef.current === key) {
+      setSelectedIssueKey(undefined);
+      setHighlightedIssueKey(key);
+      setShouldClearHighlightedIssueOnInteraction(true);
+      return;
+    }
+
+    setSelectedIssueKey(key);
+    setHighlightedIssueKey(key);
+    setShouldClearHighlightedIssueOnInteraction(false);
+  }, [cancelHighlightClearTimers]);
+
+  const closePanel = useCallback(() => {
+    cancelHighlightClearTimers();
+    setSelectedIssueKey(undefined);
+    setShouldClearHighlightedIssueOnInteraction(Boolean(highlightedIssueKey));
+  }, [cancelHighlightClearTimers, highlightedIssueKey]);
+
+  const scheduleHighlightedIssueClear = useCallback(() => {
+    if (clearHighlightTimeoutRef.current !== null) {
+      window.clearTimeout(clearHighlightTimeoutRef.current);
+    }
+
+    clearHighlightTimeoutRef.current = window.setTimeout(() => {
+      clearHighlightTimeoutRef.current = null;
+
+      if (selectedIssueKeyRef.current) {
+        return;
+      }
+
+      setHighlightedIssueKey(undefined);
+      setShouldClearHighlightedIssueOnInteraction(false);
+    }, 0);
+  }, []);
+
   const handleFilterChange = useCallback((filter: FilterType) => {
     setFilterState((prev) => ({ ...prev, activeFilter: filter }));
-    setSelectedIssueKey(undefined);
+    clearIssueHighlight();
     setFocusedIndex(-1);
     closeSidebarOnCompact();
-  }, [closeSidebarOnCompact, setFilterState]);
+  }, [clearIssueHighlight, closeSidebarOnCompact, setFilterState]);
 
   const handleClearFilter = useCallback(() => {
     setFilterState((prev) => ({ ...prev, activeFilter: 'all' }));
-    setSelectedIssueKey(undefined);
+    clearIssueHighlight();
     setFocusedIndex(-1);
     closeSidebarOnCompact();
-  }, [closeSidebarOnCompact, setFilterState]);
+  }, [clearIssueHighlight, closeSidebarOnCompact, setFilterState]);
 
   const handleDeveloperChange = useCallback((accountId?: string) => {
     setFilterState((prev) => ({ ...prev, activeDeveloper: accountId }));
-    setSelectedIssueKey(undefined);
+    clearIssueHighlight();
     setFocusedIndex(-1);
     closeSidebarOnCompact();
-  }, [closeSidebarOnCompact, setFilterState]);
+  }, [clearIssueHighlight, closeSidebarOnCompact, setFilterState]);
 
   const handleClearDeveloper = useCallback(() => {
     setFilterState((prev) => ({ ...prev, activeDeveloper: undefined }));
-    setSelectedIssueKey(undefined);
+    clearIssueHighlight();
     setFocusedIndex(-1);
     closeSidebarOnCompact();
-  }, [closeSidebarOnCompact, setFilterState]);
+  }, [clearIssueHighlight, closeSidebarOnCompact, setFilterState]);
 
   const handleTagToggle = useCallback((tagId: number) => {
     setFilterState((prev) => ({
@@ -119,10 +183,10 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
       noTagsFilter: false,
       selectedTagId: prev.selectedTagId === tagId ? undefined : tagId,
     }));
-    setSelectedIssueKey(undefined);
+    clearIssueHighlight();
     setFocusedIndex(-1);
     closeSidebarOnCompact();
-  }, [closeSidebarOnCompact, setFilterState]);
+  }, [clearIssueHighlight, closeSidebarOnCompact, setFilterState]);
 
   const handleNoTagsToggle = useCallback(() => {
     setFilterState((prev) => ({
@@ -130,10 +194,10 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
       noTagsFilter: !prev.noTagsFilter,
       selectedTagId: undefined,
     }));
-    setSelectedIssueKey(undefined);
+    clearIssueHighlight();
     setFocusedIndex(-1);
     closeSidebarOnCompact();
-  }, [closeSidebarOnCompact, setFilterState]);
+  }, [clearIssueHighlight, closeSidebarOnCompact, setFilterState]);
 
   const handleClearTagFilters = useCallback(() => {
     setFilterState((prev) => ({
@@ -141,32 +205,72 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
       selectedTagId: undefined,
       noTagsFilter: false,
     }));
-    setSelectedIssueKey(undefined);
+    clearIssueHighlight();
     setFocusedIndex(-1);
     closeSidebarOnCompact();
-  }, [closeSidebarOnCompact, setFilterState]);
+  }, [clearIssueHighlight, closeSidebarOnCompact, setFilterState]);
 
   const handleClearAllFilters = useCallback(() => {
     setFilterState(DEFAULT_DASHBOARD_FILTER_STATE);
-    setSelectedIssueKey(undefined);
+    clearIssueHighlight();
     setFocusedIndex(-1);
-  }, [setFilterState]);
+  }, [clearIssueHighlight, setFilterState]);
 
   const handleSelectIssue = useCallback((key: string) => {
-    setSelectedIssueKey((prev) => (prev === key ? undefined : key));
-  }, []);
+    openIssue(key);
+  }, [openIssue]);
 
   const handleClosePanel = useCallback(() => {
-    setSelectedIssueKey(undefined);
-  }, []);
+    closePanel();
+  }, [closePanel]);
 
   const handleAlertClick = useCallback((alert: Alert) => {
     if (alert.issueKey) {
-      setSelectedIssueKey(alert.issueKey);
+      openIssue(alert.issueKey);
     } else if (alert.developerAccountId) {
       setFilterState((prev) => ({ ...prev, activeDeveloper: alert.developerAccountId }));
     }
-  }, [setFilterState]);
+  }, [openIssue, setFilterState]);
+
+  useEffect(() => {
+    if (!shouldClearHighlightedIssueOnInteraction || selectedIssueKey || !highlightedIssueKey) {
+      return;
+    }
+
+    const handleClick = () => {
+      scheduleHighlightedIssueClear();
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Shift' || event.key === 'Control' || event.key === 'Alt' || event.key === 'Meta') {
+        return;
+      }
+
+      scheduleHighlightedIssueClear();
+    };
+
+    armHighlightClearTimeoutRef.current = window.setTimeout(() => {
+      armHighlightClearTimeoutRef.current = null;
+      window.addEventListener('click', handleClick, true);
+      window.addEventListener('keydown', handleKeyDown, true);
+    }, 0);
+
+    return () => {
+      if (armHighlightClearTimeoutRef.current !== null) {
+        window.clearTimeout(armHighlightClearTimeoutRef.current);
+        armHighlightClearTimeoutRef.current = null;
+      }
+
+      window.removeEventListener('click', handleClick, true);
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [highlightedIssueKey, scheduleHighlightedIssueClear, selectedIssueKey, shouldClearHighlightedIssueOnInteraction]);
+
+  useEffect(() => {
+    return () => {
+      cancelHighlightClearTimers();
+    };
+  }, [cancelHighlightClearTimers]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -189,7 +293,7 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
           if (focusedIndex >= 0 && focusedIndex < issues.length) {
             const issue = issues[focusedIndex];
             if (issue) {
-              setSelectedIssueKey((prev) => (prev === issue.jiraKey ? undefined : issue.jiraKey));
+              openIssue(issue.jiraKey);
             }
           }
           break;
@@ -200,52 +304,60 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
         case '0':
           e.preventDefault();
           setFilterState((prev) => ({ ...prev, activeFilter: 'all' }));
+          clearIssueHighlight();
           setFocusedIndex(-1);
           break;
         case '1':
           e.preventDefault();
           setFilterState((prev) => ({ ...prev, activeFilter: 'all' }));
+          clearIssueHighlight();
           setFocusedIndex(-1);
           break;
         case '2':
           e.preventDefault();
           setFilterState((prev) => ({ ...prev, activeFilter: 'unassigned' }));
+          clearIssueHighlight();
           setFocusedIndex(-1);
           break;
         case '3':
           e.preventDefault();
           setFilterState((prev) => ({ ...prev, activeFilter: 'dueToday' }));
+          clearIssueHighlight();
           setFocusedIndex(-1);
           break;
         case '4':
           e.preventDefault();
           setFilterState((prev) => ({ ...prev, activeFilter: 'dueThisWeek' }));
+          clearIssueHighlight();
           setFocusedIndex(-1);
           break;
         case '5':
           e.preventDefault();
           setFilterState((prev) => ({ ...prev, activeFilter: 'overdue' }));
+          clearIssueHighlight();
           setFocusedIndex(-1);
           break;
         case '6':
           e.preventDefault();
           setFilterState((prev) => ({ ...prev, activeFilter: 'blocked' }));
+          clearIssueHighlight();
           setFocusedIndex(-1);
           break;
         case '7':
           e.preventDefault();
           setFilterState((prev) => ({ ...prev, activeFilter: 'stale' }));
+          clearIssueHighlight();
           setFocusedIndex(-1);
           break;
         case 'Escape':
-          setSelectedIssueKey(undefined);
+          closePanel();
           break;
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [triggerSync, issues, focusedIndex, setFilterState]);
+  }, [clearIssueHighlight, closePanel, focusedIndex, issues, openIssue, setFilterState, triggerSync]);
 
   const handleToggleSidebar = useCallback(() => {
     if (isCompact) {
@@ -296,6 +408,7 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
               filter={activeFilter}
               assigneeFilter={activeDeveloper}
               selectedKey={selectedIssueKey}
+              highlightedKey={highlightedIssueKey}
               focusedIndex={focusedIndex}
               onFocusedIndexChange={setFocusedIndex}
               onSelectIssue={handleSelectIssue}

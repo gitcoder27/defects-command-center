@@ -38,6 +38,8 @@ const ASPEN_SEVERITY_ORDER: Record<string, number> = {
 const INITIAL_ROW_ANIMATION_DELAY = 0.4;
 const INITIAL_ROW_ANIMATION_STAGGER = 0.03;
 const INITIAL_ROW_STAGGER_CAP = 12;
+const ROW_HOVER_BACKGROUND = 'color-mix(in srgb, var(--bg-tertiary) 92%, white 8%)';
+const ROW_DEFAULT_BACKGROUND = 'color-mix(in srgb, var(--bg-secondary) 92%, white 8%)';
 
 const columnHelper = createColumnHelper<Issue>();
 
@@ -53,6 +55,7 @@ interface DefectTableProps {
   filter: FilterType;
   assigneeFilter?: string;
   selectedKey?: string;
+  highlightedKey?: string;
   focusedIndex: number;
   onFocusedIndexChange: (index: number) => void;
   onSelectIssue: (key: string) => void;
@@ -66,6 +69,7 @@ export function DefectTable({
   filter,
   assigneeFilter,
   selectedKey,
+  highlightedKey,
   focusedIndex,
   onFocusedIndexChange,
   onSelectIssue,
@@ -609,18 +613,32 @@ export function DefectTable({
                 {table.getRowModel().rows.map((row, i) => {
             const issue = row.original;
             const isSelected = issue.jiraKey === selectedKey;
+            const isHighlighted = issue.jiraKey === highlightedKey;
             const isFocused = i === focusedIndex;
               const effectiveDueDate = getEffectiveDueDate(issue);
               const overdue = isOverdue(effectiveDueDate);
               const dueToday = isDueToday(effectiveDueDate);
             const stale = issue.statusCategory !== 'done' && isStale(issue.updatedAt);
             const isLastVisited = lastVisitedKey === issue.jiraKey;
+            const selectionState = isSelected ? 'active' : isHighlighted ? 'retained' : 'none';
+            const rowBackgroundColor = selectionState !== 'none'
+              ? ROW_HOVER_BACKGROUND
+              : isFocused
+              ? 'color-mix(in srgb, var(--bg-tertiary) 88%, white 12%)'
+              : isLastVisited
+              ? 'rgba(139,92,246,0.04)'
+              : issue.flagged
+              ? 'rgba(239,68,68,0.04)'
+              : ROW_DEFAULT_BACKGROUND;
 
             let leftBorder = 'transparent';
             let indicatorReason: string | null = null;
             if (isSelected) {
               leftBorder = 'var(--accent)';
-              indicatorReason = 'Selected defect';
+              indicatorReason = 'Open in triage';
+            } else if (isHighlighted) {
+              leftBorder = 'var(--accent)';
+              indicatorReason = 'Last opened defect';
             } else if (isFocused) {
               leftBorder = 'var(--accent)';
               indicatorReason = 'Focused defect';
@@ -653,20 +671,13 @@ export function DefectTable({
                     transition={shouldAnimate ? { duration: 0.2, delay: animationDelay } : undefined}
                     onClick={() => onSelectIssue(issue.jiraKey)}
                     className="cursor-pointer transition-colors duration-150 group/row"
+                    data-selection-state={selectionState}
                     style={{
-                      background: isSelected
-                        ? 'linear-gradient(180deg, var(--bg-glow) 0%, color-mix(in srgb, var(--bg-secondary) 96%, white 4%) 100%)'
-                        : isFocused
-                        ? 'color-mix(in srgb, var(--bg-tertiary) 88%, white 12%)'
-                        : isLastVisited
-                        ? 'rgba(139,92,246,0.04)'
-                        : issue.flagged
-                        ? 'rgba(239,68,68,0.04)'
-                        : 'color-mix(in srgb, var(--bg-secondary) 92%, white 8%)',
+                      backgroundColor: rowBackgroundColor,
                       borderTop: '1px solid var(--border)',
                       borderBottom: '1px solid var(--border)',
                     }}
-                    whileHover={{ y: -1, backgroundColor: 'color-mix(in srgb, var(--bg-tertiary) 92%, white 8%)' }}
+                    whileHover={{ y: -1, backgroundColor: ROW_HOVER_BACKGROUND }}
                   >
                     {row.getVisibleCells().map((cell, cellIndex) => (
                       <td key={cell.id} className="px-2 py-1.5 text-[13px] relative z-0 first:rounded-l-[12px] last:rounded-r-[12px]">

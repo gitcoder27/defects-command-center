@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 
 const mockTriggerSync = {
@@ -62,11 +62,20 @@ vi.mock('@/components/filters/FilterSidebar', () => ({
 }));
 
 vi.mock('@/components/table/DefectTable', () => ({
-  DefectTable: (props: { onClearFilters?: () => void }) => {
+  DefectTable: (props: {
+    selectedKey?: string;
+    highlightedKey?: string;
+    onSelectIssue?: (key: string) => void;
+    onClearFilters?: () => void;
+  }) => {
     defectTableSpy(props);
     return (
       <div>
         <div>Defect Table</div>
+        <div data-testid="selected-key">{props.selectedKey ?? 'none'}</div>
+        <div data-testid="highlighted-key">{props.highlightedKey ?? 'none'}</div>
+        <button onClick={() => props.onSelectIssue?.('PROJ-101')}>Open PROJ-101</button>
+        <button onClick={() => props.onSelectIssue?.('PROJ-102')}>Open PROJ-102</button>
         <button onClick={props.onClearFilters}>Clear Table Filters</button>
       </div>
     );
@@ -75,7 +84,9 @@ vi.mock('@/components/table/DefectTable', () => ({
 }));
 
 vi.mock('@/components/triage/TriagePanel', () => ({
-  TriagePanel: () => null,
+  TriagePanel: ({ issueKey, onClose }: { issueKey?: string; onClose: () => void }) => (
+    issueKey ? <button onClick={onClose}>Close Triage</button> : null
+  ),
 }));
 
 vi.mock('@/components/workload/WorkloadBar', () => ({
@@ -92,6 +103,10 @@ describe('DashboardLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useMediaQueryMock.mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('keeps the active developer when a top overview card is clicked', () => {
@@ -152,6 +167,58 @@ describe('DashboardLayout', () => {
     expect(lastCall.isMobile).toBe(true);
     expect(lastCall.open).toBe(true);
     expect(lastCall.collapsed).toBe(false);
+  });
+
+  it('retains the last opened row highlight after triage closes', () => {
+    render(<DashboardLayout />);
+
+    fireEvent.click(screen.getByText('Open PROJ-101'));
+    expect(screen.getByTestId('selected-key')).toHaveTextContent('PROJ-101');
+    expect(screen.getByTestId('highlighted-key')).toHaveTextContent('PROJ-101');
+
+    fireEvent.click(screen.getByText('Close Triage'));
+
+    expect(screen.getByTestId('selected-key')).toHaveTextContent('none');
+    expect(screen.getByTestId('highlighted-key')).toHaveTextContent('PROJ-101');
+  });
+
+  it('clears the retained highlight on the next interaction after triage closes', () => {
+    vi.useFakeTimers();
+
+    render(<DashboardLayout />);
+
+    fireEvent.click(screen.getByText('Open PROJ-101'));
+    fireEvent.click(screen.getByText('Close Triage'));
+
+    act(() => {
+      vi.runAllTimers();
+    });
+    fireEvent.click(document.body);
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    expect(screen.getByTestId('highlighted-key')).toHaveTextContent('none');
+  });
+
+  it('replaces the retained highlight when another defect is opened next', () => {
+    vi.useFakeTimers();
+
+    render(<DashboardLayout />);
+
+    fireEvent.click(screen.getByText('Open PROJ-101'));
+    fireEvent.click(screen.getByText('Close Triage'));
+
+    act(() => {
+      vi.runAllTimers();
+    });
+    fireEvent.click(screen.getByText('Open PROJ-102'));
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    expect(screen.getByTestId('selected-key')).toHaveTextContent('PROJ-102');
+    expect(screen.getByTestId('highlighted-key')).toHaveTextContent('PROJ-102');
   });
 
   it('clears active dashboard filters from the defect table toolbar action', () => {

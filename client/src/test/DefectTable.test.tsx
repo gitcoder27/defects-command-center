@@ -177,6 +177,32 @@ describe('DefectTable', () => {
     expect(onSelectIssue).toHaveBeenCalledWith('PROJ-101');
   });
 
+  it('marks the active row with the hover surface state', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} selectedKey="PROJ-101" highlightedKey="PROJ-101" />
+      </TestWrapper>
+    );
+
+    const row = screen.getByText('PROJ-101').closest('tr');
+    expect(row).toHaveAttribute('data-selection-state', 'active');
+    expect(row?.getAttribute('style')).toContain('background-color: color-mix(in srgb, var(--bg-tertiary) 92%, white 8%)');
+    expect(screen.getByLabelText('Row indicator: Open in triage')).toBeInTheDocument();
+  });
+
+  it('marks the retained row with the hover surface state', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} highlightedKey="PROJ-102" />
+      </TestWrapper>
+    );
+
+    const row = screen.getByText('PROJ-102').closest('tr');
+    expect(row).toHaveAttribute('data-selection-state', 'retained');
+    expect(row?.getAttribute('style')).toContain('background-color: color-mix(in srgb, var(--bg-tertiary) 92%, white 8%)');
+    expect(screen.getByLabelText('Row indicator: Last opened defect')).toBeInTheDocument();
+  });
+
   it('renders sort headers', () => {
     render(
       <TestWrapper>
