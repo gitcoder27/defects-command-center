@@ -8,9 +8,10 @@ import { sectionSurfaceStyle } from './ItemDetailPrimitives';
 
 interface LinkedIssueSnapshotProps {
   issueKeys: string[];
+  showDescription?: boolean;
 }
 
-export function LinkedIssueSnapshot({ issueKeys }: LinkedIssueSnapshotProps) {
+export function LinkedIssueSnapshot({ issueKeys, showDescription = true }: LinkedIssueSnapshotProps) {
   const normalizedKeys = useMemo(() => [...new Set(issueKeys.filter(Boolean))], [issueKeys]);
   const [selectedIssueKey, setSelectedIssueKey] = useState(normalizedKeys[0] ?? '');
   const { data: issue, isLoading } = useIssueDetail(selectedIssueKey || undefined);
@@ -136,7 +137,7 @@ export function LinkedIssueSnapshot({ issueKeys }: LinkedIssueSnapshotProps) {
             </div>
           ) : null}
 
-          {formattedDescription ? (
+          {showDescription && formattedDescription ? (
             <div className="rounded-[20px] px-4 py-4" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
               <div className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--text-muted)' }}>
                 Description

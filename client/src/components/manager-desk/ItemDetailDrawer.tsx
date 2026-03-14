@@ -44,6 +44,7 @@ interface Props {
   onDelete: (itemId: number) => void;
   topSlot?: ReactNode;
   ariaLabel?: string;
+  showLinkedIssueDescription?: boolean;
 }
 
 type FieldSaveState = 'idle' | 'dirty' | 'saving' | 'saved';
@@ -64,6 +65,7 @@ export function ItemDetailDrawer({
   onDelete,
   topSlot,
   ariaLabel = 'Manager Desk item detail',
+  showLinkedIssueDescription = true,
 }: Props) {
   if (!item) return null;
 
@@ -100,6 +102,7 @@ export function ItemDetailDrawer({
               onUpdate={onUpdate}
               onDelete={onDelete}
               topSlot={topSlot}
+              showLinkedIssueDescription={showLinkedIssueDescription}
             />
           </motion.aside>
         </>
@@ -115,6 +118,7 @@ function DrawerContent({
   onUpdate,
   onDelete,
   topSlot,
+  showLinkedIssueDescription,
 }: {
   item: ManagerDeskItem;
   date: string;
@@ -122,6 +126,7 @@ function DrawerContent({
   onUpdate: (itemId: number, updates: Record<string, unknown>) => void;
   onDelete: (itemId: number) => void;
   topSlot?: ReactNode;
+  showLinkedIssueDescription: boolean;
 }) {
   const addLink = useAddManagerDeskLink(date);
   const removeLink = useRemoveManagerDeskLink(date);
@@ -422,7 +427,7 @@ function DrawerContent({
             </SectionCard>
 
             <div className="space-y-4">
-              <LinkedIssueSnapshot issueKeys={linkedIssueKeys} />
+              <LinkedIssueSnapshot issueKeys={linkedIssueKeys} showDescription={showLinkedIssueDescription} />
 
               <SectionCard
                 eyebrow="Linked Context"

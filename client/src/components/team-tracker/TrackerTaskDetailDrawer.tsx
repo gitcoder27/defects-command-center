@@ -111,6 +111,7 @@ export function TrackerTaskDetailDrawer({
       date={detail.date}
       onClose={onClose}
       ariaLabel="Team Tracker task detail"
+      showLinkedIssueDescription={false}
       onUpdate={(managerDeskItemId, updates) =>
         updateManagerDeskItem.mutate({ itemId: managerDeskItemId, ...updates })
       }
