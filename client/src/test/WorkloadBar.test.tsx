@@ -92,9 +92,13 @@ describe('WorkloadBar', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByTestId('workload-bar-header'));
+    const header = screen.getByTestId('workload-bar-header');
+    expect(header).toHaveClass('cursor-pointer');
+
+    fireEvent.click(header);
 
     expect(screen.getByText('Team capacity radar')).toBeInTheDocument();
+    expect(header).not.toHaveClass('cursor-pointer');
     expect(onDeveloperClick).not.toHaveBeenCalled();
   });
 

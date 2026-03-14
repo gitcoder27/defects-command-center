@@ -37,7 +37,7 @@ export function WorkloadBar({ activeDeveloper, onDeveloperClick }: WorkloadBarPr
         <div className="overflow-hidden">
         <div className={`shrink-0 ${expanded ? 'px-2 py-1.5' : 'px-1.5 py-1'}`}>
           <div
-            className={`flex items-center ${expanded ? 'gap-2.5' : 'gap-1.5'}`}
+            className={`flex items-center ${expanded ? 'gap-2.5' : 'gap-1.5 cursor-pointer rounded-2xl'}`}
             data-testid="workload-bar-header"
             onClick={handleCollapsedHeaderClick}
           >

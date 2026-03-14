@@ -205,105 +205,55 @@ export function DeveloperTrackerDrawer({
               </button>
             </div>
 
-            {/* Scrollable body */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-              {/* Status selector */}
-              <div>
-                <div className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-                  Status
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {statusOptions.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => onUpdateDay({ accountId: day.developer.accountId, status: s })}
-                      className={`transition-all ${day.status === s ? '' : 'opacity-50 hover:opacity-80'}`}
-                    >
-                      <TrackerStatusPill status={s} size="md" />
-                    </button>
-                  ))}
-                </div>
+            {/* Compact summary strip (pinned above scroll) */}
+            <div className="shrink-0 px-4 py-2 space-y-2" style={{ borderBottom: '1px solid var(--border)' }}>
+              {/* Status pills — tight inline row */}
+              <div className="flex flex-wrap gap-1">
+                {statusOptions.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => onUpdateDay({ accountId: day.developer.accountId, status: s })}
+                    className={`transition-all ${day.status === s ? '' : 'opacity-40 hover:opacity-75'}`}
+                  >
+                    <TrackerStatusPill status={s} size="sm" />
+                  </button>
+                ))}
               </div>
 
-              <div>
-                <div className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-                  Today
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="rounded-xl px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
-                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Load</div>
-                    <div className="mt-0.5 font-mono text-[13px] font-semibold" style={{ color: isOverCapacity ? 'var(--danger)' : 'var(--text-primary)' }}>
-                      {loadLabel}
-                    </div>
-                  </div>
-                  <div className="rounded-xl px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
-                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Done</div>
-                    <div className="mt-0.5 font-mono text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      {day.completedItems.length}
-                    </div>
-                  </div>
-                  <div className="rounded-xl px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
-                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Dropped</div>
-                    <div className="mt-0.5 font-mono text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      {day.droppedItems.length}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-                  Signals
-                </div>
-                <TrackerSignalBadges day={day} />
-                <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
-                  <div className="rounded-xl px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
-                    <div style={{ color: 'var(--text-muted)' }}>Stale after</div>
-                    <div className="mt-0.5 font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      {day.signals.freshness.staleThresholdHours}h
-                    </div>
-                  </div>
-                  <div className="rounded-xl px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
-                    <div style={{ color: 'var(--text-muted)' }}>No current follow-up</div>
-                    <div className="mt-0.5 font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      {day.signals.freshness.noCurrentThresholdHours}h
-                    </div>
-                  </div>
-                  <div className="rounded-xl px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
-                    <div style={{ color: 'var(--text-muted)' }}>Status follow-up</div>
-                    <div className="mt-0.5 font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      {day.signals.freshness.statusFollowUpThresholdHours}h
-                    </div>
-                  </div>
-                  <div className="rounded-xl px-2.5 py-2" style={{ background: 'var(--bg-tertiary)' }}>
-                    <div style={{ color: 'var(--text-muted)' }}>Overdue linked Jira</div>
-                    <div className="mt-0.5 font-mono font-semibold" style={{ color: day.signals.risk.overdueLinkedWork ? 'var(--danger)' : 'var(--text-primary)' }}>
-                      {day.signals.risk.overdueLinkedCount}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-                    Capacity
-                  </div>
-                  {day.capacityUnits !== undefined && (
-                    <span className="font-mono text-[10px]" style={{ color: isOverCapacity ? 'var(--danger)' : 'var(--text-muted)' }}>
+              {/* Stats + Capacity — single row */}
+              <div className="flex items-center gap-3 text-[11px]">
+                <div className="flex items-center gap-2.5">
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    Load{' '}
+                    <span className="font-mono font-semibold" style={{ color: isOverCapacity ? 'var(--danger)' : 'var(--text-primary)' }}>
                       {loadLabel}
                     </span>
-                  )}
+                  </span>
+                  <span style={{ color: 'var(--border-strong)' }}>·</span>
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    Done{' '}
+                    <span className="font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {day.completedItems.length}
+                    </span>
+                  </span>
+                  <span style={{ color: 'var(--border-strong)' }}>·</span>
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    Dropped{' '}
+                    <span className="font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {day.droppedItems.length}
+                    </span>
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="ml-auto flex items-center gap-1.5">
+                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Cap</span>
                   <input
                     type="number"
                     min={1}
                     inputMode="numeric"
                     value={capacityText}
                     onChange={(e) => setCapacityText(e.target.value)}
-                    placeholder="Add"
-                    className="w-20 rounded-lg px-2 py-1.5 text-[12px] outline-none"
+                    placeholder="–"
+                    className="w-10 rounded-md px-1.5 py-0.5 text-[11px] text-center outline-none font-mono"
                     style={{
                       background: 'var(--bg-tertiary)',
                       color: 'var(--text-primary)',
@@ -312,7 +262,7 @@ export function DeveloperTrackerDrawer({
                   />
                   <button
                     onClick={handleSaveCapacity}
-                    className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium"
+                    className="rounded-md px-1.5 py-0.5 text-[10px] font-medium"
                     style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
                   >
                     Save
@@ -323,7 +273,7 @@ export function DeveloperTrackerDrawer({
                         setCapacityText('');
                         onUpdateDay({ accountId: day.developer.accountId, capacityUnits: null });
                       }}
-                      className="text-[11px]"
+                      className="text-[10px]"
                       style={{ color: 'var(--text-muted)' }}
                     >
                       Clear
@@ -332,6 +282,12 @@ export function DeveloperTrackerDrawer({
                 </div>
               </div>
 
+              {/* Signal badges — only shown when there are active signals */}
+              <TrackerSignalBadges day={day} />
+            </div>
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
               {/* Current item */}
               <div>
                 <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
