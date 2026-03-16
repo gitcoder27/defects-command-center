@@ -3,8 +3,10 @@ import { Check, CheckCircle2, ChevronDown, ChevronUp, GripVertical, Play, Save, 
 import type { TrackerItemState, TrackerWorkItem } from '@/types';
 import { JiraIssueLink } from '@/components/JiraIssueLink';
 import { formatDate, priorityColor } from '@/lib/utils';
-import { TrackerItemRowActions } from './TrackerItemRowActions';
+import { TrackerItemRowActions, type TrackerItemActionPreset } from './TrackerItemRowActions';
 import { TrackerItemRowDetails } from './TrackerItemRowDetails';
+
+type TrackerItemRowVariant = 'default' | 'drawer-planned';
 
 interface TrackerItemRowProps {
   item: TrackerWorkItem;
@@ -20,7 +22,9 @@ interface TrackerItemRowProps {
   canMoveDown?: boolean;
   compact?: boolean;
   draggable?: boolean;
+  variant?: TrackerItemRowVariant;
   showDetailsToggle?: boolean;
+  actionPreset?: TrackerItemActionPreset;
   hideActions?: boolean;
 }
 
@@ -45,7 +49,9 @@ export function TrackerItemRow({
   canMoveDown = false,
   compact,
   draggable,
+  variant = 'default',
   showDetailsToggle = false,
+  actionPreset = 'default',
   hideActions = false,
 }: TrackerItemRowProps) {
   const [noteEditing, setNoteEditing] = useState(false);
@@ -66,12 +72,14 @@ export function TrackerItemRow({
   const Icon = stateInfo.icon;
   const isActive = item.state === 'in_progress';
   const isDone = item.state === 'done' || item.state === 'dropped';
+  const isDrawerPlanned = variant === 'drawer-planned';
   const canOpen = Boolean(onOpen) && !noteEditing && !titleEditing;
   const isTitleEditable = !compact && Boolean(onUpdateTitle) && !isDone && !canOpen;
   const canShowDetails = showDetailsToggle && !compact && !canOpen;
   const detailsRegionId = `tracker-item-details-${item.id}`;
   const jiraLabel = item.jiraSummary && item.jiraSummary !== item.title ? `${item.jiraKey} · ${item.jiraSummary}` : item.jiraKey;
   const jiraMeta = [item.jiraPriorityName, item.jiraDueDate ? `Due ${formatDate(item.jiraDueDate)}` : undefined].filter(Boolean).join(' • ');
+  const resolvedActionPreset = hideActions ? 'none' : actionPreset;
 
   const commitTitle = () => {
     const trimmed = draftTitle.trim();
@@ -89,7 +97,9 @@ export function TrackerItemRow({
 
   return (
     <div
-      className={`group flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors ${canOpen ? 'cursor-pointer' : ''}`}
+      className={`group flex items-center gap-2 rounded-lg transition-colors ${canOpen ? 'cursor-pointer' : ''} ${
+        isDrawerPlanned ? 'px-2 py-1' : 'px-2 py-1.5'
+      }`}
       style={{
         background: isActive ? 'rgba(6, 182, 212, 0.06)' : 'transparent',
         borderLeft: isActive ? '2px solid var(--accent)' : '2px solid transparent',
@@ -208,23 +218,31 @@ export function TrackerItemRow({
         </div>
 
         {item.jiraKey && (
-          <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
-            <span className="text-[11px] font-semibold uppercase shrink-0" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-              Jira
-            </span>
-            <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[11px] truncate" style={{ color: 'var(--accent)' }}>
-              {jiraLabel}
-            </JiraIssueLink>
-          </div>
+          isDrawerPlanned ? (
+            <div className="mt-0.5 min-w-0">
+              <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[11px] truncate" style={{ color: 'var(--accent)' }}>
+                {item.jiraKey}
+              </JiraIssueLink>
+            </div>
+          ) : (
+            <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
+              <span className="text-[11px] font-semibold uppercase shrink-0" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+                Jira
+              </span>
+              <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[11px] truncate" style={{ color: 'var(--accent)' }}>
+                {jiraLabel}
+              </JiraIssueLink>
+            </div>
+          )
         )}
-        {jiraMeta && (
+        {jiraMeta && !isDrawerPlanned && (
           <div className="mt-0.5">
             <span className="text-[11px]" style={{ color: item.jiraPriorityName ? priorityColor(item.jiraPriorityName) : 'var(--text-muted)' }}>
               {jiraMeta}
             </span>
           </div>
         )}
-        {item.note && !compact && !noteEditing && (
+        {item.note && !compact && !noteEditing && !isDrawerPlanned && (
           <div className="mt-1 flex items-start gap-1.5">
             <StickyNote size={12} className="shrink-0 mt-[2px]" style={{ color: 'var(--text-muted)' }} />
             <span className="text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
@@ -232,7 +250,7 @@ export function TrackerItemRow({
             </span>
           </div>
         )}
-        {!compact && noteEditing && (
+        {!compact && noteEditing && !isDrawerPlanned && (
           <div className="mt-1.5 space-y-1.5">
             <textarea
               value={draftNote}
@@ -264,10 +282,12 @@ export function TrackerItemRow({
         )}
       </div>
 
-      {!isDone && !hideActions && (
+      {!isDone && resolvedActionPreset !== 'none' && (
         <TrackerItemRowActions
           itemId={item.id}
+          itemTitle={item.title}
           itemState={item.state}
+          actionPreset={resolvedActionPreset}
           draggable={draggable}
           canMoveUp={canMoveUp}
           canMoveDown={canMoveDown}

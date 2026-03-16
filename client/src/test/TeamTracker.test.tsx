@@ -7,6 +7,7 @@ const mockCarryForwardMutate = vi.fn();
 const mockUpdateDayMutate = vi.fn();
 const mockUpdateAvailabilityMutate = vi.fn();
 const mockUpdateTrackerItemMutate = vi.fn();
+const mockSetCurrentMutate = vi.fn();
 const mockCreateManagerDeskItemMutate = vi.fn();
 const mockAddTrackerItemMutate = vi.fn();
 const mockRefetchBoard = vi.fn();
@@ -201,7 +202,7 @@ vi.mock('@/hooks/useTeamTrackerMutations', () => ({
   useUpdateDay: () => ({ mutate: mockUpdateDayMutate }),
   useUpdateAvailability: () => ({ mutate: mockUpdateAvailabilityMutate, isPending: false, variables: undefined }),
   useAddTrackerItem: () => ({ mutate: mockAddTrackerItemMutate, isPending: false }),
-  useSetCurrentItem: () => ({ mutate: vi.fn() }),
+  useSetCurrentItem: () => ({ mutate: mockSetCurrentMutate }),
   useUpdateTrackerItem: () => ({ mutate: mockUpdateTrackerItemMutate }),
   useDeleteTrackerItem: () => ({ mutate: vi.fn() }),
   useAddCheckIn: () => ({ mutate: vi.fn() }),
@@ -268,6 +269,7 @@ describe('TeamTrackerPage', () => {
     mockUpdateDayMutate.mockReset();
     mockUpdateAvailabilityMutate.mockReset();
     mockUpdateTrackerItemMutate.mockReset();
+    mockSetCurrentMutate.mockReset();
     mockCreateManagerDeskItemMutate.mockReset();
     mockAddTrackerItemMutate.mockReset();
     mockRefetchBoard.mockReset();
@@ -614,10 +616,26 @@ describe('TeamTrackerPage', () => {
     );
 
     clickDeveloperCard('Bob Jones');
-    fireEvent.click(screen.getAllByRole('button', { name: /code review/i }).at(-1)!);
+    const taskRow = screen.getAllByText('Code review').at(-1)?.closest('[role="button"]');
+    expect(taskRow).not.toBeNull();
+    fireEvent.click(taskRow!);
 
     expect(screen.getByRole('dialog', { name: /team tracker task detail/i })).toBeInTheDocument();
     expect(screen.getByText('Shared task detail for item 11')).toBeInTheDocument();
+  });
+
+  it('starts a planned task from the developer drawer without opening task detail', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    clickDeveloperCard('Bob Jones');
+    fireEvent.click(screen.getByRole('button', { name: /start code review/i }));
+
+    expect(mockSetCurrentMutate).toHaveBeenCalledWith(11);
+    expect(screen.queryByRole('dialog', { name: /team tracker task detail/i })).not.toBeInTheDocument();
   });
 
   it('saves daily capacity from the drawer', () => {
@@ -693,6 +711,46 @@ describe('TrackerItemRow', () => {
     expect(screen.getByText('Deploy fix')).toBeInTheDocument();
     expect(screen.getByText('Highest • Due Mar 9')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'AM-456' })).toHaveAttribute('href', 'https://test.atlassian.net/browse/AM-456');
+  });
+
+  it('renders a compact Jira row variant for planned drawer items', async () => {
+    const { TrackerItemRow } = await import('@/components/team-tracker/TrackerItemRow');
+    const onSetCurrent = vi.fn();
+    const onOpen = vi.fn();
+
+    render(
+      <TrackerItemRow
+        item={{
+          id: 17,
+          dayId: 1,
+          itemType: 'jira',
+          jiraKey: 'AM-456',
+          jiraSummary: 'Deploy fix to staging',
+          jiraPriorityName: 'Highest',
+          jiraDueDate: '2026-03-09',
+          title: 'Validate the staging rollout guardrails',
+          state: 'planned',
+          note: 'This note should stay hidden in the drawer row.',
+          position: 0,
+          createdAt: '2026-03-07T08:00:00Z',
+          updatedAt: '2026-03-07T08:00:00Z',
+        }}
+        variant="drawer-planned"
+        actionPreset="start-only-visible"
+        onOpen={onOpen}
+        onSetCurrent={onSetCurrent}
+      />
+    );
+
+    expect(screen.getByText('Validate the staging rollout guardrails')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'AM-456' })).toBeInTheDocument();
+    expect(screen.queryByText('Highest • Due Mar 9')).not.toBeInTheDocument();
+    expect(screen.queryByText('This note should stay hidden in the drawer row.')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /start validate the staging rollout guardrails/i }));
+
+    expect(onSetCurrent).toHaveBeenCalledWith(17);
+    expect(onOpen).not.toHaveBeenCalled();
   });
 
   it('renders a task without Jira metadata', async () => {

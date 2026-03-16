@@ -343,7 +343,8 @@ export function DeveloperTrackerDrawer({
                         <TrackerItemRow
                           item={item}
                           draggable
-                          hideActions
+                          variant="drawer-planned"
+                          actionPreset="start-only-visible"
                           onOpen={onOpenTaskDetail}
                           onUpdateNote={(itemId, note) => onUpdateItemNote({ itemId, note })}
                           onUpdateTitle={(itemId, title) => onUpdateItemTitle({ itemId, title })}

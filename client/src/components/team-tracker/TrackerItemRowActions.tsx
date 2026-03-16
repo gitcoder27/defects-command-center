@@ -1,9 +1,13 @@
 import { CheckCircle2, GripVertical, PencilLine, Play, XCircle } from 'lucide-react';
 import type { TrackerItemState } from '@/types';
 
+export type TrackerItemActionPreset = 'default' | 'none' | 'start-only-visible';
+
 interface TrackerItemRowActionsProps {
   itemId: number;
+  itemTitle: string;
   itemState: TrackerItemState;
+  actionPreset?: TrackerItemActionPreset;
   draggable?: boolean;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
@@ -18,7 +22,9 @@ interface TrackerItemRowActionsProps {
 
 export function TrackerItemRowActions({
   itemId,
+  itemTitle,
   itemState,
+  actionPreset = 'default',
   draggable,
   canMoveUp = false,
   canMoveDown = false,
@@ -30,9 +36,19 @@ export function TrackerItemRowActions({
   onMoveDown,
   onToggleNoteEditor,
 }: TrackerItemRowActionsProps) {
+  if (actionPreset === 'none') {
+    return null;
+  }
+
+  const startOnlyVisible = actionPreset === 'start-only-visible';
+
   return (
-    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-      {!draggable && itemState === 'planned' && onMoveUp && (
+    <div
+      className={`flex items-center gap-1 shrink-0 transition-opacity ${
+        startOnlyVisible ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+      }`}
+    >
+      {!startOnlyVisible && !draggable && itemState === 'planned' && onMoveUp && (
         <button
           onClick={(event) => {
             event.stopPropagation();
@@ -46,7 +62,7 @@ export function TrackerItemRowActions({
           <GripVertical size={10} style={{ color: 'var(--text-secondary)' }} />
         </button>
       )}
-      {!draggable && itemState === 'planned' && onMoveDown && (
+      {!startOnlyVisible && !draggable && itemState === 'planned' && onMoveDown && (
         <button
           onClick={(event) => {
             event.stopPropagation();
@@ -66,14 +82,28 @@ export function TrackerItemRowActions({
             event.stopPropagation();
             onSetCurrent(itemId);
           }}
-          className="h-6 w-6 rounded-md flex items-center justify-center transition-colors"
-          style={{ background: 'var(--bg-tertiary)' }}
-          title="Set as current"
+          className={
+            startOnlyVisible
+              ? 'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-semibold transition-colors'
+              : 'h-6 w-6 rounded-md flex items-center justify-center transition-colors'
+          }
+          style={
+            startOnlyVisible
+              ? {
+                  background: 'var(--accent-glow)',
+                  color: 'var(--accent)',
+                  border: '1px solid color-mix(in srgb, var(--accent) 24%, transparent)',
+                }
+              : { background: 'var(--bg-tertiary)' }
+          }
+          title={startOnlyVisible ? `Start ${itemTitle}` : 'Set as current'}
+          aria-label={startOnlyVisible ? `Start ${itemTitle}` : undefined}
         >
           <Play size={10} style={{ color: 'var(--accent)' }} />
+          {startOnlyVisible && <span>Start</span>}
         </button>
       )}
-      {onToggleNoteEditor && (
+      {!startOnlyVisible && onToggleNoteEditor && (
         <button
           onClick={(event) => {
             event.stopPropagation();
@@ -86,7 +116,7 @@ export function TrackerItemRowActions({
           <PencilLine size={10} style={{ color: hasNote ? 'var(--accent)' : 'var(--text-secondary)' }} />
         </button>
       )}
-      {onMarkDone && (
+      {!startOnlyVisible && onMarkDone && (
         <button
           onClick={(event) => {
             event.stopPropagation();
@@ -99,7 +129,7 @@ export function TrackerItemRowActions({
           <CheckCircle2 size={10} style={{ color: 'var(--success)' }} />
         </button>
       )}
-      {onDrop && (
+      {!startOnlyVisible && onDrop && (
         <button
           onClick={(event) => {
             event.stopPropagation();

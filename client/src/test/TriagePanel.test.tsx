@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { TriagePanel } from '@/components/triage/TriagePanel';
 import { TestWrapper } from '@/test/wrapper';
 import type { Developer, Issue, TrackerIssueAssignment } from '@/types';
@@ -42,6 +42,7 @@ const mockDevelopers: Developer[] = [
 ];
 
 const mockAddTrackerItemMutate = vi.fn();
+const mockUpdateIssueMutate = vi.fn();
 let mockTrackerAssignments: TrackerIssueAssignment[] = [];
 
 vi.mock('@/hooks/useIssueDetail', () => ({
@@ -53,7 +54,7 @@ vi.mock('@/hooks/useSuggestions', () => ({
 }));
 
 vi.mock('@/hooks/useUpdateIssue', () => ({
-  useUpdateIssue: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateIssue: () => ({ mutate: mockUpdateIssueMutate, isPending: false }),
 }));
 
 vi.mock('@/hooks/useDevelopers', () => ({
@@ -95,6 +96,7 @@ describe('TriagePanel', () => {
       assigneeSuggestion: { data: null },
     };
     mockAddTrackerItemMutate.mockReset();
+    mockUpdateIssueMutate.mockReset();
     mockTrackerAssignments = [];
     onClose.mockReset();
   });
@@ -314,10 +316,38 @@ describe('TriagePanel', () => {
       </TestWrapper>
     );
 
+    expect(screen.getAllByDisplayValue('Root cause looks related to the submit sanitization path.')).toHaveLength(1);
+
     fireEvent.click(screen.getByRole('button', { name: /add to manager desk/i }));
 
-    expect(screen.getByPlaceholderText('Add a little context so future-you remembers why this was captured.')).toHaveValue(
-      'Root cause looks related to the submit sanitization path.'
+    expect(screen.getAllByDisplayValue('Root cause looks related to the submit sanitization path.')).toHaveLength(2);
+  });
+
+  it('autosaves dated notes in the plain analysis notes string field', () => {
+    mockIssue = buildMockIssue({ analysisNotes: '' });
+
+    render(
+      <TestWrapper>
+        <TriagePanel issueKey="PROJ-101" onClose={onClose} />
+      </TestWrapper>
+    );
+
+    fireEvent.change(screen.getByLabelText('Notes for today'), {
+      target: { value: 'Investigated the pending casework lineup logic.' },
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
+    expect(mockUpdateIssueMutate).toHaveBeenCalledWith(
+      {
+        key: 'PROJ-101',
+        update: {
+          analysisNotes: 'Mar 7, 2026:\nInvestigated the pending casework lineup logic.',
+        },
+      },
+      expect.any(Object)
     );
   });
 
@@ -332,7 +362,7 @@ describe('TriagePanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /add to manager desk/i }));
 
-    expect(screen.queryByPlaceholderText('Add a little context so future-you remembers why this was captured.')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Quick context so future-you remembers why...')).not.toBeInTheDocument();
     expect(screen.getByText('Optional')).toBeInTheDocument();
   });
 });
