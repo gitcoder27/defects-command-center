@@ -51,19 +51,19 @@ export function QuickCapture({ onCapture, isPending }: Props) {
 
   return (
     <div
-      className="md-glass-panel rounded-[14px] overflow-hidden transition-all"
+      className="md-glass-panel rounded-lg overflow-hidden transition-all"
       style={{
         boxShadow: expanded || isFocused
-          ? '0 0 0 1px var(--md-accent), 0 4px 24px rgba(217,169,78,0.08)'
+          ? '0 0 0 1px var(--md-accent), 0 2px 12px rgba(217,169,78,0.06)'
           : undefined,
       }}
     >
-      <div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex items-center gap-1.5 px-2 py-1.5">
         <div
-          className="h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0"
+          className="h-5 w-5 rounded flex items-center justify-center flex-shrink-0"
           style={{ background: 'var(--md-accent-glow)', color: 'var(--md-accent)' }}
         >
-          <Plus size={14} />
+          <Plus size={11} />
         </div>
 
         <input
@@ -80,8 +80,8 @@ export function QuickCapture({ onCapture, isPending }: Props) {
           }}
           onBlur={() => setIsFocused(false)}
           onKeyDown={handleKeyDown}
-          placeholder="Quick capture — type and press Enter…"
-          className="flex-1 bg-transparent outline-none text-[13px] font-medium placeholder:font-normal"
+          placeholder="Quick capture — Enter to add…"
+          className="flex-1 bg-transparent outline-none text-[11px] font-medium placeholder:font-normal"
           style={{
             color: 'var(--text-primary)',
             caretColor: 'var(--md-accent)',
@@ -93,7 +93,7 @@ export function QuickCapture({ onCapture, isPending }: Props) {
         <button
           onClick={handleSubmit}
           disabled={!title.trim() || isPending}
-          className="h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-all disabled:opacity-30"
+          className="h-5 px-2 rounded text-[9px] font-bold uppercase tracking-wide transition-all disabled:opacity-30"
           style={{
             background: 'var(--md-accent)',
             color: '#000',
@@ -108,15 +108,15 @@ export function QuickCapture({ onCapture, isPending }: Props) {
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          className="border-t px-3 py-1.5 flex items-center gap-3"
+          className="border-t px-2 py-1 flex items-center gap-2"
           style={{ borderColor: 'var(--border)' }}
         >
-          <div className="flex items-center gap-1.5">
-            <Zap size={10} style={{ color: 'var(--text-muted)' }} />
+          <div className="flex items-center gap-1">
+            <Zap size={9} style={{ color: 'var(--text-muted)' }} />
             <select
               value={kind}
               onChange={e => setKind(e.target.value as ManagerDeskItemKind | '')}
-              className="bg-transparent text-[11px] font-medium outline-none cursor-pointer"
+              className="bg-transparent text-[10px] font-medium outline-none cursor-pointer"
               style={{ color: kind ? 'var(--text-primary)' : 'var(--text-muted)' }}
             >
               <option value="">Kind…</option>
@@ -126,14 +126,14 @@ export function QuickCapture({ onCapture, isPending }: Props) {
             </select>
           </div>
 
-          <div className="w-px h-3.5" style={{ background: 'var(--border)' }} />
+          <div className="w-px h-3" style={{ background: 'var(--border)' }} />
 
-          <div className="flex items-center gap-1.5">
-            <Tag size={10} style={{ color: 'var(--text-muted)' }} />
+          <div className="flex items-center gap-1">
+            <Tag size={9} style={{ color: 'var(--text-muted)' }} />
             <select
               value={category}
               onChange={e => setCategory(e.target.value as ManagerDeskCategory | '')}
-              className="bg-transparent text-[11px] font-medium outline-none cursor-pointer"
+              className="bg-transparent text-[10px] font-medium outline-none cursor-pointer"
               style={{ color: category ? 'var(--text-primary)' : 'var(--text-muted)' }}
             >
               <option value="">Category…</option>
@@ -143,8 +143,8 @@ export function QuickCapture({ onCapture, isPending }: Props) {
             </select>
           </div>
 
-          <span className="ml-auto text-[10px]" style={{ color: 'var(--text-muted)' }}>
-            ↵ Enter to add
+          <span className="ml-auto text-[9px]" style={{ color: 'var(--text-muted)' }}>
+            ↵ Enter
           </span>
         </motion.div>
       )}

@@ -48,70 +48,70 @@ export function ManagerDeskCommandBar({
   const hasStructuredFilters = filters.kind !== null || filters.category !== null || filters.status !== null;
 
   return (
-    <div className="sticky top-[92px] z-10 px-3 pt-3 md:top-[100px] md:px-4">
-      <div className="md-glass-panel rounded-[20px] p-3">
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-          <QuickCapture onCapture={onCapture} isPending={isCreatePending} />
+    <div className="sticky top-[52px] z-10 px-2 pt-2 md:px-3">
+      <div className="md-glass-panel rounded-xl p-2">
+        <div className="flex gap-2 items-stretch">
+          <div className="flex-1 min-w-0">
+            <QuickCapture onCapture={onCapture} isPending={isCreatePending} />
+          </div>
 
-          <div className="rounded-[16px] border p-2.5" style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)' }}>
-            <div className="flex items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: 'var(--border)', background: 'var(--bg-primary)' }}>
-              <Search size={14} style={{ color: 'var(--text-muted)' }} />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(event) => onSearchChange(event.target.value)}
-                placeholder="Find by title, assignee, next action, links, or notes"
-                className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-[12px]"
-                style={{ color: 'var(--text-primary)' }}
-                aria-label="Search manager desk tasks"
-              />
-              {searchQuery && (
-                <button type="button" onClick={onClearSearch} aria-label="Clear task search" style={{ color: 'var(--text-muted)' }}>
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-
-            <div className="mt-2 flex flex-wrap gap-2">
-              {quickFilters.map(({ key, label }) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => onQuickFilterChange(key)}
-                  className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors"
-                  style={{
-                    background: quickFilter === key ? 'var(--md-accent-glow)' : 'var(--bg-primary)',
-                    borderColor: quickFilter === key ? 'var(--md-accent)' : 'var(--border)',
-                    color: quickFilter === key ? 'var(--md-accent)' : 'var(--text-secondary)',
-                  }}
-                >
-                  <span>{label}</span>
-                  <span className="rounded-full px-1.5 py-0.5 text-[10px]" style={{ background: 'rgba(15,23,42,0.08)', color: 'inherit' }}>
-                    {getQuickFilterCount(items, key)}
-                  </span>
-                </button>
-              ))}
-
-              <button
-                type="button"
-                onClick={onToggleFilters}
-                className="ml-auto flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
-                style={{
-                  background: hasStructuredFilters ? 'var(--md-accent-glow)' : 'var(--bg-primary)',
-                  borderColor: hasStructuredFilters ? 'var(--md-accent)' : 'var(--border)',
-                  color: hasStructuredFilters ? 'var(--md-accent)' : 'var(--text-secondary)',
-                }}
-              >
-                <Filter size={12} />
-                {hasStructuredFilters ? 'Filtered' : 'More Filters'}
+          <div className="flex items-center gap-1.5 rounded-lg border px-2 py-1" style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)' }}>
+            <Search size={12} style={{ color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder="Search…"
+              className="w-[120px] lg:w-[180px] bg-transparent text-[11px] outline-none placeholder:text-[10px]"
+              style={{ color: 'var(--text-primary)' }}
+              aria-label="Search manager desk tasks"
+            />
+            {searchQuery && (
+              <button type="button" onClick={onClearSearch} aria-label="Clear task search" style={{ color: 'var(--text-muted)' }}>
+                <X size={12} />
               </button>
-            </div>
-
-            {showFilters && (
-              <StructuredFilters filters={filters} onChange={onChangeFilters} onClear={onClearFilters} />
             )}
           </div>
+
+          <button
+            type="button"
+            onClick={onToggleFilters}
+            className="flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em]"
+            style={{
+              background: hasStructuredFilters ? 'var(--md-accent-glow)' : 'var(--bg-secondary)',
+              borderColor: hasStructuredFilters ? 'var(--md-accent)' : 'var(--border)',
+              color: hasStructuredFilters ? 'var(--md-accent)' : 'var(--text-secondary)',
+            }}
+          >
+            <Filter size={10} />
+            <span className="hidden sm:inline">{hasStructuredFilters ? 'Filtered' : 'Filters'}</span>
+          </button>
         </div>
+
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {quickFilters.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onQuickFilterChange(key)}
+              className="flex items-center gap-1 rounded-md border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] transition-colors"
+              style={{
+                background: quickFilter === key ? 'var(--md-accent-glow)' : 'var(--bg-primary)',
+                borderColor: quickFilter === key ? 'var(--md-accent)' : 'var(--border)',
+                color: quickFilter === key ? 'var(--md-accent)' : 'var(--text-secondary)',
+              }}
+            >
+              <span>{label}</span>
+              <span className="tabular-nums" style={{ opacity: 0.7 }}>
+                {getQuickFilterCount(items, key)}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {showFilters && (
+          <StructuredFilters filters={filters} onChange={onChangeFilters} onClear={onClearFilters} />
+        )}
       </div>
     </div>
   );
@@ -127,7 +127,7 @@ function StructuredFilters({
   onClear: () => void;
 }) {
   return (
-    <div className="mt-3 grid gap-2 rounded-2xl border p-3 md:grid-cols-4" style={{ borderColor: 'var(--border)', background: 'var(--bg-primary)' }}>
+    <div className="mt-2 grid gap-1.5 rounded-lg border p-2 md:grid-cols-4" style={{ borderColor: 'var(--border)', background: 'var(--bg-primary)' }}>
       <SelectControl
         label="Kind"
         value={filters.kind ?? ''}
@@ -149,10 +149,10 @@ function StructuredFilters({
       <button
         type="button"
         onClick={onClear}
-        className="rounded-xl border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em]"
+        className="self-end rounded-lg border px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em]"
         style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
       >
-        Clear Filters
+        Clear
       </button>
     </div>
   );
@@ -170,12 +170,12 @@ function SelectControl({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
+    <label className="flex flex-col gap-0.5 text-[9px] font-bold uppercase tracking-[0.1em]" style={{ color: 'var(--text-muted)' }}>
       {label}
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-xl border px-3 py-2 text-[12px] font-medium outline-none"
+        className="rounded-lg border px-2 py-1.5 text-[11px] font-medium outline-none"
         style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
       >
         <option value="">All</option>

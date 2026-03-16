@@ -41,7 +41,7 @@ export function MetaChip({
 
   return (
     <span
-      className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
+      className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em]"
       style={toneStyles[tone]}
     >
       {label}
@@ -65,27 +65,27 @@ export function SectionCard({
   onToggleCollapse?: () => void;
 }) {
   return (
-    <section className="rounded-[22px] p-4 md:p-5" style={sectionSurfaceStyle}>
+    <section className="rounded-xl p-3" style={sectionSurfaceStyle}>
       <button
         type="button"
         onClick={onToggleCollapse}
-        className="flex w-full items-start justify-between gap-3 text-left"
+        className="flex w-full items-start justify-between gap-2 text-left"
         aria-expanded={!collapsed}
         aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${title}`}
       >
         <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
             {eyebrow}
           </div>
-          <div className="mt-1 text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <div className="mt-0.5 text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
             {title}
           </div>
-          <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
-            {collapsed ? 'Collapsed. Expand when you need this section.' : description}
+          <p className="mt-0.5 text-[10px] leading-4" style={{ color: 'var(--text-secondary)' }}>
+            {collapsed ? 'Tap to expand.' : description}
           </p>
         </div>
         <span
-          className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-all"
+          className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-all"
           style={{
             background: 'var(--bg-tertiary)',
             color: collapsed ? 'var(--md-accent)' : 'var(--text-secondary)',
@@ -93,7 +93,7 @@ export function SectionCard({
             transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
           }}
         >
-          <ChevronDown size={16} />
+          <ChevronDown size={13} />
         </span>
       </button>
       <AnimatePresence initial={false}>
@@ -126,7 +126,7 @@ export function LinkActionButton({
   return (
     <button
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] transition-all"
+      className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] transition-all"
       style={{
         background: 'var(--bg-tertiary)',
         color: 'var(--text-secondary)',
@@ -158,7 +158,7 @@ export function FieldSelect<T extends string>({
     <div>
       <label
         htmlFor={fieldId}
-        className="mb-1 block text-[10px] font-bold uppercase tracking-[0.18em]"
+        className="mb-0.5 block text-[9px] font-bold uppercase tracking-[0.14em]"
         style={{ color: 'var(--text-muted)' }}
       >
         {label}
@@ -167,7 +167,7 @@ export function FieldSelect<T extends string>({
         id={fieldId}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full cursor-pointer rounded-xl px-3 py-2 text-[12px] font-medium outline-none"
+        className="w-full cursor-pointer rounded-lg px-2 py-1.5 text-[11px] font-medium outline-none"
         style={{
           background: 'var(--bg-tertiary)',
           color: 'var(--text-primary)',
@@ -209,7 +209,7 @@ export function FieldText({
     <div className={className}>
       <label
         htmlFor={fieldId}
-        className="mb-1 block text-[10px] font-bold uppercase tracking-[0.18em]"
+        className="mb-0.5 block text-[9px] font-bold uppercase tracking-[0.14em]"
         style={{ color: 'var(--text-muted)' }}
       >
         {label}
@@ -223,7 +223,7 @@ export function FieldText({
           if (local !== value) onChange(local);
         }}
         placeholder={placeholder}
-        className="w-full rounded-xl px-3 py-2 text-[12px] outline-none"
+        className="w-full rounded-lg px-2 py-1.5 text-[11px] outline-none"
         style={{
           background: 'var(--bg-tertiary)',
           color: 'var(--text-primary)',
@@ -252,7 +252,7 @@ export function FieldDatetime({
     <div className={className}>
       <label
         htmlFor={fieldId}
-        className="mb-1 block text-[10px] font-bold uppercase tracking-[0.18em]"
+        className="mb-0.5 block text-[9px] font-bold uppercase tracking-[0.14em]"
         style={{ color: 'var(--text-muted)' }}
       >
         {label}
@@ -265,7 +265,7 @@ export function FieldDatetime({
           const nextValue = e.target.value;
           onChange(nextValue ? new Date(nextValue).toISOString() : '');
         }}
-        className="w-full rounded-xl px-3 py-2 text-[12px] outline-none"
+        className="w-full rounded-lg px-2 py-1.5 text-[11px] outline-none"
         style={{
           background: 'var(--bg-tertiary)',
           color: 'var(--text-primary)',

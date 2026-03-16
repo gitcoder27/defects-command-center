@@ -15,15 +15,15 @@ export function InboxTriageRow({ item, onUpdate }: Props) {
   const { data: developers = [] } = useDevelopers();
 
   return (
-    <div className="rounded-[16px] border px-3 py-3" style={{ borderColor: 'var(--md-accent)', background: 'color-mix(in srgb, var(--md-accent-glow) 65%, var(--bg-primary) 35%)' }}>
-      <div className="flex flex-wrap items-center gap-2">
-        <TriageLabel icon={<UserRound size={11} />} label="Inline triage" />
+    <div className="rounded-lg border px-2.5 py-2" style={{ borderColor: 'var(--md-accent)', background: 'color-mix(in srgb, var(--md-accent-glow) 65%, var(--bg-primary) 35%)' }}>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <TriageLabel icon={<UserRound size={9} />} label="Triage" />
 
         <select
           aria-label={`Assign ${item.title}`}
           value={item.assigneeDeveloperAccountId ?? ''}
           onChange={(event) => onUpdate(item.id, { assigneeDeveloperAccountId: event.target.value || null })}
-          className="rounded-xl border px-3 py-2 text-[12px] outline-none"
+          className="rounded-lg border px-2 py-1 text-[11px] outline-none"
           style={{ borderColor: 'var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
         >
           <option value="">Unassigned</option>
@@ -38,7 +38,7 @@ export function InboxTriageRow({ item, onUpdate }: Props) {
           aria-label={`Priority for ${item.title}`}
           value={item.priority}
           onChange={(event) => onUpdate(item.id, { priority: event.target.value })}
-          className="rounded-xl border px-3 py-2 text-[12px] outline-none"
+          className="rounded-lg border px-2 py-1 text-[11px] outline-none"
           style={{ borderColor: 'var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
         >
           {priorities.map((priority) => (
@@ -54,42 +54,38 @@ export function InboxTriageRow({ item, onUpdate }: Props) {
           defaultValue={item.nextAction ?? ''}
           placeholder="Next action"
           onBlur={(event) => onUpdate(item.id, { nextAction: event.target.value.trim() || null })}
-          className="min-w-[180px] flex-1 rounded-xl border px-3 py-2 text-[12px] outline-none"
+          className="min-w-[140px] flex-1 rounded-lg border px-2 py-1 text-[11px] outline-none"
           style={{ borderColor: 'var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
         />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
         <DatetimeControl
           ariaLabel={`Start time for ${item.title}`}
-          icon={<CalendarClock size={11} />}
+          icon={<CalendarClock size={9} />}
           value={toLocalValue(item.plannedStartAt)}
           placeholder="Start"
           onCommit={(value) => onUpdate(item.id, { plannedStartAt: value ? toIsoValue(value) : null })}
         />
         <DatetimeControl
           ariaLabel={`Follow up time for ${item.title}`}
-          icon={<TimerReset size={11} />}
+          icon={<TimerReset size={9} />}
           value={toLocalValue(item.followUpAt)}
           placeholder="Follow up"
           onCommit={(value) => onUpdate(item.id, { followUpAt: value ? toIsoValue(value) : null })}
         />
 
         <ActionButton onClick={() => onUpdate(item.id, { status: 'planned' })}>
-          <Play size={11} />
-          Plan
+          <Play size={9} /> Plan
         </ActionButton>
         <ActionButton onClick={() => onUpdate(item.id, { status: 'in_progress' })}>
-          <Play size={11} />
-          Start
+          <Play size={9} /> Start
         </ActionButton>
         <ActionButton onClick={() => onUpdate(item.id, { status: 'waiting' })}>
-          <TimerReset size={11} />
-          Waiting
+          <TimerReset size={9} /> Wait
         </ActionButton>
         <ActionButton onClick={() => onUpdate(item.id, { kind: 'meeting', status: 'planned' })}>
-          <Waves size={11} />
-          Meeting
+          <Waves size={9} /> Meet
         </ActionButton>
       </div>
     </div>
@@ -110,14 +106,14 @@ function DatetimeControl({
   onCommit: (value: string) => void;
 }) {
   return (
-    <label className="inline-flex items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: 'var(--border)', background: 'var(--bg-primary)' }}>
+    <label className="inline-flex items-center gap-1.5 rounded-lg border px-2 py-1" style={{ borderColor: 'var(--border)', background: 'var(--bg-primary)' }}>
       <span style={{ color: 'var(--text-muted)' }}>{icon}</span>
       <input
         type="datetime-local"
         aria-label={ariaLabel}
         defaultValue={value}
         onBlur={(event) => onCommit(event.target.value)}
-        className="bg-transparent text-[12px] outline-none"
+        className="bg-transparent text-[10px] outline-none"
         style={{ color: 'var(--text-primary)' }}
         placeholder={placeholder}
       />
@@ -127,7 +123,7 @@ function DatetimeControl({
 
 function TriageLabel({ icon, label }: { icon: ReactNode; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ background: 'rgba(15,23,42,0.08)', color: 'var(--md-accent)' }}>
+    <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]" style={{ background: 'rgba(15,23,42,0.08)', color: 'var(--md-accent)' }}>
       {icon}
       {label}
     </span>
@@ -145,7 +141,7 @@ function ActionButton({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em]"
+      className="inline-flex items-center gap-0.5 rounded-md border px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.1em]"
       style={{ borderColor: 'var(--border)', background: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
     >
       {children}

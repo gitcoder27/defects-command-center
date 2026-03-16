@@ -8,32 +8,31 @@ interface Props {
 export function EmptyDay({ date }: Props) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
-      className="md-glass-panel rounded-[14px] px-6 py-12 flex flex-col items-center text-center"
+      className="md-glass-panel rounded-xl px-4 py-6 flex flex-col items-center text-center"
     >
       <div
-        className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+        className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
         style={{ background: 'var(--md-accent-glow)' }}
       >
-        <Sparkles size={24} style={{ color: 'var(--md-accent)' }} />
+        <Sparkles size={18} style={{ color: 'var(--md-accent)' }} />
       </div>
 
       <h3
-        className="text-[15px] font-semibold mb-1"
+        className="text-[13px] font-semibold mb-0.5"
         style={{ color: 'var(--text-primary)' }}
       >
         Clean slate
       </h3>
-      <p className="text-[12px] max-w-xs" style={{ color: 'var(--text-secondary)' }}>
-        No items for {date}. Use quick capture above to start planning your day, 
-        or carry forward unfinished items from yesterday.
+      <p className="text-[11px] max-w-xs" style={{ color: 'var(--text-secondary)' }}>
+        No items for {date}. Use quick capture to start, or carry forward from yesterday.
       </p>
 
-      <div className="flex items-center gap-1.5 mt-4 text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>
-        <Inbox size={11} />
-        Type in the capture bar and press Enter
+      <div className="flex items-center gap-1 mt-2 text-[9px] font-medium" style={{ color: 'var(--text-muted)' }}>
+        <Inbox size={10} />
+        Type in capture bar and press Enter
       </div>
     </motion.div>
   );

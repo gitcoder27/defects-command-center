@@ -90,7 +90,7 @@ export function ItemDetailDrawer({
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-          className="fixed right-0 top-0 z-50 flex h-full w-full max-w-2xl flex-col overflow-hidden"
+          className="fixed right-0 top-0 z-50 flex h-full w-full max-w-lg flex-col overflow-hidden"
           style={{
             background: 'var(--bg-primary)',
             borderLeft: '1px solid var(--border)',
@@ -132,7 +132,7 @@ export function ItemDetailPanel({
 }: Props) {
   return (
     <aside
-      className="md-glass-panel flex h-full min-h-0 flex-col overflow-hidden rounded-[20px]"
+      className="md-glass-panel flex h-full min-h-0 flex-col overflow-hidden rounded-xl"
       aria-label={ariaLabel}
     >
       {item ? (
@@ -227,7 +227,7 @@ function DrawerContent({
   return (
     <>
       <div
-        className="shrink-0 border-b px-4 pb-4 pt-3 md:px-5"
+        className="shrink-0 border-b px-3 pb-3 pt-2"
         style={{
           borderColor: 'var(--border)',
           background:
@@ -283,44 +283,44 @@ function DrawerContent({
             onChange={(e) => setEditTitle(e.target.value)}
             onBlur={commitTitle}
             onKeyDown={(e) => e.key === 'Enter' && commitTitle()}
-            className="w-full bg-transparent text-[20px] font-semibold leading-tight outline-none md:text-[22px]"
+            className="w-full bg-transparent text-[16px] font-semibold leading-tight outline-none"
             style={{ color: 'var(--text-primary)', caretColor: 'var(--md-accent)' }}
             maxLength={200}
             aria-label="Item title"
           />
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-1.5">
           {!isDone && (
             <button
               onClick={() => onUpdate(item.id, { status: 'done' })}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold transition-all"
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold transition-all"
               style={{
                 background: 'rgba(16,185,129,0.12)',
                 color: 'var(--success)',
                 border: '1px solid rgba(16,185,129,0.24)',
               }}
             >
-              <CheckCircle2 size={12} /> Mark Done
+              <CheckCircle2 size={10} /> Mark Done
             </button>
           )}
           {!isDone && (
             <button
               onClick={() => onUpdate(item.id, { status: 'cancelled' })}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold transition-all"
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold transition-all"
               style={{
                 background: 'var(--bg-tertiary)',
                 color: 'var(--text-muted)',
                 border: '1px solid var(--border)',
               }}
             >
-              <XCircle size={12} /> Cancel
+              <XCircle size={10} /> Cancel
             </button>
           )}
           {isDone && (
             <button
               onClick={() => onUpdate(item.id, { status: 'planned' })}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold transition-all"
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold transition-all"
               style={{
                 background: 'var(--bg-tertiary)',
                 color: 'var(--text-secondary)',
@@ -334,7 +334,7 @@ function DrawerContent({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="space-y-4 p-4 md:p-5">
+        <div className="space-y-3 p-3">
           {topSlot}
 
           <DraftTextArea
@@ -343,9 +343,9 @@ function DrawerContent({
             value={item.contextNote ?? ''}
             placeholder="Agenda, background, dependencies, private context, reminders..."
             onChange={(value) => handleFieldChange('contextNote', value)}
-            description="Use this as the working space for everything you want to retain about the task."
-            minHeightClassName="min-h-[240px] md:min-h-[320px]"
-            rows={12}
+            description="Working space for everything about this task."
+            minHeightClassName="min-h-[180px] md:min-h-[240px]"
+            rows={8}
             variant="primary"
             collapsed={collapsedSections.context}
             onToggleCollapse={() => toggleSection('context')}
@@ -354,7 +354,7 @@ function DrawerContent({
           <TabbedDraftTextArea
             key={`${item.id}-follow-through`}
             title="Action & Outcome"
-            description="Keep the immediate next move and the eventual result in one compact follow-through section."
+            description="Next move and result in one section."
             activeTab={activeFollowThroughTab}
             onTabChange={setActiveFollowThroughTab}
             tabs={[
@@ -375,21 +375,21 @@ function DrawerContent({
                 onChange: (value) => handleFieldChange('outcome', value),
               },
             ]}
-            minHeightClassName="min-h-[140px]"
-            rows={5}
+            minHeightClassName="min-h-[100px]"
+            rows={4}
             collapsed={collapsedSections.followThrough}
             onToggleCollapse={() => toggleSection('followThrough')}
           />
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
             <SectionCard
               eyebrow="Details"
-              title="Operational settings"
-              description="Keep the task organized without taking over the writing surface."
+              title="Settings"
+              description="Organize the task without taking over the writing surface."
               collapsed={collapsedSections.details}
               onToggleCollapse={() => toggleSection('details')}
             >
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <AssigneeField
                     item={item}
@@ -467,13 +467,13 @@ function DrawerContent({
               </div>
             </SectionCard>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               <LinkedIssueSnapshot issueKeys={linkedIssueKeys} showDescription={showLinkedIssueDescription} />
 
               <SectionCard
-                eyebrow="Linked Context"
-                title="Connected people and work"
-                description="Attach the issue, developer, or external team involved in this item."
+                eyebrow="Links"
+                title="Connected context"
+                description="Attach issues, developers, or external teams."
                 collapsed={collapsedSections.links}
                 onToggleCollapse={() => toggleSection('links')}
               >
@@ -496,11 +496,11 @@ function DrawerContent({
                 </div>
 
                 {item.links.length > 0 ? (
-                  <div className="mt-3 space-y-1.5">
+                  <div className="mt-2 space-y-1">
                     {item.links.map((link) => (
                       <div
                         key={link.id}
-                        className="group flex items-center gap-2 rounded-xl px-3 py-2"
+                        className="group flex items-center gap-1.5 rounded-lg px-2 py-1.5"
                         style={{
                           background: 'color-mix(in srgb, var(--bg-secondary) 92%, transparent)',
                           border: '1px solid var(--border)',
@@ -535,7 +535,7 @@ function DrawerContent({
                   </div>
                 ) : (
                   <div
-                    className="mt-3 rounded-xl px-3 py-3 text-[12px]"
+                    className="mt-2 rounded-lg px-2 py-2 text-[11px]"
                     style={{
                       background: 'color-mix(in srgb, var(--bg-secondary) 78%, transparent)',
                       color: 'var(--text-muted)',

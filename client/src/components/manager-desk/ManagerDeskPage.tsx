@@ -168,21 +168,21 @@ export function ManagerDeskPage() {
 
   if (error) {
     return (
-      <div className="flex h-full items-center justify-center p-6">
-        <div className="md-glass-panel w-full max-w-md rounded-[20px] p-8 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: 'rgba(239,68,68,0.12)' }}>
-            <Briefcase size={22} style={{ color: 'var(--danger)' }} />
+      <div className="flex h-full items-center justify-center p-4">
+        <div className="md-glass-panel w-full max-w-md rounded-xl p-6 text-center">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: 'rgba(239,68,68,0.12)' }}>
+            <Briefcase size={18} style={{ color: 'var(--danger)' }} />
           </div>
-          <h2 className="mt-4 text-[18px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <h2 className="mt-3 text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
             Failed to load Manager Desk
           </h2>
-          <p className="mt-2 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-1.5 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
             {(error as Error).message}
           </p>
           <button
             type="button"
             onClick={() => refetch()}
-            className="mt-5 rounded-xl px-5 py-2 text-[13px] font-semibold"
+            className="mt-4 rounded-lg px-4 py-1.5 text-[12px] font-semibold"
             style={{ background: 'var(--md-accent)', color: '#000' }}
           >
             Retry
@@ -227,24 +227,24 @@ export function ManagerDeskPage() {
         onCapture={handleQuickCapture}
       />
 
-      <div className="min-h-0 flex-1 overflow-hidden px-3 py-3 md:px-4">
+      <div className="min-h-0 flex-1 overflow-hidden px-2 py-2 md:px-3">
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
             <div
-              className="h-9 w-9 animate-spin rounded-full border-2 border-t-transparent"
+              className="h-7 w-7 animate-spin rounded-full border-2 border-t-transparent"
               style={{ borderColor: 'var(--md-accent)', borderTopColor: 'transparent' }}
             />
           </div>
         ) : (
-          <div className="grid h-full gap-3 xl:grid-cols-[280px_minmax(0,1fr)_400px]">
+          <div className="grid h-full gap-2 lg:grid-cols-[200px_minmax(0,1fr)_320px]">
             <TaskRail items={openItems} selectedItemId={selectedItemId} onSelect={handleSelectItem} />
 
             <div className="min-h-0 overflow-y-auto">
               {(day?.items.length ?? 0) === 0 && !hasAnyNarrowing ? (
                 <EmptyDay date={displayDate} />
               ) : (
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                  <div className="grid gap-3 2xl:grid-cols-2">
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
+                  <div className="grid gap-2 xl:grid-cols-2">
                     <WorkbenchSection title="Focus" subtitle="Planned and in-progress work" count={sections.focus.length} accent="var(--md-accent)" emptyMessage="No active work matches the current view.">
                       {sections.focus.map((item) => (
                         <DeskItemCard
@@ -354,13 +354,13 @@ export function ManagerDeskPage() {
 
 function EmptyInspector() {
   return (
-    <div className="flex h-full items-center justify-center p-6 text-center">
+    <div className="flex h-full items-center justify-center p-4 text-center">
       <div>
-        <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--md-accent)' }}>
+        <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--md-accent)' }}>
           Inspector
         </div>
-        <p className="mt-2 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-          Select any task from the rail or workbench to keep its details pinned while you work.
+        <p className="mt-1.5 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+          Select a task to pin its details here.
         </p>
       </div>
     </div>

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO, isPast } from 'date-fns';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
-import { KIND_LABELS, CATEGORY_LABELS, PRIORITY_LABELS } from '@/types/manager-desk';
+import { KIND_LABELS, PRIORITY_LABELS } from '@/types/manager-desk';
 import { AssigneePill } from './AssigneePill';
 
 interface Props {
@@ -61,7 +61,7 @@ export function DeskItemCard({
       try {
         const start = format(parseISO(item.plannedStartAt), 'HH:mm');
         const end = item.plannedEndAt ? format(parseISO(item.plannedEndAt), 'HH:mm') : null;
-        return end ? `${start} – ${end}` : start;
+        return end ? `${start}–${end}` : start;
       } catch { return null; }
     }
     return null;
@@ -74,7 +74,6 @@ export function DeskItemCard({
     } catch { return null; }
   }, [item.followUpAt]);
 
-  // Quick-action: move to next logical status
   const quickAction = useMemo(() => {
     if (item.status === 'inbox') return { label: 'Plan', status: 'planned' as const };
     if (item.status === 'planned') return { label: 'Start', status: 'in_progress' as const };
@@ -101,211 +100,145 @@ export function DeskItemCard({
           onSelect();
         }
       }}
-      className="group rounded-xl px-3 py-2 cursor-pointer transition-all relative"
+      className="group rounded-lg px-2.5 py-1.5 cursor-pointer transition-all relative"
       role="button"
       tabIndex={0}
       aria-label={`Open ${item.title}`}
       style={{
         background: 'var(--bg-tertiary)',
-        borderLeft: `3px solid ${borderAccent}`,
-        opacity: isDone ? 0.6 : 1,
+        borderLeft: `2px solid ${borderAccent}`,
+        opacity: isDone ? 0.55 : 1,
       }}
-      whileHover={{ scale: 1.005, backgroundColor: 'var(--bg-elevated)' }}
+      whileHover={{ scale: 1.003, backgroundColor: 'var(--bg-elevated)' }}
       whileTap={{ scale: 0.998 }}
     >
-      {/* Overdue glow */}
       {isOverdue && (
         <div
-          className="absolute inset-0 rounded-xl pointer-events-none"
-          style={{
-            boxShadow: 'inset 0 0 0 1px rgba(239,68,68,0.25), 0 0 12px rgba(239,68,68,0.06)',
-          }}
+          className="absolute inset-0 rounded-lg pointer-events-none"
+          style={{ boxShadow: 'inset 0 0 0 1px rgba(239,68,68,0.25)' }}
         />
       )}
 
-      <div className="flex items-start gap-2.5">
-        {/* Kind icon */}
+      <div className="flex items-center gap-2">
         <div
-          className="h-6 w-6 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5"
+          className="h-5 w-5 rounded flex items-center justify-center flex-shrink-0"
           style={{
-            background: variant === 'meeting'
-              ? 'rgba(139,92,246,0.12)'
-              : variant === 'waiting'
-              ? 'rgba(245,158,11,0.12)'
-              : 'var(--bg-secondary)',
+            background: variant === 'meeting' ? 'rgba(139,92,246,0.12)' : variant === 'waiting' ? 'rgba(245,158,11,0.12)' : 'var(--bg-secondary)',
           }}
         >
           <KindIcon
-            size={12}
+            size={10}
             style={{
-              color: variant === 'meeting'
-                ? 'var(--info)'
-                : variant === 'waiting'
-                ? 'var(--warning)'
-                : 'var(--text-secondary)',
+              color: variant === 'meeting' ? 'var(--info)' : variant === 'waiting' ? 'var(--warning)' : 'var(--text-secondary)',
             }}
           />
         </div>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span
-              className="text-[13px] font-medium truncate"
-              style={{
-                color: isDone ? 'var(--text-muted)' : 'var(--text-primary)',
-                textDecoration: item.status === 'cancelled' ? 'line-through' : undefined,
-              }}
-            >
-              {item.title}
-            </span>
+        <span
+          className="min-w-0 flex-1 truncate text-[12px] font-medium"
+          style={{
+            color: isDone ? 'var(--text-muted)' : 'var(--text-primary)',
+            textDecoration: item.status === 'cancelled' ? 'line-through' : undefined,
+          }}
+        >
+          {item.title}
+        </span>
 
-            {item.assignee && <AssigneePill assignee={item.assignee} size="sm" tone="neutral" />}
+        {/* Inline metadata */}
+        {item.assignee && <AssigneePill assignee={item.assignee} size="sm" tone="neutral" />}
 
-            {/* Priority pip */}
-            {item.priority !== 'low' && !isDone && (
-              <span
-                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{
-                  background: priorityColors[item.priority],
-                  boxShadow: item.priority === 'critical'
-                    ? `0 0 6px ${priorityColors[item.priority]}`
-                    : undefined,
-                }}
-                title={PRIORITY_LABELS[item.priority]}
-              />
+        {item.priority !== 'low' && !isDone && (
+          <span
+            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+            style={{
+              background: priorityColors[item.priority],
+              boxShadow: item.priority === 'critical' ? `0 0 4px ${priorityColors[item.priority]}` : undefined,
+            }}
+            title={PRIORITY_LABELS[item.priority]}
+          />
+        )}
+
+        {timeDisplay && (
+          <span className="text-[9px] font-mono flex-shrink-0" style={{ color: 'var(--text-secondary)' }}>
+            {timeDisplay}
+          </span>
+        )}
+
+        {item.links.length > 0 && (
+          <span className="flex items-center gap-0.5 text-[9px] flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+            <Link2 size={8} /> {item.links.length}
+          </span>
+        )}
+
+        {followUpDisplay && (
+          <span
+            className="flex items-center gap-0.5 text-[9px] font-mono flex-shrink-0"
+            style={{ color: isOverdue ? 'var(--danger)' : 'var(--text-muted)' }}
+          >
+            {isOverdue && <AlertTriangle size={8} />}
+            ↩ {followUpDisplay}
+          </span>
+        )}
+
+        {isDone && (
+          <div className="flex-shrink-0">
+            {item.status === 'done' ? (
+              <CheckCircle2 size={12} style={{ color: 'var(--success)' }} />
+            ) : (
+              <XCircle size={12} style={{ color: 'var(--text-muted)' }} />
             )}
           </div>
+        )}
 
-          {/* Meta row */}
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            {/* Category badge */}
-            <span
-              className="text-[9px] font-bold uppercase tracking-[0.06em] rounded px-1.5 py-0.5"
-              style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
-            >
-              {CATEGORY_LABELS[item.category]}
-            </span>
-
-            {/* Time */}
-            {timeDisplay && (
-              <span className="text-[10px] font-mono" style={{ color: 'var(--text-secondary)' }}>
-                {timeDisplay}
-              </span>
-            )}
-
-            {/* Participants */}
-            {item.participants && (
-              <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
-                {item.participants}
-              </span>
-            )}
-
-            {/* Follow-up date */}
-            {followUpDisplay && (
-              <span
-                className="flex items-center gap-0.5 text-[10px] font-mono"
-                style={{ color: isOverdue ? 'var(--danger)' : 'var(--text-muted)' }}
-              >
-                {isOverdue && <AlertTriangle size={9} />}
-                ↩ {followUpDisplay}
-              </span>
-            )}
-
-            {/* Links count */}
-            {item.links.length > 0 && (
-              <span
-                className="flex items-center gap-0.5 text-[10px]"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                <Link2 size={9} /> {item.links.length}
-              </span>
-            )}
-
-            {/* Next action preview */}
-            {item.nextAction && !isDone && (
-              <span
-                className="text-[10px] truncate max-w-[180px]"
-                style={{ color: 'var(--text-muted)' }}
-                title={item.nextAction}
-              >
-                → {item.nextAction}
-              </span>
-            )}
-
-            {/* Outcome for done items */}
-            {isDone && item.outcome && (
-              <span
-                className="text-[10px] italic truncate max-w-[200px]"
-                style={{ color: 'var(--success)' }}
-                title={item.outcome}
-              >
-                ✓ {item.outcome}
-              </span>
-            )}
-          </div>
-        </div>
-
+        {/* Hover-only actions */}
         {(quickAction || (!isDone && onCarryForward)) && (
-          <div className="mt-0.5 flex flex-col items-end gap-1.5 self-start">
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
             {!isDone && onCarryForward && (
               <button
                 type="button"
-                onClick={e => {
-                  e.stopPropagation();
-                  onCarryForward();
-                }}
+                onClick={e => { e.stopPropagation(); onCarryForward(); }}
                 disabled={isCarryForwardPending}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition-all disabled:opacity-40"
-                style={{
-                  background: 'var(--bg-secondary)',
-                  color: 'var(--md-accent)',
-                  border: '1px solid color-mix(in srgb, var(--md-accent) 20%, var(--border) 80%)',
-                }}
+                className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase transition-all disabled:opacity-40"
+                style={{ background: 'var(--bg-secondary)', color: 'var(--md-accent)', border: '1px solid var(--border)' }}
                 aria-label={`Carry forward ${item.title}`}
               >
-                <ArrowRightFromLine size={10} />
+                <ArrowRightFromLine size={8} />
                 Carry
               </button>
             )}
-
             {quickAction && (
               <button
                 type="button"
-                onClick={e => {
-                  e.stopPropagation();
-                  onStatusChange(quickAction.status);
-                }}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition-all"
-                style={{
-                  background: 'var(--md-accent-glow)',
-                  color: 'var(--md-accent)',
-                  border: '1px solid var(--md-accent)',
-                }}
+                onClick={e => { e.stopPropagation(); onStatusChange(quickAction.status); }}
+                className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase transition-all"
+                style={{ background: 'var(--md-accent-glow)', color: 'var(--md-accent)', border: '1px solid var(--md-accent)' }}
                 aria-label={`${quickAction.label} ${item.title}`}
               >
-                {quickAction.status === 'done' ? (
-                  <CheckCircle2 size={10} />
-                ) : (
-                  <ArrowRight size={10} />
-                )}
+                {quickAction.status === 'done' ? <CheckCircle2 size={8} /> : <ArrowRight size={8} />}
                 {quickAction.label}
               </button>
             )}
           </div>
         )}
-
-        {/* Done/cancelled indicator */}
-        {isDone && (
-          <div className="flex-shrink-0 mt-1">
-            {item.status === 'done' ? (
-              <CheckCircle2 size={14} style={{ color: 'var(--success)' }} />
-            ) : (
-              <XCircle size={14} style={{ color: 'var(--text-muted)' }} />
-            )}
-          </div>
-        )}
       </div>
+
+      {/* Meta row - only show extra info like next action when available */}
+      {!isDone && (item.nextAction || (item.participants && variant === 'meeting')) && (
+        <div className="mt-0.5 pl-7 flex items-center gap-2">
+          {item.participants && variant === 'meeting' && (
+            <span className="text-[9px]" style={{ color: 'var(--text-secondary)' }}>{item.participants}</span>
+          )}
+          {item.nextAction && (
+            <span className="text-[9px] truncate max-w-[200px]" style={{ color: 'var(--text-muted)' }}>→ {item.nextAction}</span>
+          )}
+        </div>
+      )}
+
+      {isDone && item.outcome && (
+        <div className="mt-0.5 pl-7">
+          <span className="text-[9px] italic truncate max-w-[200px]" style={{ color: 'var(--success)' }}>✓ {item.outcome}</span>
+        </div>
+      )}
     </motion.div>
   );
 }

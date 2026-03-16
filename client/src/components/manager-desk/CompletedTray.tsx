@@ -13,40 +13,35 @@ export function CompletedTray({ items, onSelect, onStatusChange }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
-    <section className="md-glass-panel rounded-[20px]">
+    <section className="md-glass-panel rounded-xl">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left"
+        className="flex w-full items-center justify-between px-3 py-2 text-left"
       >
-        <div>
-          <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--success)' }}>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--success)' }}>
             Completed
-          </div>
-          <p className="mt-1 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
-            Keep done work accessible without stretching the main workspace.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className="rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em]" style={{ background: 'rgba(16,185,129,0.12)', color: 'var(--success)' }}>
+          </span>
+          <span className="rounded-md px-1.5 py-0.5 text-[9px] font-bold tabular-nums" style={{ background: 'rgba(16,185,129,0.12)', color: 'var(--success)' }}>
             {items.length}
           </span>
-          <ChevronDown
-            size={16}
-            style={{ color: 'var(--text-muted)', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }}
-          />
         </div>
+
+        <ChevronDown
+          size={13}
+          style={{ color: 'var(--text-muted)', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }}
+        />
       </button>
 
       {open && (
-        <div className="border-t p-2" style={{ borderColor: 'var(--border)' }}>
+        <div className="border-t p-1.5" style={{ borderColor: 'var(--border)' }}>
           {items.length === 0 ? (
-            <div className="rounded-[16px] border border-dashed px-4 py-5 text-[12px]" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+            <div className="rounded-lg border border-dashed px-3 py-3 text-[11px]" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
               Nothing completed yet.
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {items.map((item) => (
                 <DeskItemCard
                   key={item.id}

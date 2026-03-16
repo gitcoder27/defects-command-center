@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const DESKTOP_BREAKPOINT = 1280;
+const DESKTOP_BREAKPOINT = 1024;
 
 function getDesktopMode() {
   if (typeof window === 'undefined') return true;

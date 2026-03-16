@@ -238,7 +238,6 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
     expect(screen.getByText('Manager Desk')).toBeInTheDocument();
-    expect(screen.getByText('Operating surface for a high-volume day')).toBeInTheDocument();
     expect(screen.getByText(/March 8, 2026/)).toBeInTheDocument();
   });
 
@@ -250,7 +249,7 @@ describe('ManagerDeskPage', () => {
     );
     expect(screen.getByRole('button', { name: /all open/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /high priority/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /more filters/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /filters/i })).toBeInTheDocument();
   });
 
   it('renders quick capture input', () => {
@@ -281,7 +280,7 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
     // Section titles
-    expect(screen.getByText('Task Rail')).toBeInTheDocument();
+    expect(screen.getByText('Rail')).toBeInTheDocument();
     expect(screen.getByText('Focus')).toBeInTheDocument();
     expect(screen.getAllByText('Meetings').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Waiting').length).toBeGreaterThanOrEqual(1);
@@ -349,7 +348,7 @@ describe('ManagerDeskPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^Open Quick inbox thought$/i }));
 
-    expect(screen.getByText('Inline triage')).toBeInTheDocument();
+    expect(screen.getByText('Triage')).toBeInTheDocument();
     expect(screen.getByLabelText('Assign Quick inbox thought')).toBeInTheDocument();
     expect(screen.getByLabelText('Priority for Quick inbox thought')).toBeInTheDocument();
   });
@@ -400,7 +399,7 @@ describe('ManagerDeskPage', () => {
         <ManagerDeskPage />
       </TestWrapper>,
     );
-    expect(screen.getByText('Carry Forward')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^carry forward$/i })).toBeInTheDocument();
   });
 
   it('opens the item detail drawer with context expanded and the follow-through section collapsed', () => {
@@ -568,7 +567,7 @@ describe('ManagerDeskPage', () => {
 
     expect(screen.queryByLabelText('Context / Notes')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /expand context \/ notes/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /collapse operational settings/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /collapse settings/i })).toBeInTheDocument();
   });
 
   it('opens the bulk carry forward dialog with all open items selected by default', () => {
@@ -646,10 +645,10 @@ describe('ManagerDeskPage', () => {
         <ManagerDeskPage />
       </TestWrapper>,
     );
-    const filterBtn = screen.getByRole('button', { name: /more filters/i });
+    const filterBtn = screen.getByRole('button', { name: /filters/i });
     expect(filterBtn).toBeInTheDocument();
     fireEvent.click(filterBtn);
-    expect(screen.getByText('Clear Filters')).toBeInTheDocument();
+    expect(screen.getByText('Clear')).toBeInTheDocument();
   });
 
   it('manually refreshes only the manager desk query from the page header', () => {
@@ -659,7 +658,7 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /refresh manager desk/i }));
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
 
     expect(mockRefetch).toHaveBeenCalled();
   });

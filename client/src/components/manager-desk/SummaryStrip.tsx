@@ -34,9 +34,9 @@ const signals: Array<{
 export function SummaryStrip({ summary }: Props) {
   return (
     <div
-      className="md-glass-panel rounded-[14px] px-3 py-2.5 grid gap-1"
+      className="md-glass-panel rounded-xl px-2 py-1.5 grid gap-0.5"
       style={{
-        gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))',
       }}
     >
       {signals.map(({ key, label, icon: Icon, colorVar }, idx) => {
@@ -45,30 +45,30 @@ export function SummaryStrip({ summary }: Props) {
         return (
           <motion.div
             key={key}
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.04, duration: 0.3 }}
-            className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 transition-colors"
+            transition={{ delay: idx * 0.03, duration: 0.25 }}
+            className="flex items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors"
             style={{
               background: isHighlight ? 'rgba(239,68,68,0.08)' : 'transparent',
             }}
           >
             <Icon
-              size={13}
+              size={11}
               style={{
                 color: colorVar,
-                filter: isHighlight ? 'drop-shadow(0 0 4px rgba(239,68,68,0.5))' : undefined,
+                filter: isHighlight ? 'drop-shadow(0 0 3px rgba(239,68,68,0.5))' : undefined,
               }}
             />
             <div className="min-w-0">
               <div
-                className="text-[16px] font-semibold tabular-nums leading-tight"
+                className="text-[13px] font-semibold tabular-nums leading-tight"
                 style={{ color: colorVar }}
               >
                 {value}
               </div>
               <div
-                className="text-[9px] uppercase font-bold tracking-[0.08em] leading-tight"
+                className="text-[8px] uppercase font-bold tracking-[0.06em] leading-tight"
                 style={{ color: 'var(--text-muted)' }}
               >
                 {label}
