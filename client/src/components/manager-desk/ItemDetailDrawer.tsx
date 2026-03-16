@@ -37,7 +37,7 @@ import { LinkedIssueSnapshot } from './LinkedIssueSnapshot';
 
 interface Props {
   item: ManagerDeskItem | null;
-  open: boolean;
+  open?: boolean;
   date: string;
   onClose: () => void;
   onUpdate: (itemId: number, updates: Record<string, unknown>) => void;
@@ -116,6 +116,39 @@ export function ItemDetailDrawer({
         </motion.aside>
       </>
     </AnimatePresence>
+  );
+}
+
+export function ItemDetailPanel({
+  item,
+  date,
+  onClose,
+  onUpdate,
+  onDelete,
+  topSlot,
+  ariaLabel = 'Manager Desk item detail',
+  showLinkedIssueDescription = true,
+  placeholder,
+}: Props) {
+  return (
+    <aside
+      className="md-glass-panel flex h-full min-h-0 flex-col overflow-hidden rounded-[20px]"
+      aria-label={ariaLabel}
+    >
+      {item ? (
+        <DrawerContent
+          item={item}
+          date={date}
+          onClose={onClose}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+          topSlot={topSlot}
+          showLinkedIssueDescription={showLinkedIssueDescription}
+        />
+      ) : (
+        placeholder ?? null
+      )}
+    </aside>
   );
 }
 

@@ -95,7 +95,16 @@ export function DeskItemCard({
     <motion.div
       layout
       onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
       className="group rounded-xl px-3 py-2 cursor-pointer transition-all relative"
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${item.title}`}
       style={{
         background: 'var(--bg-tertiary)',
         borderLeft: `3px solid ${borderAccent}`,

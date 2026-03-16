@@ -238,21 +238,19 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
     expect(screen.getByText('Manager Desk')).toBeInTheDocument();
-    expect(screen.getByText('Private workspace')).toBeInTheDocument();
+    expect(screen.getByText('Operating surface for a high-volume day')).toBeInTheDocument();
     expect(screen.getByText(/March 8, 2026/)).toBeInTheDocument();
   });
 
-  it('renders summary strip with correct counts', () => {
+  it('renders the command bar quick filters', () => {
     render(
       <TestWrapper>
         <ManagerDeskPage />
       </TestWrapper>,
     );
-    // The summary strip renders count values as text
-    expect(screen.getByText('5')).toBeInTheDocument(); // totalOpen
-    expect(screen.getByText('Open')).toBeInTheDocument();
-    // "Inbox" appears in summary strip and section header — use getAllByText
-    expect(screen.getAllByText('Inbox').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('button', { name: /all open/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /high priority/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /more filters/i })).toBeInTheDocument();
   });
 
   it('renders quick capture input', () => {
@@ -283,16 +281,16 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
     // Section titles
+    expect(screen.getByText('Task Rail')).toBeInTheDocument();
     expect(screen.getByText('Focus')).toBeInTheDocument();
-    // "Meetings" appears in both section title and summary strip, so use getAllByText
     expect(screen.getAllByText('Meetings').length).toBeGreaterThanOrEqual(1);
-    // "Waiting" also appears in both summary and section
     expect(screen.getAllByText('Waiting').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Inbox').length).toBeGreaterThanOrEqual(1);
     // Item titles
-    expect(screen.getByText('Analyze root cause for DEF-241')).toBeInTheDocument();
-    expect(screen.getByText('Design sync with onshore')).toBeInTheDocument();
-    expect(screen.getByText('Waiting on QA feedback')).toBeInTheDocument();
-    expect(screen.getByText('Quick inbox thought')).toBeInTheDocument();
+    expect(screen.getAllByText('Analyze root cause for DEF-241').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Design sync with onshore').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Waiting on QA feedback').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Quick inbox thought').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Alice Smith').length).toBeGreaterThanOrEqual(1);
   });
 
@@ -311,6 +309,21 @@ describe('ManagerDeskPage', () => {
     );
   });
 
+  it('filters the workbench from the global search box', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.change(screen.getByRole('textbox', { name: /search manager desk tasks/i }), {
+      target: { value: 'QA feedback' },
+    });
+
+    expect(screen.getAllByText('Waiting on QA feedback').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Design sync with onshore')).not.toBeInTheDocument();
+  });
+
   it('keeps quick capture focused after submitting a task', () => {
     render(
       <TestWrapper>
@@ -325,6 +338,20 @@ describe('ManagerDeskPage', () => {
 
     expect(input).toHaveFocus();
     expect(input).toHaveValue('');
+  });
+
+  it('opens inline triage controls when an inbox item is selected', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^Open Quick inbox thought$/i }));
+
+    expect(screen.getByText('Inline triage')).toBeInTheDocument();
+    expect(screen.getByLabelText('Assign Quick inbox thought')).toBeInTheDocument();
+    expect(screen.getByLabelText('Priority for Quick inbox thought')).toBeInTheDocument();
   });
 
   it('shows loading state', () => {
@@ -383,7 +410,7 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
 
-    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+    fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
 
     expect(screen.getByLabelText('Context / Notes')).toBeInTheDocument();
     expect(screen.queryByLabelText('Next Action')).not.toBeInTheDocument();
@@ -401,7 +428,7 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
 
-    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+    fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
     fireEvent.change(screen.getByLabelText('Assigned To'), { target: { value: 'bob-2' } });
 
     expect(mockUpdateMutate).toHaveBeenCalledWith(
@@ -420,7 +447,7 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
 
-    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+    fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
 
     expect(screen.getByText('Triage snapshot')).toBeInTheDocument();
     expect(screen.getByText('Rahul blocker on review flow')).toBeInTheDocument();
@@ -454,7 +481,7 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
 
-    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+    fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
     fireEvent.click(screen.getByRole('button', { name: 'PROJ-321' }));
 
     expect(screen.getByText('Investigate design gap in review flow')).toBeInTheDocument();
@@ -468,7 +495,7 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
 
-    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+    fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
 
     const notesField = screen.getByLabelText('Context / Notes');
     fireEvent.change(notesField, { target: { value: 'Capture manager context in the detail drawer' } });
@@ -495,7 +522,7 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
 
-    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+    fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
     fireEvent.click(screen.getByRole('button', { name: /expand action & outcome/i }));
 
     const nextActionField = screen.getByLabelText('Next Action');
@@ -518,7 +545,7 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
 
-    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+    fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
     fireEvent.click(screen.getByRole('button', { name: /expand action & outcome/i }));
     fireEvent.click(screen.getByRole('tab', { name: 'Outcome' }));
 
@@ -533,7 +560,7 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
 
-    fireEvent.click(screen.getByText('Analyze root cause for DEF-241'));
+    fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
 
     expect(screen.getByLabelText('Context / Notes')).toBeInTheDocument();
 
@@ -619,11 +646,10 @@ describe('ManagerDeskPage', () => {
         <ManagerDeskPage />
       </TestWrapper>,
     );
-    const filterBtn = screen.getByText('Filter');
+    const filterBtn = screen.getByRole('button', { name: /more filters/i });
     expect(filterBtn).toBeInTheDocument();
     fireEvent.click(filterBtn);
-    // Filter bar should now show filter labels
-    expect(screen.getByText('Filters')).toBeInTheDocument();
+    expect(screen.getByText('Clear Filters')).toBeInTheDocument();
   });
 
   it('manually refreshes only the manager desk query from the page header', () => {
