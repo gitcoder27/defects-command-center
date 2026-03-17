@@ -443,7 +443,7 @@ describe('ManagerDeskPage', () => {
     expect(screen.getByRole('button', { name: /^carry forward$/i })).toBeInTheDocument();
   });
 
-  it('opens the item detail drawer with context expanded and the follow-through section collapsed', () => {
+  it('opens the item detail drawer with all note fields visible', () => {
     render(
       <TestWrapper>
         <ManagerDeskPage />
@@ -453,12 +453,9 @@ describe('ManagerDeskPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
 
     expect(screen.getByLabelText('Context / Notes')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Next Action')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Outcome')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /expand action & outcome/i })).toBeInTheDocument();
-    expect(screen.getByText('Next Action saved')).toBeInTheDocument();
-    expect(screen.getByText('Outcome saved')).toBeInTheDocument();
-    expect(screen.getByLabelText('Assigned To')).toHaveValue('alice-1');
+    expect(screen.getByLabelText('Next Action')).toBeInTheDocument();
+    expect(screen.getByLabelText('Outcome')).toBeInTheDocument();
+    expect(screen.getByLabelText('Assignee')).toHaveValue('alice-1');
   });
 
   it('updates the assigned team member from the drawer', () => {
@@ -469,7 +466,7 @@ describe('ManagerDeskPage', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
-    fireEvent.change(screen.getByLabelText('Assigned To'), { target: { value: 'bob-2' } });
+    fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: 'bob-2' } });
 
     expect(mockUpdateMutate).toHaveBeenCalledWith(
       {
@@ -480,7 +477,7 @@ describe('ManagerDeskPage', () => {
     );
   });
 
-  it('shows a triage-style Jira snapshot for linked issues in the drawer', () => {
+  it('shows a compact Jira snapshot for linked issues in the drawer', () => {
     render(
       <TestWrapper>
         <ManagerDeskPage />
@@ -489,10 +486,8 @@ describe('ManagerDeskPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
 
-    expect(screen.getByText('Triage snapshot')).toBeInTheDocument();
+    expect(screen.getByText('Linked Jira')).toBeInTheDocument();
     expect(screen.getByText('Rahul blocker on review flow')).toBeInTheDocument();
-    expect(screen.getByText('Analysis Notes')).toBeInTheDocument();
-    expect(screen.getByText(/Root cause points to the handoff validation step/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /open in jira/i })).toHaveAttribute(
       'href',
       'https://test.atlassian.net/browse/PROJ-221',
@@ -525,7 +520,6 @@ describe('ManagerDeskPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'PROJ-321' }));
 
     expect(screen.getByText('Investigate design gap in review flow')).toBeInTheDocument();
-    expect(screen.getByText(/Follow up with design on the error-state coverage/i)).toBeInTheDocument();
   });
 
   it('debounces context note updates from the drawer', () => {
@@ -563,7 +557,6 @@ describe('ManagerDeskPage', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /expand action & outcome/i }));
 
     const nextActionField = screen.getByLabelText('Next Action');
     fireEvent.change(nextActionField, { target: { value: 'Schedule follow-up with QA and product' } });
@@ -578,7 +571,7 @@ describe('ManagerDeskPage', () => {
     );
   });
 
-  it('switches the tabbed follow-through section to outcome when expanded', () => {
+  it('shows both next action and outcome fields simultaneously in the drawer', () => {
     render(
       <TestWrapper>
         <ManagerDeskPage />
@@ -586,14 +579,12 @@ describe('ManagerDeskPage', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /expand action & outcome/i }));
-    fireEvent.click(screen.getByRole('tab', { name: 'Outcome' }));
 
+    expect(screen.getByLabelText('Next Action')).toBeInTheDocument();
     expect(screen.getByLabelText('Outcome')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Next Action')).not.toBeInTheDocument();
   });
 
-  it('allows collapsing the large notes section to reach lower sections faster', () => {
+  it('shows the properties section with kind and status fields in the drawer', () => {
     render(
       <TestWrapper>
         <ManagerDeskPage />
@@ -603,12 +594,10 @@ describe('ManagerDeskPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
 
     expect(screen.getByLabelText('Context / Notes')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /collapse context \/ notes/i }));
-
-    expect(screen.queryByLabelText('Context / Notes')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /expand context \/ notes/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /collapse settings/i })).toBeInTheDocument();
+    expect(screen.getByLabelText('Kind')).toBeInTheDocument();
+    expect(screen.getByLabelText('Status')).toBeInTheDocument();
+    expect(screen.getByLabelText('Category')).toBeInTheDocument();
+    expect(screen.getByLabelText('Priority')).toBeInTheDocument();
   });
 
   it('opens the bulk carry forward dialog with all open items selected by default', () => {

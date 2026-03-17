@@ -250,6 +250,22 @@ export function createManagerDeskRouter(
     }
   );
 
+  router.post(
+    "/tracker-items/:trackerItemId/promote",
+    validate(trackerItemIdParamSchema),
+    async (req, res, next) => {
+      try {
+        const detail = await managerDeskService.promoteTrackerTask(
+          req.auth!.user.accountId,
+          parseInt(req.params.trackerItemId as string, 10)
+        );
+        res.json(detail);
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
   router.get("/items/:itemId/detail", validate(itemIdParamSchema), async (req, res, next) => {
     try {
       const detail = await managerDeskService.getTaskDetailByItemId(

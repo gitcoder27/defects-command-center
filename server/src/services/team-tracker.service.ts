@@ -136,6 +136,7 @@ function mapItem(
     id: row.id,
     dayId: row.dayId,
     managerDeskItemId: row.managerDeskItemId ?? undefined,
+    lifecycle: row.managerDeskItemId === null ? "tracker_only" : "manager_desk_linked",
     itemType: row.jiraKey ? "jira" : "custom",
     jiraKey: row.jiraKey ?? undefined,
     jiraSummary: issueContext?.summary ?? undefined,

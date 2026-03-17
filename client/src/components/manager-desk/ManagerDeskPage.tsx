@@ -16,16 +16,14 @@ import { CompletedTray } from './CompletedTray';
 import { DeskItemCard } from './DeskItemCard';
 import { EmptyDay } from './EmptyDay';
 import { InboxTriageRow } from './InboxTriageRow';
-import { ItemDetailDrawer, ItemDetailPanel } from './ItemDetailDrawer';
+import { ItemDetailDrawer } from './ItemDetailDrawer';
 import { ManagerDeskCommandBar } from './ManagerDeskCommandBar';
 import { ManagerDeskHeader } from './ManagerDeskHeader';
 import { TaskRail } from './TaskRail';
-import { useDesktopMode } from './useDesktopMode';
 import { WorkbenchSection } from './WorkbenchSection';
 import {
   buildSections,
   filterItems,
-  getInitialSelection,
   getOpenItems,
   isInboxItem,
   type ManagerDeskFilterState,
@@ -36,7 +34,6 @@ const defaultFilters: ManagerDeskFilterState = { kind: null, category: null, sta
 
 export function ManagerDeskPage() {
   const { addToast } = useToast();
-  const isDesktop = useDesktopMode();
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [inlineTriageId, setInlineTriageId] = useState<number | null>(null);
@@ -66,10 +63,10 @@ export function ManagerDeskPage() {
     [filteredItems, selectedItemId],
   );
 
+  // Clear selection if the selected item is no longer in the filtered list
   useEffect(() => {
-    const nextSelected = filteredItems.find((item) => item.id === selectedItemId) ?? getInitialSelection(filteredItems);
-    if (nextSelected?.id !== selectedItemId) {
-      setSelectedItemId(nextSelected?.id ?? null);
+    if (selectedItemId !== null && !filteredItems.some((item) => item.id === selectedItemId)) {
+      setSelectedItemId(null);
     }
   }, [filteredItems, selectedItemId]);
 
@@ -236,7 +233,7 @@ export function ManagerDeskPage() {
             />
           </div>
         ) : (
-          <div className="grid h-full gap-2 lg:grid-cols-[200px_minmax(0,1fr)_320px]">
+          <div className="grid h-full gap-2 lg:grid-cols-[200px_minmax(0,1fr)]">
             <TaskRail items={openItems} selectedItemId={selectedItemId} onSelect={handleSelectItem} />
 
             <div className="min-h-0 overflow-y-auto">
@@ -305,35 +302,20 @@ export function ManagerDeskPage() {
                 </motion.div>
               )}
             </div>
-
-            {isDesktop ? (
-              <ItemDetailPanel
-                item={selectedItem}
-                date={date}
-                onClose={() => setSelectedItemId(null)}
-                onUpdate={handleUpdateItem}
-                onDelete={handleDeleteItem}
-                onCarryForward={selectedItem ? () => handleCarryForwardItem(selectedItem) : undefined}
-                isCarryForwardPending={carryForward.isPending}
-                placeholder={<EmptyInspector />}
-              />
-            ) : null}
           </div>
         )}
       </div>
 
-      {!isDesktop && (
-        <ItemDetailDrawer
-          item={selectedItem}
-          open={selectedItem !== null}
-          date={date}
-          onClose={() => setSelectedItemId(null)}
-          onUpdate={handleUpdateItem}
-          onDelete={handleDeleteItem}
-          onCarryForward={selectedItem ? () => handleCarryForwardItem(selectedItem) : undefined}
-          isCarryForwardPending={carryForward.isPending}
-        />
-      )}
+      <ItemDetailDrawer
+        item={selectedItem}
+        open={selectedItem !== null}
+        date={date}
+        onClose={() => setSelectedItemId(null)}
+        onUpdate={handleUpdateItem}
+        onDelete={handleDeleteItem}
+        onCarryForward={selectedItem ? () => handleCarryForwardItem(selectedItem) : undefined}
+        isCarryForwardPending={carryForward.isPending}
+      />
 
       {showCarryForward && (
         <CarryForwardDialog
@@ -344,21 +326,6 @@ export function ManagerDeskPage() {
           onClose={() => setShowCarryForward(false)}
         />
       )}
-    </div>
-  );
-}
-
-function EmptyInspector() {
-  return (
-    <div className="flex h-full items-center justify-center p-4 text-center">
-      <div>
-        <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--md-accent)' }}>
-          Inspector
-        </div>
-        <p className="mt-1.5 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-          Select a task to pin its details here.
-        </p>
-      </div>
     </div>
   );
 }

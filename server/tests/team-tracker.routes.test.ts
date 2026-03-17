@@ -253,6 +253,7 @@ describe("team tracker routes", () => {
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
+      lifecycle: "tracker_only",
       itemType: "custom",
       title: "Investigate login regression",
     });

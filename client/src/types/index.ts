@@ -271,6 +271,7 @@ export type TrackerDeveloperStatus =
 
 export type TrackerItemState = 'planned' | 'in_progress' | 'done' | 'dropped';
 export type TrackerItemType = 'jira' | 'custom';
+export type TrackerTaskLifecycle = 'tracker_only' | 'manager_desk_linked';
 
 export interface TrackerCheckIn {
   id: number;
@@ -285,6 +286,7 @@ export interface TrackerWorkItem {
   id: number;
   dayId: number;
   managerDeskItemId?: number;
+  lifecycle?: TrackerTaskLifecycle;
   itemType: TrackerItemType;
   jiraKey?: string;
   jiraSummary?: string;

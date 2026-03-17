@@ -177,7 +177,7 @@ describe("manager desk routes", () => {
     expect(res.body?.error).toBe("Manager access required");
   });
 
-  it("GET /api/manager-desk/tracker-items/:trackerItemId/detail lazily converts tracker-only work into a shared manager desk task", async () => {
+  it("GET /api/manager-desk/tracker-items/:trackerItemId/detail returns tracker-only detail without creating manager desk data", async () => {
     const trackerItem = await trackerService.addItem("dev-1", "2026-03-08", {
       jiraKey: "PROJ-221",
       title: "Follow up from tracker",
@@ -195,6 +195,61 @@ describe("manager desk routes", () => {
     expect(first.status).toBe(200);
     expect(first.body).toMatchObject({
       date: "2026-03-08",
+      lifecycle: "tracker_only",
+      developer: {
+        accountId: "dev-1",
+        displayName: "Alice Smith",
+      },
+      trackerItem: {
+        id: trackerItem.id,
+        lifecycle: "tracker_only",
+        jiraKey: "PROJ-221",
+        note: "Execution detail captured in tracker",
+      },
+    });
+    expect("managerDeskItem" in first.body).toBe(false);
+
+    const second = await invoke(app, {
+      method: "GET",
+      url: `/api/manager-desk/tracker-items/${trackerItem.id}/detail`,
+      headers: { cookie },
+    });
+
+    expect(second.status).toBe(200);
+    expect(second.body).toEqual(first.body);
+
+    const linkedTrackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.id, trackerItem.id));
+    expect(linkedTrackerRows[0]?.managerDeskItemId).toBeNull();
+
+    const managerDeskRows = await db
+      .select()
+      .from(managerDeskItems)
+      .limit(10);
+    expect(managerDeskRows).toHaveLength(0);
+  });
+
+  it("POST /api/manager-desk/tracker-items/:trackerItemId/promote explicitly creates a shared manager desk task", async () => {
+    const trackerItem = await trackerService.addItem("dev-1", "2026-03-08", {
+      jiraKey: "PROJ-221",
+      title: "Follow up from tracker",
+      note: "Execution detail captured in tracker",
+    });
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const first = await invoke(app, {
+      method: "POST",
+      url: `/api/manager-desk/tracker-items/${trackerItem.id}/promote`,
+      headers: { cookie },
+    });
+
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({
+      date: "2026-03-08",
+      lifecycle: "manager_desk_linked",
       developer: {
         accountId: "dev-1",
         displayName: "Alice Smith",
@@ -202,6 +257,7 @@ describe("manager desk routes", () => {
       trackerItem: {
         id: trackerItem.id,
         managerDeskItemId: first.body.managerDeskItem.id,
+        lifecycle: "manager_desk_linked",
         jiraKey: "PROJ-221",
         note: "Execution detail captured in tracker",
       },
@@ -224,13 +280,23 @@ describe("manager desk routes", () => {
     });
 
     const second = await invoke(app, {
-      method: "GET",
-      url: `/api/manager-desk/tracker-items/${trackerItem.id}/detail`,
+      method: "POST",
+      url: `/api/manager-desk/tracker-items/${trackerItem.id}/promote`,
       headers: { cookie },
     });
 
     expect(second.status).toBe(200);
     expect(second.body?.managerDeskItem?.id).toBe(first.body?.managerDeskItem?.id);
+
+    const detail = await invoke(app, {
+      method: "GET",
+      url: `/api/manager-desk/tracker-items/${trackerItem.id}/detail`,
+      headers: { cookie },
+    });
+
+    expect(detail.status).toBe(200);
+    expect(detail.body?.lifecycle).toBe("manager_desk_linked");
+    expect(detail.body?.managerDeskItem?.id).toBe(first.body?.managerDeskItem?.id);
 
     const linkedTrackerRows = await db
       .select()

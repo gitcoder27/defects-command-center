@@ -68,7 +68,7 @@ export function useUpdateManagerDeskItem(date: string) {
       qc.setQueriesData<TrackerSharedTaskDetailResponse>(
         { queryKey: ['manager-desk', 'task-detail'] },
         (existing) => {
-          if (!existing || existing.managerDeskItem.id !== item.id) {
+          if (!existing?.managerDeskItem || existing.managerDeskItem.id !== item.id) {
             return existing;
           }
 

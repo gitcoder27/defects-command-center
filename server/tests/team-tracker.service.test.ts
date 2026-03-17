@@ -195,6 +195,8 @@ describe("TeamTrackerService", () => {
       expect(item2.position).toBe(1);
       expect(item2.itemType).toBe("jira");
       expect(item2.jiraKey).toBe("AM-123");
+      expect(item1.lifecycle).toBe("tracker_only");
+      expect(item2.lifecycle).toBe("tracker_only");
       expect(item2.state).toBe("planned");
     });
 

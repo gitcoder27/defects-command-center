@@ -641,21 +641,21 @@ export class ManagerDeskService {
     trackerItemId: number
   ): Promise<TrackerSharedTaskDetailResponse> {
     const trackerContext = await this.trackerService.getItemDetailContext(trackerItemId);
-    const managerDeskItemId =
-      trackerContext.trackerItem.managerDeskItemId ??
-      (await this.createManagerDeskItemFromTrackerItem(managerAccountId, trackerContext));
+    return this.buildTrackerTaskDetailResponse(managerAccountId, trackerContext);
+  }
 
-    const managerDeskItem = await this.getItemById(managerAccountId, managerDeskItemId);
+  async promoteTrackerTask(
+    managerAccountId: string,
+    trackerItemId: number
+  ): Promise<TrackerSharedTaskDetailResponse> {
+    const trackerContext = await this.trackerService.getItemDetailContext(trackerItemId);
 
-    return {
-      date: trackerContext.date,
-      developer: trackerContext.developer,
-      managerDeskItem,
-      trackerItem: {
-        ...trackerContext.trackerItem,
-        managerDeskItemId,
-      },
-    };
+    if (!trackerContext.trackerItem.managerDeskItemId) {
+      await this.createManagerDeskItemFromTrackerItem(managerAccountId, trackerContext);
+    }
+
+    const linkedTrackerContext = await this.trackerService.getItemDetailContext(trackerItemId);
+    return this.buildTrackerTaskDetailResponse(managerAccountId, linkedTrackerContext);
   }
 
   async getTaskDetailByItemId(
@@ -673,6 +673,7 @@ export class ManagerDeskService {
     return {
       date: trackerContext.date,
       developer: trackerContext.developer,
+      lifecycle: "manager_desk_linked",
       managerDeskItem,
       trackerItem: trackerContext.trackerItem,
     };
@@ -1126,6 +1127,30 @@ export class ManagerDeskService {
     await this.trackerService.linkManagerDeskItem(trackerContext.trackerItem.id, item.id);
 
     return item.id;
+  }
+
+  private async buildTrackerTaskDetailResponse(
+    managerAccountId: string,
+    trackerContext: Awaited<ReturnType<TeamTrackerService["getItemDetailContext"]>>
+  ): Promise<TrackerSharedTaskDetailResponse> {
+    const managerDeskItemId = trackerContext.trackerItem.managerDeskItemId;
+
+    if (!managerDeskItemId) {
+      return {
+        date: trackerContext.date,
+        developer: trackerContext.developer,
+        lifecycle: "tracker_only",
+        trackerItem: trackerContext.trackerItem,
+      };
+    }
+
+    return {
+      date: trackerContext.date,
+      developer: trackerContext.developer,
+      lifecycle: "manager_desk_linked",
+      managerDeskItem: await this.getItemById(managerAccountId, managerDeskItemId),
+      trackerItem: trackerContext.trackerItem,
+    };
   }
 
   private async normalizeLinkInput(

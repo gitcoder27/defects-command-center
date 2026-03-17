@@ -1,4 +1,4 @@
-import type { Developer, DeveloperAvailability, TrackerWorkItem } from '@/types';
+import type { Developer, DeveloperAvailability, TrackerTaskLifecycle, TrackerWorkItem } from '@/types';
 
 /**
  * Manager Desk — client-local types (mirrors the backend contract from
@@ -95,7 +95,8 @@ export interface ManagerDeskDayResponse {
 export interface TrackerSharedTaskDetailResponse {
   date: string;
   developer: Developer;
-  managerDeskItem: ManagerDeskItem;
+  lifecycle?: TrackerTaskLifecycle;
+  managerDeskItem?: ManagerDeskItem;
   trackerItem: TrackerWorkItem;
 }
 
