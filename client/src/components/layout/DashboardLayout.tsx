@@ -418,10 +418,11 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
               onClearFilters={handleClearAllFilters}
             />
 
-            {/* Triage panel always overlays the table */}
+            {/* Subtle backdrop — click to dismiss */}
             {selectedIssueKey && (
               <div
-                className="absolute inset-0 bg-black/30 z-40 backdrop-blur-[1px]"
+                className="absolute inset-0 z-40 transition-opacity duration-200"
+                style={{ background: 'rgba(0,0,0,0.08)', backdropFilter: 'blur(0.5px)' }}
                 onClick={handleClosePanel}
               />
             )}

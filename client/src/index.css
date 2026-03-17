@@ -205,22 +205,53 @@ body::after {
 /* ── Triage panel sections ─────────────────────────── */
 
 .triage-section {
-  padding-top: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
 }
 
-.triage-section:last-child {
-  border-bottom: none;
+.triage-section + .triage-section {
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
 }
 
 .triage-section-label {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 10.5px;
-  font-weight: 600;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
 }
+
+/* ── Triage quick-action chips ─────────────────────── */
+
+.triage-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.triage-chip:hover {
+  background: var(--bg-tertiary);
+}
+
+/* ── Triage panel reveal animation ─────────────────── */
+
+@keyframes triageReveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.triage-reveal       { animation: triageReveal 0.22s ease-out both; }
+.triage-reveal-1     { animation-delay: 0.03s; }
+.triage-reveal-2     { animation-delay: 0.07s; }
+.triage-reveal-3     { animation-delay: 0.11s; }
+.triage-reveal-4     { animation-delay: 0.15s; }
+.triage-reveal-5     { animation-delay: 0.19s; }

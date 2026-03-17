@@ -20,13 +20,13 @@ export function CommentForm({ issueKey }: CommentFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
+    <form onSubmit={handleSubmit} className="flex gap-1.5 items-end">
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder="Add a comment…"
+        placeholder="Add a Jira comment…"
         rows={2}
-        className="flex-1 px-3 py-2 rounded-md text-[13px] resize-none focus:outline-none focus:ring-1"
+        className="flex-1 px-3 py-2 rounded-lg text-[12px] resize-none focus:outline-none focus:ring-1 leading-relaxed"
         style={{
           background: 'var(--bg-tertiary)',
           color: 'var(--text-primary)',
@@ -37,10 +37,10 @@ export function CommentForm({ issueKey }: CommentFormProps) {
       <button
         type="submit"
         disabled={addComment.isPending || !body.trim()}
-        className="self-end p-2 rounded-md transition-colors duration-150 disabled:opacity-50"
+        className="p-2 rounded-lg transition-colors duration-150 disabled:opacity-40"
         style={{ background: 'var(--accent)', color: '#fff' }}
       >
-        <Send size={14} />
+        <Send size={13} />
       </button>
     </form>
   );

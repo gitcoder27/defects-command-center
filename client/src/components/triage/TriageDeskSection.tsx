@@ -10,23 +10,16 @@ interface TriageDeskSectionProps {
 export function TriageDeskSection({ issue, onCapture }: TriageDeskSectionProps) {
   return (
     <div className="triage-section">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="triage-section-label">
-          <Briefcase size={11} /> Manager Desk
-        </span>
-      </div>
       <div
-        className="rounded-lg px-3 py-2 flex items-center justify-between gap-3"
+        className="rounded-lg px-3.5 py-2.5 flex items-center justify-between gap-3"
         style={{
-          background: 'linear-gradient(135deg, color-mix(in srgb, var(--md-accent-glow) 60%, var(--bg-tertiary) 40%), var(--bg-tertiary))',
+          background: 'linear-gradient(135deg, color-mix(in srgb, var(--md-accent-glow) 50%, var(--bg-tertiary) 50%), var(--bg-tertiary))',
           border: '1px solid rgba(217,169,78,0.14)',
         }}
       >
-        <div className="min-w-0">
-          <div className="text-[11.5px] font-medium" style={{ color: 'var(--text-primary)' }}>
-            Add follow-up to desk
-          </div>
-          <div className="mt-0.5 flex flex-wrap gap-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <Briefcase size={13} style={{ color: 'var(--md-accent)', flexShrink: 0 }} />
+          <div className="flex flex-wrap gap-1 min-w-0">
             <JiraIssueLink
               issueKey={issue.jiraKey}
               className="rounded-full px-1.5 py-[1px] text-[10px] font-medium"
@@ -47,14 +40,14 @@ export function TriageDeskSection({ issue, onCapture }: TriageDeskSectionProps) 
         <button
           type="button"
           onClick={onCapture}
-          className="shrink-0 rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors"
+          className="shrink-0 rounded-md px-2.5 py-1.5 text-[10.5px] font-semibold transition-colors"
           style={{
             background: 'rgba(217,169,78,0.12)',
             color: 'var(--md-accent)',
             border: '1px solid rgba(217,169,78,0.2)',
           }}
         >
-          Add to Manager Desk
+          Add to Desk
         </button>
       </div>
     </div>

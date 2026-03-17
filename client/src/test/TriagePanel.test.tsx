@@ -156,6 +156,9 @@ describe('TriagePanel', () => {
       </TestWrapper>
     );
 
+    // Labels are inside the collapsible Properties section
+    fireEvent.click(screen.getByRole('button', { name: /properties/i }));
+
     expect(screen.getByText('backend')).toBeInTheDocument();
     expect(screen.getByText('critical')).toBeInTheDocument();
     expect(screen.getByTitle('Manage tags')).toBeInTheDocument();
@@ -168,15 +171,16 @@ describe('TriagePanel', () => {
       </TestWrapper>
     );
 
+    // Expand Properties to see Severity
+    fireEvent.click(screen.getByRole('button', { name: /properties/i }));
+
     expect(screen.getByText('Severity')).toBeInTheDocument();
     expect(screen.getByText('Critical')).toBeInTheDocument();
-    expect(screen.getAllByText('Priority')).toHaveLength(1);
-    expect(screen.getAllByText('Assignee')).toHaveLength(1);
-    expect(screen.getAllByText('Due Date')).toHaveLength(1);
-    expect(screen.getAllByText('Blocked')).toHaveLength(1);
+    // Editable fields (Priority, Assignee, Due, Blocked) moved to Quick Actions strip
+    expect(screen.getByText('Highest')).toBeInTheDocument();
   });
 
-  it('allows collapsing properties and keeps suggestions below that section', () => {
+  it('allows expanding and collapsing properties while suggestions remain visible', () => {
     mockSuggestions = {
       prioritySuggestion: { data: { suggested: 'High' } },
       dueDateSuggestion: { data: null },
@@ -190,16 +194,22 @@ describe('TriagePanel', () => {
     );
 
     const propertiesToggle = screen.getByRole('button', { name: /properties/i });
-    const suggestionsHeading = screen.getByText('Suggestions');
 
-    expect(propertiesToggle).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByText('Priority')).toBeInTheDocument();
-    expect(propertiesToggle.compareDocumentPosition(suggestionsHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-
-    fireEvent.click(propertiesToggle);
-
+    // Properties starts collapsed
     expect(propertiesToggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText('Priority')).not.toBeInTheDocument();
+    expect(screen.queryByText('Reporter')).not.toBeInTheDocument();
+    expect(screen.getByText('Suggestions')).toBeInTheDocument();
+
+    // Expand
+    fireEvent.click(propertiesToggle);
+    expect(propertiesToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Reporter')).toBeInTheDocument();
+    expect(screen.getByText('Suggestions')).toBeInTheDocument();
+
+    // Collapse
+    fireEvent.click(propertiesToggle);
+    expect(propertiesToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Reporter')).not.toBeInTheDocument();
     expect(screen.getByText('Suggestions')).toBeInTheDocument();
   });
 
@@ -222,8 +232,12 @@ describe('TriagePanel', () => {
     );
 
     expect(screen.getByText('Team Tracker')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /add task to alice/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /alice assigned/i })).toHaveAttribute('aria-pressed', 'true');
+
+    // Expand Team Tracker
+    fireEvent.click(screen.getByRole('button', { name: /team tracker/i }));
+
+    expect(screen.getByRole('button', { name: /add to alice/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^alice/i })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('adds the current Jira issue to today tracker plan from the triage panel', () => {
@@ -233,10 +247,13 @@ describe('TriagePanel', () => {
       </TestWrapper>
     );
 
+    // Expand Team Tracker
+    fireEvent.click(screen.getByRole('button', { name: /team tracker/i }));
+
     fireEvent.change(screen.getByLabelText('Task'), {
       target: { value: 'Trace the login crash path' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /add task to alice/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add to alice/i }));
 
     expect(mockAddTrackerItemMutate).toHaveBeenCalledWith(
       {
@@ -258,11 +275,14 @@ describe('TriagePanel', () => {
       </TestWrapper>
     );
 
+    // Expand Team Tracker
+    fireEvent.click(screen.getByRole('button', { name: /team tracker/i }));
+
     fireEvent.click(screen.getByRole('button', { name: /^bob$/i }));
     fireEvent.change(screen.getByLabelText('Task'), {
       target: { value: 'Patch the submit sanitization path' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /add task to bob/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add to bob/i }));
 
     expect(mockAddTrackerItemMutate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -290,14 +310,18 @@ describe('TriagePanel', () => {
       </TestWrapper>
     );
 
+    // Linked badge visible even when collapsed
+    expect(screen.getByText('1 linked')).toBeInTheDocument();
+
+    // Expand Team Tracker to see linked tasks
+    fireEvent.click(screen.getByRole('button', { name: /team tracker/i }));
+
     expect(screen.getByText('Bob · Planned · Verify the customer reproduction steps')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /bob 1 linked/i })).toBeInTheDocument();
-    expect(screen.getByText(/1 linked task/)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Task'), {
       target: { value: 'Patch the submit sanitization path' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /add task to alice/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add to alice/i }));
 
     expect(mockAddTrackerItemMutate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -319,7 +343,7 @@ describe('TriagePanel', () => {
     // Legacy notes appear as collapsed history preview text
     expect(screen.getByText(/Root cause looks related/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /add to manager desk/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add to desk/i }));
 
     // The desk dialog receives the raw analysis notes as context
     expect(screen.getByDisplayValue('Root cause looks related to the submit sanitization path.')).toBeInTheDocument();
@@ -362,7 +386,7 @@ describe('TriagePanel', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /add to manager desk/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add to desk/i }));
 
     expect(screen.queryByPlaceholderText('Quick context so future-you remembers why...')).not.toBeInTheDocument();
     expect(screen.getByText('Optional')).toBeInTheDocument();

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Plus, Check, Users } from 'lucide-react';
+import { Plus, Check, Users, ChevronRight } from 'lucide-react';
 import type { Developer } from '@/types';
 
 interface TrackerIssueAssignment {
@@ -45,9 +45,8 @@ export function TriageTrackerSection({
   onAdd,
   isAdding,
 }: TriageTrackerSectionProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [taskTitle, setTaskTitle] = useState('');
-  const [addedAccountId, setAddedAccountId] = useState<string>();
 
   const selectedAccountId = useMemo(() => {
     if (issueAssigneeId && developers.some((d) => d.accountId === issueAssigneeId)) return issueAssigneeId;
@@ -62,47 +61,32 @@ export function TriageTrackerSection({
   const handleAdd = useCallback(() => {
     if (!currentAccountId || !taskTitle.trim()) return;
     onAdd(currentAccountId, taskTitle.trim());
-    setAddedAccountId(currentAccountId);
     setTaskTitle('');
   }, [currentAccountId, taskTitle, onAdd]);
 
-  if (!developers.length) {
-    return (
-      <div className="triage-section">
-        <span className="triage-section-label"><Users size={11} /> Team Tracker</span>
-        <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>No team members available.</span>
-      </div>
-    );
-  }
+  if (!developers.length) return null;
 
   return (
     <div className="triage-section">
-      <button
-        type="button"
-        onClick={() => setCollapsed((p) => !p)}
-        className="flex items-center justify-between w-full group"
-      >
-        <span className="triage-section-label">
-          <Users size={11} /> Team Tracker
-        </span>
-        <div className="flex items-center gap-2">
-          {assignments.length > 0 && (
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-              style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
-              {assignments.length} linked
-            </span>
-          )}
-          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            {collapsed ? '+' : '−'}
+      <button type="button" onClick={() => setExpanded((p) => !p)} className="w-full flex items-center gap-2 group">
+        <ChevronRight
+          size={12}
+          className="shrink-0 transition-transform duration-150"
+          style={{ color: 'var(--text-muted)', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+        />
+        <span className="triage-section-label"><Users size={11} /> Team Tracker</span>
+        {assignments.length > 0 && (
+          <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full ml-1"
+            style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
+            {assignments.length} linked
           </span>
-        </div>
+        )}
       </button>
 
-      {!collapsed && (
-        <div className="mt-2 space-y-2">
+      {expanded && (
+        <div className="mt-2.5 space-y-2">
           <div className="flex gap-1.5">
             <input
-              id="tracker-task-title"
               type="text"
               value={taskTitle}
               onChange={(e) => setTaskTitle(e.target.value)}
@@ -110,52 +94,45 @@ export function TriageTrackerSection({
               placeholder="Task description…"
               aria-label="Task"
               className="flex-1 rounded-md px-2.5 py-1.5 text-[11.5px] outline-none transition-colors"
-              style={{
-                background: 'var(--bg-tertiary)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border)',
-              }}
+              style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
             />
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={!selectedDev || isAdding || !taskTitle.trim()}
+              className="shrink-0 rounded-md px-2.5 py-1.5 text-[10.5px] font-semibold disabled:opacity-30 transition-colors"
+              style={{ background: 'var(--accent-glow)', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 20%, transparent)' }}
+            >
+              {isAdding ? '…' : selectedDev ? `Add to ${firstName(selectedDev.displayName)}` : 'Add'}
+            </button>
           </div>
 
           <div className="flex flex-wrap gap-1">
             {developers.map((dev) => {
               const isSelected = currentAccountId === dev.accountId;
-              const isAssigned = issueAssigneeId === dev.accountId;
-              const wasAdded = addedAccountId === dev.accountId;
-              const linkedCount = assignments.filter((a) => a.developer.accountId === dev.accountId).length;
-
               return (
                 <button
                   key={dev.accountId}
                   type="button"
                   onClick={() => setAccountId(dev.accountId)}
                   aria-pressed={isSelected}
-                  className="rounded-full px-2 py-1 text-[11px] font-medium transition-colors"
+                  className="rounded-full px-2 py-0.5 text-[10.5px] font-medium transition-colors"
                   style={{
                     background: isSelected ? 'var(--accent-glow)' : 'transparent',
                     color: isSelected ? 'var(--accent)' : 'var(--text-secondary)',
                     border: `1px solid ${isSelected ? 'var(--border-active)' : 'var(--border)'}`,
                   }}
                 >
-                  <span className="inline-flex items-center gap-1">
-                    {wasAdded && <Check size={10} />}
-                    {dev.displayName}
-                    {isAssigned && (
-                      <span className="text-[9px] opacity-60">Assigned</span>
-                    )}
-                    {linkedCount > 0 && (
-                      <span className="text-[9px] opacity-60">{linkedCount} linked</span>
-                    )}
-                  </span>
+                  {dev.displayName}
+                  {issueAssigneeId === dev.accountId && <span className="text-[9px] opacity-60 ml-0.5">●</span>}
                 </button>
               );
             })}
           </div>
 
           {assignments.length > 0 && (
-            <div className="rounded-md px-2 py-1.5 space-y-0.5" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
-              <div className="text-[9px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+            <div className="rounded-md px-2.5 py-2 space-y-0.5" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+              <div className="text-[9px] font-bold uppercase tracking-[0.08em]" style={{ color: 'var(--text-muted)' }}>
                 Linked Today
               </div>
               {assignments.map((a) => (
@@ -165,33 +142,6 @@ export function TriageTrackerSection({
               ))}
             </div>
           )}
-
-          <div className="flex items-center justify-between">
-            <span className="text-[10.5px]" style={{ color: 'var(--text-muted)' }}>
-              {selectedDev
-                ? assignments.length > 0
-                  ? `${assignments.length} linked task${assignments.length === 1 ? '' : 's'} on ${issueKey}`
-                  : `${selectedDev.displayName} for ${trackerDate}`
-                : 'Choose a developer'}
-            </span>
-            <button
-              type="button"
-              onClick={handleAdd}
-              disabled={!selectedDev || isAdding || !taskTitle.trim()}
-              className="rounded-md px-2.5 py-1 text-[11px] font-medium disabled:opacity-30 transition-colors"
-              style={{
-                background: 'var(--accent-glow)',
-                color: 'var(--accent)',
-                border: '1px solid color-mix(in srgb, var(--accent) 20%, transparent)',
-              }}
-            >
-              {isAdding
-                ? 'Adding…'
-                : selectedDev
-                  ? `Add Task to ${firstName(selectedDev.displayName)}`
-                  : 'Add to Team Tracker'}
-            </button>
-          </div>
         </div>
       )}
     </div>

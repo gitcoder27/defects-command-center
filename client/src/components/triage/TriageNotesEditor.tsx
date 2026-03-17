@@ -67,10 +67,10 @@ export function TriageNotesEditor({ value, onChange, onBlurSave, isSaved }: Tria
     <div className="triage-section">
       <div className="flex items-center justify-between mb-2">
         <span className="triage-section-label">
-          <FileText size={11} /> Notes
+          <FileText size={10} /> Notes
         </span>
         <span
-          className="text-[10px] transition-opacity"
+          className="text-[9.5px] transition-opacity"
           style={{ color: !isSaved ? 'var(--warning)' : 'var(--success)', opacity: value ? 1 : 0 }}
         >
           {!isSaved ? 'Saving…' : (
