@@ -1,7 +1,7 @@
 import { CheckCircle2, GripVertical, PencilLine, Play, XCircle } from 'lucide-react';
 import type { TrackerItemState } from '@/types';
 
-export type TrackerItemActionPreset = 'default' | 'none' | 'start-only-visible';
+export type TrackerItemActionPreset = 'default' | 'none' | 'hover-start' | 'hover-done';
 
 interface TrackerItemRowActionsProps {
   itemId: number;
@@ -40,15 +40,28 @@ export function TrackerItemRowActions({
     return null;
   }
 
-  const startOnlyVisible = actionPreset === 'start-only-visible';
+  const hoverStart = actionPreset === 'hover-start';
+  const hoverDone = actionPreset === 'hover-done';
+  const hoverPrimaryOnly = hoverStart || hoverDone;
 
   return (
     <div
-      className={`flex items-center gap-1 shrink-0 transition-opacity ${
-        startOnlyVisible ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-      }`}
+      className={
+        hoverPrimaryOnly
+          ? 'pointer-events-none absolute right-1.5 top-1/2 z-[1] -translate-y-1/2 translate-x-2 opacity-0 transition-all group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-x-0 group-focus-within:opacity-100'
+          : 'flex items-center gap-1 shrink-0 opacity-0 transition-opacity group-hover:opacity-100'
+      }
+      style={
+        hoverPrimaryOnly
+          ? {
+              background:
+                'linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--bg-secondary) 24%, transparent) 26%, var(--bg-secondary) 100%)',
+              paddingLeft: '1.6rem',
+            }
+          : undefined
+      }
     >
-      {!startOnlyVisible && !draggable && itemState === 'planned' && onMoveUp && (
+      {!hoverPrimaryOnly && !draggable && itemState === 'planned' && onMoveUp && (
         <button
           onClick={(event) => {
             event.stopPropagation();
@@ -62,7 +75,7 @@ export function TrackerItemRowActions({
           <GripVertical size={10} style={{ color: 'var(--text-secondary)' }} />
         </button>
       )}
-      {!startOnlyVisible && !draggable && itemState === 'planned' && onMoveDown && (
+      {!hoverPrimaryOnly && !draggable && itemState === 'planned' && onMoveDown && (
         <button
           onClick={(event) => {
             event.stopPropagation();
@@ -76,34 +89,51 @@ export function TrackerItemRowActions({
           <GripVertical size={10} style={{ color: 'var(--text-secondary)' }} />
         </button>
       )}
-      {itemState !== 'in_progress' && onSetCurrent && (
+      {itemState !== 'in_progress' && onSetCurrent && !hoverDone && (
         <button
           onClick={(event) => {
             event.stopPropagation();
             onSetCurrent(itemId);
           }}
           className={
-            startOnlyVisible
-              ? 'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-semibold transition-colors'
+            hoverStart
+              ? 'flex h-7 w-7 items-center justify-center rounded-full border transition-all hover:scale-[1.04] active:scale-[0.97]'
               : 'h-6 w-6 rounded-md flex items-center justify-center transition-colors'
           }
           style={
-            startOnlyVisible
+            hoverStart
               ? {
-                  background: 'var(--accent-glow)',
-                  color: 'var(--accent)',
-                  border: '1px solid color-mix(in srgb, var(--accent) 24%, transparent)',
+                  background: 'color-mix(in srgb, var(--accent-glow) 82%, var(--bg-secondary) 18%)',
+                  borderColor: 'color-mix(in srgb, var(--accent) 24%, transparent)',
+                  boxShadow: '0 8px 18px rgba(6, 182, 212, 0.18)',
                 }
               : { background: 'var(--bg-tertiary)' }
           }
-          title={startOnlyVisible ? `Start ${itemTitle}` : 'Set as current'}
-          aria-label={startOnlyVisible ? `Start ${itemTitle}` : undefined}
+          title={hoverStart ? `Start ${itemTitle}` : 'Set as current'}
+          aria-label={hoverStart ? `Start ${itemTitle}` : undefined}
         >
           <Play size={10} style={{ color: 'var(--accent)' }} />
-          {startOnlyVisible && <span>Start</span>}
         </button>
       )}
-      {!startOnlyVisible && onToggleNoteEditor && (
+      {hoverDone && onMarkDone && (
+        <button
+          onClick={(event) => {
+            event.stopPropagation();
+            onMarkDone(itemId);
+          }}
+          className="flex h-7 w-7 items-center justify-center rounded-full border transition-all hover:scale-[1.04] active:scale-[0.97]"
+          style={{
+            background: 'color-mix(in srgb, rgba(16,185,129,0.2) 82%, var(--bg-secondary) 18%)',
+            borderColor: 'rgba(16, 185, 129, 0.28)',
+            boxShadow: '0 8px 18px rgba(16, 185, 129, 0.16)',
+          }}
+          title={`Mark ${itemTitle} done`}
+          aria-label={`Mark ${itemTitle} done`}
+        >
+          <CheckCircle2 size={11} style={{ color: 'var(--success)' }} />
+        </button>
+      )}
+      {!hoverPrimaryOnly && onToggleNoteEditor && (
         <button
           onClick={(event) => {
             event.stopPropagation();
@@ -116,7 +146,7 @@ export function TrackerItemRowActions({
           <PencilLine size={10} style={{ color: hasNote ? 'var(--accent)' : 'var(--text-secondary)' }} />
         </button>
       )}
-      {!startOnlyVisible && onMarkDone && (
+      {!hoverPrimaryOnly && onMarkDone && (
         <button
           onClick={(event) => {
             event.stopPropagation();
@@ -129,7 +159,7 @@ export function TrackerItemRowActions({
           <CheckCircle2 size={10} style={{ color: 'var(--success)' }} />
         </button>
       )}
-      {!startOnlyVisible && onDrop && (
+      {!hoverPrimaryOnly && onDrop && (
         <button
           onClick={(event) => {
             event.stopPropagation();

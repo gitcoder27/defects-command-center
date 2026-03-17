@@ -97,7 +97,7 @@ export function TrackerItemRow({
 
   return (
     <div
-      className={`group flex items-center gap-2 rounded-lg transition-colors ${canOpen ? 'cursor-pointer' : ''} ${
+      className={`group relative flex items-center gap-2 rounded-lg transition-colors ${canOpen ? 'cursor-pointer' : ''} ${
         isDrawerPlanned ? 'px-2 py-1' : 'px-2 py-1.5'
       }`}
       style={{

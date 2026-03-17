@@ -8,6 +8,7 @@ const mockUpdateDayMutate = vi.fn();
 const mockUpdateAvailabilityMutate = vi.fn();
 const mockUpdateTrackerItemMutate = vi.fn();
 const mockSetCurrentMutate = vi.fn();
+const mockAddToast = vi.fn();
 const mockCreateManagerDeskItemMutate = vi.fn();
 const mockAddTrackerItemMutate = vi.fn();
 const mockRefetchBoard = vi.fn();
@@ -221,6 +222,12 @@ vi.mock('@/hooks/useConfig', () => ({
   useConfig: () => ({ data: { jiraBaseUrl: 'https://test.atlassian.net', isConfigured: true } }),
 }));
 
+vi.mock('@/context/ToastContext', () => ({
+  useToast: () => ({
+    addToast: mockAddToast,
+  }),
+}));
+
 vi.mock('@/components/team-tracker/TrackerTaskDetailDrawer', () => ({
   TrackerTaskDetailDrawer: ({
     trackerItemId,
@@ -270,6 +277,7 @@ describe('TeamTrackerPage', () => {
     mockUpdateAvailabilityMutate.mockReset();
     mockUpdateTrackerItemMutate.mockReset();
     mockSetCurrentMutate.mockReset();
+    mockAddToast.mockReset();
     mockCreateManagerDeskItemMutate.mockReset();
     mockAddTrackerItemMutate.mockReset();
     mockRefetchBoard.mockReset();
@@ -634,8 +642,50 @@ describe('TeamTrackerPage', () => {
     clickDeveloperCard('Bob Jones');
     fireEvent.click(screen.getByRole('button', { name: /start code review/i }));
 
-    expect(mockSetCurrentMutate).toHaveBeenCalledWith(11);
+    expect(mockSetCurrentMutate).toHaveBeenCalledWith(
+      11,
+      expect.objectContaining({ onError: expect.any(Function) })
+    );
     expect(screen.queryByRole('dialog', { name: /team tracker task detail/i })).not.toBeInTheDocument();
+  });
+
+  it('shows a success toast with undo after marking current work done from the drawer', () => {
+    mockUpdateTrackerItemMutate.mockImplementation((params, options) => {
+      options?.onSuccess?.(undefined, params, undefined);
+    });
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    clickDeveloperCard('Bob Jones');
+    fireEvent.click(screen.getByRole('button', { name: /mark fix login bug done/i }));
+
+    expect(mockUpdateTrackerItemMutate).toHaveBeenNthCalledWith(
+      1,
+      { itemId: 10, state: 'done' },
+      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) })
+    );
+    expect(mockAddToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'success',
+        title: 'Fix login bug marked done',
+        action: expect.objectContaining({ label: 'Undo', onClick: expect.any(Function) }),
+      })
+    );
+
+    const undo = mockAddToast.mock.calls[0]?.[0]?.action?.onClick;
+    expect(undo).toBeTypeOf('function');
+    undo();
+
+    expect(mockUpdateTrackerItemMutate).toHaveBeenNthCalledWith(
+      2,
+      { itemId: 10, state: 'in_progress' },
+      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) })
+    );
+    expect(mockAddToast).toHaveBeenLastCalledWith('Task restored', 'success');
   });
 
   it('saves daily capacity from the drawer', () => {
@@ -736,7 +786,7 @@ describe('TrackerItemRow', () => {
           updatedAt: '2026-03-07T08:00:00Z',
         }}
         variant="drawer-planned"
-        actionPreset="start-only-visible"
+        actionPreset="hover-start"
         onOpen={onOpen}
         onSetCurrent={onSetCurrent}
       />
@@ -746,6 +796,7 @@ describe('TrackerItemRow', () => {
     expect(screen.getByRole('link', { name: 'AM-456' })).toBeInTheDocument();
     expect(screen.queryByText('Highest • Due Mar 9')).not.toBeInTheDocument();
     expect(screen.queryByText('This note should stay hidden in the drawer row.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Start$/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /start validate the staging rollout guardrails/i }));
 

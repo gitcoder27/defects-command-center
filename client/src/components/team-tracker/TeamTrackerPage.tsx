@@ -12,6 +12,7 @@ import {
   useCarryForward,
 } from '@/hooks/useTeamTrackerMutations';
 import { useIssues } from '@/hooks/useIssues';
+import { useToast } from '@/context/ToastContext';
 import { getLocalIsoDate, shiftLocalIsoDate } from '@/lib/utils';
 import { TrackerSummaryStrip, type SummaryFilter } from './TrackerSummaryStrip';
 import { AttentionQueue } from './AttentionQueue';
@@ -21,7 +22,7 @@ import { DeveloperTrackerDrawer } from './DeveloperTrackerDrawer';
 import { AvailabilityDialog } from './AvailabilityDialog';
 import { TrackerTaskDetailDrawer } from './TrackerTaskDetailDrawer';
 import type { AppView } from '@/App';
-import type { TrackerDeveloperDay } from '@/types';
+import type { TrackerDeveloperDay, TrackerWorkItem } from '@/types';
 
 function getCarryForwardPromptKey(date: string): string {
   return `team-tracker:carry-forward-prompt:${date}`;
@@ -56,6 +57,7 @@ interface TeamTrackerPageProps {
 }
 
 export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
+  const { addToast } = useToast();
   const [date, setDate] = useState(getLocalIsoDate);
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
   const [drawerAccountId, setDrawerAccountId] = useState<string | undefined>();
@@ -86,18 +88,77 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
     [board, drawerAccountId]
   );
 
+  const findTrackerItem = useCallback(
+    (itemId: number): TrackerWorkItem | undefined => {
+      for (const day of board?.developers ?? []) {
+        if (day.currentItem?.id === itemId) {
+          return day.currentItem;
+        }
+
+        const plannedItem = day.plannedItems.find((item) => item.id === itemId);
+        if (plannedItem) {
+          return plannedItem;
+        }
+
+        const completedItem = day.completedItems.find((item) => item.id === itemId);
+        if (completedItem) {
+          return completedItem;
+        }
+
+        const droppedItem = day.droppedItems.find((item) => item.id === itemId);
+        if (droppedItem) {
+          return droppedItem;
+        }
+      }
+
+      return undefined;
+    },
+    [board?.developers]
+  );
+
   const handleSetCurrent = useCallback(
     (itemId: number) => {
-      setCurrent.mutate(itemId);
+      setCurrent.mutate(itemId, {
+        onError: (err) => addToast(err.message, 'error'),
+      });
     },
-    [setCurrent]
+    [addToast, setCurrent]
   );
 
   const handleMarkDone = useCallback(
     (itemId: number) => {
-      updateItem.mutate({ itemId, state: 'done' });
+      const previousItem = findTrackerItem(itemId);
+      const previousState = previousItem?.state ?? 'in_progress';
+      const itemLabel = previousItem?.title ?? 'Task';
+
+      updateItem.mutate(
+        { itemId, state: 'done' },
+        {
+          onSuccess: () => {
+            addToast({
+              type: 'success',
+              title: `${itemLabel} marked done`,
+              message: 'Current work was moved out of the active slot.',
+              action: {
+                label: 'Undo',
+                onClick: () => {
+                  updateItem.mutate(
+                    { itemId, state: previousState },
+                    {
+                      onSuccess: () => addToast('Task restored', 'success'),
+                      onError: (err) => addToast(err.message, 'error'),
+                    }
+                  );
+                },
+              },
+              duration: 8000,
+            });
+          },
+          onError: (err) => addToast(err.message, 'error'),
+        }
+      );
     },
-    [updateItem]
+    [addToast, findTrackerItem, updateItem]
   );
 
   const handleDropItem = useCallback(

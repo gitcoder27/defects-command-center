@@ -296,7 +296,7 @@ export function DeveloperTrackerDrawer({
                 {day.currentItem ? (
                   <TrackerItemRow
                     item={day.currentItem}
-                    hideActions
+                    actionPreset="hover-done"
                     onOpen={onOpenTaskDetail}
                     onUpdateNote={(itemId, note) => onUpdateItemNote({ itemId, note })}
                     onUpdateTitle={(itemId, title) => onUpdateItemTitle({ itemId, title })}
@@ -344,7 +344,7 @@ export function DeveloperTrackerDrawer({
                           item={item}
                           draggable
                           variant="drawer-planned"
-                          actionPreset="start-only-visible"
+                          actionPreset="hover-start"
                           onOpen={onOpenTaskDetail}
                           onUpdateNote={(itemId, note) => onUpdateItemNote({ itemId, note })}
                           onUpdateTitle={(itemId, title) => onUpdateItemTitle({ itemId, title })}
