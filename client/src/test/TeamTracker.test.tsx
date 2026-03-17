@@ -513,7 +513,7 @@ describe('TeamTrackerPage', () => {
     expect(window.sessionStorage.getItem('team-tracker:carry-forward-prompt:2026-03-07')).toBe('dismissed');
   });
 
-  it('creates a Manager Desk-backed Jira task from the drawer using the synced issue picker', () => {
+  it('creates a tracker-local Jira task from the drawer using the synced issue picker', () => {
     mockIssues = [
       {
         jiraKey: 'AM-456',
@@ -555,14 +555,13 @@ describe('TeamTrackerPage', () => {
     fireEvent.click(screen.getByText('Investigate API latency'));
     fireEvent.click(screen.getAllByRole('button', { name: /^add task$/i }).at(-1)!);
 
-    expect(mockCreateManagerDeskItemMutate).toHaveBeenCalledWith({
-      assigneeDeveloperAccountId: 'dev-2',
-      contextNote: undefined,
-      date: '2026-03-07',
-      links: [{ issueKey: 'AM-456', linkType: 'issue' }],
-      status: 'planned',
+    expect(mockAddTrackerItemMutate).toHaveBeenCalledWith({
+      accountId: 'dev-2',
       title: 'Investigate API latency spike',
+      jiraKey: 'AM-456',
+      note: undefined,
     });
+    expect(mockCreateManagerDeskItemMutate).not.toHaveBeenCalled();
   });
 
   it('navigates to the previous day when clicking the left arrow', () => {

@@ -2,12 +2,12 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, ArrowRight, ChevronLeft, ChevronRight, RefreshCw, X } from 'lucide-react';
 import { useTeamTracker, useCarryForwardPreview } from '@/hooks/useTeamTracker';
-import { useCreateManagerDeskItem } from '@/hooks/useManagerDesk';
 import {
   useUpdateDay,
   useUpdateAvailability,
   useSetCurrentItem,
   useUpdateTrackerItem,
+  useAddTrackerItem,
   useAddCheckIn,
   useCarryForward,
 } from '@/hooks/useTeamTrackerMutations';
@@ -75,7 +75,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   const previousDate = useMemo(() => shiftLocalIsoDate(date, -1), [date]);
   const carryForwardPreview = useCarryForwardPreview(previousDate, date, !carryPromptDismissed);
 
-  const createManagerDeskItem = useCreateManagerDeskItem(date);
+  const addTrackerItem = useAddTrackerItem(date);
   const updateDay = useUpdateDay(date);
   const updateAvailability = useUpdateAvailability(date);
   const setCurrent = useSetCurrentItem(date);
@@ -175,16 +175,9 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
 
   const handleCreateTask = useCallback(
     (params: { accountId: string; title: string; jiraKey?: string; note?: string }) => {
-      createManagerDeskItem.mutate({
-        date,
-        title: params.title,
-        status: 'planned',
-        assigneeDeveloperAccountId: params.accountId,
-        contextNote: params.note,
-        links: params.jiraKey ? [{ linkType: 'issue', issueKey: params.jiraKey }] : undefined,
-      });
+      addTrackerItem.mutate(params);
     },
-    [createManagerDeskItem, date]
+    [addTrackerItem]
   );
 
   const handleCarryForward = useCallback(() => {
@@ -451,7 +444,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
               onMarkDone={handleMarkDone}
               onQuickAdd={handleCreateTask}
               issues={issues}
-              isQuickAddPending={createManagerDeskItem.isPending}
+              isQuickAddPending={addTrackerItem.isPending}
             />
           </>
         ) : (
@@ -480,7 +473,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
         onAddCheckIn={(params) => addCheckIn.mutate(params)}
         onOpenManagerDesk={onViewChange ? () => onViewChange('manager-desk') : undefined}
         issues={issues}
-        isAddItemPending={createManagerDeskItem.isPending}
+        isAddItemPending={addTrackerItem.isPending}
       />
       <TrackerTaskDetailDrawer
         trackerItemId={selectedTask?.trackerItemId ?? null}

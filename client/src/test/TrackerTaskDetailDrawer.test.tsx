@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 const mockUseTrackerSharedTaskDetail = vi.fn();
@@ -8,11 +8,14 @@ const mockDeleteManagerDeskItemMutate = vi.fn();
 const mockUpdateTrackerItemMutate = vi.fn();
 const mockUpdateTrackerItemMutateAsync = vi.fn().mockResolvedValue(undefined);
 const mockSetCurrentItemMutate = vi.fn();
+const mockPromoteTrackerItemMutate = vi.fn();
+const mockAddToast = vi.fn();
 
 vi.mock('@/hooks/useManagerDesk', () => ({
   useTrackerSharedTaskDetail: (...args: unknown[]) => mockUseTrackerSharedTaskDetail(...args),
   useUpdateManagerDeskItem: () => ({ mutate: mockUpdateManagerDeskItemMutate, isPending: false }),
   useDeleteManagerDeskItem: () => ({ mutate: mockDeleteManagerDeskItemMutate, isPending: false }),
+  usePromoteTrackerItem: () => ({ mutate: mockPromoteTrackerItemMutate, isPending: false }),
 }));
 
 vi.mock('@/hooks/useTeamTrackerMutations', () => ({
@@ -22,6 +25,14 @@ vi.mock('@/hooks/useTeamTrackerMutations', () => ({
     isPending: false,
   }),
   useSetCurrentItem: () => ({ mutate: mockSetCurrentItemMutate, isPending: false }),
+}));
+
+vi.mock('@/context/ToastContext', () => ({
+  useToast: () => ({ addToast: mockAddToast }),
+}));
+
+vi.mock('@/hooks/useConfig', () => ({
+  useConfig: () => ({ data: { jiraBaseUrl: 'https://test.atlassian.net', isConfigured: true } }),
 }));
 
 vi.mock('@/components/team-tracker/TrackerTaskExecutionPanel', () => ({
@@ -60,6 +71,8 @@ describe('TrackerTaskDetailDrawer', () => {
     mockUpdateTrackerItemMutate.mockReset();
     mockUpdateTrackerItemMutateAsync.mockClear();
     mockSetCurrentItemMutate.mockReset();
+    mockPromoteTrackerItemMutate.mockReset();
+    mockAddToast.mockReset();
   });
 
   it('renders loading content inside the drawer while detail is fetching', () => {
@@ -81,14 +94,15 @@ describe('TrackerTaskDetailDrawer', () => {
 
     expect(screen.getByRole('dialog', { name: /team tracker task detail/i })).toBeInTheDocument();
     expect(screen.getByText('Loading task detail')).toBeInTheDocument();
-    expect(screen.getByText(/shared manager desk task and execution context/i)).toBeInTheDocument();
+    expect(screen.getByText(/loading tracker task detail/i)).toBeInTheDocument();
   });
 
-  it('renders the item detail content once the shared detail is loaded', () => {
+  it('renders the linked item detail content with Manager Desk controls', () => {
     mockUseTrackerSharedTaskDetail.mockReturnValue({
       data: {
         date: '2026-03-14',
         developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+        lifecycle: 'manager_desk_linked',
         managerDeskItem: {
           id: 110,
           dayId: 1,
@@ -105,6 +119,7 @@ describe('TrackerTaskDetailDrawer', () => {
           id: 10,
           dayId: 1,
           managerDeskItemId: 110,
+          lifecycle: 'manager_desk_linked',
           itemType: 'jira',
           title: 'Fix login bug',
           state: 'planned',
@@ -131,6 +146,123 @@ describe('TrackerTaskDetailDrawer', () => {
     expect(screen.getByText('Fix login bug')).toBeInTheDocument();
     expect(screen.getByText('Execution panel')).toBeInTheDocument();
     expect(screen.queryByText('Loading task detail')).not.toBeInTheDocument();
+    expect(screen.queryByText(/promote to manager follow-up/i)).not.toBeInTheDocument();
+  });
+
+  it('renders the tracker-only detail with promote CTA when lifecycle is tracker_only', () => {
+    mockUseTrackerSharedTaskDetail.mockReturnValue({
+      data: {
+        date: '2026-03-14',
+        developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+        lifecycle: 'tracker_only',
+        trackerItem: {
+          id: 10,
+          dayId: 1,
+          lifecycle: 'tracker_only',
+          itemType: 'custom',
+          title: 'Review pull request',
+          state: 'planned',
+          position: 0,
+          createdAt: '2026-03-14T09:00:00Z',
+          updatedAt: '2026-03-14T09:00:00Z',
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(
+      <TrackerTaskDetailDrawer
+        trackerItemId={10}
+        initialManagerDeskItemId={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('dialog', { name: /team tracker task detail/i })).toBeInTheDocument();
+    expect(screen.getByText('Review pull request')).toBeInTheDocument();
+    expect(screen.getByText('Tracker Only')).toBeInTheDocument();
+    expect(screen.getByText('Execution panel')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /promote to manager follow-up/i })).toBeInTheDocument();
+  });
+
+  it('calls the promote mutation when the promote CTA is clicked', () => {
+    mockUseTrackerSharedTaskDetail.mockReturnValue({
+      data: {
+        date: '2026-03-14',
+        developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+        lifecycle: 'tracker_only',
+        trackerItem: {
+          id: 10,
+          dayId: 1,
+          lifecycle: 'tracker_only',
+          itemType: 'custom',
+          title: 'Review pull request',
+          state: 'planned',
+          position: 0,
+          createdAt: '2026-03-14T09:00:00Z',
+          updatedAt: '2026-03-14T09:00:00Z',
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(
+      <TrackerTaskDetailDrawer
+        trackerItemId={10}
+        initialManagerDeskItemId={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /promote to manager follow-up/i }));
+
+    expect(mockPromoteTrackerItemMutate).toHaveBeenCalledWith(10, expect.objectContaining({
+      onSuccess: expect.any(Function),
+      onError: expect.any(Function),
+    }));
+  });
+
+  it('shows the developer name on the tracker-only drawer', () => {
+    mockUseTrackerSharedTaskDetail.mockReturnValue({
+      data: {
+        date: '2026-03-14',
+        developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+        lifecycle: 'tracker_only',
+        trackerItem: {
+          id: 10,
+          dayId: 1,
+          lifecycle: 'tracker_only',
+          itemType: 'jira',
+          jiraKey: 'AM-123',
+          title: 'Linked Jira task',
+          state: 'in_progress',
+          position: 0,
+          createdAt: '2026-03-14T09:00:00Z',
+          updatedAt: '2026-03-14T09:00:00Z',
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(
+      <TrackerTaskDetailDrawer
+        trackerItemId={10}
+        initialManagerDeskItemId={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+    expect(screen.getByText('AM-123')).toBeInTheDocument();
   });
 
   it('closes immediately when the selected task is cleared', () => {

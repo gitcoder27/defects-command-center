@@ -95,7 +95,7 @@ export interface ManagerDeskDayResponse {
 export interface TrackerSharedTaskDetailResponse {
   date: string;
   developer: Developer;
-  lifecycle?: TrackerTaskLifecycle;
+  lifecycle: TrackerTaskLifecycle;
   managerDeskItem?: ManagerDeskItem;
   trackerItem: TrackerWorkItem;
 }

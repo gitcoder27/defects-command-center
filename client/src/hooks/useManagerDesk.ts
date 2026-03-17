@@ -42,6 +42,35 @@ export function useTrackerSharedTaskDetail(params: {
   });
 }
 
+// ── Promote tracker item to Manager Desk ────────────────
+
+export function usePromoteTrackerItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (trackerItemId: number) =>
+      api.post<TrackerSharedTaskDetailResponse>(
+        `/manager-desk/tracker-items/${trackerItemId}/promote`
+      ),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
+      qc.invalidateQueries({ queryKey: ['manager-desk'] });
+      qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
+      if (data) {
+        qc.setQueriesData<TrackerSharedTaskDetailResponse>(
+          { queryKey: ['manager-desk', 'task-detail'] },
+          (existing) => {
+            if (existing?.trackerItem?.id === data.trackerItem?.id) {
+              return data;
+            }
+            return existing;
+          }
+        );
+      }
+    },
+  });
+}
+
 // ── Create item ─────────────────────────────────────────
 
 export function useCreateManagerDeskItem(date: string) {

@@ -15,7 +15,7 @@ For each item:
 
 ## Master Checklist
 
-- [ ] 1. Make the Team Tracker task lifecycle explicit. `Both`
+- [x] 1. Make the Team Tracker task lifecycle explicit. `Both`
 - [ ] 2. Fix carry-forward so Team Tracker work carries forward predictably. `Backend-heavy, but Both`
 - [ ] 3. Replace the split status/check-in flow with one unified action. `Both`
 - [ ] 4. Show check-in authorship and absolute timestamps. `Frontend-heavy, but Both`
@@ -35,21 +35,34 @@ For each item:
 ## 1. Make the Team Tracker Task Lifecycle Explicit
 
 Type: `Both`
-Status: `Not started`
+Status: `Completed`
 
 Planning checklist:
 
-- [ ] Confirm desired product model: always Manager Desk-backed vs tracker-local allowed
-- [ ] Identify all silent promotion/write-on-open paths
-- [ ] Define final user-facing behavior and copy
-- [ ] List backend contract and service changes
-- [ ] List frontend flow and state changes
-- [ ] Define validation and regression tests
+- [x] Confirm desired product model: always Manager Desk-backed vs tracker-local allowed
+- [x] Identify all silent promotion/write-on-open paths
+- [x] Define final user-facing behavior and copy
+- [x] List backend contract and service changes
+- [x] List frontend flow and state changes
+- [x] Define validation and regression tests
 
 Notes:
 
 - Hidden cross-system behavior is the highest-risk workflow issue
 - This decision affects carry-forward and assignment semantics downstream
+- Final product model: Team Tracker is tracker-local first; Manager Desk linkage is explicit, not implicit
+- Backend changes completed:
+  - `TrackerWorkItem` now exposes lifecycle metadata
+  - `GET /api/manager-desk/tracker-items/:trackerItemId/detail` is read-only and no longer creates Manager Desk data on open
+  - `POST /api/manager-desk/tracker-items/:trackerItemId/promote` explicitly creates and links a Manager Desk follow-up
+- Frontend changes completed:
+  - Team Tracker add-task flows now create Team Tracker items directly instead of routing through Manager Desk creation
+  - Task detail distinguishes tracker-only vs Manager Desk-linked work
+  - Tracker-only detail exposes an explicit promote action instead of silent write-on-open behavior
+- Backend validation completed:
+  - `npm run test --workspace=server -- manager-desk.routes.test.ts`
+  - `npm run test --workspace=server -- team-tracker.service.test.ts team-tracker.routes.test.ts`
+  - `npm run typecheck`
 
 ## 2. Fix Carry-Forward So Team Tracker Work Carries Forward Predictably
 
