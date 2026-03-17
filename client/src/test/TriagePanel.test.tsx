@@ -316,11 +316,13 @@ describe('TriagePanel', () => {
       </TestWrapper>
     );
 
-    expect(screen.getAllByDisplayValue('Root cause looks related to the submit sanitization path.')).toHaveLength(1);
+    // Legacy notes appear as collapsed history preview text
+    expect(screen.getByText(/Root cause looks related/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /add to manager desk/i }));
 
-    expect(screen.getAllByDisplayValue('Root cause looks related to the submit sanitization path.')).toHaveLength(2);
+    // The desk dialog receives the raw analysis notes as context
+    expect(screen.getByDisplayValue('Root cause looks related to the submit sanitization path.')).toBeInTheDocument();
   });
 
   it('autosaves dated notes in the plain analysis notes string field', () => {

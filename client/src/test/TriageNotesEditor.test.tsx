@@ -35,6 +35,9 @@ describe('TriageNotesEditor', () => {
       />
     );
 
+    // Legacy entry appears as a collapsed history item — expand it to access textarea
+    fireEvent.click(screen.getByRole('button', { name: /earlier notes/i }));
+
     const legacyNotes = screen.getByLabelText('Earlier notes') as HTMLTextAreaElement;
 
     expect(legacyNotes.value).toContain('3/14: - analysis of pending casework lineup logic');
@@ -42,50 +45,42 @@ describe('TriageNotesEditor', () => {
     expect(screen.getByLabelText('Notes for today')).toBeInTheDocument();
   });
 
-  it('scrolls to the bottom when rendered with existing overflowing legacy notes', () => {
+  it('shows collapsed previews for past dated entries', () => {
     render(
       <TriageNotesEditor
-        value={'Line 1\n'.repeat(80)}
+        value={'Mar 6, 2026:\nReplicated in local and captured findings.\n\nMar 5, 2026:\nInitial investigation of the issue.'}
         onChange={() => {}}
         onBlurSave={() => {}}
         isSaved
       />
     );
 
-    const textarea = screen.getByLabelText('Earlier notes') as HTMLTextAreaElement;
+    // Previews visible in collapsed state
+    expect(screen.getByText(/Replicated in local/)).toBeInTheDocument();
+    expect(screen.getByText(/Initial investigation/)).toBeInTheDocument();
 
-    expect(textarea.style.height).toBe('220px');
-    expect(textarea.scrollTop).toBe(480);
+    // Textareas are not rendered until expanded
+    expect(screen.queryByLabelText('Notes for Mar 6, 2026')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Notes for Mar 5, 2026')).not.toBeInTheDocument();
   });
 
-  it('does not force-scroll while the user is actively editing', () => {
-    const { rerender } = render(
+  it('expands a past entry to reveal its editable textarea', () => {
+    render(
       <TriageNotesEditor
-        value={'Line 1\n'.repeat(20)}
+        value={'Mar 6, 2026:\nReplicated in local and captured findings.'}
         onChange={() => {}}
         onBlurSave={() => {}}
         isSaved
       />
     );
 
-    const textarea = screen.getByLabelText('Earlier notes') as HTMLTextAreaElement;
+    fireEvent.click(screen.getByRole('button', { name: /mar 6, 2026/i }));
 
-    fireEvent.focus(textarea);
-    textarea.scrollTop = 24;
-
-    rerender(
-      <TriageNotesEditor
-        value={'Line 1\n'.repeat(21)}
-        onChange={() => {}}
-        onBlurSave={() => {}}
-        isSaved={false}
-      />
-    );
-
-    expect(textarea.scrollTop).toBe(24);
+    const textarea = screen.getByLabelText('Notes for Mar 6, 2026') as HTMLTextAreaElement;
+    expect(textarea.value).toBe('Replicated in local and captured findings.');
   });
 
-  it('serializes a new entry into today’s dated section automatically', () => {
+  it('serializes a new entry into today\u2019s dated section automatically', () => {
     const onChange = vi.fn();
 
     render(
@@ -117,6 +112,9 @@ describe('TriageNotesEditor', () => {
         isSaved
       />
     );
+
+    // Expand the collapsed past entry first
+    fireEvent.click(screen.getByRole('button', { name: /mar 6, 2026/i }));
 
     fireEvent.change(screen.getByLabelText('Notes for Mar 6, 2026'), {
       target: { value: 'Replicated in local and confirmed the fix path.' },
