@@ -23,6 +23,7 @@ export function CarryForwardDialog({ items, fromDate, isPending, onConfirm, onCl
   const [selected, setSelected] = useState<Set<number>>(() => new Set(items.map(i => i.id)));
   const formattedFromDate = useMemo(() => format(parseISO(fromDate), 'EEE, MMM d'), [fromDate]);
   const formattedToDate = useMemo(() => format(parseISO(toDate), 'EEE, MMM d'), [toDate]);
+  const isFutureDate = toDate > fromDate;
 
   useEffect(() => {
     setToDate(defaultToDate);
@@ -181,6 +182,7 @@ export function CarryForwardDialog({ items, fromDate, isPending, onConfirm, onCl
                     type="date"
                     value={toDate}
                     onChange={e => setToDate(e.target.value)}
+                    min={defaultToDate}
                     className="w-full rounded-xl px-3 py-2 text-[13px] outline-none"
                     style={{
                       background: 'var(--bg-tertiary)',
@@ -216,6 +218,11 @@ export function CarryForwardDialog({ items, fromDate, isPending, onConfirm, onCl
                     Choose exactly what should appear on {formattedToDate}.
                   </span>
                 </div>
+                {!isFutureDate && (
+                  <p className="mb-2 text-[11px]" style={{ color: 'var(--danger)' }}>
+                    Carry forward only supports dates after {formattedFromDate}.
+                  </p>
+                )}
 
                 <div
                   className="space-y-1 rounded-[18px] p-2"
@@ -296,7 +303,7 @@ export function CarryForwardDialog({ items, fromDate, isPending, onConfirm, onCl
               <button
                 type="button"
                 onClick={() => onConfirm(toDate, selected.size === items.length ? undefined : Array.from(selected))}
-                disabled={selected.size === 0 || isPending}
+                disabled={selected.size === 0 || isPending || !isFutureDate}
                 className="rounded-xl px-4 py-2 text-[12px] font-bold uppercase tracking-wide transition-all disabled:opacity-40"
                 style={{
                   background: 'var(--md-accent)',

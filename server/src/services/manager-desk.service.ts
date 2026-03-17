@@ -439,8 +439,8 @@ export class ManagerDeskService {
     managerAccountId: string,
     params: CarryForwardParams
   ): Promise<number> {
-    if (params.fromDate === params.toDate) {
-      throw new HttpError(400, "fromDate and toDate must be different");
+    if (params.toDate <= params.fromDate) {
+      throw new HttpError(400, "toDate must be after fromDate");
     }
 
     const sourceDay = await this.findDay(managerAccountId, params.fromDate);

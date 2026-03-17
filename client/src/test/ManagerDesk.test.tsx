@@ -293,6 +293,47 @@ describe('ManagerDeskPage', () => {
     expect(screen.getAllByText('Alice Smith').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('shows a persistent status indicator for started vs planned work in focus', () => {
+    currentMockDay = {
+      ...mockDayResponse,
+      items: [
+        mockItem({
+          id: 1,
+          title: 'Started incident review',
+          status: 'in_progress',
+          priority: 'high',
+          assignee: {
+            accountId: 'alice-1',
+            displayName: 'Alice Smith',
+            avatarUrl: 'https://example.com/alice.png',
+          },
+          nextAction: 'Keep the validation fix moving',
+        }),
+        mockItem({
+          id: 6,
+          title: 'Planned stakeholder follow-up',
+          status: 'planned',
+          priority: 'medium',
+        }),
+        ...mockDayResponse.items.slice(2),
+      ],
+      summary: {
+        ...mockDayResponse.summary,
+        planned: 1,
+        inProgress: 1,
+      },
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    expect(screen.getByText('Started')).toBeInTheDocument();
+    expect(screen.getAllByText('Planned').length).toBeGreaterThan(0);
+  });
+
   it('calls create mutation when quick capture is submitted', () => {
     render(
       <TestWrapper>
@@ -610,13 +651,26 @@ describe('ManagerDeskPage', () => {
     expect(screen.getByRole('button', { name: /carry 0 items forward/i })).toBeDisabled();
   });
 
-  it('carries a single task forward to the next day from the task card', () => {
+  it('limits the bulk carry forward date picker to future dates only', () => {
     render(
       <TestWrapper>
         <ManagerDeskPage />
       </TestWrapper>,
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
+
+    expect(screen.getByDisplayValue('2026-03-09')).toHaveAttribute('min', '2026-03-09');
+  });
+
+  it('carries a single task forward to the next day from the item detail panel', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
     fireEvent.click(screen.getByRole('button', { name: /carry forward analyze root cause for def-241/i }));
 
     expect(mockCarryForwardMutate).toHaveBeenCalledWith(
@@ -629,12 +683,15 @@ describe('ManagerDeskPage', () => {
     );
   });
 
-  it('does not show single-task carry forward on completed items', () => {
+  it('does not show single-task carry forward in item detail for completed items', () => {
     render(
       <TestWrapper>
         <ManagerDeskPage />
       </TestWrapper>,
     );
+
+    fireEvent.click(screen.getByRole('button', { name: /^Completed 1$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Open Completed analysis$/i }));
 
     expect(screen.queryByRole('button', { name: /carry forward completed analysis/i })).not.toBeInTheDocument();
   });

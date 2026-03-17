@@ -931,4 +931,48 @@ describe("manager desk routes", () => {
       }),
     ]);
   });
+
+  it("rejects carry-forward to the same day or a past date", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Review open blocker",
+        status: "planned",
+      },
+    });
+
+    const sameDay = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/carry-forward",
+      headers: { cookie },
+      body: {
+        fromDate: "2026-03-08",
+        toDate: "2026-03-08",
+        itemIds: [created.body.id],
+      },
+    });
+
+    expect(sameDay.status).toBe(400);
+    expect(sameDay.body?.error).toBe("toDate must be after fromDate");
+
+    const previousDay = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/carry-forward",
+      headers: { cookie },
+      body: {
+        fromDate: "2026-03-08",
+        toDate: "2026-03-07",
+        itemIds: [created.body.id],
+      },
+    });
+
+    expect(previousDay.status).toBe(400);
+    expect(previousDay.body?.error).toBe("toDate must be after fromDate");
+  });
 });

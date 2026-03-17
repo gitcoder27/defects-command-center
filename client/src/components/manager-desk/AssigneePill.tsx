@@ -2,7 +2,7 @@ import type { ManagerDeskAssignee } from '@/types/manager-desk';
 
 interface AssigneePillProps {
   assignee?: ManagerDeskAssignee;
-  size?: 'sm' | 'md';
+  size?: 'xs' | 'sm' | 'md';
   tone?: 'accent' | 'neutral';
 }
 
@@ -23,7 +23,7 @@ export function AssigneePill({
   if (!assignee) {
     return (
       <span
-        className="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]"
+        className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em]"
         style={{
           borderColor: 'var(--border)',
           background: 'color-mix(in srgb, var(--bg-secondary) 92%, transparent)',
@@ -35,8 +35,11 @@ export function AssigneePill({
     );
   }
 
-  const avatarSize = size === 'sm' ? 'h-5 w-5 text-[9px]' : 'h-7 w-7 text-[10px]';
-  const textSize = size === 'sm' ? 'text-[10px]' : 'text-[11px]';
+  const avatarSize =
+    size === 'xs' ? 'h-4 w-4 text-[8px]' : size === 'sm' ? 'h-5 w-5 text-[9px]' : 'h-7 w-7 text-[10px]';
+  const textSize = size === 'xs' ? 'text-[9px]' : size === 'sm' ? 'text-[10px]' : 'text-[11px]';
+  const pillPadding =
+    size === 'xs' ? 'gap-1 rounded-full border px-1 py-0.5 pr-1.5' : 'gap-2 rounded-full border px-1.5 py-1 pr-2.5';
   const toneStyle =
     tone === 'accent'
       ? {
@@ -52,7 +55,7 @@ export function AssigneePill({
 
   return (
     <span
-      className="inline-flex max-w-full items-center gap-2 rounded-full border px-1.5 py-1 pr-2.5"
+      className={`inline-flex max-w-full items-center ${pillPadding}`}
       style={toneStyle}
       title={assignee.availability?.state === 'inactive' && assignee.availability.note
         ? `${assignee.displayName} — ${assignee.availability.note}`
@@ -71,7 +74,7 @@ export function AssigneePill({
       <span className={`truncate font-semibold ${textSize}`}>{assignee.displayName}</span>
       {assignee.availability?.state === 'inactive' && (
         <span
-          className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
+          className="rounded-full px-1 py-0.5 text-[8px] font-bold uppercase tracking-[0.12em]"
           style={{ background: 'rgba(245, 158, 11, 0.14)', color: 'var(--warning)' }}
         >
           Inactive

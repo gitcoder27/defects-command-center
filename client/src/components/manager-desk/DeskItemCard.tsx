@@ -6,7 +6,6 @@ import {
   Scale,
   Clock,
   CheckCircle2,
-  ArrowRightFromLine,
   XCircle,
   ArrowRight,
   Link2,
@@ -21,8 +20,6 @@ interface Props {
   item: ManagerDeskItem;
   onSelect: () => void;
   onStatusChange: (status: ManagerDeskStatus) => void;
-  onCarryForward?: () => void;
-  isCarryForwardPending?: boolean;
   variant?: 'default' | 'meeting' | 'waiting' | 'inbox' | 'completed';
 }
 
@@ -44,8 +41,6 @@ export function DeskItemCard({
   item,
   onSelect,
   onStatusChange,
-  onCarryForward,
-  isCarryForwardPending = false,
   variant = 'default',
 }: Props) {
   const KindIcon = kindIcons[item.kind];
@@ -82,12 +77,68 @@ export function DeskItemCard({
     return null;
   }, [item.status]);
 
+  const focusStatus = useMemo(() => {
+    if (variant !== 'default') return null;
+    if (item.status === 'in_progress') {
+      return {
+        label: 'Started',
+        chipStyle: {
+          background: 'rgba(217,169,78,0.14)',
+          color: 'var(--md-accent)',
+          border: '1px solid rgba(217,169,78,0.28)',
+        },
+        dotStyle: {
+          background: 'var(--md-accent)',
+          boxShadow: '0 0 0 3px rgba(217,169,78,0.14)',
+        },
+      };
+    }
+    if (item.status === 'planned') {
+      return {
+        label: 'Planned',
+        chipStyle: {
+          background: 'var(--bg-secondary)',
+          color: 'var(--text-secondary)',
+          border: '1px solid var(--border)',
+        },
+        dotStyle: {
+          background: 'var(--text-muted)',
+        },
+      };
+    }
+    return null;
+  }, [item.status, variant]);
+
+  const cardSurface = useMemo(() => {
+    if (variant === 'default' && item.status === 'in_progress') {
+      return {
+        background:
+          'linear-gradient(135deg, color-mix(in srgb, var(--md-accent-glow) 72%, var(--bg-tertiary) 28%) 0%, var(--bg-tertiary) 72%)',
+        boxShadow: 'inset 0 0 0 1px rgba(217,169,78,0.20)',
+      };
+    }
+    if (variant === 'default' && item.status === 'planned') {
+      return {
+        background: 'color-mix(in srgb, var(--bg-tertiary) 92%, transparent)',
+        boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--border) 84%, transparent)',
+      };
+    }
+    return {
+      background: 'var(--bg-tertiary)',
+      boxShadow: undefined,
+    };
+  }, [item.status, variant]);
+
   const borderAccent = variant === 'meeting'
     ? 'var(--info)'
     : variant === 'waiting'
     ? 'var(--warning)'
     : variant === 'completed'
     ? 'var(--success)'
+    : item.status === 'in_progress'
+    ? 'var(--md-accent)'
+    : item.status === 'planned'
+    ? 'color-mix(in srgb, var(--md-accent) 34%, transparent)'
     : 'transparent';
 
   return (
@@ -100,16 +151,17 @@ export function DeskItemCard({
           onSelect();
         }
       }}
-      className="group rounded-lg px-2.5 py-1.5 cursor-pointer transition-all relative"
+      className="group relative cursor-pointer rounded-lg px-2.5 py-1.5 transition-all"
       role="button"
       tabIndex={0}
       aria-label={`Open ${item.title}`}
       style={{
-        background: 'var(--bg-tertiary)',
+        background: cardSurface.background,
         borderLeft: `2px solid ${borderAccent}`,
         opacity: isDone ? 0.55 : 1,
+        boxShadow: cardSurface.boxShadow,
       }}
-      whileHover={{ scale: 1.003, backgroundColor: 'var(--bg-elevated)' }}
+      whileHover={{ scale: 1.003, y: -1 }}
       whileTap={{ scale: 0.998 }}
     >
       {isOverdue && (
@@ -143,9 +195,6 @@ export function DeskItemCard({
         >
           {item.title}
         </span>
-
-        {/* Inline metadata */}
-        {item.assignee && <AssigneePill assignee={item.assignee} size="sm" tone="neutral" />}
 
         {item.priority !== 'low' && !isDone && (
           <span
@@ -191,40 +240,50 @@ export function DeskItemCard({
         )}
 
         {/* Hover-only actions */}
-        {(quickAction || (!isDone && onCarryForward)) && (
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-            {!isDone && onCarryForward && (
-              <button
-                type="button"
-                onClick={e => { e.stopPropagation(); onCarryForward(); }}
-                disabled={isCarryForwardPending}
-                className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase transition-all disabled:opacity-40"
-                style={{ background: 'var(--bg-secondary)', color: 'var(--md-accent)', border: '1px solid var(--border)' }}
-                aria-label={`Carry forward ${item.title}`}
-              >
-                <ArrowRightFromLine size={8} />
-                Carry
-              </button>
-            )}
-            {quickAction && (
-              <button
-                type="button"
-                onClick={e => { e.stopPropagation(); onStatusChange(quickAction.status); }}
-                className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase transition-all"
-                style={{ background: 'var(--md-accent-glow)', color: 'var(--md-accent)', border: '1px solid var(--md-accent)' }}
-                aria-label={`${quickAction.label} ${item.title}`}
-              >
-                {quickAction.status === 'done' ? <CheckCircle2 size={8} /> : <ArrowRight size={8} />}
-                {quickAction.label}
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
+      {quickAction && (
+        <div
+          className="invisible absolute right-2 top-1/2 z-10 -translate-y-1/2 opacity-0 transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
+          style={{ pointerEvents: 'none' }}
+        >
+          <div
+            className="rounded-lg p-1"
+            style={{
+              background: 'color-mix(in srgb, var(--bg-primary) 86%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--border) 78%, transparent)',
+              boxShadow: '0 10px 30px rgba(15, 23, 42, 0.18)',
+              backdropFilter: 'blur(10px)',
+              pointerEvents: 'auto',
+            }}
+          >
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onStatusChange(quickAction.status); }}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[9px] font-bold uppercase transition-all"
+              style={{ background: 'var(--md-accent-glow)', color: 'var(--md-accent)', border: '1px solid var(--md-accent)' }}
+              aria-label={`${quickAction.label} ${item.title}`}
+            >
+              {quickAction.status === 'done' ? <CheckCircle2 size={8} /> : <ArrowRight size={8} />}
+              {quickAction.label}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Meta row - only show extra info like next action when available */}
-      {!isDone && (item.nextAction || (item.participants && variant === 'meeting')) && (
+      {!isDone && (focusStatus || item.assignee || item.nextAction || (item.participants && variant === 'meeting')) && (
         <div className="mt-0.5 pl-7 flex items-center gap-2">
+          {focusStatus && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em]"
+              style={focusStatus.chipStyle}
+            >
+              <span className="h-1.5 w-1.5 rounded-full" style={focusStatus.dotStyle} />
+              {focusStatus.label}
+            </span>
+          )}
+          {item.assignee && <AssigneePill assignee={item.assignee} size="xs" tone="neutral" />}
           {item.participants && variant === 'meeting' && (
             <span className="text-[9px]" style={{ color: 'var(--text-secondary)' }}>{item.participants}</span>
           )}

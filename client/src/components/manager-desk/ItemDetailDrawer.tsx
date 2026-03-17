@@ -12,6 +12,7 @@ import {
   UserCircle,
   Bug,
   Users,
+  ArrowRightFromLine,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import {
@@ -42,6 +43,8 @@ interface Props {
   onClose: () => void;
   onUpdate: (itemId: number, updates: Record<string, unknown>) => void;
   onDelete: (itemId: number) => void;
+  onCarryForward?: () => void;
+  isCarryForwardPending?: boolean;
   topSlot?: ReactNode;
   ariaLabel?: string;
   showLinkedIssueDescription?: boolean;
@@ -64,6 +67,8 @@ export function ItemDetailDrawer({
   onClose,
   onUpdate,
   onDelete,
+  onCarryForward,
+  isCarryForwardPending,
   topSlot,
   ariaLabel = 'Manager Desk item detail',
   showLinkedIssueDescription = true,
@@ -107,6 +112,8 @@ export function ItemDetailDrawer({
               onClose={onClose}
               onUpdate={onUpdate}
               onDelete={onDelete}
+              onCarryForward={onCarryForward}
+              isCarryForwardPending={isCarryForwardPending}
               topSlot={topSlot}
               showLinkedIssueDescription={showLinkedIssueDescription}
             />
@@ -125,6 +132,8 @@ export function ItemDetailPanel({
   onClose,
   onUpdate,
   onDelete,
+  onCarryForward,
+  isCarryForwardPending,
   topSlot,
   ariaLabel = 'Manager Desk item detail',
   showLinkedIssueDescription = true,
@@ -142,6 +151,8 @@ export function ItemDetailPanel({
           onClose={onClose}
           onUpdate={onUpdate}
           onDelete={onDelete}
+          onCarryForward={onCarryForward}
+          isCarryForwardPending={isCarryForwardPending}
           topSlot={topSlot}
           showLinkedIssueDescription={showLinkedIssueDescription}
         />
@@ -158,6 +169,8 @@ function DrawerContent({
   onClose,
   onUpdate,
   onDelete,
+  onCarryForward,
+  isCarryForwardPending = false,
   topSlot,
   showLinkedIssueDescription,
 }: {
@@ -166,6 +179,8 @@ function DrawerContent({
   onClose: () => void;
   onUpdate: (itemId: number, updates: Record<string, unknown>) => void;
   onDelete: (itemId: number) => void;
+  onCarryForward?: () => void;
+  isCarryForwardPending?: boolean;
   topSlot?: ReactNode;
   showLinkedIssueDescription: boolean;
 }) {
@@ -291,6 +306,21 @@ function DrawerContent({
         </div>
 
         <div className="mt-2 flex flex-wrap gap-1.5">
+          {!isDone && (
+            <button
+              onClick={onCarryForward}
+              disabled={!onCarryForward || isCarryForwardPending}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold transition-all disabled:opacity-40"
+              style={{
+                background: 'rgba(217,169,78,0.14)',
+                color: 'var(--md-accent)',
+                border: '1px solid rgba(217,169,78,0.28)',
+              }}
+              aria-label={`Carry forward ${item.title}`}
+            >
+              <ArrowRightFromLine size={10} /> {isCarryForwardPending ? 'Carrying…' : 'Carry Forward'}
+            </button>
+          )}
           {!isDone && (
             <button
               onClick={() => onUpdate(item.id, { status: 'done' })}

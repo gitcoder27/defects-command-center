@@ -252,8 +252,6 @@ export function ManagerDeskPage() {
                           item={item}
                           onSelect={() => handleSelectItem(item)}
                           onStatusChange={(status) => handleUpdateItem(item.id, { status })}
-                          onCarryForward={() => handleCarryForwardItem(item)}
-                          isCarryForwardPending={carryForward.isPending}
                         />
                       ))}
                     </WorkbenchSection>
@@ -265,8 +263,6 @@ export function ManagerDeskPage() {
                           item={item}
                           onSelect={() => handleSelectItem(item)}
                           onStatusChange={(status) => handleUpdateItem(item.id, { status })}
-                          onCarryForward={() => handleCarryForwardItem(item)}
-                          isCarryForwardPending={carryForward.isPending}
                           variant="waiting"
                         />
                       ))}
@@ -279,8 +275,6 @@ export function ManagerDeskPage() {
                           item={item}
                           onSelect={() => handleSelectItem(item)}
                           onStatusChange={(status) => handleUpdateItem(item.id, { status })}
-                          onCarryForward={() => handleCarryForwardItem(item)}
-                          isCarryForwardPending={carryForward.isPending}
                           variant="meeting"
                         />
                       ))}
@@ -293,8 +287,6 @@ export function ManagerDeskPage() {
                             item={item}
                             onSelect={() => handleSelectItem(item)}
                             onStatusChange={(status) => handleUpdateItem(item.id, { status })}
-                            onCarryForward={() => handleCarryForwardItem(item)}
-                            isCarryForwardPending={carryForward.isPending}
                             variant="inbox"
                           />
                           {inlineTriageId === item.id && (
@@ -321,6 +313,8 @@ export function ManagerDeskPage() {
                 onClose={() => setSelectedItemId(null)}
                 onUpdate={handleUpdateItem}
                 onDelete={handleDeleteItem}
+                onCarryForward={selectedItem ? () => handleCarryForwardItem(selectedItem) : undefined}
+                isCarryForwardPending={carryForward.isPending}
                 placeholder={<EmptyInspector />}
               />
             ) : null}
@@ -336,6 +330,8 @@ export function ManagerDeskPage() {
           onClose={() => setSelectedItemId(null)}
           onUpdate={handleUpdateItem}
           onDelete={handleDeleteItem}
+          onCarryForward={selectedItem ? () => handleCarryForwardItem(selectedItem) : undefined}
+          isCarryForwardPending={carryForward.isPending}
         />
       )}
 
