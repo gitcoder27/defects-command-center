@@ -489,7 +489,8 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByText('2 unfinished items from 2026-03-06')).toBeInTheDocument();
+    expect(screen.getByText('2 unfinished tasks from 2026-03-06')).toBeInTheDocument();
+    expect(screen.getByText(/includes all planned and manager-assigned work/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
 
     expect(mockCarryForwardMutate).toHaveBeenCalledWith(
@@ -509,8 +510,66 @@ describe('TeamTrackerPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /dismiss carry-forward prompt/i }));
 
-    expect(screen.queryByText('1 unfinished item from 2026-03-06')).not.toBeInTheDocument();
+    expect(screen.queryByText('1 unfinished task from 2026-03-06')).not.toBeInTheDocument();
     expect(window.sessionStorage.getItem('team-tracker:carry-forward-prompt:2026-03-07')).toBe('dismissed');
+  });
+
+  it('carry-forward prompt reflects mixed-source count including manager-assigned work', () => {
+    mockCarryForwardPreviewValue = 5;
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText('5 unfinished tasks from 2026-03-06')).toBeInTheDocument();
+    expect(screen.getByText(/includes all planned and manager-assigned work/i)).toBeInTheDocument();
+  });
+
+  it('carry-forward prompt uses singular form for a single mixed-source task', () => {
+    mockCarryForwardPreviewValue = 1;
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText('1 unfinished task from 2026-03-06')).toBeInTheDocument();
+    expect(screen.getByText(/includes all planned and manager-assigned work/i)).toBeInTheDocument();
+  });
+
+  it('carry-forward executes against the backend regardless of task source mix', () => {
+    mockCarryForwardPreviewValue = 3;
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
+
+    expect(mockCarryForwardMutate).toHaveBeenCalledWith(
+      { fromDate: '2026-03-06', toDate: '2026-03-07' },
+      expect.objectContaining({ onSuccess: expect.any(Function) })
+    );
+  });
+
+  it('header carry-forward button has a tooltip describing mixed-source behavior', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.change(screen.getByDisplayValue('2026-03-07'), {
+      target: { value: '2026-03-05' },
+    });
+
+    const btn = screen.getByRole('button', { name: /carry forward/i });
+    expect(btn).toHaveAttribute('title', expect.stringContaining('manager-assigned'));
   });
 
   it('creates a tracker-local Jira task from the drawer using the synced issue picker', () => {

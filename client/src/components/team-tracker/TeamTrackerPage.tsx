@@ -307,6 +307,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
                   color: 'var(--accent)',
                   border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
                 }}
+                title="Carry all unfinished work to the next day, including manager-assigned tasks"
               >
                 <ArrowRight size={12} />
                 Carry Forward
@@ -378,10 +379,10 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
           >
             <div className="min-w-0">
               <div className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                {carryableFromPreviousDay} unfinished item{carryableFromPreviousDay === 1 ? '' : 's'} from {previousDate}
+                {carryableFromPreviousDay} unfinished task{carryableFromPreviousDay === 1 ? '' : 's'} from {previousDate}
               </div>
               <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                Carry them into {date} before you start updating today&apos;s board.
+                Includes all planned and manager-assigned work. Carry into {date} before updating today&apos;s board.
               </div>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">

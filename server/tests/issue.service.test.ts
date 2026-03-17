@@ -274,7 +274,10 @@ describe("IssueService", () => {
     getJiraDevDueDateField: vi.fn(async () => "customfield_10128"),
     createJiraClient: vi.fn(async () => jiraClient),
   };
-  const service = new IssueService(jiraClient, settings as any);
+  const teamTrackerService = {
+    getIssueAssignmentSummaryMap: vi.fn(async () => new Map()),
+  };
+  const service = new IssueService(jiraClient, settings as any, teamTrackerService as any);
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -282,6 +285,7 @@ describe("IssueService", () => {
     vi.setSystemTime(new Date("2026-03-05T12:00:00.000Z"));
     mockedIssues = buildMockedIssues();
     lastIssueUpdate = undefined;
+    teamTrackerService.getIssueAssignmentSummaryMap.mockResolvedValue(new Map());
   });
 
   afterEach(() => {
@@ -364,7 +368,7 @@ describe("IssueService", () => {
       ...settings,
       getStaleThresholdHours: vi.fn(async () => 96),
     };
-    const strictService = new IssueService(jiraClient, strictThresholdSettings as any);
+    const strictService = new IssueService(jiraClient, strictThresholdSettings as any, teamTrackerService as any);
 
     expect(await strictService.getAll({ filter: "stale" })).toHaveLength(0);
     expect((await strictService.getOverviewCounts()).stale).toBe(0);
@@ -386,13 +390,46 @@ describe("IssueService", () => {
       addComment: vi.fn(async () => undefined),
     };
     let currentClient = oldClient;
-    const dynamicService = new IssueService(async () => currentClient as unknown as JiraClient, settings as any);
+    const dynamicService = new IssueService(
+      async () => currentClient as unknown as JiraClient,
+      settings as any,
+      teamTrackerService as any
+    );
 
     currentClient = newClient;
     await dynamicService.addComment("PROJ-1", "Fresh client");
 
     expect(oldClient.addComment).not.toHaveBeenCalled();
     expect(newClient.addComment).toHaveBeenCalledWith("PROJ-1", "Fresh client");
+  });
+
+  it("includes today tracker assignment summaries on issues", async () => {
+    teamTrackerService.getIssueAssignmentSummaryMap.mockResolvedValue(
+      new Map([
+        [
+          "PROJ-2",
+          {
+            activeCount: 2,
+            developerNames: ["Dev 1", "Dev 2"],
+          },
+        ],
+      ])
+    );
+
+    const result = await service.getAll({ filter: "all" });
+    const issue = result.find((item) => item.jiraKey === "PROJ-2");
+
+    expect(issue?.trackerAssignmentsToday).toEqual({
+      activeCount: 2,
+      developerNames: ["Dev 1", "Dev 2"],
+    });
+    expect(teamTrackerService.getIssueAssignmentSummaryMap).toHaveBeenCalledWith("2026-03-05");
+  });
+
+  it("uses an explicit tracker date when provided", async () => {
+    await service.getAll({ filter: "all", trackerDate: "2026-03-04" });
+
+    expect(teamTrackerService.getIssueAssignmentSummaryMap).toHaveBeenCalledWith("2026-03-04");
   });
 
   it("filters issues by single tag (AND logic)", async () => {

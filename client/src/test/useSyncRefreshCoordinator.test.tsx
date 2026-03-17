@@ -9,6 +9,7 @@ import {
   SYNC_DEPENDENT_QUERY_KEYS,
   SYNC_STATUS_QUERY_KEY,
 } from '@/lib/sync-refresh';
+import { getLocalIsoDate } from '@/lib/utils';
 import type { Issue, SyncStatus } from '@/types';
 
 const mockGet = vi.fn();
@@ -233,6 +234,7 @@ function SyncAwareIssueHarness() {
 describe('sync refresh regression', () => {
   let syncStatus: SyncStatus;
   let currentIssue: Issue;
+  let trackerDate: string;
 
   beforeEach(() => {
     mockGet.mockReset();
@@ -242,15 +244,16 @@ describe('sync refresh regression', () => {
       issuesSynced: 12,
     };
     currentIssue = buildIssue('Alice');
+    trackerDate = getLocalIsoDate();
 
     mockGet.mockImplementation(async (url: string) => {
       if (url === '/sync/status') {
         return syncStatus;
       }
-      if (url === '/issues') {
+      if (url === `/issues?trackerDate=${trackerDate}`) {
         return { issues: [currentIssue] };
       }
-      if (url === '/issues/PROJ-101') {
+      if (url === `/issues/PROJ-101?trackerDate=${trackerDate}`) {
         return currentIssue;
       }
 

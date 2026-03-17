@@ -69,7 +69,13 @@ export interface Issue {
   scopeChangedAt?: string;
   localTags: LocalTag[];
   analysisNotes?: string;
+  trackerAssignmentsToday?: IssueTrackerAssignmentSummary;
   excluded?: boolean;
+}
+
+export interface IssueTrackerAssignmentSummary {
+  activeCount: number;
+  developerNames: string[];
 }
 
 export interface Developer {
@@ -194,6 +200,10 @@ export interface IssueUpdate {
   developmentDueDate?: string;
   flagged?: boolean;
   analysisNotes?: string;
+}
+
+export interface IssueListOptions {
+  trackerDate?: string;
 }
 
 export interface PrioritySuggestion {

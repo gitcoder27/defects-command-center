@@ -67,20 +67,33 @@ Notes:
 ## 2. Fix Carry-Forward So Team Tracker Work Carries Forward Predictably
 
 Type: `Backend-heavy, but Both`
-Status: `Not started`
+Status: `Backend complete, frontend pending`
 
 Planning checklist:
 
-- [ ] Confirm desired carry-forward rules after item 1 is decided
-- [ ] Review preview and execution logic for Manager Desk-backed items
-- [ ] Define user-visible messaging for included/excluded work
-- [ ] List backend logic changes
-- [ ] List frontend preview/action updates
-- [ ] Define tests for mixed task types and edge cases
+- [x] Confirm desired carry-forward rules after item 1 is decided
+- [x] Review preview and execution logic for Manager Desk-backed items
+- [x] Define user-visible messaging for included/excluded work
+- [x] List backend logic changes
+- [x] List frontend preview/action updates
+- [x] Define tests for mixed task types and edge cases
 
 Notes:
 
 - This should follow directly after item 1 because lifecycle rules determine carry-forward behavior
+- Final carry-forward rule: Team Tracker now carries unfinished work regardless of whether the task is tracker-only or Manager Desk-linked
+- Backend implementation completed:
+  - Team Tracker carry-forward preview now counts unfinished linked tasks in addition to tracker-only tasks
+  - Team Tracker carry-forward now routes linked tasks through `ManagerDeskService.carryForward(...)` so next-day tracker rows stay linked to new Manager Desk items instead of reusing the old link
+  - Carry-forward dedupe now compares against all target-day tracker items, not only tracker-only rows
+- Frontend follow-up remains:
+  - align Team Tracker carry-forward copy/tests with the new inclusive behavior
+  - no selective preview work here; that stays in item 9
+- Backend validation completed:
+  - `npm run test --workspace=server -- team-tracker.service.test.ts team-tracker.routes.test.ts manager-desk.routes.test.ts`
+  - `npm run typecheck`
+- Frontend handoff prompt created:
+  - `docs/team-tracker-carry-forward-predictable-frontend-agent.md`
 
 ## 3. Replace the Split Status/Check-In Flow With One Unified Action
 

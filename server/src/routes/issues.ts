@@ -40,6 +40,7 @@ export function createIssuesRouter(issueService: IssueService): Router {
   router.get("/", async (req, res, next) => {
     try {
       const tagsParam = typeof req.query.tags === 'string' ? req.query.tags : undefined;
+      const trackerDate = typeof req.query.trackerDate === 'string' ? req.query.trackerDate : undefined;
       const tagIds = tagsParam
         ? tagsParam.split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0)
         : undefined;
@@ -50,6 +51,7 @@ export function createIssuesRouter(issueService: IssueService): Router {
         assignee: req.query.assignee as string | undefined,
         priority: req.query.priority as string | undefined,
         status: req.query.status as string | undefined,
+        trackerDate,
         sort: req.query.sort as any,
         order: req.query.order as any,
         tagIds,
@@ -64,7 +66,8 @@ export function createIssuesRouter(issueService: IssueService): Router {
   router.get("/:key", validate(paramsSchema), async (req, res, next) => {
     try {
       const key = req.params.key as string;
-      const issue = await issueService.getById(key);
+      const trackerDate = typeof req.query.trackerDate === 'string' ? req.query.trackerDate : undefined;
+      const issue = await issueService.getById(key, trackerDate);
       if (!issue) {
         throw new HttpError(404, "Issue not found");
       }

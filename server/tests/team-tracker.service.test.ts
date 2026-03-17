@@ -1,9 +1,17 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
+import { eq } from "drizzle-orm";
+import { ManagerDeskService } from "../src/services/manager-desk.service";
 import { TeamTrackerService } from "../src/services/team-tracker.service";
 import { resetDatabase, db } from "./helpers/db";
-import { developers, issues, teamTrackerDays } from "../src/db/schema";
+import {
+  developers,
+  issues,
+  managerDeskItems,
+  teamTrackerDays,
+} from "../src/db/schema";
 
 const service = new TeamTrackerService();
+const managerDeskService = new ManagerDeskService(service);
 
 async function seedDevelopers() {
   await db.insert(developers).values([
@@ -240,6 +248,36 @@ describe("TeamTrackerService", () => {
     });
   });
 
+  describe("getIssueAssignmentSummaryMap", () => {
+    it("summarizes active linked work per Jira issue for the selected day", async () => {
+      await seedIssue();
+      await service.addItem("dev-1", "2026-03-07", {
+        jiraKey: "AM-123",
+        title: "Reproduce the report",
+      });
+      await service.addItem("dev-2", "2026-03-07", {
+        jiraKey: "AM-123",
+        title: "Patch the validation path",
+      });
+      await service.addItem("dev-2", "2026-03-07", {
+        jiraKey: "AM-123",
+        title: "Old investigation",
+      });
+      const doneItem = await service.addItem("dev-1", "2026-03-07", {
+        jiraKey: "AM-123",
+        title: "Completed follow-up",
+      });
+      await service.updateItem(doneItem.id, { state: "done" });
+
+      const summaryMap = await service.getIssueAssignmentSummaryMap("2026-03-07");
+
+      expect(summaryMap.get("AM-123")).toEqual({
+        activeCount: 3,
+        developerNames: ["Alice Smith", "Bob Jones"],
+      });
+    });
+  });
+
   describe("setCurrentItem", () => {
     it("enforces single in_progress per day", async () => {
       const item1 = await service.addItem("dev-1", "2026-03-07", {
@@ -425,10 +463,12 @@ describe("TeamTrackerService", () => {
       expect(carryable).toBe(1);
     });
 
-    it("ignores Manager Desk-linked items when previewing carry-forward work", async () => {
-      await service.addItem("dev-1", "2026-03-06", {
+    it("includes Manager Desk-linked items when previewing carry-forward work", async () => {
+      await managerDeskService.createItem("manager-1", {
+        date: "2026-03-06",
         title: "Shared task owned by Manager Desk",
-        managerDeskItemId: 42,
+        status: "planned",
+        assigneeDeveloperAccountId: "dev-1",
       });
       await service.addItem("dev-1", "2026-03-06", {
         title: "Standalone tracker task",
@@ -439,7 +479,7 @@ describe("TeamTrackerService", () => {
         "2026-03-07"
       );
 
-      expect(carryable).toBe(1);
+      expect(carryable).toBe(2);
     });
 
     it("carries unfinished items to the next day", async () => {
@@ -461,18 +501,23 @@ describe("TeamTrackerService", () => {
       expect(devDay.plannedItems.some((i) => i.title === "Unfinished task")).toBe(true);
     });
 
-    it("does not carry Manager Desk-linked items into the next day", async () => {
-      await service.addItem("dev-1", "2026-03-06", {
+    it("carries Manager Desk-linked items into the next day by cloning their manager work", async () => {
+      const sourceManagerItem = await managerDeskService.createItem("manager-1", {
+        date: "2026-03-06",
         title: "Shared task owned by Manager Desk",
-        managerDeskItemId: 77,
+        status: "in_progress",
+        assigneeDeveloperAccountId: "dev-1",
       });
       await service.addItem("dev-1", "2026-03-06", {
         title: "Standalone tracker task",
       });
 
-      const carried = await service.carryForward("2026-03-06", "2026-03-07");
+      const carried = await service.carryForward("2026-03-06", "2026-03-07", {
+        carryManagerDeskItems: (params) =>
+          managerDeskService.carryForward("manager-1", params),
+      });
 
-      expect(carried).toBe(1);
+      expect(carried).toBe(2);
 
       const board = await service.getBoard("2026-03-07");
       const devDay = board.developers.find(
@@ -480,14 +525,33 @@ describe("TeamTrackerService", () => {
       )!;
       expect(devDay.plannedItems.map((item) => item.title)).toEqual([
         "Standalone tracker task",
+        "Shared task owned by Manager Desk",
       ]);
+
+      const carriedManagerItems = await db
+        .select()
+        .from(managerDeskItems)
+        .where(eq(managerDeskItems.sourceItemId, sourceManagerItem.id));
+      expect(carriedManagerItems).toHaveLength(1);
+
+      const linkedItem = devDay.plannedItems.find(
+        (item) => item.title === "Shared task owned by Manager Desk"
+      );
+      expect(linkedItem?.lifecycle).toBe("manager_desk_linked");
+      expect(linkedItem?.managerDeskItemId).toBe(carriedManagerItems[0]!.id);
     });
 
-    it("skips items already present on the target day and is safe to retry", async () => {
+    it("skips mixed-source items already present on the target day and is safe to retry", async () => {
       await seedIssue();
 
       await service.addItem("dev-1", "2026-03-06", {
         title: "Already carried",
+      });
+      await managerDeskService.createItem("manager-1", {
+        date: "2026-03-06",
+        title: "Shared follow-up",
+        status: "planned",
+        assigneeDeveloperAccountId: "dev-1",
       });
       const inProgress = await service.addItem("dev-1", "2026-03-06", {
         jiraKey: "AM-123",
@@ -498,9 +562,18 @@ describe("TeamTrackerService", () => {
       await service.addItem("dev-1", "2026-03-07", {
         title: "Already carried",
       });
+      await service.addItem("dev-1", "2026-03-07", {
+        title: "Shared follow-up",
+      });
 
-      const first = await service.carryForward("2026-03-06", "2026-03-07");
-      const second = await service.carryForward("2026-03-06", "2026-03-07");
+      const first = await service.carryForward("2026-03-06", "2026-03-07", {
+        carryManagerDeskItems: (params) =>
+          managerDeskService.carryForward("manager-1", params),
+      });
+      const second = await service.carryForward("2026-03-06", "2026-03-07", {
+        carryManagerDeskItems: (params) =>
+          managerDeskService.carryForward("manager-1", params),
+      });
 
       expect(first).toBe(1);
       expect(second).toBe(0);
@@ -511,6 +584,7 @@ describe("TeamTrackerService", () => {
       )!;
       const plannedTitles = devDay.plannedItems.map((item) => item.title);
       expect(plannedTitles.filter((title) => title === "Already carried")).toHaveLength(1);
+      expect(plannedTitles.filter((title) => title === "Shared follow-up")).toHaveLength(1);
       expect(plannedTitles.filter((title) => title === "Needs follow-up")).toHaveLength(1);
     });
   });

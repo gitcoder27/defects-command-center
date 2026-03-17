@@ -1,17 +1,26 @@
 import { desc, eq } from "drizzle-orm";
-import type { FilterType, Issue as SharedIssue, IssueUpdate, LocalTag, OverviewCounts } from "shared/types";
+import type {
+  FilterType,
+  Issue as SharedIssue,
+  IssueUpdate,
+  LocalTag,
+  OverviewCounts,
+  IssueTrackerAssignmentSummary,
+} from "shared/types";
 import { db } from "../db/connection";
 import { configTable, developers, issueScopeHistory, issues, issueTags, localTags, syncLog } from "../db/schema";
 import { JiraClient } from "../jira/client";
 import { endOfWeekIsoDate, todayIsoDate } from "../utils/date";
 import { getEffectiveDueDate, isActiveTeamIssue, isOutOfTeamIssue, isStaleIssue } from "./issue-rules";
 import { SettingsService } from "./settings.service";
+import { TeamTrackerService } from "./team-tracker.service";
 
 export interface IssueQuery {
   filter?: FilterType;
   assignee?: string;
   priority?: string;
   status?: string;
+  trackerDate?: string;
   sort?: "priority" | "dueDate" | "updated" | "created";
   order?: "asc" | "desc";
   tagIds?: number[];
@@ -25,6 +34,7 @@ export class IssueService {
   constructor(
     private readonly jiraClientResolver?: JiraClientResolver,
     private readonly settings = new SettingsService(),
+    private readonly teamTrackerService = new TeamTrackerService(),
   ) {}
 
   async getAll(query: IssueQuery = {}): Promise<SharedIssue[]> {
@@ -34,11 +44,19 @@ export class IssueService {
     const staleThresholdHours = await this.settings.getStaleThresholdHours();
     const now = new Date();
     const today = todayIsoDate(now);
+    const trackerDate = query.trackerDate ?? today;
     const weekEnd = endOfWeekIsoDate(now);
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const recentlyAssignedIssueKeys = await this.getRecentlyAssignedIssueKeys(dayAgo);
+    const trackerAssignmentSummaryMap = await this.teamTrackerService.getIssueAssignmentSummaryMap(trackerDate);
 
-    let result: SharedIssue[] = rows.map((row: typeof issues.$inferSelect) => this.toSharedIssue(row, tagMap.get(row.jiraKey) ?? []));
+    let result: SharedIssue[] = rows.map((row: typeof issues.$inferSelect) =>
+      this.toSharedIssue(
+        row,
+        tagMap.get(row.jiraKey) ?? [],
+        trackerAssignmentSummaryMap.get(row.jiraKey)
+      )
+    );
     result = this.applyIssueQuery(result, query, {
       managerJiraAccountId,
       staleThresholdHours,
@@ -53,13 +71,14 @@ export class IssueService {
     return this.sortIssues(result, query.sort ?? "priority", query.order ?? "desc");
   }
 
-  async getById(jiraKey: string): Promise<SharedIssue | undefined> {
+  async getById(jiraKey: string, trackerDate = todayIsoDate()): Promise<SharedIssue | undefined> {
     const row = await db.select().from(issues).where(eq(issues.jiraKey, jiraKey)).limit(1);
     if (!row[0]) {
       return undefined;
     }
     const tags = await this.getTagsForIssue(jiraKey);
-    return this.toSharedIssue(row[0], tags);
+    const trackerAssignmentSummaryMap = await this.teamTrackerService.getIssueAssignmentSummaryMap(trackerDate);
+    return this.toSharedIssue(row[0], tags, trackerAssignmentSummaryMap.get(jiraKey));
   }
 
   async update(jiraKey: string, payload: IssueUpdate): Promise<SharedIssue> {
@@ -347,7 +366,11 @@ export class IssueService {
     });
   }
 
-  private toSharedIssue(row: typeof issues.$inferSelect, tags: LocalTag[] = []): SharedIssue {
+  private toSharedIssue(
+    row: typeof issues.$inferSelect,
+    tags: LocalTag[] = [],
+    trackerAssignmentsToday?: IssueTrackerAssignmentSummary
+  ): SharedIssue {
     return {
       jiraKey: row.jiraKey,
       summary: row.summary,
@@ -374,6 +397,7 @@ export class IssueService {
       scopeChangedAt: row.scopeChangedAt ?? undefined,
       localTags: tags,
       analysisNotes: row.analysisNotes ?? undefined,
+      trackerAssignmentsToday,
       excluded: row.excluded === 1,
     };
   }

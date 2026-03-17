@@ -13,6 +13,11 @@ function invalidateIssueAssignments(queryClient: ReturnType<typeof useQueryClien
   });
 }
 
+function invalidateIssueViews(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ['issues'] });
+  queryClient.invalidateQueries({ queryKey: ['issue'] });
+}
+
 export function useUpdateDay(date: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -77,6 +82,7 @@ export function useAddTrackerItem(date: string) {
       qc.invalidateQueries({ queryKey: ['team-tracker', date] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
+      invalidateIssueViews(qc);
       if (params.jiraKey) {
         qc.invalidateQueries({
           queryKey: ['team-tracker', 'issue-assignment', date, params.jiraKey],
@@ -104,6 +110,7 @@ export function useUpdateTrackerItem(date: string) {
       qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
+      invalidateIssueViews(qc);
     },
   });
 }
@@ -118,6 +125,7 @@ export function useDeleteTrackerItem(date: string) {
       qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
+      invalidateIssueViews(qc);
     },
   });
 }
@@ -131,6 +139,7 @@ export function useSetCurrentItem(date: string) {
       qc.invalidateQueries({ queryKey: ['team-tracker', date] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
+      invalidateIssueViews(qc);
     },
   });
 }
@@ -163,6 +172,7 @@ export function useCarryForward() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
+      invalidateIssueViews(qc);
     },
   });
 }

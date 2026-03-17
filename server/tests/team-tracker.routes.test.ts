@@ -1,13 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
+import { eq } from "drizzle-orm";
 import { Readable, Writable } from "node:stream";
 import { createTeamTrackerRouter } from "../src/routes/team-tracker";
+import { ManagerDeskService } from "../src/services/manager-desk.service";
 import { TeamTrackerService } from "../src/services/team-tracker.service";
 import { notFoundHandler, errorHandler } from "../src/middleware/errorHandler";
 import { resetDatabase, db } from "./helpers/db";
-import { developers, issues } from "../src/db/schema";
+import { developers, issues, managerDeskItems } from "../src/db/schema";
 
 const trackerService = new TeamTrackerService();
+const managerDeskService = new ManagerDeskService(trackerService);
 
 async function seedDevelopers() {
   await db.insert(developers).values([
@@ -53,7 +56,22 @@ async function seedIssue(
 
 function createTestApp() {
   const app = express();
-  app.use("/api/team-tracker", createTeamTrackerRouter(trackerService));
+  app.use((req, _res, next) => {
+    req.auth = {
+      sessionId: "test-session",
+      user: {
+        username: "manager",
+        accountId: "manager-1",
+        displayName: "Manager One",
+        role: "manager",
+      },
+    };
+    next();
+  });
+  app.use(
+    "/api/team-tracker",
+    createTeamTrackerRouter(trackerService, managerDeskService)
+  );
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;
@@ -373,6 +391,12 @@ describe("team tracker routes", () => {
       jiraKey: "AM-123",
       title: "Linked Jira task",
     });
+    await managerDeskService.createItem("manager-1", {
+      date: "2026-03-06",
+      title: "Manager follow-up",
+      status: "planned",
+      assigneeDeveloperAccountId: "dev-1",
+    });
     await trackerService.addItem("dev-1", "2026-03-06", {
       title: "Write release notes",
     });
@@ -388,6 +412,54 @@ describe("team tracker routes", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(res.body?.carryable).toBe(1);
+    expect(res.body?.carryable).toBe(2);
+  });
+
+  it("POST /api/team-tracker/carry-forward carries tracker-only and linked work together", async () => {
+    await seedIssue();
+    const sourceManagerItem = await managerDeskService.createItem("manager-1", {
+      date: "2026-03-06",
+      title: "Manager follow-up",
+      status: "in_progress",
+      assigneeDeveloperAccountId: "dev-1",
+      links: [{ linkType: "issue", issueKey: "AM-123" }],
+    });
+    await trackerService.addItem("dev-1", "2026-03-06", {
+      title: "Write release notes",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/team-tracker/carry-forward",
+      body: {
+        fromDate: "2026-03-06",
+        toDate: "2026-03-07",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ carried: 2 });
+
+    const board = await trackerService.getBoard("2026-03-07");
+    const devDay = board.developers.find(
+      (developerDay) => developerDay.developer.accountId === "dev-1"
+    )!;
+    expect(devDay.plannedItems.map((item) => item.title)).toEqual([
+      "Write release notes",
+      "Manager follow-up",
+    ]);
+
+    const carriedManagerItems = await db
+      .select()
+      .from(managerDeskItems)
+      .where(eq(managerDeskItems.sourceItemId, sourceManagerItem.id));
+    expect(carriedManagerItems).toHaveLength(1);
+
+    const linkedItem = devDay.plannedItems.find(
+      (item) => item.title === "Manager follow-up"
+    );
+    expect(linkedItem?.lifecycle).toBe("manager_desk_linked");
+    expect(linkedItem?.managerDeskItemId).toBe(carriedManagerItems[0]!.id);
   });
 });

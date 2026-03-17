@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useUpdateIssue } from '@/hooks/useUpdateIssue';
+import { getLocalIsoDate } from '@/lib/utils';
 import type { Developer, Issue } from '@/types';
 
 const mockPatch = vi.fn();
@@ -49,6 +50,8 @@ function buildIssue(overrides: Partial<Issue> = {}): Issue {
 }
 
 describe('useUpdateIssue', () => {
+  const trackerDate = getLocalIsoDate();
+
   beforeEach(() => {
     mockPatch.mockReset();
   });
@@ -66,8 +69,8 @@ describe('useUpdateIssue', () => {
       { accountId: 'bob-2', displayName: 'Bob', isActive: true },
     ];
 
-    queryClient.setQueryData<Issue[]>(['issues', 'all', undefined, undefined, undefined], [issue]);
-    queryClient.setQueryData<Issue>(['issue', issue.jiraKey], issue);
+    queryClient.setQueryData<Issue[]>(['issues', 'all', undefined, undefined, undefined, trackerDate], [issue]);
+    queryClient.setQueryData<Issue>(['issue', issue.jiraKey, trackerDate], issue);
     queryClient.setQueryData<Developer[]>(['developers', undefined], developers);
 
     let resolvePatch: ((value: Issue) => void) | undefined;
@@ -87,12 +90,12 @@ describe('useUpdateIssue', () => {
     });
 
     await waitFor(() => {
-      expect(queryClient.getQueryData<Issue>(['issue', issue.jiraKey])).toMatchObject({
+      expect(queryClient.getQueryData<Issue>(['issue', issue.jiraKey, trackerDate])).toMatchObject({
         assigneeId: 'bob-2',
         assigneeName: 'Bob',
       });
       expect(
-        queryClient.getQueryData<Issue[]>(['issues', 'all', undefined, undefined, undefined])?.[0]
+        queryClient.getQueryData<Issue[]>(['issues', 'all', undefined, undefined, undefined, trackerDate])?.[0]
       ).toMatchObject({
         assigneeId: 'bob-2',
         assigneeName: 'Bob',
@@ -116,8 +119,8 @@ describe('useUpdateIssue', () => {
       { accountId: 'bob-2', displayName: 'Bob', isActive: true },
     ];
 
-    queryClient.setQueryData<Issue[]>(['issues', 'all', undefined, undefined, undefined], [issue]);
-    queryClient.setQueryData<Issue>(['issue', issue.jiraKey], issue);
+    queryClient.setQueryData<Issue[]>(['issues', 'all', undefined, undefined, undefined, trackerDate], [issue]);
+    queryClient.setQueryData<Issue>(['issue', issue.jiraKey, trackerDate], issue);
     queryClient.setQueryData<Developer[]>(['developers', undefined], developers);
 
     mockPatch.mockRejectedValue(new Error('Update failed'));
@@ -135,12 +138,12 @@ describe('useUpdateIssue', () => {
     });
 
     await waitFor(() => {
-      expect(queryClient.getQueryData<Issue>(['issue', issue.jiraKey])).toMatchObject({
+      expect(queryClient.getQueryData<Issue>(['issue', issue.jiraKey, trackerDate])).toMatchObject({
         assigneeId: 'alice-1',
         assigneeName: 'Alice',
       });
       expect(
-        queryClient.getQueryData<Issue[]>(['issues', 'all', undefined, undefined, undefined])?.[0]
+        queryClient.getQueryData<Issue[]>(['issues', 'all', undefined, undefined, undefined, trackerDate])?.[0]
       ).toMatchObject({
         assigneeId: 'alice-1',
         assigneeName: 'Alice',

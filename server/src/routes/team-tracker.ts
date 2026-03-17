@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { validate } from "../middleware/validate";
+import { HttpError } from "../middleware/errorHandler";
+import { ManagerDeskService } from "../services/manager-desk.service";
 import { TeamTrackerService } from "../services/team-tracker.service";
 
 const dateQuerySchema = z.object({
@@ -125,7 +127,8 @@ const carryForwardSchema = z.object({
 });
 
 export function createTeamTrackerRouter(
-  trackerService: TeamTrackerService
+  trackerService: TeamTrackerService,
+  managerDeskService?: ManagerDeskService
 ): Router {
   const router = Router();
 
@@ -300,7 +303,24 @@ export function createTeamTrackerRouter(
     async (req, res, next) => {
       try {
         const { fromDate, toDate } = req.body;
-        const carried = await trackerService.carryForward(fromDate, toDate);
+        const carried = await trackerService.carryForward(fromDate, toDate, {
+          carryManagerDeskItems: async (params) => {
+            if (!managerDeskService) {
+              throw new HttpError(
+                500,
+                "Manager Desk service is required to carry forward linked tracker items"
+              );
+            }
+            if (!req.auth?.user.accountId) {
+              throw new HttpError(
+                401,
+                "Authentication required to carry forward linked tracker items"
+              );
+            }
+
+            return managerDeskService.carryForward(req.auth.user.accountId, params);
+          },
+        });
         res.json({ carried });
       } catch (error) {
         next(error);

@@ -47,6 +47,10 @@ const mockIssues: Issue[] = [
     updatedAt: '2026-03-05T09:00:00Z',
     localTags: [],
     analysisNotes: 'Initial root-cause analysis completed.',
+    trackerAssignmentsToday: {
+      activeCount: 2,
+      developerNames: ['Alice', 'Bob'],
+    },
   },
   {
     jiraKey: 'PROJ-102',
@@ -218,6 +222,7 @@ describe('DefectTable', () => {
     expect(screen.getByText('Due Date')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
     expect(screen.getByText('Notes')).toBeInTheDocument();
+    expect(screen.getByText('Tracker')).toBeInTheDocument();
   });
 
   it('renders Jira links for issue IDs when config available', () => {
@@ -385,6 +390,17 @@ describe('DefectTable', () => {
 
     expect(screen.getByLabelText('Analysis complete')).toBeInTheDocument();
     expect(screen.getAllByLabelText('Analysis pending').length).toBeGreaterThan(0);
+  });
+
+  it('shows Team Tracker assignment indicators for linked and unlinked rows', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByLabelText('2 Team Tracker tasks linked: Alice, Bob')).toBeInTheDocument();
+    expect(screen.getAllByLabelText('No Team Tracker tasks linked').length).toBeGreaterThan(0);
   });
 
   it('sorts by Notes header', () => {

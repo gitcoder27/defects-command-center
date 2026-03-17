@@ -58,7 +58,7 @@ export function useUpdateIssue() {
       await queryClient.cancelQueries({ queryKey: ['issues'] });
       await queryClient.cancelQueries({ queryKey: ['issue', key] });
       const previousIssues = queryClient.getQueriesData<Issue[]>({ queryKey: ['issues'] });
-      const previousIssue = queryClient.getQueryData<Issue>(['issue', key]);
+      const previousIssue = queryClient.getQueriesData<Issue>({ queryKey: ['issue', key] });
       const developerQueries = queryClient.getQueriesData<Developer[]>({ queryKey: ['developers'] });
 
       queryClient.setQueriesData<Issue[]>(
@@ -71,8 +71,8 @@ export function useUpdateIssue() {
           ) ?? []
       );
 
-      queryClient.setQueryData<Issue>(
-        ['issue', key],
+      queryClient.setQueriesData<Issue>(
+        { queryKey: ['issue', key] },
         (old) => (old ? applyIssueUpdate(old, update, developerQueries) : old)
       );
 
@@ -85,13 +85,18 @@ export function useUpdateIssue() {
           queryClient.setQueryData(queryKey, issues);
         });
       }
-      if (context?.previousIssue && context?.key) {
-        queryClient.setQueryData(['issue', context.key], context.previousIssue);
+      if (context?.previousIssue) {
+        context.previousIssue.forEach(([queryKey, issue]) => {
+          queryClient.setQueryData(queryKey, issue);
+        });
       }
     },
 
     onSuccess: (updatedIssue) => {
-      queryClient.setQueryData(['issue', updatedIssue.jiraKey], updatedIssue);
+      queryClient.setQueriesData<Issue>(
+        { queryKey: ['issue', updatedIssue.jiraKey] },
+        updatedIssue
+      );
       queryClient.setQueriesData<Issue[]>(
         { queryKey: ['issues'] },
         (old) => old?.map((issue) => (issue.jiraKey === updatedIssue.jiraKey ? { ...issue, ...updatedIssue } : issue)) ?? []

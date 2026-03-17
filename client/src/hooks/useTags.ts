@@ -127,9 +127,9 @@ export function useSetIssueTags() {
       await queryClient.cancelQueries({ queryKey: ['issue', key] });
 
       const previousIssues = queryClient.getQueriesData<Issue[]>({ queryKey: ['issues'] });
-      const previousIssue = queryClient.getQueryData<Issue>(['issue', key]);
+      const previousIssue = queryClient.getQueriesData<Issue>({ queryKey: ['issue', key] });
       const cachedIssue =
-        previousIssue ??
+        previousIssue[0]?.[1] ??
         previousIssues
           .flatMap(([, issues]) => issues ?? [])
           .find((issue) => issue.jiraKey === key);
@@ -143,8 +143,8 @@ export function useSetIssueTags() {
         );
       }
 
-      queryClient.setQueryData<Issue>(
-        ['issue', key],
+      queryClient.setQueriesData<Issue>(
+        { queryKey: ['issue', key] },
         (old) => (old ? { ...old, localTags: optimisticTags } : old)
       );
 
@@ -157,14 +157,16 @@ export function useSetIssueTags() {
         }
       }
       if (context?.previousIssue) {
-        queryClient.setQueryData(['issue', key], context.previousIssue);
+        for (const [queryKey, issue] of context.previousIssue) {
+          queryClient.setQueryData(queryKey, issue);
+        }
       }
     },
     onSuccess: ({ tags }, { key }) => {
       const resolvedTags = resolveLocalTags(tags.map((tag) => tag.id), tags);
 
-      queryClient.setQueryData<Issue>(
-        ['issue', key],
+      queryClient.setQueriesData<Issue>(
+        { queryKey: ['issue', key] },
         (old) => (old ? { ...old, localTags: resolvedTags } : old)
       );
 

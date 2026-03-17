@@ -13,6 +13,7 @@ import type {
   TrackerAttentionReasonCode,
   Developer,
   TrackerIssueAssignment,
+  IssueTrackerAssignmentSummary,
   UserRole,
 } from "shared/types";
 import { db } from "../db/connection";
@@ -32,6 +33,24 @@ interface TrackerSignalConfig {
   staleThresholdHours: number;
   noCurrentThresholdHours: number;
   statusFollowUpThresholdHours: number;
+}
+
+interface CarryForwardSourceItem {
+  developerAccountId: string;
+  item: typeof teamTrackerItems.$inferSelect;
+}
+
+interface CarryForwardPlan {
+  trackerOnlyItems: CarryForwardSourceItem[];
+  managerDeskItemIds: number[];
+}
+
+interface CarryForwardExecutionOptions {
+  carryManagerDeskItems?: (params: {
+    fromDate: string;
+    toDate: string;
+    itemIds: number[];
+  }) => Promise<number>;
 }
 
 function nowIso(): string {
@@ -184,6 +203,12 @@ function buildCarryForwardKey(
   >
 ): string {
   return JSON.stringify([item.jiraKey ?? null, item.title, item.note ?? null]);
+}
+
+function isCarryForwardEligibleItem(
+  item: Pick<typeof teamTrackerItems.$inferSelect, "state">
+): boolean {
+  return item.state === "planned" || item.state === "in_progress";
 }
 
 const ATTENTION_REASON_META: Record<
@@ -691,76 +716,34 @@ export class TeamTrackerService {
       return [];
     }
 
-    const dayRows = await db
-      .select()
-      .from(teamTrackerDays)
-      .where(eq(teamTrackerDays.date, date));
-
-    if (dayRows.length === 0) {
-      return [];
-    }
-
-    const dayIdToAccountId = new Map(
-      dayRows.map((row) => [row.id, row.developerAccountId])
+    return (await this.getActiveIssueAssignmentsForDate(date)).filter(
+      (assignment) => assignment.jiraKey === normalizedJiraKey
     );
-    const activeDayIds = dayRows.map((row) => row.id);
-    const itemRows = await db
-      .select()
-      .from(teamTrackerItems)
-      .where(inArray(teamTrackerItems.dayId, activeDayIds));
+  }
 
-    const matches = itemRows
-      .filter(
-        (item) =>
-          item.jiraKey === normalizedJiraKey &&
-          (item.state === "planned" || item.state === "in_progress")
-      )
-      .sort(
-        (left, right) =>
-          (left.state === "in_progress" ? 0 : left.state === "planned" ? 1 : 2) -
-            (right.state === "in_progress" ? 0 : right.state === "planned" ? 1 : 2) ||
-          left.position - right.position ||
-          new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime() ||
-          left.id - right.id
-      );
+  async getIssueAssignmentSummaryMap(
+    date: string
+  ): Promise<Map<string, IssueTrackerAssignmentSummary>> {
+    const assignments = await this.getActiveIssueAssignmentsForDate(date);
+    const summaryMap = new Map<string, IssueTrackerAssignmentSummary>();
 
-    if (matches.length === 0) {
-      return [];
-    }
-    const availabilityByAccountId = await this.availability.getAvailabilityMapForDate(
-      [...new Set(dayRows.map((row) => row.developerAccountId))],
-      date
-    );
-    const developerRows = await db
-      .select()
-      .from(developers)
-      .where(inArray(developers.accountId, [...new Set(dayRows.map((row) => row.developerAccountId))]));
-    const developerMap = new Map(
-      developerRows.map((row) => [row.accountId, mapDeveloper(row)])
-    );
-
-    return matches.flatMap((match) => {
-      const accountId = dayIdToAccountId.get(match.dayId);
-      if (!accountId) {
-        return [];
+    for (const assignment of assignments) {
+      const summary = summaryMap.get(assignment.jiraKey);
+      if (summary) {
+        summary.activeCount += 1;
+        if (!summary.developerNames.includes(assignment.developer.displayName)) {
+          summary.developerNames.push(assignment.developer.displayName);
+        }
+        continue;
       }
 
-      const developer = developerMap.get(accountId);
-      if (!developer || availabilityByAccountId.get(accountId)?.state === "inactive") {
-        return [];
-      }
+      summaryMap.set(assignment.jiraKey, {
+        activeCount: 1,
+        developerNames: [assignment.developer.displayName],
+      });
+    }
 
-      return [
-        {
-          date,
-          jiraKey: normalizedJiraKey,
-          itemId: match.id,
-          title: match.title,
-          state: match.state as TrackerItemState,
-          developer,
-        },
-      ];
-    });
+    return summaryMap;
   }
 
   async getItemDetailContext(itemId: number): Promise<{
@@ -855,111 +838,31 @@ export class TeamTrackerService {
   }
 
   async previewCarryForward(fromDate: string, toDate: string): Promise<number> {
-    const dayRows = await db
-      .select()
-      .from(teamTrackerDays)
-      .where(eq(teamTrackerDays.date, fromDate));
-
-    let carryable = 0;
-
-    for (const dayRow of dayRows) {
-      const items = await db
-        .select()
-        .from(teamTrackerItems)
-        .where(eq(teamTrackerItems.dayId, dayRow.id));
-
-      const unfinished = items
-        .filter(
-          (i) =>
-            (i.state === "planned" || i.state === "in_progress") &&
-            i.managerDeskItemId === null
-        )
-        .sort((a, b) => a.position - b.position);
-
-      if (unfinished.length === 0) {
-        continue;
-      }
-
-      const targetItems = await this.getTargetCarryForwardItems(
-        toDate,
-        dayRow.developerAccountId
-      );
-      const remainingToCarry = this.buildRemainingCarryForwardMap(
-        unfinished,
-        targetItems
-      );
-
-      for (const item of unfinished) {
-        const key = buildCarryForwardKey(item);
-        const remaining = remainingToCarry.get(key) ?? 0;
-        if (remaining > 0) {
-          carryable += 1;
-          remainingToCarry.set(key, remaining - 1);
-        }
-      }
-    }
-
-    return carryable;
+    const plan = await this.buildCarryForwardPlan(fromDate, toDate);
+    return plan.trackerOnlyItems.length + plan.managerDeskItemIds.length;
   }
 
-  async carryForward(fromDate: string, toDate: string): Promise<number> {
-    const dayRows = await db
-      .select()
-      .from(teamTrackerDays)
-      .where(eq(teamTrackerDays.date, fromDate));
+  async carryForward(
+    fromDate: string,
+    toDate: string,
+    options?: CarryForwardExecutionOptions
+  ): Promise<number> {
+    const plan = await this.buildCarryForwardPlan(fromDate, toDate);
+    let carried = await this.carryForwardTrackerOnlyItems(
+      plan.trackerOnlyItems,
+      toDate
+    );
 
-    let carried = 0;
-
-    for (const dayRow of dayRows) {
-      const items = await db
-        .select()
-        .from(teamTrackerItems)
-        .where(eq(teamTrackerItems.dayId, dayRow.id));
-
-      const unfinished = items.filter(
-        (i) =>
-          (i.state === "planned" || i.state === "in_progress") &&
-          i.managerDeskItemId === null
-      );
-
-      if (unfinished.length === 0) continue;
-
-      const newDay = await this.ensureDay(toDate, dayRow.developerAccountId);
-      const targetItems = await db
-        .select()
-        .from(teamTrackerItems)
-        .where(eq(teamTrackerItems.dayId, newDay.id));
-      const remainingToCarry = this.buildRemainingCarryForwardMap(
-        unfinished,
-        targetItems.filter((item) => item.managerDeskItemId === null)
-      );
-
-      let nextPosition =
-        targetItems.reduce((max, item) => Math.max(max, item.position), -1) + 1;
-      const now = nowIso();
-
-      for (const item of unfinished.sort((a, b) => a.position - b.position)) {
-        const key = buildCarryForwardKey(item);
-        const remaining = remainingToCarry.get(key) ?? 0;
-        if (remaining === 0) {
-          continue;
-        }
-
-        await db.insert(teamTrackerItems).values({
-          dayId: newDay.id,
-          itemType: item.jiraKey ? "jira" : "custom",
-          jiraKey: item.jiraKey,
-          title: item.title,
-          state: "planned",
-          position: nextPosition,
-          note: item.note,
-          createdAt: now,
-          updatedAt: now,
-        });
-        remainingToCarry.set(key, remaining - 1);
-        nextPosition += 1;
-        carried++;
+    if (plan.managerDeskItemIds.length > 0) {
+      if (!options?.carryManagerDeskItems) {
+        throw new Error("Manager Desk carry-forward handler is required for linked tracker items");
       }
+
+      carried += await options.carryManagerDeskItems({
+        fromDate,
+        toDate,
+        itemIds: plan.managerDeskItemIds,
+      });
     }
 
     return carried;
@@ -1190,6 +1093,87 @@ export class TeamTrackerService {
     return new Map(rows.map((row) => [row.jiraKey, row]));
   }
 
+  private async getActiveIssueAssignmentsForDate(
+    date: string
+  ): Promise<TrackerIssueAssignment[]> {
+    const dayRows = await db
+      .select()
+      .from(teamTrackerDays)
+      .where(eq(teamTrackerDays.date, date));
+
+    if (dayRows.length === 0) {
+      return [];
+    }
+
+    const dayIdToAccountId = new Map(
+      dayRows.map((row) => [row.id, row.developerAccountId])
+    );
+    const activeDayIds = dayRows.map((row) => row.id);
+    const itemRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(inArray(teamTrackerItems.dayId, activeDayIds));
+    const matches = itemRows
+      .filter(
+        (item) =>
+          Boolean(item.jiraKey) &&
+          (item.state === "planned" || item.state === "in_progress")
+      )
+      .sort(
+        (left, right) =>
+          (left.state === "in_progress" ? 0 : left.state === "planned" ? 1 : 2) -
+            (right.state === "in_progress" ? 0 : right.state === "planned" ? 1 : 2) ||
+          left.position - right.position ||
+          new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime() ||
+          left.id - right.id
+      );
+
+    if (matches.length === 0) {
+      return [];
+    }
+
+    const accountIds = [...new Set(dayRows.map((row) => row.developerAccountId))];
+    const availabilityByAccountId = await this.availability.getAvailabilityMapForDate(
+      accountIds,
+      date
+    );
+    const developerRows = await db
+      .select()
+      .from(developers)
+      .where(inArray(developers.accountId, accountIds));
+    const developerMap = new Map(
+      developerRows.map((row) => [row.accountId, mapDeveloper(row)])
+    );
+
+    return matches.flatMap((match) => {
+      const jiraKey = match.jiraKey?.trim();
+      if (!jiraKey) {
+        return [];
+      }
+
+      const accountId = dayIdToAccountId.get(match.dayId);
+      if (!accountId) {
+        return [];
+      }
+
+      const developer = developerMap.get(accountId);
+      if (!developer || availabilityByAccountId.get(accountId)?.state === "inactive") {
+        return [];
+      }
+
+      return [
+        {
+          date,
+          jiraKey,
+          itemId: match.id,
+          title: match.title,
+          state: match.state as TrackerItemState,
+          developer,
+        },
+      ];
+    });
+  }
+
   private buildRemainingCarryForwardMap(
     sourceItems: Array<
       Pick<
@@ -1252,7 +1236,116 @@ export class TeamTrackerService {
       .from(teamTrackerItems)
       .where(eq(teamTrackerItems.dayId, targetDay.id));
 
-    return items.filter((item) => item.managerDeskItemId === null);
+    return items;
+  }
+
+  private async buildCarryForwardPlan(
+    fromDate: string,
+    toDate: string
+  ): Promise<CarryForwardPlan> {
+    const dayRows = await db
+      .select()
+      .from(teamTrackerDays)
+      .where(eq(teamTrackerDays.date, fromDate));
+
+    const trackerOnlyItems: CarryForwardSourceItem[] = [];
+    const managerDeskItemIds: number[] = [];
+
+    for (const dayRow of dayRows) {
+      const items = await db
+        .select()
+        .from(teamTrackerItems)
+        .where(eq(teamTrackerItems.dayId, dayRow.id));
+
+      const unfinished = items
+        .filter(isCarryForwardEligibleItem)
+        .sort((a, b) => a.position - b.position);
+
+      if (unfinished.length === 0) {
+        continue;
+      }
+
+      const targetItems = await this.getTargetCarryForwardItems(
+        toDate,
+        dayRow.developerAccountId
+      );
+      const remainingToCarry = this.buildRemainingCarryForwardMap(
+        unfinished,
+        targetItems
+      );
+
+      for (const item of unfinished) {
+        const key = buildCarryForwardKey(item);
+        const remaining = remainingToCarry.get(key) ?? 0;
+        if (remaining === 0) {
+          continue;
+        }
+
+        if (item.managerDeskItemId === null) {
+          trackerOnlyItems.push({
+            developerAccountId: dayRow.developerAccountId,
+            item,
+          });
+        } else {
+          managerDeskItemIds.push(item.managerDeskItemId);
+        }
+
+        remainingToCarry.set(key, remaining - 1);
+      }
+    }
+
+    return {
+      trackerOnlyItems,
+      managerDeskItemIds,
+    };
+  }
+
+  private async carryForwardTrackerOnlyItems(
+    items: CarryForwardSourceItem[],
+    toDate: string
+  ): Promise<number> {
+    if (items.length === 0) {
+      return 0;
+    }
+
+    let carried = 0;
+    const itemsByDeveloper = new Map<string, Array<typeof teamTrackerItems.$inferSelect>>();
+
+    for (const entry of items) {
+      const existing = itemsByDeveloper.get(entry.developerAccountId) ?? [];
+      existing.push(entry.item);
+      itemsByDeveloper.set(entry.developerAccountId, existing);
+    }
+
+    for (const [developerAccountId, sourceItems] of itemsByDeveloper.entries()) {
+      const newDay = await this.ensureDay(toDate, developerAccountId);
+      const targetItems = await db
+        .select()
+        .from(teamTrackerItems)
+        .where(eq(teamTrackerItems.dayId, newDay.id));
+
+      let nextPosition =
+        targetItems.reduce((max, item) => Math.max(max, item.position), -1) + 1;
+      const now = nowIso();
+
+      for (const item of sourceItems.sort((a, b) => a.position - b.position)) {
+        await db.insert(teamTrackerItems).values({
+          dayId: newDay.id,
+          itemType: item.itemType,
+          jiraKey: item.jiraKey,
+          title: item.title,
+          state: "planned",
+          position: nextPosition,
+          note: item.note,
+          createdAt: now,
+          updatedAt: now,
+        });
+        nextPosition += 1;
+        carried += 1;
+      }
+    }
+
+    return carried;
   }
 
   private async reorderItem(

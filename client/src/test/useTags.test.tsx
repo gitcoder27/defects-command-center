@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useCreateTag, useSetIssueTags } from '@/hooks/useTags';
+import { getLocalIsoDate } from '@/lib/utils';
 import type { ReactNode } from 'react';
 import type { Issue, LocalTag } from '@/types';
 
@@ -45,6 +46,8 @@ function buildIssue(overrides: Partial<Issue> = {}): Issue {
 }
 
 describe('tag mutations', () => {
+  const trackerDate = getLocalIsoDate();
+
   beforeEach(() => {
     mockPost.mockReset();
     mockPut.mockReset();
@@ -83,9 +86,9 @@ describe('tag mutations', () => {
     const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
     queryClient.setQueryData<LocalTag[]>(['tags'], [backendTag]);
-    queryClient.setQueryData<Issue[]>(['issues', 'all', undefined, undefined, undefined], [issue]);
-    queryClient.setQueryData<Issue[]>(['issues', 'all', undefined, undefined, true], [issue]);
-    queryClient.setQueryData<Issue>(['issue', issue.jiraKey], issue);
+    queryClient.setQueryData<Issue[]>(['issues', 'all', undefined, undefined, undefined, trackerDate], [issue]);
+    queryClient.setQueryData<Issue[]>(['issues', 'all', undefined, undefined, true, trackerDate], [issue]);
+    queryClient.setQueryData<Issue>(['issue', issue.jiraKey, trackerDate], issue);
 
     let resolvePut: ((value: { tags: LocalTag[] }) => void) | undefined;
     mockPut.mockImplementation(
@@ -106,11 +109,11 @@ describe('tag mutations', () => {
     });
 
     await waitFor(() => {
-      expect(queryClient.getQueryData<Issue>(['issue', issue.jiraKey])?.localTags).toEqual([backendTag]);
+      expect(queryClient.getQueryData<Issue>(['issue', issue.jiraKey, trackerDate])?.localTags).toEqual([backendTag]);
       expect(
-        queryClient.getQueryData<Issue[]>(['issues', 'all', undefined, undefined, undefined])?.[0]?.localTags
+        queryClient.getQueryData<Issue[]>(['issues', 'all', undefined, undefined, undefined, trackerDate])?.[0]?.localTags
       ).toEqual([backendTag]);
-      expect(queryClient.getQueryData<Issue[]>(['issues', 'all', undefined, undefined, true])).toEqual([]);
+      expect(queryClient.getQueryData<Issue[]>(['issues', 'all', undefined, undefined, true, trackerDate])).toEqual([]);
     });
 
     act(() => {

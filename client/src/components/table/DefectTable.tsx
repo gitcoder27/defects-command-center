@@ -9,12 +9,13 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { useState } from 'react';
-import { ArrowUpDown, Ban, Search, X, XCircle } from 'lucide-react';
+import { ArrowUpDown, Ban, Filter, Search, X, XCircle } from 'lucide-react';
 import { PriorityCell } from './PriorityCell';
 import { StatusBadge } from './StatusBadge';
 import { AssigneeCell } from './AssigneeCell';
 import { DueDateCell } from './DueDateCell';
 import { AnalysisStatusCell } from './AnalysisStatusCell';
+import { TrackerAssignmentsCell } from './TrackerAssignmentsCell';
 import { InlineEditAssignee } from './InlineEditAssignee';
 import { InlineEditDueDate } from './InlineEditDueDate';
 import { InlineEditTags } from './InlineEditTags';
@@ -45,6 +46,10 @@ const columnHelper = createColumnHelper<Issue>();
 
 function hasAnalysisNotes(issue: Issue): boolean {
   return Boolean(issue.analysisNotes?.trim());
+}
+
+function getTrackerAssignmentCount(issue: Issue): number {
+  return issue.trackerAssignmentsToday?.activeCount ?? 0;
 }
 
 function getEffectiveDueDate(issue: Issue): string | undefined {
@@ -93,10 +98,14 @@ export function DefectTable({
   } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilterOpen, setStatusFilterOpen] = useState(false);
+  const [excludedStatuses, setExcludedStatuses] = useState<string[]>([]);
 
   const tableRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const statusFilterRef = useRef<HTMLDivElement>(null);
+  const statusFilterButtonRef = useRef<HTMLButtonElement>(null);
   const clearVisitedHighlightTimeoutRef = useRef<number | null>(null);
   const [lastVisitedKey, setLastVisitedKey] = useState<string | null>(null);
 
@@ -146,6 +155,79 @@ export function DefectTable({
 
   // Expose issue keys for parent keyboard nav
   const rowCount = issues?.length ?? 0;
+  const baseIssues = issues ?? [];
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const allStatuses = useMemo(() => {
+    const statusSet = new Set<string>();
+    for (const issue of baseIssues) {
+      if (issue.statusName) {
+        statusSet.add(issue.statusName);
+      }
+    }
+    return Array.from(statusSet).sort((a, b) => a.localeCompare(b));
+  }, [baseIssues]);
+  const hasStatusFilter = excludedStatuses.length > 0;
+
+  const clearStatusFilter = useCallback(() => {
+    setExcludedStatuses([]);
+    setStatusFilterOpen(false);
+  }, []);
+
+  const toggleStatusFilter = useCallback((status: string) => {
+    setExcludedStatuses((previous) => {
+      const next = new Set(previous);
+      if (next.has(status)) {
+        next.delete(status);
+      } else {
+        next.add(status);
+      }
+      return Array.from(next);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!statusFilterOpen) {
+      return;
+    }
+
+    const handleOutsideMouseDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (statusFilterRef.current?.contains(target)) {
+        return;
+      }
+      if (statusFilterButtonRef.current?.contains(target)) {
+        return;
+      }
+      setStatusFilterOpen(false);
+    };
+
+    const handleStatusFilterKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setStatusFilterOpen(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handleOutsideMouseDown);
+    window.addEventListener('keydown', handleStatusFilterKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', handleOutsideMouseDown);
+      window.removeEventListener('keydown', handleStatusFilterKeyDown);
+    };
+  }, [statusFilterOpen]);
+
+  useEffect(() => {
+    if (!allStatuses.length) {
+      return;
+    }
+    setExcludedStatuses((previous) => {
+      const validStatusSet = new Set(allStatuses);
+      const next = previous.filter((status) => validStatusSet.has(status));
+      return next.length === previous.length ? previous : next;
+    });
+  }, [allStatuses]);
 
   // Auto-scroll to focused row
   useEffect(() => {
@@ -334,7 +416,99 @@ export function DefectTable({
         size: 100,
       }),
       columnHelper.accessor('statusName', {
-        header: 'Status',
+        header: () => (
+          <div className="relative inline-flex items-center gap-1">
+            <span>Status</span>
+            <button
+              ref={statusFilterButtonRef}
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setStatusFilterOpen((open) => !open);
+              }}
+              onMouseDown={(event) => event.stopPropagation()}
+              className="h-6 px-1.5 rounded-md inline-flex items-center gap-1 text-[11px] transition-colors"
+              style={{
+                border: hasStatusFilter ? '1px solid var(--border)' : '1px dashed var(--border)',
+                background: statusFilterOpen ? 'var(--bg-tertiary)' : 'transparent',
+                color: hasStatusFilter ? 'var(--text-primary)' : 'var(--text-muted)',
+              }}
+              aria-label="Open status filter"
+              title="Filter by status"
+            >
+              <Filter size={11} />
+            </button>
+            {hasStatusFilter ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  clearStatusFilter();
+                }}
+                onMouseDown={(event) => event.stopPropagation()}
+                className="h-6 w-6 inline-flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-tertiary)]"
+                style={{
+                  color: 'var(--danger)',
+                  background: 'color-mix(in srgb, var(--danger) 16%, transparent)',
+                }}
+                aria-label="Clear status filter"
+                title="Clear status filter"
+              >
+                <X size={11} />
+              </button>
+            ) : null}
+            {statusFilterOpen ? (
+              <div
+                ref={statusFilterRef}
+                className="absolute right-0 top-7 z-30 min-w-[240px] rounded-xl border shadow-md overflow-hidden"
+                style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)' }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="px-2 py-1.5 text-[11px] uppercase font-semibold border-b flex items-center justify-between"
+                     style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)', letterSpacing: '0.08em' }}
+                >
+                  <span>Status filter</span>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      clearStatusFilter();
+                    }}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    className="h-6 w-6 inline-flex items-center justify-center rounded-md hover:bg-[var(--bg-tertiary)]"
+                    style={{ color: 'var(--text-muted)' }}
+                    aria-label="Clear status filter"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+                <div className="max-h-56 overflow-auto p-1.5">
+                  {allStatuses.map((status) => (
+                    <label
+                      key={status}
+                      className="flex items-center gap-2 px-2 py-1 rounded-md text-[12px]"
+                      style={{
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!excludedStatuses.includes(status)}
+                        onChange={() => toggleStatusFilter(status)}
+                        onClick={(event) => event.stopPropagation()}
+                        className="h-3.5 w-3.5"
+                      />
+                      <span className="truncate" title={status}>
+                        {status}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ),
         cell: (info) => <StatusBadge status={info.getValue()} />,
         size: 100,
       }),
@@ -344,6 +518,18 @@ export function DefectTable({
         cell: (info) => <AnalysisStatusCell hasNotes={Boolean(info.getValue())} />,
         sortDescFirst: false,
         size: 60,
+      }),
+      columnHelper.accessor((row) => getTrackerAssignmentCount(row), {
+        id: 'trackerAssignments',
+        header: 'Tracker',
+        cell: (info) => (
+          <TrackerAssignmentsCell
+            activeCount={info.getValue()}
+            developerNames={info.row.original.trackerAssignmentsToday?.developerNames ?? []}
+          />
+        ),
+        sortDescFirst: true,
+        size: 78,
       }),
       columnHelper.accessor('flagged', {
         header: '',
@@ -355,26 +541,43 @@ export function DefectTable({
         enableSorting: false,
       }),
     ],
-    [editingCell, handleCellClick, closeInlineEdit, config, lastVisitedKey, filter, handleExclude]
+    [
+      editingCell,
+      handleCellClick,
+      closeInlineEdit,
+      config,
+      lastVisitedKey,
+      filter,
+      handleExclude,
+      allStatuses,
+      hasStatusFilter,
+      excludedStatuses,
+      statusFilterOpen,
+      clearStatusFilter,
+      toggleStatusFilter,
+    ]
   );
 
-  const normalizedSearch = searchQuery.trim().toLowerCase();
   const hasActiveFilters =
     filter !== 'all' ||
     Boolean(assigneeFilter) ||
     tagId !== undefined ||
     Boolean(noTags) ||
     Boolean(normalizedSearch);
-  const baseIssues = issues ?? [];
   const filteredIssues = useMemo(() => {
+    let filtered = baseIssues;
+    if (excludedStatuses.length) {
+      const excludedSet = new Set(excludedStatuses);
+      filtered = filtered.filter((issue) => !excludedSet.has(issue.statusName));
+    }
     if (!normalizedSearch) {
-      return baseIssues;
+      return filtered;
     }
 
-    return baseIssues.filter((issue) => {
+    return filtered.filter((issue) => {
       return issue.jiraKey.toLowerCase().includes(normalizedSearch) || issue.summary.toLowerCase().includes(normalizedSearch);
     });
-  }, [baseIssues, normalizedSearch]);
+  }, [baseIssues, excludedStatuses, normalizedSearch]);
 
   const table = useReactTable({
     data: filteredIssues,
