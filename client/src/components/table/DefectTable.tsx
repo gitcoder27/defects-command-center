@@ -41,8 +41,48 @@ const INITIAL_ROW_ANIMATION_STAGGER = 0.03;
 const INITIAL_ROW_STAGGER_CAP = 12;
 const ROW_HOVER_BACKGROUND = 'color-mix(in srgb, var(--bg-tertiary) 92%, white 8%)';
 const ROW_DEFAULT_BACKGROUND = 'color-mix(in srgb, var(--bg-secondary) 92%, white 8%)';
+const STATUS_FILTER_STORAGE_KEY = 'dcc:defect-table:excluded-statuses';
 
 const columnHelper = createColumnHelper<Issue>();
+
+function readPersistedExcludedStatuses(): string[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(STATUS_FILTER_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return Array.from(new Set(parsed.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)));
+  } catch {
+    return [];
+  }
+}
+
+function persistExcludedStatuses(excludedStatuses: string[]) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    if (excludedStatuses.length === 0) {
+      window.localStorage.removeItem(STATUS_FILTER_STORAGE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(STATUS_FILTER_STORAGE_KEY, JSON.stringify(excludedStatuses));
+  } catch {
+    // Ignore storage failures and continue with in-memory state.
+  }
+}
 
 function hasAnalysisNotes(issue: Issue): boolean {
   return Boolean(issue.analysisNotes?.trim());
@@ -99,7 +139,7 @@ export function DefectTable({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilterOpen, setStatusFilterOpen] = useState(false);
-  const [excludedStatuses, setExcludedStatuses] = useState<string[]>([]);
+  const [excludedStatuses, setExcludedStatuses] = useState<string[]>(() => readPersistedExcludedStatuses());
 
   const tableRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -219,15 +259,8 @@ export function DefectTable({
   }, [statusFilterOpen]);
 
   useEffect(() => {
-    if (!allStatuses.length) {
-      return;
-    }
-    setExcludedStatuses((previous) => {
-      const validStatusSet = new Set(allStatuses);
-      const next = previous.filter((status) => validStatusSet.has(status));
-      return next.length === previous.length ? previous : next;
-    });
-  }, [allStatuses]);
+    persistExcludedStatuses(excludedStatuses);
+  }, [excludedStatuses]);
 
   // Auto-scroll to focused row
   useEffect(() => {
