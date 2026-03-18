@@ -17,6 +17,7 @@ interface TrackerItemRowActionsProps {
   onDrop?: (id: number) => void;
   onMoveUp?: (id: number) => void;
   onMoveDown?: (id: number) => void;
+  onToggleTitleEditor?: () => void;
   onToggleNoteEditor?: () => void;
 }
 
@@ -34,6 +35,7 @@ export function TrackerItemRowActions({
   onDrop,
   onMoveUp,
   onMoveDown,
+  onToggleTitleEditor,
   onToggleNoteEditor,
 }: TrackerItemRowActionsProps) {
   if (actionPreset === 'none') {
@@ -87,6 +89,32 @@ export function TrackerItemRowActions({
           title="Move down"
         >
           <GripVertical size={10} style={{ color: 'var(--text-secondary)' }} />
+        </button>
+      )}
+      {onToggleTitleEditor && (
+        <button
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleTitleEditor();
+          }}
+          className={
+            hoverPrimaryOnly
+              ? 'flex h-7 w-7 items-center justify-center rounded-full border transition-all hover:scale-[1.04] active:scale-[0.97]'
+              : 'h-6 w-6 rounded-md flex items-center justify-center transition-colors'
+          }
+          style={
+            hoverPrimaryOnly
+              ? {
+                  background: 'color-mix(in srgb, var(--bg-secondary) 90%, var(--bg-tertiary) 10%)',
+                  borderColor: 'color-mix(in srgb, var(--border-strong) 70%, transparent)',
+                  boxShadow: '0 8px 18px rgba(15, 23, 42, 0.12)',
+                }
+              : { background: 'var(--bg-tertiary)' }
+          }
+          title={`Edit title: ${itemTitle}`}
+          aria-label={`Edit title: ${itemTitle}`}
+        >
+          <PencilLine size={10} style={{ color: hoverPrimaryOnly ? 'var(--text-primary)' : 'var(--text-secondary)' }} />
         </button>
       )}
       {itemState !== 'in_progress' && onSetCurrent && !hoverDone && (

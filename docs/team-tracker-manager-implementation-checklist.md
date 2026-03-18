@@ -136,37 +136,52 @@ Notes:
 ## 4. Show Check-In Authorship and Absolute Timestamps
 
 Type: `Frontend-heavy, but Both`
-Status: `Not started`
+Status: `Completed`
 
 Planning checklist:
 
-- [ ] Confirm whether current API payload already includes required authorship/timestamp fields
-- [ ] Define how authorship should appear in the drawer and related surfaces
-- [ ] Decide where absolute timestamps are shown inline vs hover
-- [ ] List API changes if needed
-- [ ] List UI rendering changes
-- [ ] Define tests for manager-authored vs developer-authored check-ins
+- [x] Confirm whether current API payload already includes required authorship/timestamp fields
+- [x] Define how authorship should appear in the drawer and related surfaces
+- [x] Decide where absolute timestamps are shown inline vs hover
+- [x] List API changes if needed
+- [x] List UI rendering changes
+- [x] Define tests for manager-authored vs developer-authored check-ins
 
 Notes:
 
 - This improves trust in activity history with relatively low workflow risk
+- Final scope: frontend-only for Team Tracker manager surfaces
+- Check-ins now show role badges for `Manager` and `Developer` in the drawer, plus inline absolute timestamps alongside the relative time
+- Existing relative `Last check-in` labels on Team Tracker cards and the attention queue now expose absolute timestamps via hover
+- No API or shared contract changes were required because `TrackerCheckIn` already exposed `authorType`, `authorAccountId`, and `createdAt`
+- Validation completed:
+  - `npm run test --workspace=client -- TeamTracker.test.tsx utils.test.ts`
+  - `npm run typecheck --workspace=client`
 
 ## 5. Fix Title Editing in the Drawer
 
 Type: `Frontend`
-Status: `Not started`
+Status: `Completed`
 
 Planning checklist:
 
-- [ ] Confirm current row-open vs edit interaction conflict
-- [ ] Choose the replacement pattern: edit icon, menu action, or other explicit control
-- [ ] List affected drawer/task row components
-- [ ] Define keyboard and focus behavior
-- [ ] Define component tests
+- [x] Confirm current row-open vs edit interaction conflict
+- [x] Choose the replacement pattern: edit icon, menu action, or other explicit control
+- [x] List affected drawer/task row components
+- [x] Define keyboard and focus behavior
+- [x] Define component tests
 
 Notes:
 
-- This is likely an isolated UI fix and a good contained change
+- This was a contained frontend fix in the Team Tracker shared row component.
+- Drawer rows now expose an explicit `Edit title` button so row click remains reserved for opening task detail.
+- The main edits landed in:
+  - `client/src/components/team-tracker/TrackerItemRow.tsx`
+  - `client/src/components/team-tracker/TrackerItemRowActions.tsx`
+  - `client/src/test/TeamTracker.test.tsx`
+- Validation completed:
+  - `npm run test --workspace=client -- TeamTracker.test.tsx MyDayPage.test.tsx`
+  - `npm run typecheck`
 
 ## 6. Add Assignment-Conflict Visibility During Team Tracker Task Creation
 

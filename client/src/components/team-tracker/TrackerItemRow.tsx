@@ -74,7 +74,9 @@ export function TrackerItemRow({
   const isDone = item.state === 'done' || item.state === 'dropped';
   const isDrawerPlanned = variant === 'drawer-planned';
   const canOpen = Boolean(onOpen) && !noteEditing && !titleEditing;
-  const isTitleEditable = !compact && Boolean(onUpdateTitle) && !isDone && !canOpen;
+  const isTitleEditable = !compact && Boolean(onUpdateTitle) && !isDone;
+  const hasExplicitTitleEditAction = isTitleEditable && Boolean(onOpen);
+  const isInlineTitleEditable = isTitleEditable && !hasExplicitTitleEditAction;
   const canShowDetails = showDetailsToggle && !compact && !canOpen;
   const detailsRegionId = `tracker-item-details-${item.id}`;
   const jiraLabel = item.jiraSummary && item.jiraSummary !== item.title ? `${item.jiraKey} · ${item.jiraSummary}` : item.jiraKey;
@@ -166,7 +168,7 @@ export function TrackerItemRow({
                   <X size={10} />
                 </button>
               </div>
-            ) : isTitleEditable ? (
+            ) : isInlineTitleEditable ? (
               <button
                 type="button"
                 onClick={() => {
@@ -297,6 +299,10 @@ export function TrackerItemRow({
           onDrop={onDrop}
           onMoveUp={onMoveUp}
           onMoveDown={onMoveDown}
+          onToggleTitleEditor={hasExplicitTitleEditAction ? () => {
+            setDetailsOpen(false);
+            setTitleEditing(true);
+          } : undefined}
           onToggleNoteEditor={!compact && onUpdateNote ? () => setNoteEditing((editing) => !editing) : undefined}
         />
       )}

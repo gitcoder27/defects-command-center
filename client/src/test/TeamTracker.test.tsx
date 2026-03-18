@@ -740,6 +740,26 @@ describe('TeamTrackerPage', () => {
     expect(screen.getByText('Shared task detail for item 11')).toBeInTheDocument();
   });
 
+  it('edits a planned task title from the developer drawer without opening task detail', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    clickDeveloperCard('Bob Jones');
+    fireEvent.click(screen.getByRole('button', { name: /edit title: code review/i }));
+
+    const titleInput = screen.getByLabelText('Edit title');
+    fireEvent.change(titleInput, {
+      target: { value: 'Code review and release notes' },
+    });
+    fireEvent.click(screen.getByTitle('Save title'));
+
+    expect(mockUpdateTrackerItemMutate).toHaveBeenCalledWith({ itemId: 11, title: 'Code review and release notes' });
+    expect(screen.queryByRole('dialog', { name: /team tracker task detail/i })).not.toBeInTheDocument();
+  });
+
   it('starts a planned task from the developer drawer without opening task detail', () => {
     render(
       <TestWrapper>
@@ -1065,11 +1085,43 @@ describe('TrackerItemRow', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /shared task launch checklist/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^shared task launch checklist$/i }));
 
     expect(onOpen).toHaveBeenCalledWith(16, undefined);
     expect(screen.queryByRole('button', { name: /show task details for/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Edit title')).not.toBeInTheDocument();
+  });
+
+  it('uses an explicit title edit control when row click opens shared task detail', async () => {
+    const { TrackerItemRow } = await import('@/components/team-tracker/TrackerItemRow');
+    const onOpen = vi.fn();
+    const onUpdateTitle = vi.fn();
+
+    render(
+      <TrackerItemRow
+        item={{
+          id: 18,
+          dayId: 1,
+          itemType: 'custom',
+          title: 'Shared task launch checklist',
+          state: 'planned',
+          position: 0,
+          createdAt: '2026-03-07T08:00:00Z',
+          updatedAt: '2026-03-07T08:00:00Z',
+        }}
+        onOpen={onOpen}
+        onUpdateTitle={onUpdateTitle}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /edit title: shared task launch checklist/i }));
+
+    const input = screen.getByLabelText('Edit title');
+    fireEvent.change(input, { target: { value: 'Shared task launch checklist v2' } });
+    fireEvent.click(screen.getByTitle('Save title'));
+
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(onUpdateTitle).toHaveBeenCalledWith(18, 'Shared task launch checklist v2');
   });
 
   it('reveals full title and note when details are toggled on', async () => {
