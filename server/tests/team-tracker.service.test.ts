@@ -7,6 +7,7 @@ import {
   developers,
   issues,
   managerDeskItems,
+  teamTrackerItems,
   teamTrackerDays,
   teamTrackerSavedViews,
 } from "../src/db/schema";
@@ -517,6 +518,68 @@ describe("TeamTrackerService", () => {
       expect(devDay.plannedItems.map((item) => item.position)).toEqual([0, 1, 2]);
       expect(first.position).toBe(0);
     });
+
+    it("rejects title edits for Manager Desk-linked delegated tasks", async () => {
+      const managerItem = await managerDeskService.createItem("manager-1", {
+        date: "2026-03-07",
+        title: "Shared delegated task",
+        assigneeDeveloperAccountId: "dev-1",
+      });
+      const linkedItem = (await service.getItemDetailContextForManagerDeskItem(managerItem.id))
+        ?.trackerItem;
+      expect(linkedItem).toBeDefined();
+
+      await expect(
+        service.updateItem(linkedItem!.id, { title: "Developer rename attempt" })
+      ).rejects.toThrow("Linked delegated tasks must be renamed from Manager Desk");
+    });
+
+    it("touches the linked Manager Desk item when execution changes", async () => {
+      const managerItem = await managerDeskService.createItem("manager-1", {
+        date: "2026-03-07",
+        title: "Shared delegated task",
+        assigneeDeveloperAccountId: "dev-1",
+      });
+      const linkedRow = (
+        await db
+          .select()
+          .from(teamTrackerItems)
+          .where(eq(teamTrackerItems.managerDeskItemId, managerItem.id))
+      )[0];
+      expect(linkedRow).toBeDefined();
+
+      const before = (
+        await db.select().from(managerDeskItems).where(eq(managerDeskItems.id, managerItem.id))
+      )[0];
+      expect(before).toBeDefined();
+
+      vi.setSystemTime(new Date("2026-03-07T09:30:00.000Z"));
+      await service.updateItem(linkedRow!.id, {
+        state: "done",
+        note: "Execution completed by developer.",
+      });
+
+      const after = (
+        await db.select().from(managerDeskItems).where(eq(managerDeskItems.id, managerItem.id))
+      )[0];
+      expect(after?.updatedAt).toBe("2026-03-07T09:30:00.000Z");
+
+      const refreshed = await managerDeskService.getDay("manager-1", "2026-03-07");
+      expect(refreshed.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: managerItem.id,
+            delegatedExecution: expect.objectContaining({
+              trackerItemId: linkedRow!.id,
+              state: "done",
+              note: "Execution completed by developer.",
+              completedAt: "2026-03-07T09:30:00.000Z",
+              updatedAt: "2026-03-07T09:30:00.000Z",
+            }),
+          }),
+        ])
+      );
+    });
   });
 
   describe("deleteItem", () => {
@@ -535,6 +598,21 @@ describe("TeamTrackerService", () => {
         ...devDay.droppedItems,
       ];
       expect(allItems.find((i) => i.id === item.id)).toBeUndefined();
+    });
+
+    it("rejects deleting Manager Desk-linked delegated tasks from Team Tracker", async () => {
+      const managerItem = await managerDeskService.createItem("manager-1", {
+        date: "2026-03-07",
+        title: "Shared delegated task",
+        assigneeDeveloperAccountId: "dev-1",
+      });
+      const linkedItem = (await service.getItemDetailContextForManagerDeskItem(managerItem.id))
+        ?.trackerItem;
+      expect(linkedItem).toBeDefined();
+
+      await expect(service.deleteItem(linkedItem!.id)).rejects.toThrow(
+        "Linked delegated tasks cannot be deleted; mark them dropped instead"
+      );
     });
   });
 

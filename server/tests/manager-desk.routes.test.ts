@@ -17,8 +17,8 @@ import {
 import { invoke } from "./helpers/http";
 
 const authService = new AuthService();
-const managerDeskService = new ManagerDeskService();
 const trackerService = new TeamTrackerService();
+const managerDeskService = new ManagerDeskService(trackerService);
 
 async function seedDevelopers() {
   await db.insert(developers).values([
@@ -487,6 +487,78 @@ describe("manager desk routes", () => {
     expect(reopened.body?.status).toBe("planned");
     expect("completedAt" in reopened.body).toBe(false);
     expect("contextNote" in reopened.body).toBe(false);
+  });
+
+  it("surfaces delegated execution state and note from linked tracker work", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Investigate active blocker",
+        status: "planned",
+        assigneeDeveloperAccountId: "dev-1",
+        links: [{ linkType: "issue", issueKey: "PROJ-221" }],
+      },
+    });
+
+    const trackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, created.body.id));
+    expect(trackerRows).toHaveLength(1);
+
+    await trackerService.updateItem(trackerRows[0]!.id, {
+      state: "in_progress",
+      note: "Root cause isolated; validating fix scope.",
+    });
+
+    const day = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk?date=2026-03-08",
+      headers: { cookie },
+    });
+
+    expect(day.status).toBe(200);
+    expect(day.body?.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: created.body.id,
+          status: "planned",
+          delegatedExecution: expect.objectContaining({
+            trackerItemId: trackerRows[0]!.id,
+            state: "in_progress",
+            note: "Root cause isolated; validating fix scope.",
+          }),
+        }),
+      ])
+    );
+
+    const detail = await invoke(app, {
+      method: "GET",
+      url: `/api/manager-desk/items/${created.body.id}/detail`,
+      headers: { cookie },
+    });
+
+    expect(detail.status).toBe(200);
+    expect(detail.body?.managerDeskItem).toMatchObject({
+      id: created.body.id,
+      delegatedExecution: {
+        trackerItemId: trackerRows[0]!.id,
+        state: "in_progress",
+        note: "Root cause isolated; validating fix scope.",
+        updatedAt: expect.any(String),
+      },
+    });
+    expect(detail.body?.trackerItem).toMatchObject({
+      id: trackerRows[0]!.id,
+      state: "in_progress",
+      note: "Root cause isolated; validating fix scope.",
+    });
   });
 
   it("does not mirror closed items and removes tracker work when an assigned item is closed", async () => {

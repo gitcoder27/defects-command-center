@@ -68,7 +68,7 @@ async function bootstrap(): Promise<void> {
   const teamTrackerService = new TeamTrackerService();
   const authService = new AuthService();
   const myDayService = new MyDayService(teamTrackerService);
-  const managerDeskService = new ManagerDeskService();
+  const managerDeskService = new ManagerDeskService(teamTrackerService);
 
   const app = createApp({
     issueService,

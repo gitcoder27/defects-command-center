@@ -542,6 +542,14 @@ export type ManagerDeskLinkType =
   | "developer"
   | "external_group";
 
+export interface ManagerDeskDelegatedExecution {
+  trackerItemId: number;
+  state: TrackerItemState;
+  note?: string;
+  completedAt?: string;
+  updatedAt: string;
+}
+
 export interface ManagerDeskLink {
   id: number;
   itemId: number;
@@ -577,6 +585,7 @@ export interface ManagerDeskItem {
   plannedEndAt?: string;
   followUpAt?: string;
   completedAt?: string;
+  delegatedExecution?: ManagerDeskDelegatedExecution;
   assignee?: ManagerDeskAssignee;
   createdAt: string;
   updatedAt: string;

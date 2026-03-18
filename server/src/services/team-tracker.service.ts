@@ -31,6 +31,7 @@ import { db } from "../db/connection";
 import {
   developers,
   issues,
+  managerDeskItems,
   teamTrackerDays,
   teamTrackerItems,
   teamTrackerCheckIns,
@@ -1081,7 +1082,7 @@ export class TeamTrackerService {
 
     if (!params.assigneeDeveloperAccountId) {
       if (existing) {
-        await this.deleteItem(existing.id);
+        await this.deleteItem(existing.id, { allowLinkedManagerDeskDelete: true });
       }
       return;
     }
@@ -1120,7 +1121,7 @@ export class TeamTrackerService {
         return;
       }
 
-      await this.deleteItem(existing.id);
+      await this.deleteItem(existing.id, { allowLinkedManagerDeskDelete: true });
     }
 
     await this.addItem(params.assigneeDeveloperAccountId, params.date, {
@@ -1141,20 +1142,35 @@ export class TeamTrackerService {
     }
   ): Promise<TrackerWorkItem> {
     const existing = await this.getItemRow(itemId);
+    if (existing.managerDeskItemId !== null && updates.title !== undefined) {
+      throw new HttpError(409, "Linked delegated tasks must be renamed from Manager Desk");
+    }
+
     const now = nowIso();
     const setFields: Record<string, unknown> = { updatedAt: now };
+    const linkedManagerDeskItemIds = new Set<number>();
 
     if (updates.title !== undefined) setFields.title = updates.title;
-    if (updates.note !== undefined) setFields.note = updates.note;
+    if (updates.note !== undefined) {
+      setFields.note = updates.note;
+      if (existing.managerDeskItemId !== null) {
+        linkedManagerDeskItemIds.add(existing.managerDeskItemId);
+      }
+    }
     if (updates.state !== undefined) {
       if (updates.state === "in_progress") {
-        await this.setSingleInProgress(existing.dayId, itemId, now);
+        for (const managerDeskItemId of await this.setSingleInProgress(existing.dayId, itemId, now)) {
+          linkedManagerDeskItemIds.add(managerDeskItemId);
+        }
       }
       setFields.state = updates.state;
       if (updates.state === "done") {
         setFields.completedAt = now;
       } else {
         setFields.completedAt = null;
+      }
+      if (existing.managerDeskItemId !== null) {
+        linkedManagerDeskItemIds.add(existing.managerDeskItemId);
       }
     }
 
@@ -1169,10 +1185,25 @@ export class TeamTrackerService {
         .where(eq(teamTrackerItems.id, itemId));
     }
 
+    if (linkedManagerDeskItemIds.size > 0) {
+      await this.touchManagerDeskItems([...linkedManagerDeskItemIds], now);
+    }
+
     return this.getItemById(itemId);
   }
 
-  async deleteItem(itemId: number): Promise<void> {
+  async deleteItem(
+    itemId: number,
+    options?: { allowLinkedManagerDeskDelete?: boolean }
+  ): Promise<void> {
+    const existing = await this.getItemRow(itemId);
+    if (existing.managerDeskItemId !== null && !options?.allowLinkedManagerDeskDelete) {
+      throw new HttpError(
+        409,
+        "Linked delegated tasks cannot be deleted; mark them dropped instead"
+      );
+    }
+
     await db
       .delete(teamTrackerItems)
       .where(eq(teamTrackerItems.id, itemId));
@@ -1183,7 +1214,10 @@ export class TeamTrackerService {
     const item = await this.getItemRow(itemId);
     const now = nowIso();
 
-    await this.setSingleInProgress(item.dayId, itemId, now);
+    const linkedManagerDeskItemIds = await this.setSingleInProgress(item.dayId, itemId, now);
+    if (linkedManagerDeskItemIds.length > 0) {
+      await this.touchManagerDeskItems(linkedManagerDeskItemIds, now);
+    }
 
     const updated = await db
       .select()
@@ -2192,11 +2226,46 @@ export class TeamTrackerService {
     }
   }
 
+  private async touchManagerDeskItems(itemIds: number[], now: string): Promise<void> {
+    const uniqueItemIds = [...new Set(itemIds)];
+    if (uniqueItemIds.length === 0) {
+      return;
+    }
+
+    await db
+      .update(managerDeskItems)
+      .set({ updatedAt: now })
+      .where(inArray(managerDeskItems.id, uniqueItemIds));
+  }
+
   private async setSingleInProgress(
     dayId: number,
     itemId: number,
     now: string
-  ): Promise<void> {
+  ): Promise<number[]> {
+    const affectedRows = await db
+      .select({
+        managerDeskItemId: teamTrackerItems.managerDeskItemId,
+      })
+      .from(teamTrackerItems)
+      .where(
+        and(
+          eq(teamTrackerItems.dayId, dayId),
+          eq(teamTrackerItems.id, itemId)
+        )
+      );
+    const currentRows = await db
+      .select({
+        managerDeskItemId: teamTrackerItems.managerDeskItemId,
+      })
+      .from(teamTrackerItems)
+      .where(
+        and(
+          eq(teamTrackerItems.dayId, dayId),
+          eq(teamTrackerItems.state, "in_progress")
+        )
+      );
+
     await db
       .update(teamTrackerItems)
       .set({ state: "planned", updatedAt: now })
@@ -2211,5 +2280,9 @@ export class TeamTrackerService {
       .update(teamTrackerItems)
       .set({ state: "in_progress", updatedAt: now, completedAt: null })
       .where(eq(teamTrackerItems.id, itemId));
+
+    return [...currentRows, ...affectedRows]
+      .map((row) => row.managerDeskItemId)
+      .filter((managerDeskItemId): managerDeskItemId is number => managerDeskItemId !== null);
   }
 }

@@ -562,6 +562,51 @@ describe("team tracker routes", () => {
     });
   });
 
+  it("PATCH /api/team-tracker/items/:itemId rejects title edits for linked delegated tasks", async () => {
+    const managerItem = await managerDeskService.createItem("manager-1", {
+      date: "2026-03-07",
+      title: "Manager-linked task",
+      assigneeDeveloperAccountId: "dev-1",
+    });
+    const linkedItem = (await trackerService.getItemDetailContextForManagerDeskItem(managerItem.id))
+      ?.trackerItem;
+    expect(linkedItem).toBeDefined();
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "PATCH",
+      url: `/api/team-tracker/items/${linkedItem!.id}`,
+      body: {
+        title: "Manager should rename this",
+      },
+    });
+
+    expect(res.status).toBe(409);
+    expect(res.body?.error).toBe("Linked delegated tasks must be renamed from Manager Desk");
+  });
+
+  it("DELETE /api/team-tracker/items/:itemId rejects deletion of linked delegated tasks", async () => {
+    const managerItem = await managerDeskService.createItem("manager-1", {
+      date: "2026-03-07",
+      title: "Manager-linked task",
+      assigneeDeveloperAccountId: "dev-1",
+    });
+    const linkedItem = (await trackerService.getItemDetailContextForManagerDeskItem(managerItem.id))
+      ?.trackerItem;
+    expect(linkedItem).toBeDefined();
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "DELETE",
+      url: `/api/team-tracker/items/${linkedItem!.id}`,
+    });
+
+    expect(res.status).toBe(409);
+    expect(res.body?.error).toBe(
+      "Linked delegated tasks cannot be deleted; mark them dropped instead"
+    );
+  });
+
   it("POST /api/team-tracker/:accountId/items rejects Jira keys missing from synced issues", async () => {
     const app = createTestApp();
 

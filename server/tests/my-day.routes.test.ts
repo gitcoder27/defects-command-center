@@ -3,6 +3,7 @@ import express from "express";
 import { createMyDayRouter } from "../src/routes/my-day";
 import { notFoundHandler, errorHandler } from "../src/middleware/errorHandler";
 import { AuthService, serializeSessionCookie } from "../src/services/auth.service";
+import { ManagerDeskService } from "../src/services/manager-desk.service";
 import { MyDayService } from "../src/services/my-day.service";
 import { TeamTrackerService } from "../src/services/team-tracker.service";
 import { IssueService } from "../src/services/issue.service";
@@ -12,6 +13,7 @@ import { invoke } from "./helpers/http";
 
 const authService = new AuthService();
 const trackerService = new TeamTrackerService();
+const managerDeskService = new ManagerDeskService(trackerService);
 const myDayService = new MyDayService(trackerService);
 const issueService = new IssueService();
 
@@ -291,5 +293,103 @@ describe("my day routes", () => {
       jiraKey: "AM-123",
       assigneeId: "dev-1",
     });
+  });
+
+  it("PATCH /api/my-day/items/:itemId rejects title edits for linked delegated tasks", async () => {
+    const managerItem = await managerDeskService.createItem("manager-1", {
+      date: "2026-03-07",
+      title: "Shared delegated task",
+      assigneeDeveloperAccountId: "dev-1",
+    });
+    const linkedItem = (await trackerService.getItemDetailContextForManagerDeskItem(managerItem.id))
+      ?.trackerItem;
+    expect(linkedItem).toBeDefined();
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "PATCH",
+      url: `/api/my-day/items/${linkedItem!.id}`,
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+      body: {
+        title: "Developer rename attempt",
+      },
+    });
+
+    expect(res.status).toBe(409);
+    expect(res.body?.error).toBe("Linked delegated tasks must be renamed from Manager Desk");
+  });
+
+  it("DELETE /api/my-day/items/:itemId rejects deletion of linked delegated tasks", async () => {
+    const managerItem = await managerDeskService.createItem("manager-1", {
+      date: "2026-03-07",
+      title: "Shared delegated task",
+      assigneeDeveloperAccountId: "dev-1",
+    });
+    const linkedItem = (await trackerService.getItemDetailContextForManagerDeskItem(managerItem.id))
+      ?.trackerItem;
+    expect(linkedItem).toBeDefined();
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "DELETE",
+      url: `/api/my-day/items/${linkedItem!.id}`,
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+    });
+
+    expect(res.status).toBe(409);
+    expect(res.body?.error).toBe(
+      "Linked delegated tasks cannot be deleted; mark them dropped instead"
+    );
+  });
+
+  it("PATCH /api/my-day/items/:itemId back-syncs delegated execution to Manager Desk detail", async () => {
+    const managerItem = await managerDeskService.createItem("manager-1", {
+      date: "2026-03-07",
+      title: "Shared delegated task",
+      assigneeDeveloperAccountId: "dev-1",
+    });
+    const linkedItem = (await trackerService.getItemDetailContextForManagerDeskItem(managerItem.id))
+      ?.trackerItem;
+    expect(linkedItem).toBeDefined();
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "PATCH",
+      url: `/api/my-day/items/${linkedItem!.id}`,
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+      body: {
+        state: "done",
+        note: "Fix validated and handed back.",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: linkedItem!.id,
+      state: "done",
+      note: "Fix validated and handed back.",
+    });
+
+    const refreshed = await managerDeskService.getDay("manager-1", "2026-03-07");
+    expect(refreshed.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: managerItem.id,
+          status: "inbox",
+          delegatedExecution: expect.objectContaining({
+            trackerItemId: linkedItem!.id,
+            state: "done",
+            note: "Fix validated and handed back.",
+            completedAt: expect.any(String),
+          }),
+        }),
+      ])
+    );
   });
 });

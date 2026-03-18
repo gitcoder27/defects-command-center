@@ -3,6 +3,7 @@ import type {
   ManagerDeskAssignee,
   ManagerDeskCategory,
   ManagerDeskDayResponse,
+  ManagerDeskDelegatedExecution,
   ManagerDeskDeveloperLookupItem,
   ManagerDeskIssueLookupItem,
   ManagerDeskItem,
@@ -84,6 +85,7 @@ interface NormalizedManagerDeskLink {
 
 type ManagerDeskItemRow = typeof managerDeskItems.$inferSelect;
 type ManagerDeskLinkRow = typeof managerDeskLinks.$inferSelect;
+type TrackerItemRow = typeof teamTrackerItems.$inferSelect;
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -159,6 +161,9 @@ export class ManagerDeskService {
       .from(managerDeskItems)
       .where(eq(managerDeskItems.dayId, day.id));
     const linksByItemId = await this.getLinksByItemIds(itemRows.map((item) => item.id));
+    const delegatedExecutionByItemId = await this.getDelegatedExecutionByManagerDeskItemIds(
+      itemRows.map((item) => item.id)
+    );
     const assigneesByAccountId = await this.getAssigneeMap(itemRows, date);
     const items = itemRows
       .sort(compareItemRows)
@@ -166,6 +171,7 @@ export class ManagerDeskService {
         this.mapItem(
           item,
           linksByItemId.get(item.id) ?? [],
+          delegatedExecutionByItemId.get(item.id),
           item.assigneeDeveloperAccountId
             ? assigneesByAccountId.get(item.assigneeDeveloperAccountId) ?? undefined
             : undefined
@@ -749,10 +755,14 @@ export class ManagerDeskService {
     const item = await this.getOwnedItemRow(managerAccountId, itemId);
     const day = await this.getDayById(item.dayId);
     const linksByItemId = await this.getLinksByItemIds([item.id]);
+    const delegatedExecutionByItemId = await this.getDelegatedExecutionByManagerDeskItemIds([
+      item.id,
+    ]);
     const assigneesByAccountId = await this.getAssigneeMap([item], day?.date);
     return this.mapItem(
       item,
       linksByItemId.get(item.id) ?? [],
+      delegatedExecutionByItemId.get(item.id),
       item.assigneeDeveloperAccountId
         ? assigneesByAccountId.get(item.assigneeDeveloperAccountId) ?? undefined
         : undefined
@@ -912,6 +922,7 @@ export class ManagerDeskService {
   private mapItem(
     item: ManagerDeskItemRow,
     links: ManagerDeskLink[],
+    delegatedExecution?: ManagerDeskDelegatedExecution,
     assignee?: ManagerDeskAssignee
   ): ManagerDeskItem {
     return {
@@ -931,6 +942,7 @@ export class ManagerDeskService {
       plannedEndAt: item.plannedEndAt ?? undefined,
       followUpAt: item.followUpAt ?? undefined,
       completedAt: item.completedAt ?? undefined,
+      delegatedExecution,
       assignee,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
@@ -1075,6 +1087,36 @@ export class ManagerDeskService {
           return row.managerDeskItemId !== null;
         })
         .map((row) => [row.managerDeskItemId, row.note])
+    );
+  }
+
+  private async getDelegatedExecutionByManagerDeskItemIds(
+    itemIds: number[]
+  ): Promise<Map<number, ManagerDeskDelegatedExecution>> {
+    if (itemIds.length === 0) {
+      return new Map();
+    }
+
+    const rows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(inArray(teamTrackerItems.managerDeskItemId, itemIds));
+
+    return new Map(
+      rows
+        .filter((row): row is TrackerItemRow & { managerDeskItemId: number } => {
+          return row.managerDeskItemId !== null;
+        })
+        .map((row) => [
+          row.managerDeskItemId,
+          {
+            trackerItemId: row.id,
+            state: row.state as TrackerItemState,
+            note: row.note ?? undefined,
+            completedAt: row.completedAt ?? undefined,
+            updatedAt: row.updatedAt,
+          },
+        ])
     );
   }
 
