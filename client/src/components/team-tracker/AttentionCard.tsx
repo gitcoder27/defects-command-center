@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { Clock, ArrowRight, Zap, ClipboardList, AlertTriangle, Scale } from 'lucide-react';
 import type { TrackerAttentionItem, TrackerAttentionReasonCode } from '@/types';
-import { formatRelativeTime } from '@/lib/utils';
+import { formatAbsoluteDateTime, formatRelativeTime } from '@/lib/utils';
 import { TrackerStatusPill } from './TrackerStatusPill';
 
 interface AttentionCardProps {
@@ -57,9 +57,9 @@ function leadTone(item: TrackerAttentionItem): SeverityTone {
   return first ? reasonToTone[first.code] : 'accent';
 }
 
-function Metric({ icon: Icon, label, color }: { icon: typeof Clock; label: string; color: string }) {
+function Metric({ icon: Icon, label, color, title }: { icon: typeof Clock; label: string; color: string; title?: string }) {
   return (
-    <span className="flex items-center gap-1.5 text-[12px] font-medium whitespace-nowrap" style={{ color }}>
+    <span className="flex items-center gap-1.5 text-[12px] font-medium whitespace-nowrap" style={{ color }} title={title}>
       <Icon size={13} style={{ opacity: 0.8 }} />
       {label}
     </span>
@@ -72,6 +72,7 @@ export function AttentionCard({ item, index, onOpen }: AttentionCardProps) {
   const isStale = item.signals.freshness.staleByTime;
   const isDanger = tone === 'danger';
   const checkIn = item.lastCheckInAt ? formatRelativeTime(item.lastCheckInAt) : 'No check-in';
+  const absoluteCheckIn = item.lastCheckInAt ? formatAbsoluteDateTime(item.lastCheckInAt) : undefined;
 
   return (
     <button
@@ -128,7 +129,12 @@ export function AttentionCard({ item, index, onOpen }: AttentionCardProps) {
 
       {/* Signal metrics */}
       <div className="shrink-0 grid grid-cols-2 gap-x-5 gap-y-1.5" style={{ minWidth: 220 }}>
-        <Metric icon={Clock} label={checkIn} color={isStale ? 'var(--warning)' : 'var(--text-secondary)'} />
+        <Metric
+          icon={Clock}
+          label={checkIn}
+          color={isStale ? 'var(--warning)' : 'var(--text-secondary)'}
+          title={absoluteCheckIn}
+        />
         <Metric
           icon={Zap}
           label={item.hasCurrentItem ? 'Active work' : 'No active work'}

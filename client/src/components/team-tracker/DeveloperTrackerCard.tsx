@@ -6,7 +6,7 @@ import { TrackerStatusPill } from './TrackerStatusPill';
 import { TrackerItemRow } from './TrackerItemRow';
 import { QuickAddTaskModal } from './QuickAddTaskModal';
 import { TrackerSignalBadges } from './TrackerSignalBadges';
-import { formatRelativeTime } from '@/lib/utils';
+import { formatAbsoluteDateTime, formatRelativeTime } from '@/lib/utils';
 
 interface DeveloperTrackerCardProps {
   day: TrackerDeveloperDay;
@@ -171,7 +171,11 @@ export function DeveloperTrackerCard({
       >
         <div className="flex items-center gap-1 shrink-0">
           <Clock size={10} style={{ color: 'var(--text-muted)' }} />
-          <span className="text-[10px]" style={{ color: day.signals.freshness.staleByTime ? 'var(--warning)' : 'var(--text-muted)' }}>
+          <span
+            className="text-[10px]"
+            style={{ color: day.signals.freshness.staleByTime ? 'var(--warning)' : 'var(--text-muted)' }}
+            title={day.lastCheckInAt ? formatAbsoluteDateTime(day.lastCheckInAt) : undefined}
+          >
             {day.lastCheckInAt ? formatRelativeTime(day.lastCheckInAt) : 'No check-in'}
           </span>
         </div>

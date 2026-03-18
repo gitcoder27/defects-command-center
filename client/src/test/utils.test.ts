@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  formatAbsoluteDateTime,
   formatDate,
   getLocalIsoDate,
   isDueToday,
@@ -67,5 +68,19 @@ describe('formatDate', () => {
 
   it('returns dash for undefined', () => {
     expect(formatDate(undefined)).toBe('—');
+  });
+});
+
+describe('formatAbsoluteDateTime', () => {
+  it('formats timestamp into a readable local datetime', () => {
+    const result = formatAbsoluteDateTime('2026-03-05T15:30:00.000Z');
+    expect(result).toMatch(/Mar/);
+    expect(result).toMatch(/2026/);
+    expect(result).toMatch(/(AM|PM)/);
+  });
+
+  it('returns dash for undefined or invalid values', () => {
+    expect(formatAbsoluteDateTime(undefined)).toBe('—');
+    expect(formatAbsoluteDateTime('not-a-date')).toBe('—');
   });
 });

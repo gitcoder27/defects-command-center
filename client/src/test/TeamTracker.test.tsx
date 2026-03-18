@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { TestWrapper } from '@/test/wrapper';
 import type { TeamTrackerBoardResponse, TrackerDeveloperDay, Issue } from '@/types';
+import { formatAbsoluteDateTime } from '@/lib/utils';
 
 const mockCarryForwardMutate = vi.fn();
 const mockUpdateDayMutate = vi.fn();
@@ -60,128 +61,132 @@ const mockDay: (overrides?: Partial<TrackerDeveloperDay>) => TrackerDeveloperDay
   ...overrides,
 });
 
-const mockBoard: TeamTrackerBoardResponse = {
-  date: '2026-03-07',
-  developers: [
-    mockDay(),
-    mockDay({
-      id: 2,
-      developer: { accountId: 'dev-2', displayName: 'Bob Jones', isActive: true },
-      status: 'blocked',
-      capacityUnits: 2,
-      isStale: true,
-      lastCheckInAt: '2026-03-07T07:00:00Z',
-      statusUpdatedAt: '2026-03-07T08:30:00Z',
-      signals: buildSignals({
-        freshness: {
-          staleByTime: true,
-          staleWithOpenRisk: true,
-          statusChangeWithoutFollowUp: true,
-          hoursSinceCheckIn: 5,
-          hoursSinceStatusChange: 3.5,
+function buildMockBoard(): TeamTrackerBoardResponse {
+  return {
+    date: '2026-03-07',
+    developers: [
+      mockDay(),
+      mockDay({
+        id: 2,
+        developer: { accountId: 'dev-2', displayName: 'Bob Jones', isActive: true },
+        status: 'blocked',
+        capacityUnits: 2,
+        isStale: true,
+        lastCheckInAt: '2026-03-07T07:00:00Z',
+        statusUpdatedAt: '2026-03-07T08:30:00Z',
+        signals: buildSignals({
+          freshness: {
+            staleByTime: true,
+            staleWithOpenRisk: true,
+            statusChangeWithoutFollowUp: true,
+            hoursSinceCheckIn: 5,
+            hoursSinceStatusChange: 3.5,
+          },
+          risk: {
+            openRisk: true,
+            overdueLinkedWork: true,
+            overdueLinkedCount: 1,
+            overCapacity: true,
+            capacityDelta: 1,
+          },
+        }),
+        currentItem: {
+          id: 10,
+          dayId: 2,
+          managerDeskItemId: 110,
+          itemType: 'jira',
+          jiraKey: 'AM-123',
+          jiraPriorityName: 'High',
+          jiraDueDate: '2026-03-06',
+          title: 'Fix login bug',
+          state: 'in_progress',
+          position: 0,
+          createdAt: '2026-03-07T08:00:00Z',
+          updatedAt: '2026-03-07T08:00:00Z',
         },
-        risk: {
-          openRisk: true,
-          overdueLinkedWork: true,
-          overdueLinkedCount: 1,
-          overCapacity: true,
-          capacityDelta: 1,
-        },
+        plannedItems: [
+          {
+            id: 11,
+            dayId: 2,
+            managerDeskItemId: 111,
+            itemType: 'custom',
+            title: 'Code review',
+            state: 'planned',
+            position: 1,
+            createdAt: '2026-03-07T08:00:00Z',
+            updatedAt: '2026-03-07T08:00:00Z',
+          },
+          {
+            id: 12,
+            dayId: 2,
+            managerDeskItemId: 112,
+            itemType: 'custom',
+            title: 'Follow up with QA',
+            state: 'planned',
+            position: 2,
+            createdAt: '2026-03-07T08:00:00Z',
+            updatedAt: '2026-03-07T08:00:00Z',
+          },
+        ],
       }),
-      currentItem: {
-        id: 10,
-        dayId: 2,
-        managerDeskItemId: 110,
-        itemType: 'jira',
-        jiraKey: 'AM-123',
-        jiraPriorityName: 'High',
-        jiraDueDate: '2026-03-06',
-        title: 'Fix login bug',
-        state: 'in_progress',
-        position: 0,
-        createdAt: '2026-03-07T08:00:00Z',
-        updatedAt: '2026-03-07T08:00:00Z',
+    ],
+    inactiveDevelopers: [],
+    summary: {
+      total: 2,
+      stale: 1,
+      blocked: 1,
+      atRisk: 0,
+      waiting: 0,
+      noCurrent: 1,
+      overdueLinkedWork: 1,
+      overCapacity: 1,
+      statusFollowUp: 1,
+      doneForToday: 0,
+    },
+    attentionQueue: [
+      {
+        developer: { accountId: 'dev-2', displayName: 'Bob Jones', isActive: true },
+        status: 'blocked',
+        reasons: [
+          { code: 'blocked', label: 'Blocked', priority: 1 },
+          { code: 'stale_with_open_risk', label: 'Stale with risk', priority: 2 },
+          { code: 'overdue_linked_work', label: 'Overdue linked work', priority: 3 },
+        ],
+        isStale: true,
+        signals: buildSignals({
+          freshness: {
+            staleByTime: true,
+            staleWithOpenRisk: true,
+            statusChangeWithoutFollowUp: true,
+            hoursSinceCheckIn: 5,
+            hoursSinceStatusChange: 3.5,
+          },
+          risk: {
+            openRisk: true,
+            overdueLinkedWork: true,
+            overdueLinkedCount: 1,
+            overCapacity: true,
+            capacityDelta: 1,
+          },
+        }),
+        hasCurrentItem: true,
+        plannedCount: 2,
+        lastCheckInAt: '2026-03-07T07:00:00Z',
       },
-      plannedItems: [
-        {
-          id: 11,
-          dayId: 2,
-          managerDeskItemId: 111,
-          itemType: 'custom',
-          title: 'Code review',
-          state: 'planned',
-          position: 1,
-          createdAt: '2026-03-07T08:00:00Z',
-          updatedAt: '2026-03-07T08:00:00Z',
-        },
-        {
-          id: 12,
-          dayId: 2,
-          managerDeskItemId: 112,
-          itemType: 'custom',
-          title: 'Follow up with QA',
-          state: 'planned',
-          position: 2,
-          createdAt: '2026-03-07T08:00:00Z',
-          updatedAt: '2026-03-07T08:00:00Z',
-        },
-      ],
-    }),
-  ],
-  inactiveDevelopers: [],
-  summary: {
-    total: 2,
-    stale: 1,
-    blocked: 1,
-    atRisk: 0,
-    waiting: 0,
-    noCurrent: 1,
-    overdueLinkedWork: 1,
-    overCapacity: 1,
-    statusFollowUp: 1,
-    doneForToday: 0,
-  },
-  attentionQueue: [
-    {
-      developer: { accountId: 'dev-2', displayName: 'Bob Jones', isActive: true },
-      status: 'blocked',
-      reasons: [
-        { code: 'blocked', label: 'Blocked', priority: 1 },
-        { code: 'stale_with_open_risk', label: 'Stale with risk', priority: 2 },
-        { code: 'overdue_linked_work', label: 'Overdue linked work', priority: 3 },
-      ],
-      isStale: true,
-      signals: buildSignals({
-        freshness: {
-          staleByTime: true,
-          staleWithOpenRisk: true,
-          statusChangeWithoutFollowUp: true,
-          hoursSinceCheckIn: 5,
-          hoursSinceStatusChange: 3.5,
-        },
-        risk: {
-          openRisk: true,
-          overdueLinkedWork: true,
-          overdueLinkedCount: 1,
-          overCapacity: true,
-          capacityDelta: 1,
-        },
-      }),
-      hasCurrentItem: true,
-      plannedCount: 2,
-      lastCheckInAt: '2026-03-07T07:00:00Z',
-    },
-    {
-      developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
-      status: 'on_track',
-      reasons: [{ code: 'no_current', label: 'No current item', priority: 4 }],
-      isStale: false,
-      signals: buildSignals(),
-      hasCurrentItem: false,
-      plannedCount: 0,
-    },
-  ],
-};
+      {
+        developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+        status: 'on_track',
+        reasons: [{ code: 'no_current', label: 'No current item', priority: 4 }],
+        isStale: false,
+        signals: buildSignals(),
+        hasCurrentItem: false,
+        plannedCount: 0,
+      },
+    ],
+  };
+}
+
+let mockBoard: TeamTrackerBoardResponse = buildMockBoard();
 
 vi.mock('@/hooks/useTeamTracker', () => ({
   useTeamTracker: () => ({
@@ -272,6 +277,7 @@ describe('TeamTrackerPage', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-07T12:00:00.000Z'));
+    mockBoard = buildMockBoard();
     mockCarryForwardMutate.mockReset();
     mockUpdateDayMutate.mockReset();
     mockUpdateAvailabilityMutate.mockReset();
@@ -555,6 +561,50 @@ describe('TeamTrackerPage', () => {
       { fromDate: '2026-03-06', toDate: '2026-03-07' },
       expect.objectContaining({ onSuccess: expect.any(Function) })
     );
+  });
+
+  it('shows check-in authorship badges and absolute timestamps in the drawer', () => {
+    const bobAttentionItem = mockBoard.attentionQueue[0]!;
+    mockBoard.developers[1] = mockDay({
+      ...mockBoard.developers[1],
+      checkIns: [
+        {
+          id: 201,
+          dayId: 2,
+          summary: 'Waiting on QA verification',
+          createdAt: '2026-03-07T09:30:00Z',
+          authorType: 'manager',
+          authorAccountId: 'mgr-1',
+        },
+        {
+          id: 202,
+          dayId: 2,
+          summary: 'Patch is in review now',
+          createdAt: '2026-03-07T10:45:00Z',
+          authorType: 'developer',
+          authorAccountId: 'dev-2',
+        },
+      ],
+      lastCheckInAt: '2026-03-07T10:45:00Z',
+    });
+    mockBoard.attentionQueue[0] = {
+      ...bobAttentionItem,
+      lastCheckInAt: '2026-03-07T10:45:00Z',
+    };
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    clickDeveloperCard('Bob Jones');
+
+    expect(screen.getByText('Manager')).toBeInTheDocument();
+    expect(screen.getByText('Developer')).toBeInTheDocument();
+    expect(screen.getByText(formatAbsoluteDateTime('2026-03-07T09:30:00Z'))).toBeInTheDocument();
+    expect(screen.getByText(formatAbsoluteDateTime('2026-03-07T10:45:00Z'))).toBeInTheDocument();
+    expect(screen.getAllByTitle(formatAbsoluteDateTime('2026-03-07T10:45:00Z')).length).toBeGreaterThanOrEqual(3);
   });
 
   it('header carry-forward button has a tooltip describing mixed-source behavior', () => {

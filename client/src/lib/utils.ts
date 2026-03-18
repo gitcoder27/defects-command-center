@@ -15,6 +15,19 @@ export function formatRelativeTime(dateStr: string): string {
   }
 }
 
+export function formatAbsoluteDateTime(dateStr?: string): string {
+  if (!dateStr) return '—';
+  try {
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) {
+      return '—';
+    }
+    return format(date, 'MMM d, yyyy, h:mm a');
+  } catch {
+    return '—';
+  }
+}
+
 export function getLocalIsoDate(date: Date = new Date()): string {
   return format(date, 'yyyy-MM-dd');
 }

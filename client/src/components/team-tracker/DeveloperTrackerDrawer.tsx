@@ -7,7 +7,7 @@ import { TrackerStatusPill } from './TrackerStatusPill';
 import { TrackerItemRow } from './TrackerItemRow';
 import { AddTrackerItemForm } from './AddTrackerItemForm';
 import { TrackerSignalBadges } from './TrackerSignalBadges';
-import { formatRelativeTime } from '@/lib/utils';
+import { formatAbsoluteDateTime, formatRelativeTime } from '@/lib/utils';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
 import { JiraIssueLink } from '@/components/JiraIssueLink';
 
@@ -31,6 +31,33 @@ interface DeveloperTrackerDrawerProps {
 }
 
 const statusOptions: TrackerDeveloperStatus[] = ['on_track', 'at_risk', 'blocked', 'waiting', 'done_for_today'];
+
+function getCheckInAuthorBadge(authorType?: TrackerDeveloperDay['checkIns'][number]['authorType']) {
+  if (authorType === 'developer') {
+    return {
+      label: 'Developer',
+      color: 'var(--accent)',
+      background: 'rgba(6, 182, 212, 0.1)',
+      border: 'rgba(6, 182, 212, 0.2)',
+    };
+  }
+
+  if (authorType === 'manager') {
+    return {
+      label: 'Manager',
+      color: 'var(--warning)',
+      background: 'rgba(245, 158, 11, 0.1)',
+      border: 'rgba(245, 158, 11, 0.2)',
+    };
+  }
+
+  return {
+    label: 'Update',
+    color: 'var(--text-secondary)',
+    background: 'var(--bg-secondary)',
+    border: 'var(--border)',
+  };
+}
 
 export function DeveloperTrackerDrawer({
   day,
@@ -189,7 +216,11 @@ export function DeveloperTrackerDrawer({
                   <div className="flex items-center gap-2 mt-0.5">
                     <TrackerStatusPill status={day.status} size="md" />
                     {day.lastCheckInAt && (
-                      <span className="text-[11px]" style={{ color: day.signals.freshness.staleByTime ? 'var(--warning)' : 'var(--text-muted)' }}>
+                      <span
+                        className="text-[11px]"
+                        style={{ color: day.signals.freshness.staleByTime ? 'var(--warning)' : 'var(--text-muted)' }}
+                        title={formatAbsoluteDateTime(day.lastCheckInAt)}
+                      >
                         Last check-in {formatRelativeTime(day.lastCheckInAt)}
                       </span>
                     )}
@@ -503,15 +534,31 @@ export function DeveloperTrackerDrawer({
                     <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>No check-ins today.</div>
                   )}
                   {[...day.checkIns].reverse().map((ci) => (
-                    <div
-                      key={ci.id}
-                      className="rounded-lg px-2.5 py-2"
-                      style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
-                    >
-                      <div className="text-[13px] leading-5" style={{ color: 'var(--text-primary)' }}>{ci.summary}</div>
-                      <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        {formatRelativeTime(ci.createdAt)}
-                      </div>
+                    <div key={ci.id} className="rounded-lg px-2.5 py-2" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+                      {(() => {
+                        const badge = getCheckInAuthorBadge(ci.authorType);
+                        const absoluteCreatedAt = formatAbsoluteDateTime(ci.createdAt);
+
+                        return (
+                          <>
+                            <div className="text-[13px] leading-5" style={{ color: 'var(--text-primary)' }}>{ci.summary}</div>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                              <span
+                                className="rounded-md border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.05em]"
+                                style={{
+                                  color: badge.color,
+                                  background: badge.background,
+                                  borderColor: badge.border,
+                                }}
+                              >
+                                {badge.label}
+                              </span>
+                              <span title={absoluteCreatedAt}>{formatRelativeTime(ci.createdAt)}</span>
+                              <span>{absoluteCreatedAt}</span>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
