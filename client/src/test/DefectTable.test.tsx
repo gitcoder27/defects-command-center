@@ -89,6 +89,7 @@ const mockIssues: Issue[] = [
 
 const mockCreateTagMutate = vi.fn();
 const mockSetIssueTagsMutate = vi.fn();
+const mockUpdateIssueMutate = vi.fn();
 let currentIssues = mockIssues;
 
 function ThemeToggleHarness(props: React.ComponentProps<typeof DefectTable>) {
@@ -135,6 +136,10 @@ vi.mock('@/hooks/useTags', () => ({
   useSetIssueTags: () => ({ mutate: mockSetIssueTagsMutate, isPending: false }),
 }));
 
+vi.mock('@/hooks/useUpdateIssue', () => ({
+  useUpdateIssue: () => ({ mutate: mockUpdateIssueMutate, isPending: false }),
+}));
+
 describe('DefectTable', () => {
   const onSelectIssue = vi.fn();
   const onFocusedIndexChange = vi.fn();
@@ -155,6 +160,7 @@ describe('DefectTable', () => {
     onClearFilters.mockClear();
     mockCreateTagMutate.mockClear();
     mockSetIssueTagsMutate.mockClear();
+    mockUpdateIssueMutate.mockClear();
   });
 
   it('renders rows from mock data', () => {
@@ -490,6 +496,63 @@ describe('DefectTable', () => {
     fireEvent.blur(input);
 
     expect(screen.getByLabelText('Search defects by ID or title')).toBeInTheDocument();
+  });
+
+  it('opens the due-date editor without calling showPicker', () => {
+    const showPicker = vi.fn(() => {
+      throw new DOMException(
+        "Failed to execute 'showPicker' on 'HTMLInputElement': HTMLInputElement::showPicker() requires a user gesture.",
+        'NotAllowedError'
+      );
+    });
+    const originalShowPicker = HTMLInputElement.prototype.showPicker;
+    HTMLInputElement.prototype.showPicker = showPicker;
+
+    try {
+      render(
+        <TestWrapper>
+          <DefectTable {...defaultProps} />
+        </TestWrapper>
+      );
+
+      fireEvent.click(screen.getByText('Mar 7'));
+
+      expect(screen.getByDisplayValue('2026-03-07')).toBeInTheDocument();
+      expect(showPicker).not.toHaveBeenCalled();
+      expect(screen.getByText('PROJ-102')).toBeInTheDocument();
+    } finally {
+      HTMLInputElement.prototype.showPicker = originalShowPicker;
+    }
+  });
+
+  it('prefills the due-date editor from the effective displayed due date', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByText('Mar 7'));
+
+    expect(screen.getByDisplayValue('2026-03-07')).toBeInTheDocument();
+  });
+
+  it('updates developmentDueDate when a due date is changed from the table', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByText('Mar 7'));
+    fireEvent.change(screen.getByDisplayValue('2026-03-07'), { target: { value: '2026-03-10' } });
+
+    expect(mockUpdateIssueMutate).toHaveBeenCalledWith(
+      { key: 'PROJ-102', update: { developmentDueDate: '2026-03-10' } },
+      expect.objectContaining({
+        onError: expect.any(Function),
+      })
+    );
   });
 
   it('uses developmentDueDate as the row due-state source for left indicators', () => {

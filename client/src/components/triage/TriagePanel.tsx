@@ -125,9 +125,6 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
 
               <TriageNotesEditor value={notes.notesValue} onChange={notes.handleChange} onBlurSave={notes.handleBlurSave} isSaved={notes.notesSaved} />
               <TriageTagBar tags={issue.localTags} allTags={tagActions.allTags} assignedTagIds={tagActions.assignedTagIds} isPending={tagActions.isPending} onToggle={tagActions.toggleTag} onCreate={tagActions.createOrAssignTag} />
-              <SuggestionBar issue={issue} />
-              <TriageProperties issue={issue} jiraAspenSeverityField={config?.jiraAspenSeverityField} />
-
               {developers && (
                 <TriageTrackerSection
                   issueKey={issue.jiraKey} issueAssigneeId={issue.assigneeId} developers={developers}
@@ -136,6 +133,8 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
                   onAdd={handleAddToTracker} isAdding={addTrackerItem.isPending}
                 />
               )}
+              <TriageProperties issue={issue} jiraAspenSeverityField={config?.jiraAspenSeverityField} />
+              <SuggestionBar issue={issue} />
 
               <TriageDeskSection issue={issue} onCapture={() => setDeskCaptureOpen(true)} />
               {description && <DescriptionSection content={description} />}

@@ -231,11 +231,8 @@ describe('TriagePanel', () => {
       </TestWrapper>
     );
 
+    expect(screen.getByRole('button', { name: /team tracker/i })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Team Tracker')).toBeInTheDocument();
-
-    // Expand Team Tracker
-    fireEvent.click(screen.getByRole('button', { name: /team tracker/i }));
-
     expect(screen.getByRole('button', { name: /add to alice/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /^alice/i })).toHaveAttribute('aria-pressed', 'true');
   });
@@ -246,9 +243,6 @@ describe('TriagePanel', () => {
         <TriagePanel issueKey="PROJ-101" onClose={onClose} />
       </TestWrapper>
     );
-
-    // Expand Team Tracker
-    fireEvent.click(screen.getByRole('button', { name: /team tracker/i }));
 
     fireEvent.change(screen.getByLabelText('Task'), {
       target: { value: 'Trace the login crash path' },
@@ -274,9 +268,6 @@ describe('TriagePanel', () => {
         <TriagePanel issueKey="PROJ-101" onClose={onClose} />
       </TestWrapper>
     );
-
-    // Expand Team Tracker
-    fireEvent.click(screen.getByRole('button', { name: /team tracker/i }));
 
     fireEvent.click(screen.getByRole('button', { name: /^bob$/i }));
     fireEvent.change(screen.getByLabelText('Task'), {
@@ -310,11 +301,8 @@ describe('TriagePanel', () => {
       </TestWrapper>
     );
 
-    // Linked badge visible even when collapsed
+    // Linked badge remains visible in the header
     expect(screen.getByText('1 linked')).toBeInTheDocument();
-
-    // Expand Team Tracker to see linked tasks
-    fireEvent.click(screen.getByRole('button', { name: /team tracker/i }));
 
     expect(screen.getByText('Bob · Planned · Verify the customer reproduction steps')).toBeInTheDocument();
 
@@ -331,6 +319,25 @@ describe('TriagePanel', () => {
       }),
       expect.any(Object)
     );
+  });
+
+  it('renders Team Tracker above Suggestions in the triage flow', () => {
+    mockSuggestions = {
+      prioritySuggestion: { data: { suggested: 'High' } },
+      dueDateSuggestion: { data: null },
+      assigneeSuggestion: { data: null },
+    };
+
+    render(
+      <TestWrapper>
+        <TriagePanel issueKey="PROJ-101" onClose={onClose} />
+      </TestWrapper>
+    );
+
+    const trackerHeading = screen.getByText('Team Tracker');
+    const suggestionsHeading = screen.getByText('Suggestions');
+
+    expect(trackerHeading.compareDocumentPosition(suggestionsHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('prefills the manager desk context note from saved triage analysis notes', () => {

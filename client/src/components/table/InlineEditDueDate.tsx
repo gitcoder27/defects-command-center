@@ -15,7 +15,6 @@ export function InlineEditDueDate({ issueKey, currentValue, onClose }: InlineEdi
 
   useEffect(() => {
     ref.current?.focus();
-    ref.current?.showPicker?.();
   }, []);
 
   const handleChange = (value: string) => {

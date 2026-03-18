@@ -435,7 +435,7 @@ export function DefectTable({
             return (
               <InlineEditDueDate
                 issueKey={issue.jiraKey}
-                currentValue={info.getValue() ?? undefined}
+                currentValue={effectiveDueDate ?? undefined}
                 onClose={closeInlineEdit}
               />
             );

@@ -45,7 +45,7 @@ export function TriageTrackerSection({
   onAdd,
   isAdding,
 }: TriageTrackerSectionProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [taskTitle, setTaskTitle] = useState('');
 
   const selectedAccountId = useMemo(() => {
@@ -68,7 +68,12 @@ export function TriageTrackerSection({
 
   return (
     <div className="triage-section">
-      <button type="button" onClick={() => setExpanded((p) => !p)} className="w-full flex items-center gap-2 group">
+      <button
+        type="button"
+        onClick={() => setExpanded((p) => !p)}
+        aria-expanded={expanded}
+        className="w-full flex items-center gap-2 group"
+      >
         <ChevronRight
           size={12}
           className="shrink-0 transition-transform duration-150"
