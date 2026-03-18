@@ -11,10 +11,12 @@ import {
   useAddCheckIn,
   useCarryForward,
 } from '@/hooks/useTeamTrackerMutations';
+import { useBoardQueryState } from '@/hooks/useBoardQueryState';
 import { useIssues } from '@/hooks/useIssues';
 import { useToast } from '@/context/ToastContext';
 import { getLocalIsoDate, shiftLocalIsoDate } from '@/lib/utils';
-import { TrackerSummaryStrip, type SummaryFilter } from './TrackerSummaryStrip';
+import { TrackerSummaryStrip } from './TrackerSummaryStrip';
+import { TrackerBoardToolbar } from './TrackerBoardToolbar';
 import { AttentionQueue } from './AttentionQueue';
 import { InactiveDeveloperTray } from './InactiveDeveloperTray';
 import { TrackerBoard } from './TrackerBoard';
@@ -60,19 +62,25 @@ interface TeamTrackerPageProps {
 export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   const { addToast } = useToast();
   const [date, setDate] = useState(getLocalIsoDate);
-  const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
   const [drawerAccountId, setDrawerAccountId] = useState<string | undefined>();
   const [selectedTask, setSelectedTask] = useState<{ trackerItemId: number; managerDeskItemId?: number } | null>(null);
   const [availabilityTarget, setAvailabilityTarget] = useState<TrackerDeveloperDay | undefined>();
   const [captureFollowUpTarget, setCaptureFollowUpTarget] = useState<TrackerAttentionItem | null>(null);
   const [carryPromptDismissed, setCarryPromptDismissed] = useState(() => readCarryForwardPromptState(getLocalIsoDate()));
 
+  // Board query + saved views (extracted hook)
+  const qs = useBoardQueryState(addToast);
+
   const {
     data: board,
     isLoading,
     isFetching: isBoardFetching,
     refetch: refetchBoard,
-  } = useTeamTracker(date);
+  } = useTeamTracker(date, qs.boardQuery);
+
+  // Feed resolved query back to qs for derived values
+  const resolvedQuery = board?.query;
+
   const { data: issues } = useIssues('all');
   const previousDate = useMemo(() => shiftLocalIsoDate(date, -1), [date]);
   const carryForwardPreview = useCarryForwardPreview(previousDate, date, !carryPromptDismissed);
@@ -84,6 +92,13 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   const updateItem = useUpdateTrackerItem(date);
   const addCheckIn = useAddCheckIn(date);
   const carryForward = useCarryForward();
+
+  const groups = board?.groups ?? [];
+  const resolvedSummaryFilter = resolvedQuery?.summaryFilter ?? 'all';
+  const resolvedSortBy = resolvedQuery?.sortBy ?? 'name';
+  const resolvedGroupBy = resolvedQuery?.groupBy ?? 'none';
+  const resolvedSearch = resolvedQuery?.q ?? '';
+  const isGrouped = resolvedGroupBy !== 'none';
 
   const drawerDay = useMemo(
     () => board?.developers.find((d) => d.developer.accountId === drawerAccountId),
@@ -377,8 +392,31 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
         {board && (
           <TrackerSummaryStrip
             summary={board.summary}
-            activeFilter={summaryFilter}
-            onFilterChange={setSummaryFilter}
+            activeFilter={resolvedSummaryFilter}
+            onFilterChange={qs.handleSummaryFilterChange}
+          />
+        )}
+
+        {board && (
+          <TrackerBoardToolbar
+            searchQuery={resolvedSearch}
+            onSearchChange={qs.handleSearchChange}
+            sortBy={resolvedSortBy}
+            onSortChange={qs.handleSortChange}
+            groupBy={resolvedGroupBy}
+            onGroupChange={qs.handleGroupChange}
+            visibleCount={board.visibleSummary.total}
+            totalCount={board.summary.total}
+            views={qs.savedViews}
+            activeViewId={qs.activeViewId}
+            isDirty={qs.isDirtyFrom(resolvedQuery)}
+            isViewsLoading={qs.isViewsLoading}
+            onApplyView={qs.handleApplyView}
+            onClearView={qs.handleClearView}
+            onSaveNew={qs.handleSaveNewView}
+            onUpdateView={qs.handleUpdateView}
+            onDeleteView={qs.handleDeleteView}
+            isSaving={qs.isSaving}
           />
         )}
 
@@ -457,7 +495,9 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
             <TrackerBoard
               date={date}
               developers={board.developers}
-              filter={summaryFilter}
+              groups={groups}
+              isGrouped={isGrouped}
+              searchActive={!!resolvedSearch}
               onOpenDrawer={setDrawerAccountId}
               onOpenTaskDetail={handleOpenTaskDetail}
               onMarkInactive={handleMarkInactive}

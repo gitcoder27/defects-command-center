@@ -17,6 +17,13 @@ import type {
   TrackerIssueAssignment,
   IssueTrackerAssignmentSummary,
   UserRole,
+  TeamTrackerBoardQuery,
+  TeamTrackerBoardResolvedQuery,
+  TeamTrackerBoardSort,
+  TeamTrackerBoardGroupBy,
+  TrackerBoardSummaryFilter,
+  TrackerDeveloperGroup,
+  TeamTrackerSavedView,
 } from "shared/types";
 import { db } from "../db/connection";
 import {
@@ -25,6 +32,7 @@ import {
   teamTrackerDays,
   teamTrackerItems,
   teamTrackerCheckIns,
+  teamTrackerSavedViews,
 } from "../db/schema";
 import { getEffectiveDueDate } from "./issue-rules";
 import { HttpError } from "../middleware/errorHandler";
@@ -55,6 +63,22 @@ interface CarryForwardExecutionOptions {
   }) => Promise<number>;
 }
 
+interface TeamTrackerSavedViewInput {
+  name: string;
+  q?: string;
+  summaryFilter?: TrackerBoardSummaryFilter;
+  sortBy?: TeamTrackerBoardSort;
+  groupBy?: TeamTrackerBoardGroupBy;
+}
+
+interface TeamTrackerSavedViewUpdate {
+  name?: string;
+  q?: string;
+  summaryFilter?: TrackerBoardSummaryFilter;
+  sortBy?: TeamTrackerBoardSort;
+  groupBy?: TeamTrackerBoardGroupBy;
+}
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -76,6 +100,21 @@ const TRACKER_STATUS_LABELS: Record<TrackerDeveloperStatus, string> = {
   done_for_today: "Done for Today",
 };
 
+const DEFAULT_BOARD_QUERY: TeamTrackerBoardResolvedQuery = {
+  q: "",
+  summaryFilter: "all",
+  sortBy: "name",
+  groupBy: "none",
+};
+
+const BLOCKED_FIRST_STATUS_ORDER: Record<TrackerDeveloperStatus, number> = {
+  blocked: 0,
+  at_risk: 1,
+  waiting: 2,
+  on_track: 3,
+  done_for_today: 4,
+};
+
 function buildStatusUpdateSummary(params: {
   status: TrackerDeveloperStatus;
   rationale?: string;
@@ -86,6 +125,25 @@ function buildStatusUpdateSummary(params: {
     params.rationale ??
     `Status updated to ${TRACKER_STATUS_LABELS[params.status]}.`
   );
+}
+
+function normalizeBoardSearchQuery(value: string | null | undefined): string {
+  return value?.trim() ?? "";
+}
+
+function mapSavedView(
+  row: typeof teamTrackerSavedViews.$inferSelect
+): TeamTrackerSavedView {
+  return {
+    id: row.id,
+    name: row.name,
+    q: row.searchQuery ?? "",
+    summaryFilter: row.summaryFilter as TrackerBoardSummaryFilter,
+    sortBy: row.sortBy as TeamTrackerBoardSort,
+    groupBy: row.groupBy as TeamTrackerBoardGroupBy,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
 }
 
 function getHoursSince(value: string | null | undefined, now = new Date()): number | undefined {
@@ -345,13 +403,282 @@ function getAttentionSortTuple(item: TrackerAttentionItem): [number, number, num
   ];
 }
 
+function compareAttentionTuples(
+  left: [number, number, number, string],
+  right: [number, number, number, string]
+): number {
+  if (left[0] !== right[0]) {
+    return left[0] - right[0];
+  }
+  if (left[1] !== right[1]) {
+    return left[1] - right[1];
+  }
+  if (left[2] !== right[2]) {
+    return left[2] - right[2];
+  }
+
+  return left[3].localeCompare(right[3]);
+}
+
+function getDeveloperAttentionSortTuple(
+  day: TrackerDeveloperDay
+): [number, number, number, string] {
+  return getAttentionSortTuple({
+    developer: day.developer,
+    status: day.status,
+    reasons: buildAttentionReasons(day),
+    lastCheckInAt: day.lastCheckInAt,
+    nextFollowUpAt: day.nextFollowUpAt,
+    isStale: day.isStale,
+    signals: day.signals,
+    hasCurrentItem: Boolean(day.currentItem),
+    plannedCount: day.plannedItems.length,
+    availableQuickActions: getAttentionQuickActions(day),
+    setCurrentCandidates: !day.currentItem
+      ? day.plannedItems.map(mapAttentionActionItem)
+      : [],
+  });
+}
+
+function getLastActivityTimestamp(day: TrackerDeveloperDay): number {
+  const source =
+    day.lastCheckInAt ??
+    day.statusUpdatedAt ??
+    day.updatedAt ??
+    day.createdAt;
+
+  return new Date(source).getTime();
+}
+
+function matchesSummaryFilter(
+  day: TrackerDeveloperDay,
+  filter: TrackerBoardSummaryFilter
+): boolean {
+  switch (filter) {
+    case "stale":
+      return day.signals.freshness.staleByTime;
+    case "blocked":
+      return day.status === "blocked";
+    case "at_risk":
+      return day.status === "at_risk";
+    case "waiting":
+      return day.status === "waiting";
+    case "overdue_linked":
+      return day.signals.risk.overdueLinkedWork;
+    case "over_capacity":
+      return day.signals.risk.overCapacity;
+    case "status_follow_up":
+      return day.signals.freshness.statusChangeWithoutFollowUp;
+    case "no_current":
+      return !day.currentItem && day.status !== "done_for_today";
+    case "done_for_today":
+      return day.status === "done_for_today";
+    case "all":
+    default:
+      return true;
+  }
+}
+
+function matchesDaySearch(day: TrackerDeveloperDay, normalizedQuery: string): boolean {
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const haystacks = [
+    day.developer.displayName,
+    day.managerNotes,
+    ...day.checkIns.map((checkIn) => checkIn.summary),
+    ...(day.currentItem ? [day.currentItem] : []),
+    ...day.plannedItems,
+    ...day.completedItems,
+    ...day.droppedItems,
+  ]
+    .flatMap((value) => {
+      if (typeof value === "string" || value === undefined) {
+        return [value];
+      }
+
+      return [
+        value.title,
+        value.jiraKey,
+        value.jiraSummary,
+        value.note,
+      ];
+    })
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.toLowerCase());
+
+  return haystacks.some((value) => value.includes(normalizedQuery));
+}
+
+function matchesInactiveDeveloperSearch(
+  item: {
+    developer: Developer;
+    availability: { note?: string };
+  },
+  normalizedQuery: string
+): boolean {
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const haystacks = [
+    item.developer.displayName,
+    item.availability.note,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.toLowerCase());
+
+  return haystacks.some((value) => value.includes(normalizedQuery));
+}
+
+function sortDeveloperDays(
+  days: TrackerDeveloperDay[],
+  sortBy: TeamTrackerBoardSort
+): TrackerDeveloperDay[] {
+  return [...days].sort((left, right) => {
+    if (sortBy === "name") {
+      return left.developer.displayName.localeCompare(right.developer.displayName);
+    }
+
+    if (sortBy === "attention") {
+      return compareAttentionTuples(
+        getDeveloperAttentionSortTuple(left),
+        getDeveloperAttentionSortTuple(right)
+      );
+    }
+
+    if (sortBy === "stale_age") {
+      const timestampDiff = getLastActivityTimestamp(left) - getLastActivityTimestamp(right);
+      if (timestampDiff !== 0) {
+        return timestampDiff;
+      }
+
+      return left.developer.displayName.localeCompare(right.developer.displayName);
+    }
+
+    if (sortBy === "load") {
+      const leftOpenCount = (left.currentItem ? 1 : 0) + left.plannedItems.length;
+      const rightOpenCount = (right.currentItem ? 1 : 0) + right.plannedItems.length;
+      const capacityDeltaDiff =
+        right.signals.risk.capacityDelta - left.signals.risk.capacityDelta;
+
+      if (capacityDeltaDiff !== 0) {
+        return capacityDeltaDiff;
+      }
+      if (rightOpenCount !== leftOpenCount) {
+        return rightOpenCount - leftOpenCount;
+      }
+
+      return left.developer.displayName.localeCompare(right.developer.displayName);
+    }
+
+    const statusDiff =
+      BLOCKED_FIRST_STATUS_ORDER[left.status] - BLOCKED_FIRST_STATUS_ORDER[right.status];
+    if (statusDiff !== 0) {
+      return statusDiff;
+    }
+
+    const attentionDiff = compareAttentionTuples(
+      getDeveloperAttentionSortTuple(left),
+      getDeveloperAttentionSortTuple(right)
+    );
+    if (attentionDiff !== 0) {
+      return attentionDiff;
+    }
+
+    return left.developer.displayName.localeCompare(right.developer.displayName);
+  });
+}
+
+function buildDeveloperGroups(
+  days: TrackerDeveloperDay[],
+  groupBy: TeamTrackerBoardGroupBy
+): TrackerDeveloperGroup[] {
+  if (days.length === 0) {
+    return [];
+  }
+
+  if (groupBy === "none") {
+    return [
+      {
+        key: "all",
+        label: "All Developers",
+        count: days.length,
+        developers: days,
+      },
+    ];
+  }
+
+  if (groupBy === "status") {
+    const orderedStatuses: TrackerDeveloperStatus[] = [
+      "blocked",
+      "at_risk",
+      "waiting",
+      "on_track",
+      "done_for_today",
+    ];
+
+    const groups: TrackerDeveloperGroup[] = [];
+    for (const status of orderedStatuses) {
+      const developers = days.filter((day) => day.status === status);
+      if (developers.length === 0) {
+        continue;
+      }
+
+      groups.push({
+        key: status,
+        label: TRACKER_STATUS_LABELS[status],
+        count: developers.length,
+        developers,
+      });
+    }
+
+    return groups;
+  }
+
+  const needsAttention = days.filter((day) => buildAttentionReasons(day).length > 0);
+  const stable = days.filter((day) => buildAttentionReasons(day).length === 0);
+  const groups: TrackerDeveloperGroup[] = [];
+
+  if (needsAttention.length > 0) {
+    groups.push({
+      key: "needs_attention",
+      label: "Needs Attention",
+      count: needsAttention.length,
+      developers: needsAttention,
+    });
+  }
+
+  if (stable.length > 0) {
+    groups.push({
+      key: "stable",
+      label: "Stable",
+      count: stable.length,
+      developers: stable,
+    });
+  }
+
+  return groups;
+}
+
 export class TeamTrackerService {
   constructor(
     private readonly settings = new SettingsService(),
     private readonly availability = new DeveloperAvailabilityService()
   ) {}
 
-  async getBoard(date: string): Promise<TeamTrackerBoardResponse> {
+  async getBoard(
+    date: string,
+    options?: {
+      managerAccountId?: string;
+      query?: TeamTrackerBoardQuery;
+    }
+  ): Promise<TeamTrackerBoardResponse> {
+    const query = await this.resolveBoardQuery(
+      options?.managerAccountId,
+      options?.query
+    );
     const signalConfig = await this.getSignalConfig();
     const devRows = await db
       .select()
@@ -384,8 +711,176 @@ export class TeamTrackerService {
     }
 
     const summary = this.computeSummary(devDays);
-    const attentionQueue = this.computeAttentionQueue(devDays);
-    return { date, developers: devDays, inactiveDevelopers, summary, attentionQueue };
+    const normalizedQuery = query.q.toLowerCase();
+    const visibleDevelopers = sortDeveloperDays(
+      devDays.filter(
+        (day) =>
+          matchesSummaryFilter(day, query.summaryFilter) &&
+          matchesDaySearch(day, normalizedQuery)
+      ),
+      query.sortBy
+    );
+    const visibleSummary = this.computeSummary(visibleDevelopers);
+    const groups = buildDeveloperGroups(visibleDevelopers, query.groupBy);
+    const filteredInactiveDevelopers = inactiveDevelopers.filter((item) =>
+      matchesInactiveDeveloperSearch(item, normalizedQuery)
+    );
+    const attentionQueue = this.computeAttentionQueue(visibleDevelopers);
+
+    return {
+      date,
+      developers: visibleDevelopers,
+      inactiveDevelopers: filteredInactiveDevelopers,
+      summary,
+      visibleSummary,
+      groups,
+      query,
+      attentionQueue,
+    };
+  }
+
+  async listSavedViews(managerAccountId: string): Promise<TeamTrackerSavedView[]> {
+    const rows = await db
+      .select()
+      .from(teamTrackerSavedViews)
+      .where(eq(teamTrackerSavedViews.managerAccountId, managerAccountId));
+
+    return rows
+      .sort(
+        (left, right) =>
+          right.updatedAt.localeCompare(left.updatedAt) || right.id - left.id
+      )
+      .map(mapSavedView);
+  }
+
+  async createSavedView(
+    managerAccountId: string,
+    input: TeamTrackerSavedViewInput
+  ): Promise<TeamTrackerSavedView> {
+    const name = input.name.trim();
+    if (!name) {
+      throw new HttpError(400, "name is required");
+    }
+
+    await this.assertSavedViewNameAvailable(managerAccountId, name);
+
+    const now = nowIso();
+    const query = this.normalizeSavedViewQuery(input);
+    const inserted = await db
+      .insert(teamTrackerSavedViews)
+      .values({
+        managerAccountId,
+        name,
+        searchQuery: query.q || null,
+        summaryFilter: query.summaryFilter,
+        sortBy: query.sortBy,
+        groupBy: query.groupBy,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    return mapSavedView(inserted[0]!);
+  }
+
+  async updateSavedView(
+    managerAccountId: string,
+    viewId: number,
+    input: TeamTrackerSavedViewUpdate
+  ): Promise<TeamTrackerSavedView> {
+    const existing = await this.getOwnedSavedViewRow(managerAccountId, viewId);
+    const nextName =
+      input.name !== undefined ? input.name.trim() : existing.name;
+
+    if (!nextName) {
+      throw new HttpError(400, "name is required");
+    }
+
+    await this.assertSavedViewNameAvailable(managerAccountId, nextName, viewId);
+
+    const merged = this.normalizeSavedViewQuery({
+      q: input.q !== undefined ? input.q : existing.searchQuery ?? "",
+      summaryFilter:
+        input.summaryFilter !== undefined
+          ? input.summaryFilter
+          : (existing.summaryFilter as TrackerBoardSummaryFilter),
+      sortBy:
+        input.sortBy !== undefined
+          ? input.sortBy
+          : (existing.sortBy as TeamTrackerBoardSort),
+      groupBy:
+        input.groupBy !== undefined
+          ? input.groupBy
+          : (existing.groupBy as TeamTrackerBoardGroupBy),
+    });
+
+    const now = nowIso();
+    await db
+      .update(teamTrackerSavedViews)
+      .set({
+        name: nextName,
+        searchQuery: merged.q || null,
+        summaryFilter: merged.summaryFilter,
+        sortBy: merged.sortBy,
+        groupBy: merged.groupBy,
+        updatedAt: now,
+      })
+      .where(eq(teamTrackerSavedViews.id, viewId));
+
+    const updated = await this.getOwnedSavedViewRow(managerAccountId, viewId);
+    return mapSavedView(updated);
+  }
+
+  async deleteSavedView(managerAccountId: string, viewId: number): Promise<void> {
+    await this.getOwnedSavedViewRow(managerAccountId, viewId);
+
+    await db
+      .delete(teamTrackerSavedViews)
+      .where(eq(teamTrackerSavedViews.id, viewId));
+  }
+
+  async resolveBoardQuery(
+    managerAccountId: string | undefined,
+    rawQuery?: TeamTrackerBoardQuery
+  ): Promise<TeamTrackerBoardResolvedQuery> {
+    const normalizedRawQuery = rawQuery ?? {};
+
+    if (!normalizedRawQuery.viewId) {
+      return {
+        ...DEFAULT_BOARD_QUERY,
+        q: normalizeBoardSearchQuery(normalizedRawQuery.q),
+        summaryFilter:
+          normalizedRawQuery.summaryFilter ?? DEFAULT_BOARD_QUERY.summaryFilter,
+        sortBy: normalizedRawQuery.sortBy ?? DEFAULT_BOARD_QUERY.sortBy,
+        groupBy: normalizedRawQuery.groupBy ?? DEFAULT_BOARD_QUERY.groupBy,
+      };
+    }
+
+    if (!managerAccountId) {
+      throw new HttpError(400, "managerAccountId is required when resolving a saved view");
+    }
+
+    const savedView = await this.getOwnedSavedViewRow(
+      managerAccountId,
+      normalizedRawQuery.viewId
+    );
+
+    return {
+      q:
+        normalizedRawQuery.q !== undefined
+          ? normalizeBoardSearchQuery(normalizedRawQuery.q)
+          : savedView.searchQuery ?? "",
+      summaryFilter:
+        normalizedRawQuery.summaryFilter ??
+        (savedView.summaryFilter as TrackerBoardSummaryFilter),
+      sortBy:
+        normalizedRawQuery.sortBy ??
+        (savedView.sortBy as TeamTrackerBoardSort),
+      groupBy:
+        normalizedRawQuery.groupBy ??
+        (savedView.groupBy as TeamTrackerBoardGroupBy),
+      viewId: savedView.id,
+    };
   }
 
   async getDeveloperDay(
@@ -1130,6 +1625,65 @@ export class TeamTrackerService {
       noCurrentThresholdHours,
       statusFollowUpThresholdHours,
     };
+  }
+
+  private normalizeSavedViewQuery(input: {
+    q?: string;
+    summaryFilter?: TrackerBoardSummaryFilter;
+    sortBy?: TeamTrackerBoardSort;
+    groupBy?: TeamTrackerBoardGroupBy;
+  }): Omit<TeamTrackerBoardResolvedQuery, "viewId"> {
+    return {
+      q: normalizeBoardSearchQuery(input.q),
+      summaryFilter: input.summaryFilter ?? DEFAULT_BOARD_QUERY.summaryFilter,
+      sortBy: input.sortBy ?? DEFAULT_BOARD_QUERY.sortBy,
+      groupBy: input.groupBy ?? DEFAULT_BOARD_QUERY.groupBy,
+    };
+  }
+
+  private async getOwnedSavedViewRow(
+    managerAccountId: string,
+    viewId: number
+  ): Promise<typeof teamTrackerSavedViews.$inferSelect> {
+    const rows = await db
+      .select()
+      .from(teamTrackerSavedViews)
+      .where(
+        and(
+          eq(teamTrackerSavedViews.id, viewId),
+          eq(teamTrackerSavedViews.managerAccountId, managerAccountId)
+        )
+      )
+      .limit(1);
+
+    const row = rows[0];
+    if (!row) {
+      throw new HttpError(404, "Saved view not found");
+    }
+
+    return row;
+  }
+
+  private async assertSavedViewNameAvailable(
+    managerAccountId: string,
+    name: string,
+    excludeViewId?: number
+  ): Promise<void> {
+    const rows = await db
+      .select()
+      .from(teamTrackerSavedViews)
+      .where(
+        and(
+          eq(teamTrackerSavedViews.managerAccountId, managerAccountId),
+          eq(teamTrackerSavedViews.name, name)
+        )
+      )
+      .limit(1);
+
+    const existing = rows[0];
+    if (existing && existing.id !== excludeViewId) {
+      throw new HttpError(409, `Saved view "${name}" already exists`);
+    }
   }
 
   private async getItemRow(

@@ -8,6 +8,7 @@ import {
   issues,
   managerDeskItems,
   teamTrackerDays,
+  teamTrackerSavedViews,
 } from "../src/db/schema";
 
 const service = new TeamTrackerService();
@@ -209,8 +210,10 @@ describe("TeamTrackerService", () => {
           summary: "Queue needs manager intervention",
           nextFollowUpAt: "2026-03-07T10:30:00.000Z",
         },
-        "manager",
-        "manager-1"
+        {
+          type: "manager",
+          accountId: "manager-1",
+        }
       );
 
       const board = await service.getBoard("2026-03-07");
@@ -240,6 +243,101 @@ describe("TeamTrackerService", () => {
           jiraKey: undefined,
           lifecycle: "tracker_only",
         },
+      ]);
+    });
+
+    it("filters the board by search text across developer, notes, check-ins, and item fields", async () => {
+      await service.updateDay("dev-1", "2026-03-07", {
+        managerNotes: "Needs help on the login flow",
+      });
+      await service.addCheckIn("dev-2", "2026-03-07", {
+        summary: "Investigating payment gateway timeouts",
+      });
+      await service.addItem("dev-1", "2026-03-07", {
+        title: "Investigate login regression",
+      });
+      await service.addItem("dev-2", "2026-03-07", {
+        title: "Patch checkout bug",
+        note: "Pair with payments team",
+      });
+
+      const noteBoard = await service.getBoard("2026-03-07", {
+        query: { q: "login" },
+      });
+      const checkInBoard = await service.getBoard("2026-03-07", {
+        query: { q: "gateway" },
+      });
+      const itemNoteBoard = await service.getBoard("2026-03-07", {
+        query: { q: "payments" },
+      });
+
+      expect(noteBoard.developers.map((day) => day.developer.accountId)).toEqual(["dev-1"]);
+      expect(checkInBoard.developers.map((day) => day.developer.accountId)).toEqual(["dev-2"]);
+      expect(itemNoteBoard.developers.map((day) => day.developer.accountId)).toEqual(["dev-2"]);
+      expect(noteBoard.summary.total).toBe(2);
+      expect(noteBoard.visibleSummary.total).toBe(1);
+    });
+
+    it("sorts the visible board by blocked-first order", async () => {
+      await db.insert(developers).values([
+        { accountId: "dev-3", displayName: "Cara Diaz", email: null, avatarUrl: null, isActive: 1 },
+        { accountId: "dev-4", displayName: "Derek Long", email: null, avatarUrl: null, isActive: 1 },
+      ]);
+      await service.updateDay("dev-1", "2026-03-07", { status: "on_track" });
+      await service.updateDay("dev-2", "2026-03-07", { status: "waiting" });
+      await service.updateDay("dev-3", "2026-03-07", { status: "blocked" });
+      await service.updateDay("dev-4", "2026-03-07", { status: "at_risk" });
+
+      const board = await service.getBoard("2026-03-07", {
+        query: { sortBy: "blocked_first" },
+      });
+
+      expect(board.developers.map((day) => day.developer.accountId)).toEqual([
+        "dev-3",
+        "dev-4",
+        "dev-2",
+        "dev-1",
+      ]);
+    });
+
+    it("builds grouped board metadata for status grouping", async () => {
+      await service.updateDay("dev-1", "2026-03-07", { status: "blocked" });
+      await service.updateDay("dev-2", "2026-03-07", { status: "waiting" });
+
+      const board = await service.getBoard("2026-03-07", {
+        query: { groupBy: "status" },
+      });
+
+      expect(board.groups).toEqual([
+        expect.objectContaining({
+          key: "blocked",
+          count: 1,
+        }),
+        expect.objectContaining({
+          key: "waiting",
+          count: 1,
+        }),
+      ]);
+      expect(board.groups[0]?.developers[0]?.developer.accountId).toBe("dev-1");
+      expect(board.groups[1]?.developers[0]?.developer.accountId).toBe("dev-2");
+    });
+
+    it("filters inactive developers with the same search query", async () => {
+      await service.updateAvailability("dev-2", {
+        effectiveDate: "2026-03-07",
+        state: "inactive",
+        note: "PTO today",
+      });
+
+      const board = await service.getBoard("2026-03-07", {
+        query: { q: "pto" },
+      });
+
+      expect(board.developers).toHaveLength(0);
+      expect(board.inactiveDevelopers).toEqual([
+        expect.objectContaining({
+          developer: expect.objectContaining({ accountId: "dev-2" }),
+        }),
       ]);
     });
   });
@@ -583,6 +681,93 @@ describe("TeamTrackerService", () => {
       )!;
 
       expect(devDay.capacityUnits).toBe(5);
+    });
+  });
+
+  describe("saved views", () => {
+    it("creates, lists, updates, and deletes manager-scoped saved views", async () => {
+      const created = await service.createSavedView("manager-1", {
+        name: "Morning triage",
+        q: "alice",
+        sortBy: "attention",
+        groupBy: "attention_state",
+      });
+
+      expect(created).toMatchObject({
+        name: "Morning triage",
+        q: "alice",
+        summaryFilter: "all",
+        sortBy: "attention",
+        groupBy: "attention_state",
+      });
+
+      const listed = await service.listSavedViews("manager-1");
+      expect(listed).toHaveLength(1);
+      expect(listed[0]?.id).toBe(created.id);
+
+      const updated = await service.updateSavedView("manager-1", created.id, {
+        name: "Blocked first",
+        q: "",
+        summaryFilter: "blocked",
+        sortBy: "blocked_first",
+      });
+      expect(updated).toMatchObject({
+        id: created.id,
+        name: "Blocked first",
+        q: "",
+        summaryFilter: "blocked",
+        sortBy: "blocked_first",
+        groupBy: "attention_state",
+      });
+
+      await service.deleteSavedView("manager-1", created.id);
+      const rows = await db.select().from(teamTrackerSavedViews);
+      expect(rows).toHaveLength(0);
+    });
+
+    it("isolates saved views by manager and rejects duplicate names per manager", async () => {
+      await service.createSavedView("manager-1", {
+        name: "Morning triage",
+      });
+      await service.createSavedView("manager-2", {
+        name: "Morning triage",
+      });
+
+      await expect(
+        service.createSavedView("manager-1", {
+          name: "Morning triage",
+        })
+      ).rejects.toThrow('Saved view "Morning triage" already exists');
+
+      await expect(
+        service.updateSavedView("manager-1", 2, {
+          name: "Changed",
+        })
+      ).rejects.toThrow("Saved view not found");
+    });
+
+    it("resolves saved-view queries with explicit overrides", async () => {
+      const savedView = await service.createSavedView("manager-1", {
+        name: "Morning triage",
+        q: "alice",
+        summaryFilter: "blocked",
+        sortBy: "attention",
+        groupBy: "status",
+      });
+
+      const resolved = await service.resolveBoardQuery("manager-1", {
+        viewId: savedView.id,
+        sortBy: "name",
+        q: "",
+      });
+
+      expect(resolved).toEqual({
+        viewId: savedView.id,
+        q: "",
+        summaryFilter: "blocked",
+        sortBy: "name",
+        groupBy: "status",
+      });
     });
   });
 

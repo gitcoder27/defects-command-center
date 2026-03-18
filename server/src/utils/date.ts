@@ -1,5 +1,29 @@
-export function todayIsoDate(now = new Date()): string {
-  return now.toISOString().slice(0, 10);
+function formatIsoDate(date: Date, timeZone?: string): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) {
+    throw new Error("Unable to format ISO date");
+  }
+
+  return `${year}-${month}-${day}`;
+}
+
+export function todayIsoDate(now = new Date(), timeZone?: string): string {
+  return formatIsoDate(now, timeZone);
+}
+
+function shiftIsoDate(dateStr: string, days: number): string {
+  const shifted = addDays(new Date(`${dateStr}T00:00:00.000Z`), days);
+  return formatIsoDate(shifted, "UTC");
 }
 
 export function addHours(date: Date, hours: number): Date {
@@ -10,11 +34,11 @@ export function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
-export function endOfWeekIsoDate(now = new Date()): string {
-  const day = now.getDay();
+export function endOfWeekIsoDate(now = new Date(), timeZone?: string): string {
+  const today = todayIsoDate(now, timeZone);
+  const day = new Date(`${today}T00:00:00.000Z`).getUTCDay();
   const add = 7 - day;
-  const end = addDays(new Date(now), add);
-  return end.toISOString().slice(0, 10);
+  return shiftIsoDate(today, add);
 }
 
 export function isOlderThanHours(isoDate: string, hours: number, now = new Date()): boolean {

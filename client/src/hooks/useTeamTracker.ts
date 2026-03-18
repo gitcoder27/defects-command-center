@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { TeamTrackerBoardResponse, TrackerIssueAssignment } from '@/types';
+import type {
+  TeamTrackerBoardResponse,
+  TeamTrackerBoardQuery,
+  TrackerIssueAssignment,
+} from '@/types';
 
 interface CarryForwardPreviewResponse {
   carryable: number;
@@ -10,10 +14,20 @@ interface TrackerIssueAssignmentsResponse {
   assignments?: TrackerIssueAssignment[];
 }
 
-export function useTeamTracker(date: string) {
+function buildBoardUrl(date: string, query?: TeamTrackerBoardQuery): string {
+  const params = new URLSearchParams({ date });
+  if (query?.q) params.set('q', query.q);
+  if (query?.summaryFilter && query.summaryFilter !== 'all') params.set('summaryFilter', query.summaryFilter);
+  if (query?.sortBy) params.set('sortBy', query.sortBy);
+  if (query?.groupBy && query.groupBy !== 'none') params.set('groupBy', query.groupBy);
+  if (query?.viewId != null) params.set('viewId', String(query.viewId));
+  return `/team-tracker?${params.toString()}`;
+}
+
+export function useTeamTracker(date: string, query?: TeamTrackerBoardQuery) {
   return useQuery<TeamTrackerBoardResponse>({
-    queryKey: ['team-tracker', date],
-    queryFn: () => api.get<TeamTrackerBoardResponse>(`/team-tracker?date=${date}`),
+    queryKey: ['team-tracker', date, query ?? {}],
+    queryFn: () => api.get<TeamTrackerBoardResponse>(buildBoardUrl(date, query)),
     refetchInterval: 30_000,
   });
 }

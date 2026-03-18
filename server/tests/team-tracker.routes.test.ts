@@ -7,7 +7,7 @@ import { ManagerDeskService } from "../src/services/manager-desk.service";
 import { TeamTrackerService } from "../src/services/team-tracker.service";
 import { notFoundHandler, errorHandler } from "../src/middleware/errorHandler";
 import { resetDatabase, db } from "./helpers/db";
-import { developers, issues, managerDeskItems } from "../src/db/schema";
+import { developers, issues, managerDeskItems, teamTrackerSavedViews } from "../src/db/schema";
 
 const trackerService = new TeamTrackerService();
 const managerDeskService = new ManagerDeskService(trackerService);
@@ -54,14 +54,14 @@ async function seedIssue(
   });
 }
 
-function createTestApp() {
+function createTestApp(managerAccountId = "manager-1") {
   const app = express();
   app.use((req, _res, next) => {
     req.auth = {
       sessionId: "test-session",
       user: {
         username: "manager",
-        accountId: "manager-1",
+        accountId: managerAccountId,
         displayName: "Manager One",
         role: "manager",
       },
@@ -183,6 +183,196 @@ describe("team tracker routes", () => {
     expect(res.status).toBe(200);
     expect(res.body?.developers).toHaveLength(1);
     expect(res.body?.developers[0]?.developer.accountId).toBe("dev-1");
+  });
+
+  it("GET /api/team-tracker applies search, sort, grouping, and visible summary metadata", async () => {
+    await db.insert(developers).values([
+      { accountId: "dev-3", displayName: "Cara Diaz", email: null, avatarUrl: null, isActive: 1 },
+      { accountId: "dev-4", displayName: "Derek Long", email: null, avatarUrl: null, isActive: 1 },
+    ]);
+    await trackerService.updateDay("dev-1", "2026-03-07", { status: "blocked" });
+    await trackerService.updateDay("dev-3", "2026-03-07", { status: "waiting" });
+    await trackerService.addItem("dev-1", "2026-03-07", {
+      title: "Investigate login bug",
+      note: "Reproduce the login issue",
+    });
+    await trackerService.addItem("dev-3", "2026-03-07", {
+      title: "Investigate dashboard bug",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/team-tracker?date=2026-03-07&q=bug&sortBy=blocked_first&groupBy=status",
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.query).toEqual({
+      q: "bug",
+      summaryFilter: "all",
+      sortBy: "blocked_first",
+      groupBy: "status",
+    });
+    expect(res.body?.summary.total).toBe(3);
+    expect(res.body?.visibleSummary.total).toBe(2);
+    expect(res.body?.developers.map((day: any) => day.developer.accountId)).toEqual([
+      "dev-1",
+      "dev-3",
+    ]);
+    expect(res.body?.groups).toEqual([
+      expect.objectContaining({
+        key: "blocked",
+        count: 1,
+      }),
+      expect.objectContaining({
+        key: "waiting",
+        count: 1,
+      }),
+    ]);
+    expect(res.body?.attentionQueue.map((item: any) => item.developer.accountId)).toEqual([
+      "dev-1",
+      "dev-3",
+    ]);
+  });
+
+  it("GET /api/team-tracker resolves a saved view and allows explicit query overrides", async () => {
+    await trackerService.createSavedView("manager-1", {
+      name: "Morning triage",
+      q: "alice",
+      sortBy: "attention",
+      groupBy: "attention_state",
+      summaryFilter: "all",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/team-tracker?date=2026-03-07&viewId=1&sortBy=name",
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.query).toEqual({
+      viewId: 1,
+      q: "alice",
+      summaryFilter: "all",
+      sortBy: "name",
+      groupBy: "attention_state",
+    });
+    expect(res.body?.developers.map((day: any) => day.developer.accountId)).toEqual(["dev-1"]);
+  });
+
+  it("GET /api/team-tracker returns 404 for a saved view owned by another manager", async () => {
+    await trackerService.createSavedView("manager-2", {
+      name: "Other manager view",
+      q: "alice",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/team-tracker?date=2026-03-07&viewId=1",
+    });
+
+    expect(res.status).toBe(404);
+    expect(res.body?.error).toBe("Saved view not found");
+  });
+
+  it("GET /api/team-tracker/views lists saved views for the authenticated manager only", async () => {
+    await trackerService.createSavedView("manager-1", {
+      name: "Morning triage",
+      q: "alice",
+    });
+    await trackerService.createSavedView("manager-2", {
+      name: "Other manager view",
+      q: "bob",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/team-tracker/views",
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.views).toEqual([
+      expect.objectContaining({
+        name: "Morning triage",
+        q: "alice",
+        summaryFilter: "all",
+        sortBy: "name",
+        groupBy: "none",
+      }),
+    ]);
+  });
+
+  it("POST /api/team-tracker/views creates a saved view", async () => {
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/team-tracker/views",
+      body: {
+        name: "Blocked only",
+        summaryFilter: "blocked",
+        sortBy: "attention",
+        groupBy: "status",
+      },
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      name: "Blocked only",
+      q: "",
+      summaryFilter: "blocked",
+      sortBy: "attention",
+      groupBy: "status",
+    });
+  });
+
+  it("PATCH /api/team-tracker/views/:viewId updates a saved view for its owner", async () => {
+    const created = await trackerService.createSavedView("manager-1", {
+      name: "Morning triage",
+      q: "alice",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "PATCH",
+      url: `/api/team-tracker/views/${created.id}`,
+      body: {
+        name: "Blocked first",
+        q: "",
+        summaryFilter: "blocked",
+        sortBy: "blocked_first",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: created.id,
+      name: "Blocked first",
+      q: "",
+      summaryFilter: "blocked",
+      sortBy: "blocked_first",
+      groupBy: "none",
+    });
+  });
+
+  it("DELETE /api/team-tracker/views/:viewId deletes a saved view for its owner", async () => {
+    const created = await trackerService.createSavedView("manager-1", {
+      name: "Morning triage",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "DELETE",
+      url: `/api/team-tracker/views/${created.id}`,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ deleted: true });
+
+    const rows = await db.select().from(teamTrackerSavedViews);
+    expect(rows).toHaveLength(0);
   });
 
   it("GET /api/team-tracker returns a ranked attention queue", async () => {

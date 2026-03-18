@@ -1,27 +1,15 @@
 import { motion } from 'framer-motion';
 import { AlertTriangle, Clock, ShieldAlert, Pause, CircleOff, CheckCircle2, Users, CalendarClock, Scale, MessageCircleWarning } from 'lucide-react';
-import type { TrackerBoardSummary } from '@/types';
-
-type SummaryFilter =
-  | 'all'
-  | 'stale'
-  | 'blocked'
-  | 'at_risk'
-  | 'waiting'
-  | 'overdue_linked'
-  | 'over_capacity'
-  | 'status_follow_up'
-  | 'no_current'
-  | 'done_for_today';
+import type { TrackerBoardSummary, TrackerBoardSummaryFilter } from '@/types';
 
 interface TrackerSummaryStripProps {
   summary: TrackerBoardSummary;
-  activeFilter: SummaryFilter;
-  onFilterChange: (filter: SummaryFilter) => void;
+  activeFilter: TrackerBoardSummaryFilter;
+  onFilterChange: (filter: TrackerBoardSummaryFilter) => void;
 }
 
 const chips: Array<{
-  key: SummaryFilter;
+  key: TrackerBoardSummaryFilter;
   label: string;
   icon: typeof AlertTriangle;
   countKey: keyof TrackerBoardSummary;
@@ -80,5 +68,3 @@ export function TrackerSummaryStrip({ summary, activeFilter, onFilterChange }: T
     </motion.div>
   );
 }
-
-export type { SummaryFilter };

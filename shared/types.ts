@@ -361,11 +361,72 @@ export interface TrackerAttentionItem {
   setCurrentCandidates: TrackerAttentionActionItem[];
 }
 
+export type TrackerBoardSummaryFilter =
+  | "all"
+  | "stale"
+  | "blocked"
+  | "at_risk"
+  | "waiting"
+  | "overdue_linked"
+  | "over_capacity"
+  | "status_follow_up"
+  | "no_current"
+  | "done_for_today";
+
+export type TeamTrackerBoardSort =
+  | "name"
+  | "attention"
+  | "stale_age"
+  | "load"
+  | "blocked_first";
+
+export type TeamTrackerBoardGroupBy =
+  | "none"
+  | "status"
+  | "attention_state";
+
+export interface TeamTrackerBoardQuery {
+  q?: string;
+  summaryFilter?: TrackerBoardSummaryFilter;
+  sortBy?: TeamTrackerBoardSort;
+  groupBy?: TeamTrackerBoardGroupBy;
+  viewId?: number;
+}
+
+export interface TeamTrackerBoardResolvedQuery {
+  q: string;
+  summaryFilter: TrackerBoardSummaryFilter;
+  sortBy: TeamTrackerBoardSort;
+  groupBy: TeamTrackerBoardGroupBy;
+  viewId?: number;
+}
+
+export interface TrackerDeveloperGroup {
+  key: string;
+  label: string;
+  count: number;
+  developers: TrackerDeveloperDay[];
+}
+
+export interface TeamTrackerSavedView {
+  id: number;
+  name: string;
+  q: string;
+  summaryFilter: TrackerBoardSummaryFilter;
+  sortBy: TeamTrackerBoardSort;
+  groupBy: TeamTrackerBoardGroupBy;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface TeamTrackerBoardResponse {
   date: string;
   developers: TrackerDeveloperDay[];
   inactiveDevelopers: InactiveDeveloperListItem[];
   summary: TrackerBoardSummary;
+  visibleSummary: TrackerBoardSummary;
+  groups: TrackerDeveloperGroup[];
+  query: TeamTrackerBoardResolvedQuery;
   attentionQueue: TrackerAttentionItem[];
 }
 

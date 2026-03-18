@@ -18,10 +18,10 @@ For each item:
 - [x] 1. Make the Team Tracker task lifecycle explicit. `Both`
 - [ ] 2. Fix carry-forward so Team Tracker work carries forward predictably. `Backend-heavy, but Both`
 - [ ] 3. Replace the split status/check-in flow with one unified action. `Both`
-- [ ] 4. Show check-in authorship and absolute timestamps. `Frontend-heavy, but Both`
-- [ ] 5. Fix title editing in the drawer. `Frontend`
-- [ ] 6. Add assignment-conflict visibility during Team Tracker task creation. `Both`
-- [ ] 7. Add search, sorting, grouping, and saved views. `Both`
+- [x] 4. Show check-in authorship and absolute timestamps. `Frontend-heavy, but Both`
+- [x] 5. Fix title editing in the drawer. `Frontend`
+- [x] 6. Add assignment-conflict visibility during Team Tracker task creation. `Both`
+- [x] 7. Add search, sorting, grouping, and saved views. `Both`
 - [x] 8. Add quick actions to attention cards. `Frontend-heavy, but Both`
 - [ ] 9. Improve carry-forward UX with selective preview by developer/task. `Both`
 - [ ] 10. Expand the inactive workflow with ranges, return dates, and reason presets. `Both`
@@ -208,20 +208,42 @@ Notes:
 ## 7. Add Search, Sorting, Grouping, and Saved Views
 
 Type: `Both`
-Status: `Not started`
+Status: `Completed`
 
 Planning checklist:
 
-- [ ] Define the minimum first slice: search, sort, grouping, or saved views
-- [ ] Decide which controls are local UI state vs persisted view state
-- [ ] Review backend ordering/filter support and gaps
-- [ ] List board/query changes
-- [ ] List UI control and layout changes
-- [ ] Define tests for filtering/order stability
+- [x] Define the minimum first slice: search, sort, grouping, and saved views together as the first scalability slice
+- [x] Decide which controls are local UI state vs persisted view state
+- [x] Review backend ordering/filter support and gaps
+- [x] List board/query changes
+- [x] List UI control and layout changes
+- [x] Define tests for filtering/order stability
 
 Notes:
 
 - This is the main scalability improvement for larger teams
+- Product decisions locked:
+  - saved views are private per manager
+  - backend is the source of truth for search, sorting, and grouping
+  - default board sort is alphabetical by developer name
+- Backend implementation completed:
+  - `GET /api/team-tracker` now supports `q`, `summaryFilter`, `sortBy`, `groupBy`, and `viewId`
+  - Team Tracker board responses now include resolved query metadata, grouped board data, and visible-summary counts
+  - added manager-scoped saved-view CRUD endpoints at `/api/team-tracker/views`
+  - added SQLite persistence for Team Tracker saved views
+- Frontend implementation completed:
+  - Team Tracker now exposes a board toolbar with debounced search, sort, grouping, and saved-view controls
+  - summary chips now drive backend-backed `summaryFilter` state instead of only local board filtering
+  - board rendering now supports grouped sections using backend `groups` while preserving flat rendering when grouping is disabled
+  - saved views can be created, applied, updated, renamed, deleted, and cleared from the manager UI
+  - board query state is now threaded through React Query so search/sort/group/view changes refetch stable server-backed results
+- Backend validation completed:
+  - `npm run test --workspace=server -- team-tracker.service.test.ts team-tracker.routes.test.ts`
+  - `npm run typecheck`
+- Frontend validation completed:
+  - validated manually in the Team Tracker UI after frontend implementation
+- Frontend handoff prompt created:
+  - `agent/prompts/03-team-tracker-search-sorting-grouping-saved-views-frontend-prompt.md`
 
 ## 8. Add Quick Actions to Attention Cards
 

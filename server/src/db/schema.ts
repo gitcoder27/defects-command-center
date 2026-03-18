@@ -156,6 +156,18 @@ export const teamTrackerCheckIns = sqliteTable("team_tracker_checkins", {
   createdAt: text("created_at").notNull(),
 });
 
+export const teamTrackerSavedViews = sqliteTable("team_tracker_saved_views", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  managerAccountId: text("manager_account_id").notNull(),
+  name: text("name").notNull(),
+  searchQuery: text("search_query"),
+  summaryFilter: text("summary_filter").notNull(),
+  sortBy: text("sort_by").notNull(),
+  groupBy: text("group_by").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 // ── Manager Desk tables ────────────────────────────────
 
 export const managerDeskDays = sqliteTable("manager_desk_days", {

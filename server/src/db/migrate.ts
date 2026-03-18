@@ -169,6 +169,18 @@ CREATE TABLE IF NOT EXISTS team_tracker_checkins (
   FOREIGN KEY (day_id) REFERENCES team_tracker_days(id)
 );
 
+CREATE TABLE IF NOT EXISTS team_tracker_saved_views (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  manager_account_id TEXT NOT NULL,
+  name               TEXT NOT NULL,
+  search_query       TEXT,
+  summary_filter     TEXT NOT NULL,
+  sort_by            TEXT NOT NULL,
+  group_by           TEXT NOT NULL,
+  created_at         TEXT NOT NULL,
+  updated_at         TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS manager_desk_days (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   date               TEXT NOT NULL,
@@ -222,6 +234,8 @@ CREATE INDEX IF NOT EXISTS idx_tracker_days_dev ON team_tracker_days(developer_a
 CREATE INDEX IF NOT EXISTS idx_dev_availability_dev_dates ON developer_availability_periods(developer_account_id, start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_tracker_items_day ON team_tracker_items(day_id);
 CREATE INDEX IF NOT EXISTS idx_tracker_checkins_day ON team_tracker_checkins(day_id);
+CREATE INDEX IF NOT EXISTS idx_tracker_saved_views_manager ON team_tracker_saved_views(manager_account_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tracker_saved_views_manager_name ON team_tracker_saved_views(manager_account_id, name);
 CREATE INDEX IF NOT EXISTS idx_manager_desk_days_manager_date ON manager_desk_days(manager_account_id, date);
 CREATE INDEX IF NOT EXISTS idx_manager_desk_items_day ON manager_desk_items(day_id);
 CREATE INDEX IF NOT EXISTS idx_manager_desk_items_status ON manager_desk_items(status);
@@ -256,6 +270,9 @@ const alterStatements = [
   "ALTER TABLE team_tracker_checkins ADD COLUMN next_follow_up_at TEXT",
   "ALTER TABLE team_tracker_checkins ADD COLUMN author_type TEXT NOT NULL DEFAULT 'manager'",
   "ALTER TABLE team_tracker_checkins ADD COLUMN author_account_id TEXT",
+  "CREATE TABLE IF NOT EXISTS team_tracker_saved_views (id INTEGER PRIMARY KEY AUTOINCREMENT, manager_account_id TEXT NOT NULL, name TEXT NOT NULL, search_query TEXT, summary_filter TEXT NOT NULL DEFAULT 'all', sort_by TEXT NOT NULL DEFAULT 'name', group_by TEXT NOT NULL DEFAULT 'none', created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+  "CREATE INDEX IF NOT EXISTS idx_tracker_saved_views_manager ON team_tracker_saved_views(manager_account_id)",
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_tracker_saved_views_manager_name ON team_tracker_saved_views(manager_account_id, name)",
   "ALTER TABLE team_tracker_items ADD COLUMN manager_desk_item_id INTEGER",
   "CREATE UNIQUE INDEX IF NOT EXISTS idx_tracker_items_manager_desk_item_id ON team_tracker_items(manager_desk_item_id) WHERE manager_desk_item_id IS NOT NULL",
   "ALTER TABLE manager_desk_items ADD COLUMN source_item_id INTEGER",

@@ -13,15 +13,82 @@ const trackerStatusSchema = z.enum([
   "waiting",
   "done_for_today",
 ]);
+const trackerSummaryFilterSchema = z.enum([
+  "all",
+  "stale",
+  "blocked",
+  "at_risk",
+  "waiting",
+  "overdue_linked",
+  "over_capacity",
+  "status_follow_up",
+  "no_current",
+  "done_for_today",
+]);
+const trackerSortSchema = z.enum([
+  "name",
+  "attention",
+  "stale_age",
+  "load",
+  "blocked_first",
+]);
+const trackerGroupBySchema = z.enum([
+  "none",
+  "status",
+  "attention_state",
+]);
 
 const dateQuerySchema = z.object({
   query: z.object({
     date: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
+    q: z.string().max(200).optional(),
+    summaryFilter: trackerSummaryFilterSchema.optional(),
+    sortBy: trackerSortSchema.optional(),
+    groupBy: trackerGroupBySchema.optional(),
+    viewId: z.string().regex(/^\d+$/, "viewId must be a positive integer").optional(),
   }),
   body: z.any().optional(),
   params: z.any().optional(),
+});
+
+const createSavedViewSchema = z.object({
+  body: z.object({
+    name: z.string().min(1).max(120),
+    q: z.string().max(200).optional(),
+    summaryFilter: trackerSummaryFilterSchema.optional(),
+    sortBy: trackerSortSchema.optional(),
+    groupBy: trackerGroupBySchema.optional(),
+  }),
+  params: z.any().optional(),
+  query: z.any().optional(),
+});
+
+const updateSavedViewSchema = z.object({
+  params: z.object({
+    viewId: z.string().regex(/^\d+$/, "Invalid view id"),
+  }),
+  body: z
+    .object({
+      name: z.string().min(1).max(120).optional(),
+      q: z.string().max(200).optional(),
+      summaryFilter: trackerSummaryFilterSchema.optional(),
+      sortBy: trackerSortSchema.optional(),
+      groupBy: trackerGroupBySchema.optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, {
+      message: "At least one field is required",
+    }),
+  query: z.any().optional(),
+});
+
+const deleteSavedViewSchema = z.object({
+  params: z.object({
+    viewId: z.string().regex(/^\d+$/, "Invalid view id"),
+  }),
+  body: z.any().optional(),
+  query: z.any().optional(),
 });
 
 const updateDaySchema = z.object({
@@ -166,12 +233,94 @@ export function createTeamTrackerRouter(
   router.get("/", validate(dateQuerySchema), async (req, res, next) => {
     try {
       const date = req.query.date as string;
-      const board = await trackerService.getBoard(date);
+      const board = await trackerService.getBoard(date, {
+        managerAccountId: req.auth?.user.accountId,
+        query: {
+          q: req.query.q as string | undefined,
+          summaryFilter: req.query.summaryFilter as
+            | "all"
+            | "stale"
+            | "blocked"
+            | "at_risk"
+            | "waiting"
+            | "overdue_linked"
+            | "over_capacity"
+            | "status_follow_up"
+            | "no_current"
+            | "done_for_today"
+            | undefined,
+          sortBy: req.query.sortBy as
+            | "name"
+            | "attention"
+            | "stale_age"
+            | "load"
+            | "blocked_first"
+            | undefined,
+          groupBy: req.query.groupBy as
+            | "none"
+            | "status"
+            | "attention_state"
+            | undefined,
+          viewId: req.query.viewId
+            ? parseInt(req.query.viewId as string, 10)
+            : undefined,
+        },
+      });
       res.json(board);
     } catch (error) {
       next(error);
     }
   });
+
+  router.get("/views", async (req, res, next) => {
+    try {
+      const views = await trackerService.listSavedViews(req.auth!.user.accountId);
+      res.json({ views });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/views", validate(createSavedViewSchema), async (req, res, next) => {
+    try {
+      const view = await trackerService.createSavedView(req.auth!.user.accountId, req.body);
+      res.status(201).json(view);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.patch(
+    "/views/:viewId",
+    validate(updateSavedViewSchema),
+    async (req, res, next) => {
+      try {
+        const viewId = parseInt(req.params.viewId as string, 10);
+        const view = await trackerService.updateSavedView(
+          req.auth!.user.accountId,
+          viewId,
+          req.body
+        );
+        res.json(view);
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.delete(
+    "/views/:viewId",
+    validate(deleteSavedViewSchema),
+    async (req, res, next) => {
+      try {
+        const viewId = parseInt(req.params.viewId as string, 10);
+        await trackerService.deleteSavedView(req.auth!.user.accountId, viewId);
+        res.json({ deleted: true });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
 
   router.get(
     "/issues/:jiraKey/assignment",
