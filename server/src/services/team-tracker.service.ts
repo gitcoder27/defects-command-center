@@ -9,8 +9,10 @@ import type {
   TeamTrackerBoardResponse,
   TrackerBoardSummary,
   TrackerAttentionItem,
+  TrackerAttentionActionItem,
   TrackerAttentionReason,
   TrackerAttentionReasonCode,
+  TrackerAttentionQuickAction,
   Developer,
   TrackerIssueAssignment,
   IssueTrackerAssignmentSummary,
@@ -216,6 +218,29 @@ function mapCheckIn(
     rationale: row.rationale ?? undefined,
     nextFollowUpAt: row.nextFollowUpAt ?? undefined,
   };
+}
+
+function mapAttentionActionItem(item: TrackerWorkItem): TrackerAttentionActionItem {
+  return {
+    id: item.id,
+    title: item.title,
+    jiraKey: item.jiraKey,
+    lifecycle: item.lifecycle,
+  };
+}
+
+function getAttentionQuickActions(day: TrackerDeveloperDay): TrackerAttentionQuickAction[] {
+  const actions: TrackerAttentionQuickAction[] = [
+    "update_status",
+    "mark_inactive",
+    "capture_follow_up",
+  ];
+
+  if (!day.currentItem && day.plannedItems.length > 0) {
+    actions.push("set_current");
+  }
+
+  return actions;
 }
 
 function mapDeveloper(row: typeof developers.$inferSelect): Developer {
@@ -985,10 +1010,15 @@ export class TeamTrackerService {
         status: day.status,
         reasons,
         lastCheckInAt: day.lastCheckInAt,
+        nextFollowUpAt: day.nextFollowUpAt,
         isStale: day.isStale,
         signals: day.signals,
         hasCurrentItem: Boolean(day.currentItem),
         plannedCount: day.plannedItems.length,
+        availableQuickActions: getAttentionQuickActions(day),
+        setCurrentCandidates: !day.currentItem
+          ? day.plannedItems.map(mapAttentionActionItem)
+          : [],
       });
     }
 

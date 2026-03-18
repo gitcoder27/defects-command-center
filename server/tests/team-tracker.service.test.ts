@@ -185,6 +185,62 @@ describe("TeamTrackerService", () => {
         "status_change_without_follow_up",
         "over_capacity",
       ]);
+      expect(board.attentionQueue[0]?.availableQuickActions).toEqual([
+        "update_status",
+        "mark_inactive",
+        "capture_follow_up",
+      ]);
+      expect(board.attentionQueue[0]?.setCurrentCandidates).toEqual([]);
+    });
+
+    it("adds set-current quick-action metadata only when planned work is available", async () => {
+      const first = await service.addItem("dev-1", "2026-03-07", {
+        title: "First planned task",
+      });
+      const second = await service.addItem("dev-1", "2026-03-07", {
+        title: "Second planned task",
+      });
+      await service.recordStatusUpdate(
+        "dev-1",
+        "2026-03-07",
+        {
+          status: "blocked",
+          rationale: "Need to pick the right next task",
+          summary: "Queue needs manager intervention",
+          nextFollowUpAt: "2026-03-07T10:30:00.000Z",
+        },
+        "manager",
+        "manager-1"
+      );
+
+      const board = await service.getBoard("2026-03-07");
+      const attentionItem = board.attentionQueue.find(
+        (item) => item.developer.accountId === "dev-1"
+      );
+
+      expect(attentionItem).toMatchObject({
+        nextFollowUpAt: "2026-03-07T10:30:00.000Z",
+        availableQuickActions: [
+          "update_status",
+          "mark_inactive",
+          "capture_follow_up",
+          "set_current",
+        ],
+      });
+      expect(attentionItem?.setCurrentCandidates).toEqual([
+        {
+          id: first.id,
+          title: "First planned task",
+          jiraKey: undefined,
+          lifecycle: "tracker_only",
+        },
+        {
+          id: second.id,
+          title: "Second planned task",
+          jiraKey: undefined,
+          lifecycle: "tracker_only",
+        },
+      ]);
     });
   });
 

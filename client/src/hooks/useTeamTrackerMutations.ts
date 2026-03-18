@@ -164,6 +164,30 @@ export function useAddCheckIn(date: string) {
   });
 }
 
+export function useStatusUpdate(date: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: {
+      accountId: string;
+      status: TrackerDeveloperStatus;
+      rationale?: string;
+      summary?: string;
+      nextFollowUpAt?: string | null;
+    }) => {
+      const { accountId, ...body } = params;
+      return api.post(`/team-tracker/${accountId}/status-update`, {
+        date,
+        ...body,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
+      qc.invalidateQueries({ queryKey: ['manager-desk'] });
+    },
+  });
+}
+
 export function useCarryForward() {
   const qc = useQueryClient();
   return useMutation({

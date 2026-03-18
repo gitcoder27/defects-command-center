@@ -173,6 +173,8 @@ function buildMockBoard(): TeamTrackerBoardResponse {
         hasCurrentItem: true,
         plannedCount: 2,
         lastCheckInAt: '2026-03-07T07:00:00Z',
+        availableQuickActions: ['update_status', 'mark_inactive', 'capture_follow_up'],
+        setCurrentCandidates: [],
       },
       {
         developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
@@ -182,6 +184,8 @@ function buildMockBoard(): TeamTrackerBoardResponse {
         signals: buildSignals(),
         hasCurrentItem: false,
         plannedCount: 0,
+        availableQuickActions: ['update_status', 'mark_inactive', 'capture_follow_up'],
+        setCurrentCandidates: [],
       },
     ],
   };
@@ -214,11 +218,12 @@ vi.mock('@/hooks/useTeamTrackerMutations', () => ({
   useUpdateDay: () => ({ mutate: mockUpdateDayMutate }),
   useUpdateAvailability: () => ({ mutate: mockUpdateAvailabilityMutate, isPending: false, variables: undefined }),
   useAddTrackerItem: () => ({ mutate: mockAddTrackerItemMutate, isPending: false }),
-  useSetCurrentItem: () => ({ mutate: mockSetCurrentMutate }),
+  useSetCurrentItem: () => ({ mutate: mockSetCurrentMutate, isPending: false }),
   useUpdateTrackerItem: () => ({ mutate: mockUpdateTrackerItemMutate }),
   useDeleteTrackerItem: () => ({ mutate: vi.fn() }),
   useAddCheckIn: () => ({ mutate: vi.fn() }),
   useCarryForward: () => ({ mutate: mockCarryForwardMutate, isPending: false }),
+  useStatusUpdate: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock('@/hooks/useManagerDesk', () => ({

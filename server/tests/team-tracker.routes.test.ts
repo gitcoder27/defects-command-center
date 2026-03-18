@@ -210,6 +210,9 @@ describe("team tracker routes", () => {
       title: "Linked Jira task",
     });
     await trackerService.setCurrentItem(overdueItem.id);
+    const noCurrentPlannedItem = await trackerService.addItem("dev-6", "2026-03-07", {
+      title: "Pick next bug to investigate",
+    });
 
     await trackerService.addCheckIn("dev-6", "2026-03-07", { summary: "Planning next work" });
     vi.setSystemTime(new Date("2026-03-07T12:00:00.000Z"));
@@ -239,6 +242,26 @@ describe("team tracker routes", () => {
       "waiting",
     ]);
     expect(res.body?.attentionQueue[0]?.signals?.risk?.overdueLinkedWork).toBe(true);
+    expect(res.body?.attentionQueue[0]?.availableQuickActions).toEqual([
+      "update_status",
+      "mark_inactive",
+      "capture_follow_up",
+    ]);
+    expect(res.body?.attentionQueue[0]?.setCurrentCandidates).toEqual([]);
+    expect(res.body?.attentionQueue[4]?.availableQuickActions).toEqual([
+      "update_status",
+      "mark_inactive",
+      "capture_follow_up",
+      "set_current",
+    ]);
+    expect(res.body?.attentionQueue[4]?.setCurrentCandidates).toEqual([
+      {
+        id: noCurrentPlannedItem.id,
+        title: "Pick next bug to investigate",
+        jiraKey: undefined,
+        lifecycle: "tracker_only",
+      },
+    ]);
   });
 
   it("PATCH /api/team-tracker/:accountId/day updates capacity", async () => {

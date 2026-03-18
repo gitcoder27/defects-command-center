@@ -320,6 +320,7 @@ export interface TrackerDeveloperDay {
   capacityUnits?: number;
   managerNotes?: string;
   lastCheckInAt?: string;
+  nextFollowUpAt?: string;
   currentItem?: TrackerWorkItem;
   plannedItems: TrackerWorkItem[];
   completedItems: TrackerWorkItem[];
@@ -350,15 +351,31 @@ export interface TrackerAttentionReason {
   priority: number;
 }
 
+export type TrackerAttentionQuickAction =
+  | 'update_status'
+  | 'set_current'
+  | 'mark_inactive'
+  | 'capture_follow_up';
+
+export interface TrackerAttentionActionItem {
+  id: number;
+  title: string;
+  jiraKey?: string;
+  lifecycle: TrackerTaskLifecycle;
+}
+
 export interface TrackerAttentionItem {
   developer: Developer;
   status: TrackerDeveloperStatus;
   reasons: TrackerAttentionReason[];
   lastCheckInAt?: string;
+  nextFollowUpAt?: string;
   isStale: boolean;
   signals: TrackerDeveloperSignals;
   hasCurrentItem: boolean;
   plannedCount: number;
+  availableQuickActions: TrackerAttentionQuickAction[];
+  setCurrentCandidates: TrackerAttentionActionItem[];
 }
 
 export interface TeamTrackerBoardResponse {

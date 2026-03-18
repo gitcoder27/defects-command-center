@@ -4,10 +4,13 @@ import { AttentionCard } from './AttentionCard';
 
 interface AttentionQueueProps {
   items: TrackerAttentionItem[];
+  date: string;
   onOpenDrawer: (accountId: string) => void;
+  onMarkInactive: (accountId: string) => void;
+  onCaptureFollowUp: (item: TrackerAttentionItem) => void;
 }
 
-export function AttentionQueue({ items, onOpenDrawer }: AttentionQueueProps) {
+export function AttentionQueue({ items, date, onOpenDrawer, onMarkInactive, onCaptureFollowUp }: AttentionQueueProps) {
   return (
     <section className="mb-4 rounded-[20px] border px-3 py-3" style={{ borderColor: 'var(--border-strong)', background: 'color-mix(in srgb, var(--bg-secondary) 92%, var(--accent-glow) 8%)' }}>
       <div className="flex items-start justify-between gap-3">
@@ -38,7 +41,10 @@ export function AttentionQueue({ items, onOpenDrawer }: AttentionQueueProps) {
               key={item.developer.accountId}
               item={item}
               index={index}
+              date={date}
               onOpen={() => onOpenDrawer(item.developer.accountId)}
+              onMarkInactive={() => onMarkInactive(item.developer.accountId)}
+              onCaptureFollowUp={() => onCaptureFollowUp(item)}
             />
           ))}
         </div>

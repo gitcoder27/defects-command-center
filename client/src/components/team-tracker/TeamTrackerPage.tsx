@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Calendar, ArrowRight, ChevronLeft, ChevronRight, RefreshCw, X } from 'lucide-react';
 import { useTeamTracker, useCarryForwardPreview } from '@/hooks/useTeamTracker';
 import {
@@ -21,8 +21,9 @@ import { TrackerBoard } from './TrackerBoard';
 import { DeveloperTrackerDrawer } from './DeveloperTrackerDrawer';
 import { AvailabilityDialog } from './AvailabilityDialog';
 import { TrackerTaskDetailDrawer } from './TrackerTaskDetailDrawer';
+import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
 import type { AppView } from '@/App';
-import type { TrackerDeveloperDay, TrackerWorkItem } from '@/types';
+import type { TrackerAttentionItem, TrackerDeveloperDay, TrackerWorkItem } from '@/types';
 
 function getCarryForwardPromptKey(date: string): string {
   return `team-tracker:carry-forward-prompt:${date}`;
@@ -63,6 +64,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   const [drawerAccountId, setDrawerAccountId] = useState<string | undefined>();
   const [selectedTask, setSelectedTask] = useState<{ trackerItemId: number; managerDeskItemId?: number } | null>(null);
   const [availabilityTarget, setAvailabilityTarget] = useState<TrackerDeveloperDay | undefined>();
+  const [captureFollowUpTarget, setCaptureFollowUpTarget] = useState<TrackerAttentionItem | null>(null);
   const [carryPromptDismissed, setCarryPromptDismissed] = useState(() => readCarryForwardPromptState(getLocalIsoDate()));
 
   const {
@@ -254,6 +256,17 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
     updateAvailability.mutate({ accountId, state: 'active' });
   }, [updateAvailability]);
 
+  const handleAttentionMarkInactive = useCallback((accountId: string) => {
+    const day = board?.developers.find((d) => d.developer.accountId === accountId);
+    if (day) {
+      setAvailabilityTarget(day);
+    }
+  }, [board?.developers]);
+
+  const handleAttentionCaptureFollowUp = useCallback((item: TrackerAttentionItem) => {
+    setCaptureFollowUpTarget(item);
+  }, []);
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Page header strip */}
@@ -429,7 +442,13 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
           </div>
         ) : board ? (
           <>
-            <AttentionQueue items={board.attentionQueue} onOpenDrawer={setDrawerAccountId} />
+            <AttentionQueue
+              items={board.attentionQueue}
+              date={date}
+              onOpenDrawer={setDrawerAccountId}
+              onMarkInactive={handleAttentionMarkInactive}
+              onCaptureFollowUp={handleAttentionCaptureFollowUp}
+            />
             <InactiveDeveloperTray
               items={board.inactiveDevelopers}
               onReactivate={handleReactivate}
@@ -491,6 +510,25 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
         onClose={() => setAvailabilityTarget(undefined)}
         onConfirm={handleConfirmInactive}
       />
+      <AnimatePresence>
+        {captureFollowUpTarget && (
+          <ManagerDeskCaptureDialog
+            onClose={() => setCaptureFollowUpTarget(null)}
+            onOpenManagerDesk={onViewChange ? () => onViewChange('manager-desk') : undefined}
+            heading={`Follow up with ${captureFollowUpTarget.developer.displayName}`}
+            description="Capture a follow-up item on your Manager Desk linked to this developer."
+            initialTitle={`Follow up with ${captureFollowUpTarget.developer.displayName}`}
+            initialKind="action"
+            initialCategory="follow_up"
+            initialLinks={[{ linkType: 'developer', developerAccountId: captureFollowUpTarget.developer.accountId }]}
+            contextChips={[
+              { label: 'Developer', value: captureFollowUpTarget.developer.displayName, tone: 'developer' },
+              ...captureFollowUpTarget.reasons.map((r) => ({ label: 'Reason', value: r.label, tone: 'generic' as const })),
+            ]}
+            date={date}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -22,7 +22,7 @@ For each item:
 - [ ] 5. Fix title editing in the drawer. `Frontend`
 - [ ] 6. Add assignment-conflict visibility during Team Tracker task creation. `Both`
 - [ ] 7. Add search, sorting, grouping, and saved views. `Both`
-- [ ] 8. Add quick actions to attention cards. `Frontend-heavy, but Both`
+- [x] 8. Add quick actions to attention cards. `Frontend-heavy, but Both`
 - [ ] 9. Improve carry-forward UX with selective preview by developer/task. `Both`
 - [ ] 10. Expand the inactive workflow with ranges, return dates, and reason presets. `Both`
 - [ ] 11. Explain signal badges with thresholds and elapsed-time detail. `Both`
@@ -226,19 +226,51 @@ Notes:
 ## 8. Add Quick Actions to Attention Cards
 
 Type: `Frontend-heavy, but Both`
-Status: `Not started`
+Status: `Completed`
 
 Planning checklist:
 
-- [ ] Choose the initial set of quick actions
-- [ ] Confirm which existing mutations can be reused
-- [ ] Define card interaction design and loading/error states
-- [ ] List any missing backend endpoints or payload changes
-- [ ] Define tests for action availability and success/failure paths
+- [x] Choose the initial set of quick actions
+- [x] Confirm which existing mutations can be reused
+- [x] Define card interaction design and loading/error states
+- [x] List any missing backend endpoints or payload changes
+- [x] Define tests for action availability and success/failure paths
 
 Notes:
 
 - This should reduce repetitive drawer-open triage work
+- Initial shipped quick-action slice:
+  - `update_status`
+  - `set_current`
+  - `mark_inactive`
+  - `capture_follow_up`
+- Frontend implementation completed:
+  - attention cards now render an inline quick-action strip
+  - `Update Status` opens a compact status sheet with rationale and optional follow-up time
+  - `Set Current` uses the backend-provided candidate list and supports direct or menu-based selection
+  - `Mark Inactive` reuses the existing inactive flow
+  - `Capture Follow-Up` opens the existing Manager Desk capture dialog with developer linkage
+- Backend implementation completed:
+  - Team Tracker attention items now expose `availableQuickActions`, `setCurrentCandidates`, and `nextFollowUpAt`
+  - `set_current` is only advertised when the developer has no current item and has at least one planned item
+  - quick actions intentionally reuse existing backend APIs instead of adding new write endpoints
+- Deferred from this slice:
+  - `request_update`
+  - `snooze`
+  - `acknowledge`
+- Frontend follow-up remains:
+  - render inline actions on attention cards using the new attention metadata
+  - use existing Team Tracker and Manager Desk mutations for execution
+  - decide compact inline layout vs overflow menu, loading states, and error toasts
+- Backend validation target:
+  - `npm run test --workspace=server -- team-tracker.service.test.ts team-tracker.routes.test.ts`
+  - `npm run typecheck`
+- Frontend validation completed:
+  - `npm run test --workspace=client -- AttentionCardQuickActions.test.tsx`
+  - `npm run test --workspace=client -- TeamTracker.test.tsx`
+  - `npm run typecheck`
+- Frontend handoff prompt created:
+  - `agent/prompts/03-team-tracker-attention-card-quick-actions-frontend-prompt.md`
 
 ## 9. Improve Carry-Forward UX With Selective Preview by Developer/Task
 
