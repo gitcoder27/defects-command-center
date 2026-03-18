@@ -697,7 +697,26 @@ describe("team tracker routes", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(res.body?.carryable).toBe(2);
+    expect(res.body).toMatchObject({
+      carryable: 2,
+      developers: [
+        {
+          developer: expect.objectContaining({
+            accountId: "dev-1",
+          }),
+          items: [
+            expect.objectContaining({
+              title: "Manager follow-up",
+              lifecycle: "manager_desk_linked",
+            }),
+            expect.objectContaining({
+              title: "Write release notes",
+              lifecycle: "tracker_only",
+            }),
+          ],
+        },
+      ],
+    });
   });
 
   it("POST /api/team-tracker/carry-forward carries tracker-only and linked work together", async () => {
@@ -746,5 +765,49 @@ describe("team tracker routes", () => {
     );
     expect(linkedItem?.lifecycle).toBe("manager_desk_linked");
     expect(linkedItem?.managerDeskItemId).toBe(carriedManagerItems[0]!.id);
+  });
+
+  it("POST /api/team-tracker/carry-forward supports partial selection by tracker item id", async () => {
+    await seedIssue();
+    const trackerOnly = await trackerService.addItem("dev-1", "2026-03-06", {
+      title: "Write release notes",
+    });
+    const sourceManagerItem = await managerDeskService.createItem("manager-1", {
+      date: "2026-03-06",
+      title: "Manager follow-up",
+      status: "planned",
+      assigneeDeveloperAccountId: "dev-1",
+      links: [{ linkType: "issue", issueKey: "AM-123" }],
+    });
+    const preview = await trackerService.previewCarryForward(
+      "2026-03-06",
+      "2026-03-07"
+    );
+    const linkedPreviewItem = preview.developers[0]?.items.find(
+      (item) => item.managerDeskItemId === sourceManagerItem.id
+    );
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/team-tracker/carry-forward",
+      body: {
+        fromDate: "2026-03-06",
+        toDate: "2026-03-07",
+        itemIds: [trackerOnly.id, linkedPreviewItem!.id],
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ carried: 2 });
+
+    const board = await trackerService.getBoard("2026-03-07");
+    const devDay = board.developers.find(
+      (developerDay) => developerDay.developer.accountId === "dev-1"
+    )!;
+    expect(devDay.plannedItems.map((item) => item.title)).toEqual([
+      "Write release notes",
+      "Manager follow-up",
+    ]);
   });
 });

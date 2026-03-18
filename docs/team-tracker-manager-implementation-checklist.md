@@ -23,7 +23,7 @@ For each item:
 - [x] 6. Add assignment-conflict visibility during Team Tracker task creation. `Both`
 - [x] 7. Add search, sorting, grouping, and saved views. `Both`
 - [x] 8. Add quick actions to attention cards. `Frontend-heavy, but Both`
-- [ ] 9. Improve carry-forward UX with selective preview by developer/task. `Both`
+- [x] 9. Improve carry-forward UX with selective preview by developer/task. `Both`
 - [ ] 10. Expand the inactive workflow with ranges, return dates, and reason presets. `Both`
 - [ ] 11. Explain signal badges with thresholds and elapsed-time detail. `Both`
 - [ ] 12. Add absolute timestamps across management history surfaces. `Frontend`
@@ -297,20 +297,43 @@ Notes:
 ## 9. Improve Carry-Forward UX With Selective Preview by Developer/Task
 
 Type: `Both`
-Status: `Not started`
+Status: `Completed`
 
 Planning checklist:
 
-- [ ] Define preview granularity and selection rules
-- [ ] Review whether backend carry-forward logic can support partial selection
-- [ ] Design the preview UI and selection behavior
-- [ ] List API/service changes
-- [ ] List modal/dialog UI changes
-- [ ] Define tests for partial carry-forward scenarios
+- [x] Define preview granularity and selection rules
+- [x] Review whether backend carry-forward logic can support partial selection
+- [x] Design the preview UI and selection behavior
+- [x] List API/service changes
+- [x] List modal/dialog UI changes
+- [x] Define tests for partial carry-forward scenarios
 
 Notes:
 
 - This should come after item 2 so the base carry-forward rules are already correct
+- Final product behavior:
+  - both Team Tracker carry-forward entry points now use a selective preview flow
+  - managers can review unfinished work grouped by developer and select by developer or by task before carrying it forward
+  - full-selection confirm preserves carry-all behavior, while subset selection sends only the chosen Team Tracker item ids
+- Backend implementation completed:
+  - `GET /api/team-tracker/carry-forward-preview` now returns additive grouped preview data as `{ carryable, developers }`
+  - preview groups carryable items by developer and includes both tracker-only and Manager Desk-linked tasks
+  - `POST /api/team-tracker/carry-forward` now accepts optional `itemIds` for partial execution
+  - partial carry-forward works across mixed tracker-only and linked tasks while preserving Manager Desk linkage on carried linked work
+  - duplicate selection ids are rejected and unknown source-date item ids return a not-found error
+- Frontend implementation completed:
+  - the Team Tracker day-start prompt now shows task and developer counts and opens a selective preview dialog through `Review & Carry`
+  - the Team Tracker header `Carry Forward` action now opens the same selective preview flow instead of executing immediately
+  - the preview dialog defaults all tasks selected, supports per-developer and per-task toggles, and blocks confirm when zero tasks are selected
+  - linked tasks show a `Desk` badge and Jira-linked tasks retain their issue context in the preview list
+- Backend validation completed:
+  - `npm run test --workspace=server -- team-tracker.service.test.ts team-tracker.routes.test.ts manager-desk.routes.test.ts`
+  - `npm run typecheck`
+- Frontend validation completed:
+  - `npm run test --workspace=client -- TeamTracker.test.tsx`
+  - `npm run typecheck`
+- Frontend handoff prompt created:
+  - `agent/prompts/04-team-tracker-carry-forward-selective-preview-frontend-prompt.md`
 
 ## 10. Expand the Inactive Workflow With Ranges, Return Dates, and Reason Presets
 

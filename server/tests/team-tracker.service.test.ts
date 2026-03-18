@@ -784,12 +784,27 @@ describe("TeamTrackerService", () => {
         title: "Unfinished task",
       });
 
-      const carryable = await service.previewCarryForward(
+      const preview = await service.previewCarryForward(
         "2026-03-06",
         "2026-03-07"
       );
 
-      expect(carryable).toBe(1);
+      expect(preview).toMatchObject({
+        carryable: 1,
+        developers: [
+          {
+            developer: expect.objectContaining({
+              accountId: "dev-1",
+            }),
+            items: [
+              expect.objectContaining({
+                title: "Second unfinished task",
+                lifecycle: "tracker_only",
+              }),
+            ],
+          },
+        ],
+      });
     });
 
     it("includes Manager Desk-linked items when previewing carry-forward work", async () => {
@@ -803,12 +818,30 @@ describe("TeamTrackerService", () => {
         title: "Standalone tracker task",
       });
 
-      const carryable = await service.previewCarryForward(
+      const preview = await service.previewCarryForward(
         "2026-03-06",
         "2026-03-07"
       );
 
-      expect(carryable).toBe(2);
+      expect(preview.carryable).toBe(2);
+      expect(preview.developers).toEqual([
+        {
+          developer: expect.objectContaining({
+            accountId: "dev-1",
+            displayName: "Alice Smith",
+          }),
+          items: [
+            expect.objectContaining({
+              title: "Shared task owned by Manager Desk",
+              lifecycle: "manager_desk_linked",
+            }),
+            expect.objectContaining({
+              title: "Standalone tracker task",
+              lifecycle: "tracker_only",
+            }),
+          ],
+        },
+      ]);
     });
 
     it("carries unfinished items to the next day", async () => {
@@ -868,6 +901,91 @@ describe("TeamTrackerService", () => {
       );
       expect(linkedItem?.lifecycle).toBe("manager_desk_linked");
       expect(linkedItem?.managerDeskItemId).toBe(carriedManagerItems[0]!.id);
+    });
+
+    it("supports partial carry-forward selection by Team Tracker item id across mixed sources", async () => {
+      const trackerOnly = await service.addItem("dev-1", "2026-03-06", {
+        title: "Standalone tracker task",
+      });
+      const sourceManagerItem = await managerDeskService.createItem("manager-1", {
+        date: "2026-03-06",
+        title: "Shared task owned by Manager Desk",
+        status: "planned",
+        assigneeDeveloperAccountId: "dev-1",
+      });
+      const preview = await service.previewCarryForward("2026-03-06", "2026-03-07");
+      const linkedPreviewItem = preview.developers[0]?.items.find(
+        (item) => item.managerDeskItemId === sourceManagerItem.id
+      );
+
+      const carried = await service.carryForward("2026-03-06", "2026-03-07", {
+        itemIds: [trackerOnly.id, linkedPreviewItem!.id],
+        carryManagerDeskItems: (params) =>
+          managerDeskService.carryForward("manager-1", params),
+      });
+
+      expect(carried).toBe(2);
+
+      const board = await service.getBoard("2026-03-07");
+      const devDay = board.developers.find(
+        (d) => d.developer.accountId === "dev-1"
+      )!;
+      expect(devDay.plannedItems.map((item) => item.title)).toEqual([
+        "Standalone tracker task",
+        "Shared task owned by Manager Desk",
+      ]);
+
+      const carriedManagerItems = await db
+        .select()
+        .from(managerDeskItems)
+        .where(eq(managerDeskItems.sourceItemId, sourceManagerItem.id));
+      expect(carriedManagerItems).toHaveLength(1);
+
+      const linkedItem = devDay.plannedItems.find(
+        (item) => item.title === "Shared task owned by Manager Desk"
+      );
+      expect(linkedItem?.managerDeskItemId).toBe(carriedManagerItems[0]!.id);
+    });
+
+    it("rejects duplicate carry-forward selection ids", async () => {
+      const item = await service.addItem("dev-1", "2026-03-06", {
+        title: "Standalone tracker task",
+      });
+
+      await expect(
+        service.carryForward("2026-03-06", "2026-03-07", {
+          itemIds: [item.id, item.id],
+        })
+      ).rejects.toThrow("itemIds must not contain duplicates");
+    });
+
+    it("rejects unknown carry-forward selection ids for the source date", async () => {
+      await service.addItem("dev-1", "2026-03-06", {
+        title: "Standalone tracker task",
+      });
+
+      await expect(
+        service.carryForward("2026-03-06", "2026-03-07", {
+          itemIds: [999999],
+        })
+      ).rejects.toThrow(
+        "One or more Team Tracker items were not found for the source date"
+      );
+    });
+
+    it("skips selected items that are already represented on the target day", async () => {
+      const item = await service.addItem("dev-1", "2026-03-06", {
+        title: "Already carried",
+      });
+      await service.addItem("dev-1", "2026-03-07", {
+        title: "Already carried",
+      });
+
+      const carried = await service.carryForward("2026-03-06", "2026-03-07", {
+        itemIds: [item.id],
+      });
+
+      expect(carried).toBe(0);
     });
 
     it("skips mixed-source items already present on the target day and is safe to retry", async () => {

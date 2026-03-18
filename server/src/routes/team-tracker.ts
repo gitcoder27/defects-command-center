@@ -218,6 +218,7 @@ const carryForwardSchema = z.object({
   body: z.object({
     fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    itemIds: z.array(z.number().int().positive()).optional(),
   }),
   params: z.any().optional(),
   query: z.any().optional(),
@@ -496,11 +497,11 @@ export function createTeamTrackerRouter(
           fromDate: string;
           toDate: string;
         };
-        const carryable = await trackerService.previewCarryForward(
+        const preview = await trackerService.previewCarryForward(
           fromDate,
           toDate
         );
-        res.json({ carryable });
+        res.json(preview);
       } catch (error) {
         next(error);
       }
@@ -512,8 +513,9 @@ export function createTeamTrackerRouter(
     validate(carryForwardSchema),
     async (req, res, next) => {
       try {
-        const { fromDate, toDate } = req.body;
+        const { fromDate, toDate, itemIds } = req.body;
         const carried = await trackerService.carryForward(fromDate, toDate, {
+          itemIds,
           carryManagerDeskItems: async (params) => {
             if (!managerDeskService) {
               throw new HttpError(

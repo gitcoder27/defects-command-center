@@ -13,6 +13,8 @@ import type {
   TrackerAttentionReason,
   TrackerAttentionReasonCode,
   TrackerAttentionQuickAction,
+  TrackerCarryForwardPreviewGroup,
+  TrackerCarryForwardPreviewResponse,
   Developer,
   TrackerIssueAssignment,
   IssueTrackerAssignmentSummary,
@@ -50,12 +52,19 @@ interface CarryForwardSourceItem {
   item: typeof teamTrackerItems.$inferSelect;
 }
 
+interface CarryForwardPlanEntry {
+  developer: Developer;
+  developerAccountId: string;
+  item: typeof teamTrackerItems.$inferSelect;
+  trackerItem: TrackerWorkItem;
+}
+
 interface CarryForwardPlan {
-  trackerOnlyItems: CarryForwardSourceItem[];
-  managerDeskItemIds: number[];
+  entries: CarryForwardPlanEntry[];
 }
 
 interface CarryForwardExecutionOptions {
+  itemIds?: number[];
   carryManagerDeskItems?: (params: {
     fromDate: string;
     toDate: string;
@@ -1445,9 +1454,12 @@ export class TeamTrackerService {
     return this.getItemById(itemId);
   }
 
-  async previewCarryForward(fromDate: string, toDate: string): Promise<number> {
+  async previewCarryForward(
+    fromDate: string,
+    toDate: string
+  ): Promise<TrackerCarryForwardPreviewResponse> {
     const plan = await this.buildCarryForwardPlan(fromDate, toDate);
-    return plan.trackerOnlyItems.length + plan.managerDeskItemIds.length;
+    return this.buildCarryForwardPreview(plan.entries);
   }
 
   async carryForward(
@@ -1456,12 +1468,26 @@ export class TeamTrackerService {
     options?: CarryForwardExecutionOptions
   ): Promise<number> {
     const plan = await this.buildCarryForwardPlan(fromDate, toDate);
+    const selectedEntries = await this.selectCarryForwardEntries(
+      fromDate,
+      plan.entries,
+      options?.itemIds
+    );
+    const trackerOnlyItems = selectedEntries
+      .filter((entry) => entry.item.managerDeskItemId === null)
+      .map((entry) => ({
+        developerAccountId: entry.developerAccountId,
+        item: entry.item,
+      }));
     let carried = await this.carryForwardTrackerOnlyItems(
-      plan.trackerOnlyItems,
+      trackerOnlyItems,
       toDate
     );
+    const managerDeskItemIds = selectedEntries
+      .map((entry) => entry.item.managerDeskItemId)
+      .filter((itemId): itemId is number => typeof itemId === "number");
 
-    if (plan.managerDeskItemIds.length > 0) {
+    if (managerDeskItemIds.length > 0) {
       if (!options?.carryManagerDeskItems) {
         throw new Error("Manager Desk carry-forward handler is required for linked tracker items");
       }
@@ -1469,7 +1495,7 @@ export class TeamTrackerService {
       carried += await options.carryManagerDeskItems({
         fromDate,
         toDate,
-        itemIds: plan.managerDeskItemIds,
+        itemIds: managerDeskItemIds,
       });
     }
 
@@ -1917,18 +1943,28 @@ export class TeamTrackerService {
     toDate: string
   ): Promise<CarryForwardPlan> {
     const dayRows = await db
-      .select()
+      .select({
+        day: teamTrackerDays,
+        developer: developers,
+      })
       .from(teamTrackerDays)
+      .innerJoin(
+        developers,
+        eq(developers.accountId, teamTrackerDays.developerAccountId)
+      )
       .where(eq(teamTrackerDays.date, fromDate));
 
-    const trackerOnlyItems: CarryForwardSourceItem[] = [];
-    const managerDeskItemIds: number[] = [];
+    const plannedEntries: Array<{
+      developer: Developer;
+      developerAccountId: string;
+      item: typeof teamTrackerItems.$inferSelect;
+    }> = [];
 
     for (const dayRow of dayRows) {
       const items = await db
         .select()
         .from(teamTrackerItems)
-        .where(eq(teamTrackerItems.dayId, dayRow.id));
+        .where(eq(teamTrackerItems.dayId, dayRow.day.id));
 
       const unfinished = items
         .filter(isCarryForwardEligibleItem)
@@ -1940,7 +1976,7 @@ export class TeamTrackerService {
 
       const targetItems = await this.getTargetCarryForwardItems(
         toDate,
-        dayRow.developerAccountId
+        dayRow.day.developerAccountId
       );
       const remainingToCarry = this.buildRemainingCarryForwardMap(
         unfinished,
@@ -1954,23 +1990,117 @@ export class TeamTrackerService {
           continue;
         }
 
-        if (item.managerDeskItemId === null) {
-          trackerOnlyItems.push({
-            developerAccountId: dayRow.developerAccountId,
-            item,
-          });
-        } else {
-          managerDeskItemIds.push(item.managerDeskItemId);
-        }
+        plannedEntries.push({
+          developer: mapDeveloper(dayRow.developer),
+          developerAccountId: dayRow.day.developerAccountId,
+          item,
+        });
 
         remainingToCarry.set(key, remaining - 1);
       }
     }
 
+    const issueContextMap = await this.getIssueContextMap(
+      plannedEntries
+        .map((entry) => entry.item.jiraKey)
+        .filter((jiraKey): jiraKey is string => Boolean(jiraKey))
+    );
+
     return {
-      trackerOnlyItems,
-      managerDeskItemIds,
+      entries: plannedEntries.map((entry) => ({
+        ...entry,
+        trackerItem: mapItem(
+          entry.item,
+          entry.item.jiraKey
+            ? issueContextMap.get(entry.item.jiraKey)
+            : undefined
+        ),
+      })),
     };
+  }
+
+  private buildCarryForwardPreview(
+    entries: CarryForwardPlanEntry[]
+  ): TrackerCarryForwardPreviewResponse {
+    const groups = new Map<string, TrackerCarryForwardPreviewGroup>();
+    const orderedEntries = [...entries].sort((left, right) => {
+      const nameComparison = left.developer.displayName.localeCompare(
+        right.developer.displayName
+      );
+      if (nameComparison !== 0) {
+        return nameComparison;
+      }
+
+      const accountComparison = left.developer.accountId.localeCompare(
+        right.developer.accountId
+      );
+      if (accountComparison !== 0) {
+        return accountComparison;
+      }
+
+      if (left.item.position !== right.item.position) {
+        return left.item.position - right.item.position;
+      }
+
+      return left.item.id - right.item.id;
+    });
+
+    for (const entry of orderedEntries) {
+      const existing = groups.get(entry.developer.accountId);
+      if (existing) {
+        existing.items.push(entry.trackerItem);
+        continue;
+      }
+
+      groups.set(entry.developer.accountId, {
+        developer: entry.developer,
+        items: [entry.trackerItem],
+      });
+    }
+
+    return {
+      carryable: entries.length,
+      developers: Array.from(groups.values()),
+    };
+  }
+
+  private async selectCarryForwardEntries(
+    fromDate: string,
+    entries: CarryForwardPlanEntry[],
+    itemIds?: number[]
+  ): Promise<CarryForwardPlanEntry[]> {
+    if (!itemIds) {
+      return entries;
+    }
+
+    if (itemIds.length === 0) {
+      return [];
+    }
+
+    const requestedIds = new Set(itemIds);
+    if (requestedIds.size !== itemIds.length) {
+      throw new HttpError(400, "itemIds must not contain duplicates");
+    }
+
+    const sourceRows = await db
+      .select({ id: teamTrackerItems.id })
+      .from(teamTrackerItems)
+      .innerJoin(teamTrackerDays, eq(teamTrackerDays.id, teamTrackerItems.dayId))
+      .where(
+        and(
+          eq(teamTrackerDays.date, fromDate),
+          inArray(teamTrackerItems.id, Array.from(requestedIds))
+        )
+      );
+
+    if (sourceRows.length !== requestedIds.size) {
+      throw new HttpError(
+        404,
+        "One or more Team Tracker items were not found for the source date"
+      );
+    }
+
+    return entries.filter((entry) => requestedIds.has(entry.item.id));
   }
 
   private async carryForwardTrackerOnlyItems(

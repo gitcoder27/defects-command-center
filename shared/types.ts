@@ -361,6 +361,16 @@ export interface TrackerAttentionItem {
   setCurrentCandidates: TrackerAttentionActionItem[];
 }
 
+export interface TrackerCarryForwardPreviewGroup {
+  developer: Developer;
+  items: TrackerWorkItem[];
+}
+
+export interface TrackerCarryForwardPreviewResponse {
+  carryable: number;
+  developers: TrackerCarryForwardPreviewGroup[];
+}
+
 export type TrackerBoardSummaryFilter =
   | "all"
   | "stale"
