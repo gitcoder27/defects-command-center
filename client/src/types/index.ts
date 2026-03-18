@@ -311,6 +311,16 @@ export interface TrackerWorkItem {
   updatedAt: string;
 }
 
+export interface TrackerCarryForwardPreviewGroup {
+  developer: Developer;
+  items: TrackerWorkItem[];
+}
+
+export interface TrackerCarryForwardPreviewResponse {
+  carryable: number;
+  developers: TrackerCarryForwardPreviewGroup[];
+}
+
 export interface TrackerDeveloperDay {
   id: number;
   date: string;

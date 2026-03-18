@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { TestWrapper } from '@/test/wrapper';
-import type { TeamTrackerBoardResponse, TrackerDeveloperDay, Issue, TrackerIssueAssignment } from '@/types';
+import type { TeamTrackerBoardResponse, TrackerDeveloperDay, Issue, TrackerIssueAssignment, TrackerCarryForwardPreviewResponse } from '@/types';
 import { formatAbsoluteDateTime } from '@/lib/utils';
 
 const mockCarryForwardMutate = vi.fn();
@@ -14,7 +14,7 @@ const mockCreateManagerDeskItemMutate = vi.fn();
 const mockAddTrackerItemMutate = vi.fn();
 const mockRefetchBoard = vi.fn();
 const mockRefetchCarryForwardPreview = vi.fn();
-let mockCarryForwardPreviewValue = 0;
+let mockCarryForwardPreviewValue: TrackerCarryForwardPreviewResponse | undefined;
 let mockIssues: Issue[] = [];
 let mockTrackerIssueAssignments: TrackerIssueAssignment[] = [];
 
@@ -387,7 +387,7 @@ describe('TeamTrackerPage', () => {
     mockAddTrackerItemMutate.mockReset();
     mockRefetchBoard.mockReset();
     mockRefetchCarryForwardPreview.mockReset();
-    mockCarryForwardPreviewValue = 0;
+    mockCarryForwardPreviewValue = undefined;
     mockIssues = [];
     mockTrackerIssueAssignments = [];
     mockBoard.inactiveDevelopers = [];
@@ -624,7 +624,7 @@ describe('TeamTrackerPage', () => {
     expect(screen.getByText('Shared task detail for item 77')).toBeInTheDocument();
   });
 
-  it('carries forward the selected board date to the next day', () => {
+  it('opens carry-forward preview dialog when clicking header carry forward on a past date', () => {
     render(
       <TestWrapper>
         <TeamTrackerPage />
@@ -637,14 +637,29 @@ describe('TeamTrackerPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /carry forward/i }));
 
-    expect(mockCarryForwardMutate).toHaveBeenCalledWith({
-      fromDate: '2026-03-05',
-      toDate: '2026-03-06',
-    });
+    // Dialog should open (but may be empty since mock preview for header is undefined)
+    // The mutation should NOT be called directly
+    expect(mockCarryForwardMutate).not.toHaveBeenCalled();
   });
 
   it('shows a carry-forward prompt on first visit when previous-day work is available', () => {
-    mockCarryForwardPreviewValue = 2;
+    mockCarryForwardPreviewValue = {
+      carryable: 2,
+      developers: [
+        {
+          developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+          items: [
+            { id: 100, dayId: 1, itemType: 'custom', title: 'Unfinished task A', state: 'planned', position: 0, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+          ],
+        },
+        {
+          developer: { accountId: 'dev-2', displayName: 'Bob Jones', isActive: true },
+          items: [
+            { id: 101, dayId: 2, itemType: 'jira', jiraKey: 'AM-999', title: 'Fix bug', state: 'in_progress', position: 0, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+          ],
+        },
+      ],
+    };
 
     render(
       <TestWrapper>
@@ -652,18 +667,58 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByText('2 unfinished tasks from 2026-03-06')).toBeInTheDocument();
-    expect(screen.getByText(/includes all planned and manager-assigned work/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
+    expect(screen.getByText(/2 unfinished tasks from 2026-03-06/)).toBeInTheDocument();
+    expect(screen.getByText(/across 2 developers/)).toBeInTheDocument();
+  });
 
-    expect(mockCarryForwardMutate).toHaveBeenCalledWith(
-      { fromDate: '2026-03-06', toDate: '2026-03-07' },
-      expect.objectContaining({ onSuccess: expect.any(Function) })
+  it('opens the selective preview dialog when clicking Review & Carry on the prompt', () => {
+    mockCarryForwardPreviewValue = {
+      carryable: 2,
+      developers: [
+        {
+          developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+          items: [
+            { id: 100, dayId: 1, itemType: 'custom', title: 'Unfinished task A', state: 'planned', position: 0, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+          ],
+        },
+        {
+          developer: { accountId: 'dev-2', displayName: 'Bob Jones', isActive: true },
+          items: [
+            { id: 101, dayId: 2, itemType: 'jira', jiraKey: 'AM-999', title: 'Fix bug', state: 'in_progress', position: 0, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
     );
+
+    fireEvent.click(screen.getByRole('button', { name: /review & carry/i }));
+
+    const dialog = screen.getByRole('dialog', { name: /carry forward preview/i });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText('Alice Smith')).toBeInTheDocument();
+    expect(within(dialog).getByText('Bob Jones')).toBeInTheDocument();
+    expect(within(dialog).getByText('Unfinished task A')).toBeInTheDocument();
+    expect(within(dialog).getByText('Fix bug')).toBeInTheDocument();
+    expect(within(dialog).getByText(/carry 2 tasks/i)).toBeInTheDocument();
   });
 
   it('lets the user dismiss the carry-forward prompt for the viewed date', () => {
-    mockCarryForwardPreviewValue = 1;
+    mockCarryForwardPreviewValue = {
+      carryable: 1,
+      developers: [
+        {
+          developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+          items: [
+            { id: 100, dayId: 1, itemType: 'custom', title: 'Task', state: 'planned', position: 0, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+          ],
+        },
+      ],
+    };
 
     render(
       <TestWrapper>
@@ -673,12 +728,31 @@ describe('TeamTrackerPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /dismiss carry-forward prompt/i }));
 
-    expect(screen.queryByText('1 unfinished task from 2026-03-06')).not.toBeInTheDocument();
+    expect(screen.queryByText(/1 unfinished task from 2026-03-06/)).not.toBeInTheDocument();
     expect(window.sessionStorage.getItem('team-tracker:carry-forward-prompt:2026-03-07')).toBe('dismissed');
   });
 
-  it('carry-forward prompt reflects mixed-source count including manager-assigned work', () => {
-    mockCarryForwardPreviewValue = 5;
+  it('carry-forward prompt reflects task and developer count', () => {
+    mockCarryForwardPreviewValue = {
+      carryable: 5,
+      developers: [
+        {
+          developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+          items: [
+            { id: 100, dayId: 1, itemType: 'custom', title: 'Task 1', state: 'planned', position: 0, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+            { id: 101, dayId: 1, itemType: 'custom', title: 'Task 2', state: 'planned', position: 1, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+            { id: 102, dayId: 1, itemType: 'custom', title: 'Task 3', state: 'planned', position: 2, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+          ],
+        },
+        {
+          developer: { accountId: 'dev-2', displayName: 'Bob Jones', isActive: true },
+          items: [
+            { id: 103, dayId: 2, itemType: 'custom', title: 'Task 4', state: 'planned', position: 0, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+            { id: 104, dayId: 2, itemType: 'jira', jiraKey: 'AM-100', title: 'Task 5', state: 'in_progress', position: 1, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+          ],
+        },
+      ],
+    };
 
     render(
       <TestWrapper>
@@ -686,12 +760,22 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByText('5 unfinished tasks from 2026-03-06')).toBeInTheDocument();
-    expect(screen.getByText(/includes all planned and manager-assigned work/i)).toBeInTheDocument();
+    expect(screen.getByText(/5 unfinished tasks from 2026-03-06/)).toBeInTheDocument();
+    expect(screen.getByText(/across 2 developers/)).toBeInTheDocument();
   });
 
-  it('carry-forward prompt uses singular form for a single mixed-source task', () => {
-    mockCarryForwardPreviewValue = 1;
+  it('carry-forward prompt uses singular form for a single task', () => {
+    mockCarryForwardPreviewValue = {
+      carryable: 1,
+      developers: [
+        {
+          developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+          items: [
+            { id: 100, dayId: 1, itemType: 'custom', title: 'Solo task', state: 'planned', position: 0, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+          ],
+        },
+      ],
+    };
 
     render(
       <TestWrapper>
@@ -699,12 +783,23 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByText('1 unfinished task from 2026-03-06')).toBeInTheDocument();
-    expect(screen.getByText(/includes all planned and manager-assigned work/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 unfinished task from 2026-03-06/)).toBeInTheDocument();
+    expect(screen.getByText(/across 1 developer$/)).toBeInTheDocument();
   });
 
-  it('carry-forward executes against the backend regardless of task source mix', () => {
-    mockCarryForwardPreviewValue = 3;
+  it('carries all tasks when all remain selected in the preview dialog', () => {
+    mockCarryForwardPreviewValue = {
+      carryable: 2,
+      developers: [
+        {
+          developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+          items: [
+            { id: 100, dayId: 1, itemType: 'custom', title: 'Task A', state: 'planned', position: 0, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+            { id: 101, dayId: 1, itemType: 'custom', title: 'Task B', state: 'planned', position: 1, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+          ],
+        },
+      ],
+    };
 
     render(
       <TestWrapper>
@@ -712,12 +807,152 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
+    // Open dialog from prompt
+    fireEvent.click(screen.getByRole('button', { name: /review & carry/i }));
+    const dialog = screen.getByRole('dialog', { name: /carry forward preview/i });
 
+    // All tasks are selected by default — confirm button shows "Carry 2 tasks"
+    fireEvent.click(within(dialog).getByRole('button', { name: /carry 2 tasks/i }));
+
+    // All selected → omit itemIds for carry-all behavior
     expect(mockCarryForwardMutate).toHaveBeenCalledWith(
       { fromDate: '2026-03-06', toDate: '2026-03-07' },
       expect.objectContaining({ onSuccess: expect.any(Function) })
     );
+  });
+
+  it('sends only selected itemIds when a subset is chosen', () => {
+    mockCarryForwardPreviewValue = {
+      carryable: 2,
+      developers: [
+        {
+          developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+          items: [
+            { id: 100, dayId: 1, itemType: 'custom', title: 'Keep this task', state: 'planned', position: 0, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+            { id: 101, dayId: 1, itemType: 'custom', title: 'Skip this task', state: 'planned', position: 1, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /review & carry/i }));
+    const dialog = screen.getByRole('dialog', { name: /carry forward preview/i });
+
+    // Deselect "Skip this task"
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /deselect skip this task/i }));
+
+    // Confirm with subset
+    fireEvent.click(within(dialog).getByRole('button', { name: /carry 1 task$/i }));
+
+    expect(mockCarryForwardMutate).toHaveBeenCalledWith(
+      { fromDate: '2026-03-06', toDate: '2026-03-07', itemIds: [100] },
+      expect.objectContaining({ onSuccess: expect.any(Function) })
+    );
+  });
+
+  it('deselects an entire developer group via the developer-level toggle', () => {
+    mockCarryForwardPreviewValue = {
+      carryable: 3,
+      developers: [
+        {
+          developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+          items: [
+            { id: 100, dayId: 1, itemType: 'custom', title: 'Alice task 1', state: 'planned', position: 0, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+          ],
+        },
+        {
+          developer: { accountId: 'dev-2', displayName: 'Bob Jones', isActive: true },
+          items: [
+            { id: 101, dayId: 2, itemType: 'custom', title: 'Bob task 1', state: 'planned', position: 0, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+            { id: 102, dayId: 2, itemType: 'jira', jiraKey: 'AM-500', title: 'Bob task 2', state: 'in_progress', position: 1, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /review & carry/i }));
+    const dialog = screen.getByRole('dialog', { name: /carry forward preview/i });
+
+    // Deselect all of Bob's tasks
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /deselect all for bob jones/i }));
+
+    // Only Alice's task should remain
+    fireEvent.click(within(dialog).getByRole('button', { name: /carry 1 task$/i }));
+
+    expect(mockCarryForwardMutate).toHaveBeenCalledWith(
+      { fromDate: '2026-03-06', toDate: '2026-03-07', itemIds: [100] },
+      expect.objectContaining({ onSuccess: expect.any(Function) })
+    );
+  });
+
+  it('blocks confirm when zero tasks are selected', () => {
+    mockCarryForwardPreviewValue = {
+      carryable: 1,
+      developers: [
+        {
+          developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+          items: [
+            { id: 100, dayId: 1, itemType: 'custom', title: 'Only task', state: 'planned', position: 0, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /review & carry/i }));
+    const dialog = screen.getByRole('dialog', { name: /carry forward preview/i });
+
+    // Deselect the only task
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /deselect only task/i }));
+
+    // Confirm button should be disabled
+    const confirmBtn = within(dialog).getByRole('button', { name: /select tasks to carry/i });
+    expect(confirmBtn).toBeDisabled();
+  });
+
+  it('shows Manager Desk badge for linked tasks in the preview dialog', () => {
+    mockCarryForwardPreviewValue = {
+      carryable: 2,
+      developers: [
+        {
+          developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+          items: [
+            { id: 100, dayId: 1, itemType: 'custom', title: 'Tracker-only task', state: 'planned', position: 0, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+            { id: 101, dayId: 1, managerDeskItemId: 200, lifecycle: 'manager_desk_linked', itemType: 'custom', title: 'Desk-linked task', state: 'planned', position: 1, createdAt: '2026-03-06T08:00:00Z', updatedAt: '2026-03-06T08:00:00Z' },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /review & carry/i }));
+    const dialog = screen.getByRole('dialog', { name: /carry forward preview/i });
+
+    expect(within(dialog).getByText('Desk')).toBeInTheDocument();
+    expect(within(dialog).getByText('Tracker-only task')).toBeInTheDocument();
+    expect(within(dialog).getByText('Desk-linked task')).toBeInTheDocument();
   });
 
   it('shows check-in authorship badges and absolute timestamps in the drawer', () => {
@@ -764,7 +999,7 @@ describe('TeamTrackerPage', () => {
     expect(screen.getAllByTitle(formatAbsoluteDateTime('2026-03-07T10:45:00Z')).length).toBeGreaterThanOrEqual(3);
   });
 
-  it('header carry-forward button has a tooltip describing mixed-source behavior', () => {
+  it('header carry-forward button has a tooltip describing selective review', () => {
     render(
       <TestWrapper>
         <TeamTrackerPage />

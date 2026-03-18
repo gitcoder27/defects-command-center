@@ -4,11 +4,8 @@ import type {
   TeamTrackerBoardResponse,
   TeamTrackerBoardQuery,
   TrackerIssueAssignment,
+  TrackerCarryForwardPreviewResponse,
 } from '@/types';
-
-interface CarryForwardPreviewResponse {
-  carryable: number;
-}
 
 interface TrackerIssueAssignmentsResponse {
   assignments?: TrackerIssueAssignment[];
@@ -33,14 +30,13 @@ export function useTeamTracker(date: string, query?: TeamTrackerBoardQuery) {
 }
 
 export function useCarryForwardPreview(fromDate: string, toDate: string, enabled = true) {
-  return useQuery<number>({
+  return useQuery<TrackerCarryForwardPreviewResponse>({
     queryKey: ['team-tracker', 'carry-forward-preview', fromDate, toDate],
     queryFn: async () => {
       const params = new URLSearchParams({ fromDate, toDate });
-      const res = await api.get<CarryForwardPreviewResponse>(
+      return api.get<TrackerCarryForwardPreviewResponse>(
         `/team-tracker/carry-forward-preview?${params.toString()}`
       );
-      return res.carryable;
     },
     enabled,
     staleTime: 30_000,

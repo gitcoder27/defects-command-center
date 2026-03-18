@@ -191,7 +191,7 @@ export function useStatusUpdate(date: string) {
 export function useCarryForward() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (params: { fromDate: string; toDate: string }) =>
+    mutationFn: (params: { fromDate: string; toDate: string; itemIds?: number[] }) =>
       api.post<{ carried: number }>('/team-tracker/carry-forward', params),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
