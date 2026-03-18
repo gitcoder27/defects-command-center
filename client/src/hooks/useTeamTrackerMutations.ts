@@ -108,6 +108,7 @@ export function useUpdateTrackerItem(date: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['team-tracker', date] });
       qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
+      qc.invalidateQueries({ queryKey: ['manager-desk'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
       invalidateIssueViews(qc);
@@ -137,6 +138,7 @@ export function useSetCurrentItem(date: string) {
       api.post<TrackerWorkItem>(`/team-tracker/items/${itemId}/set-current`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
       invalidateIssueViews(qc);

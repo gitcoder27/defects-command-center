@@ -46,6 +46,16 @@ export interface ManagerDeskLink {
   createdAt: string;
 }
 
+// ── Delegated Execution ─────────────────────────────────
+
+export interface ManagerDeskDelegatedExecution {
+  trackerItemId: number;
+  state: 'planned' | 'in_progress' | 'done' | 'dropped';
+  note?: string;
+  completedAt?: string;
+  updatedAt: string;
+}
+
 // ── Item ────────────────────────────────────────────────
 
 export interface ManagerDeskItem {
@@ -66,6 +76,7 @@ export interface ManagerDeskItem {
   plannedEndAt?: string;
   followUpAt?: string;
   completedAt?: string;
+  delegatedExecution?: ManagerDeskDelegatedExecution;
   createdAt: string;
   updatedAt: string;
   links: ManagerDeskLink[];
@@ -212,4 +223,11 @@ export const PRIORITY_LABELS: Record<ManagerDeskPriority, string> = {
   medium: 'Medium',
   high: 'High',
   critical: 'Critical',
+};
+
+export const EXECUTION_STATE_LABELS: Record<ManagerDeskDelegatedExecution['state'], string> = {
+  planned: 'Planned',
+  in_progress: 'In Progress',
+  done: 'Done',
+  dropped: 'Dropped',
 };

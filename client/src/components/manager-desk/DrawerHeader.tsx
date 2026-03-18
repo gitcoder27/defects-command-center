@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect, type CSSProperties } from 'react';
 import {
-  X, Trash2, CheckCircle2, XCircle, ArrowRightFromLine, RotateCcw,
+  X, Trash2, CheckCircle2, XCircle, ArrowRightFromLine, RotateCcw, Users,
 } from 'lucide-react';
 import type { ManagerDeskItem } from '@/types/manager-desk';
-import { KIND_LABELS, STATUS_LABELS, CATEGORY_LABELS, PRIORITY_LABELS } from '@/types/manager-desk';
+import { KIND_LABELS, STATUS_LABELS, CATEGORY_LABELS, PRIORITY_LABELS, EXECUTION_STATE_LABELS } from '@/types/manager-desk';
 import { AssigneePill } from './AssigneePill';
 
 interface DrawerHeaderProps {
@@ -30,6 +30,13 @@ function chipTone(kind: string, value: string): string {
   return 'neutral';
 }
 
+function execTone(state: string): CSSProperties {
+  if (state === 'done') return { background: 'rgba(16,185,129,0.10)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.22)' };
+  if (state === 'in_progress') return { background: 'rgba(6,182,212,0.10)', color: 'var(--accent)', border: '1px solid rgba(6,182,212,0.22)' };
+  if (state === 'dropped') return { background: 'rgba(239,68,68,0.08)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.16)' };
+  return { background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border)' };
+}
+
 export function DrawerHeader({
   item, onClose, onUpdate, onDelete, onCarryForward, isCarryForwardPending = false,
 }: DrawerHeaderProps) {
@@ -43,6 +50,7 @@ export function DrawerHeader({
   }, [editTitle, item.id, item.title, onUpdate]);
 
   const isDone = item.status === 'done' || item.status === 'cancelled';
+  const exec = item.delegatedExecution;
   const chipClass = 'rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]';
   const actionClass = 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-semibold transition-all hover:brightness-110';
 
@@ -80,12 +88,46 @@ export function DrawerHeader({
       />
 
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+        <span className="text-[9px] font-bold uppercase tracking-[0.12em] mr-0.5" style={{ color: 'var(--text-muted)' }}>
+          {exec ? 'Manager Status' : 'Status'}
+        </span>
         <span className={chipClass} style={tones.accent}>{KIND_LABELS[item.kind]}</span>
         <span className={chipClass} style={tones[chipTone('status', item.status)]}>{STATUS_LABELS[item.status]}</span>
         <span className={chipClass} style={tones.neutral}>{CATEGORY_LABELS[item.category]}</span>
         <span className={chipClass} style={tones[chipTone('priority', item.priority)]}>{PRIORITY_LABELS[item.priority]}</span>
         {item.assignee && <AssigneePill assignee={item.assignee} />}
       </div>
+
+      {exec && (
+        <div
+          className="mt-2 rounded-lg px-2.5 py-2 flex flex-wrap items-center gap-2"
+          style={{
+            background: 'color-mix(in srgb, var(--bg-tertiary) 70%, transparent)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <span className="text-[9px] font-bold uppercase tracking-[0.12em] mr-0.5" style={{ color: 'var(--text-muted)' }}>
+            Execution
+          </span>
+          <span
+            className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold"
+            style={execTone(exec.state)}
+          >
+            <Users size={9} />
+            {EXECUTION_STATE_LABELS[exec.state]}
+          </span>
+          {exec.note && (
+            <span className="text-[10px] truncate max-w-[260px]" style={{ color: 'var(--text-secondary)' }} title={exec.note}>
+              {exec.note}
+            </span>
+          )}
+          {exec.state === 'done' && exec.completedAt && (
+            <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+              Completed {new Date(exec.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {!isDone ? (

@@ -128,6 +128,16 @@ function buildMockBoard(): TeamTrackerBoardResponse {
             createdAt: '2026-03-07T08:00:00Z',
             updatedAt: '2026-03-07T08:00:00Z',
           },
+          {
+            id: 13,
+            dayId: 2,
+            itemType: 'custom',
+            title: 'Refactor utils',
+            state: 'planned',
+            position: 3,
+            createdAt: '2026-03-07T08:00:00Z',
+            updatedAt: '2026-03-07T08:00:00Z',
+          },
         ],
       }),
     ],
@@ -1112,8 +1122,8 @@ describe('TeamTrackerPage', () => {
 
     clickDeveloperCard('Bob Jones');
     const dragHandles = screen.getAllByTitle('Drag to reorder');
-    // Bob has 2 planned items, each should have a drag handle
-    expect(dragHandles.length).toBe(2);
+    // Bob has 3 planned items, each should have a drag handle
+    expect(dragHandles.length).toBe(3);
   });
 
   it('opens the shared task detail drawer when clicking a task inside the developer drawer', () => {
@@ -1140,16 +1150,27 @@ describe('TeamTrackerPage', () => {
     );
 
     clickDeveloperCard('Bob Jones');
-    fireEvent.click(screen.getByRole('button', { name: /edit title: code review/i }));
+    fireEvent.click(screen.getByRole('button', { name: /edit title: refactor utils/i }));
 
     const titleInput = screen.getByLabelText('Edit title');
     fireEvent.change(titleInput, {
-      target: { value: 'Code review and release notes' },
+      target: { value: 'Refactor utils and helpers' },
     });
     fireEvent.click(screen.getByTitle('Save title'));
 
-    expect(mockUpdateTrackerItemMutate).toHaveBeenCalledWith({ itemId: 11, title: 'Code review and release notes' });
+    expect(mockUpdateTrackerItemMutate).toHaveBeenCalledWith({ itemId: 13, title: 'Refactor utils and helpers' });
     expect(screen.queryByRole('dialog', { name: /team tracker task detail/i })).not.toBeInTheDocument();
+  });
+
+  it('hides the title edit button for linked delegated tasks in the developer drawer', () => {
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    clickDeveloperCard('Bob Jones');
+    expect(screen.queryByRole('button', { name: /edit title: code review/i })).not.toBeInTheDocument();
   });
 
   it('starts a planned task from the developer drawer without opening task detail', () => {

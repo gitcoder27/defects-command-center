@@ -61,6 +61,7 @@ export function useUpdateMyDayItem(date: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-day', date] });
       qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk'] });
     },
   });
 }
@@ -73,6 +74,7 @@ export function useSetMyDayCurrent(date: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-day', date] });
       qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk'] });
     },
   });
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, CheckCircle2, ChevronDown, ChevronUp, GripVertical, Play, Save, StickyNote, X, XCircle } from 'lucide-react';
+import { Check, CheckCircle2, ChevronDown, ChevronUp, GripVertical, Link2, Play, Save, StickyNote, X, XCircle } from 'lucide-react';
 import type { TrackerItemState, TrackerWorkItem } from '@/types';
 import { JiraIssueLink } from '@/components/JiraIssueLink';
 import { formatDate, priorityColor } from '@/lib/utils';
@@ -72,9 +72,10 @@ export function TrackerItemRow({
   const Icon = stateInfo.icon;
   const isActive = item.state === 'in_progress';
   const isDone = item.state === 'done' || item.state === 'dropped';
+  const isLinked = Boolean(item.managerDeskItemId);
   const isDrawerPlanned = variant === 'drawer-planned';
   const canOpen = Boolean(onOpen) && !noteEditing && !titleEditing;
-  const isTitleEditable = !compact && Boolean(onUpdateTitle) && !isDone;
+  const isTitleEditable = !compact && Boolean(onUpdateTitle) && !isDone && !isLinked;
   const hasExplicitTitleEditAction = isTitleEditable && Boolean(onOpen);
   const isInlineTitleEditable = isTitleEditable && !hasExplicitTitleEditAction;
   const canShowDetails = showDetailsToggle && !compact && !canOpen;
@@ -241,6 +242,22 @@ export function TrackerItemRow({
           <div className="mt-0.5">
             <span className="text-[11px]" style={{ color: item.jiraPriorityName ? priorityColor(item.jiraPriorityName) : 'var(--text-muted)' }}>
               {jiraMeta}
+            </span>
+          </div>
+        )}
+        {isLinked && !compact && !isDrawerPlanned && (
+          <div className="mt-0.5">
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.06em]"
+              style={{
+                background: 'rgba(217,169,78,0.10)',
+                color: 'var(--md-accent, var(--warning))',
+                border: '1px solid rgba(217,169,78,0.22)',
+              }}
+              title="Managed from Manager Desk — title edits must be made there"
+            >
+              <Link2 size={8} />
+              Delegated
             </span>
           </div>
         )}

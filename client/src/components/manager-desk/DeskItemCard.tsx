@@ -10,10 +10,11 @@ import {
   ArrowRight,
   Link2,
   AlertTriangle,
+  Users,
 } from 'lucide-react';
 import { format, parseISO, isPast } from 'date-fns';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
-import { KIND_LABELS, PRIORITY_LABELS } from '@/types/manager-desk';
+import { KIND_LABELS, PRIORITY_LABELS, EXECUTION_STATE_LABELS } from '@/types/manager-desk';
 import { AssigneePill } from './AssigneePill';
 
 interface Props {
@@ -45,6 +46,27 @@ export function DeskItemCard({
 }: Props) {
   const KindIcon = kindIcons[item.kind];
   const isDone = item.status === 'done' || item.status === 'cancelled';
+  const exec = item.delegatedExecution;
+
+  const execChip = useMemo(() => {
+    if (!exec) return null;
+    if (exec.state === 'done') return {
+      label: EXECUTION_STATE_LABELS.done,
+      style: { background: 'rgba(16,185,129,0.10)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.22)' },
+    };
+    if (exec.state === 'in_progress') return {
+      label: EXECUTION_STATE_LABELS.in_progress,
+      style: { background: 'rgba(6,182,212,0.10)', color: 'var(--accent)', border: '1px solid rgba(6,182,212,0.22)' },
+    };
+    if (exec.state === 'dropped') return {
+      label: EXECUTION_STATE_LABELS.dropped,
+      style: { background: 'rgba(239,68,68,0.08)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.16)' },
+    };
+    return {
+      label: EXECUTION_STATE_LABELS.planned,
+      style: { background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border)' },
+    };
+  }, [exec]);
 
   const isOverdue = useMemo(() => {
     if (!item.followUpAt || isDone) return false;
@@ -272,7 +294,7 @@ export function DeskItemCard({
       )}
 
       {/* Meta row - only show extra info like next action when available */}
-      {!isDone && (focusStatus || item.assignee || item.nextAction || (item.participants && variant === 'meeting')) && (
+      {!isDone && (focusStatus || item.assignee || item.nextAction || execChip || (item.participants && variant === 'meeting')) && (
         <div className="mt-0.5 pl-7 flex items-center gap-2">
           {focusStatus && (
             <span
@@ -281,6 +303,16 @@ export function DeskItemCard({
             >
               <span className="h-1.5 w-1.5 rounded-full" style={focusStatus.dotStyle} />
               {focusStatus.label}
+            </span>
+          )}
+          {execChip && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-[0.04em]"
+              style={execChip.style}
+              title={`Developer execution: ${execChip.label}`}
+            >
+              <Users size={8} />
+              {execChip.label}
             </span>
           )}
           {item.assignee && <AssigneePill assignee={item.assignee} size="xs" tone="neutral" />}
