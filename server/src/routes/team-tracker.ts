@@ -5,6 +5,15 @@ import { HttpError } from "../middleware/errorHandler";
 import { ManagerDeskService } from "../services/manager-desk.service";
 import { TeamTrackerService } from "../services/team-tracker.service";
 
+const isoDateTimeSchema = z.string().datetime({ offset: true });
+const trackerStatusSchema = z.enum([
+  "on_track",
+  "at_risk",
+  "blocked",
+  "waiting",
+  "done_for_today",
+]);
+
 const dateQuerySchema = z.object({
   query: z.object({
     date: z
@@ -21,9 +30,7 @@ const updateDaySchema = z.object({
   }),
   body: z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    status: z
-      .enum(["on_track", "at_risk", "blocked", "waiting", "done_for_today"])
-      .optional(),
+    status: trackerStatusSchema.optional(),
     capacityUnits: z.number().int().min(1).nullable().optional(),
     managerNotes: z.string().optional(),
   }),
@@ -110,12 +117,35 @@ const addCheckInSchema = z.object({
   body: z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     summary: z.string().min(1).max(2000),
-    status: z
-      .enum(["on_track", "at_risk", "blocked", "waiting", "done_for_today"])
-      .optional(),
+    status: trackerStatusSchema.optional(),
   }),
   query: z.any().optional(),
 });
+
+const statusUpdateSchema = z
+  .object({
+    params: z.object({
+      accountId: z.string().regex(/^[A-Za-z0-9:_-]+$/, "Invalid account id"),
+    }),
+    body: z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      status: trackerStatusSchema,
+      rationale: z.string().max(2000).optional(),
+      summary: z.string().max(2000).optional(),
+      nextFollowUpAt: isoDateTimeSchema.nullable().optional(),
+    }),
+    query: z.any().optional(),
+  })
+  .superRefine((value, ctx) => {
+    const { status, rationale } = value.body;
+    if ((status === "blocked" || status === "at_risk") && !rationale?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["body", "rationale"],
+        message: "rationale is required when status is blocked or at_risk",
+      });
+    }
+  });
 
 const carryForwardSchema = z.object({
   body: z.object({
@@ -268,8 +298,39 @@ export function createTeamTrackerRouter(
         const checkIn = await trackerService.addCheckIn(accountId, date, {
           summary,
           status,
+        }, {
+          type: req.auth?.user.role ?? "manager",
+          accountId: req.auth?.user.accountId,
         });
         res.status(201).json(checkIn);
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.post(
+    "/:accountId/status-update",
+    validate(statusUpdateSchema),
+    async (req, res, next) => {
+      try {
+        const accountId = req.params.accountId as string;
+        const { date, status, rationale, summary, nextFollowUpAt } = req.body;
+        const day = await trackerService.recordStatusUpdate(
+          accountId,
+          date,
+          {
+            status,
+            rationale,
+            summary,
+            nextFollowUpAt,
+          },
+          {
+            type: req.auth?.user.role ?? "manager",
+            accountId: req.auth?.user.accountId,
+          }
+        );
+        res.status(201).json(day);
       } catch (error) {
         next(error);
       }

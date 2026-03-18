@@ -270,6 +270,9 @@ export interface TrackerCheckIn {
   createdAt: string;
   authorType?: UserRole;
   authorAccountId?: string;
+  status?: TrackerDeveloperStatus;
+  rationale?: string;
+  nextFollowUpAt?: string;
 }
 
 export interface TrackerWorkItem {
@@ -300,6 +303,7 @@ export interface TrackerDeveloperDay {
   capacityUnits?: number;
   managerNotes?: string;
   lastCheckInAt?: string;
+  nextFollowUpAt?: string;
   currentItem?: TrackerWorkItem;
   plannedItems: TrackerWorkItem[];
   completedItems: TrackerWorkItem[];

@@ -92,26 +92,46 @@ Notes:
 - Backend validation completed:
   - `npm run test --workspace=server -- team-tracker.service.test.ts team-tracker.routes.test.ts manager-desk.routes.test.ts`
   - `npm run typecheck`
+- Revalidated after item 3 backend changes:
+  - `npm run test --workspace=server -- team-tracker.service.test.ts team-tracker.routes.test.ts`
+  - `npm run typecheck`
 - Frontend handoff prompt created:
   - `docs/team-tracker-carry-forward-predictable-frontend-agent.md`
 
 ## 3. Replace the Split Status/Check-In Flow With One Unified Action
 
 Type: `Both`
-Status: `Not started`
+Status: `Backend complete, frontend pending`
 
 Planning checklist:
 
-- [ ] Define the target interaction for status, rationale, follow-up, and note capture
-- [ ] Decide which fields are required for `blocked` and `at_risk`
-- [ ] Review existing mutation/API support and gaps
-- [ ] List drawer UI/component changes
-- [ ] List backend validation and persistence changes
-- [ ] Define route/service and UI tests
+- [x] Define the target interaction for status, rationale, follow-up, and note capture
+- [x] Decide which fields are required for `blocked` and `at_risk`
+- [x] Review existing mutation/API support and gaps
+- [x] List drawer UI/component changes
+- [x] List backend validation and persistence changes
+- [x] Define route/service and UI tests
 
 Notes:
 
 - The goal is to make risky status changes operationally complete in one step
+- Decision: require a short rationale for `blocked` and `at_risk`; `waiting`, `on_track`, and `done_for_today` can be submitted without one
+- Backend implementation completed:
+  - added `POST /api/team-tracker/:accountId/status-update` for one manager action that records status, optional rationale, optional note, and optional next follow-up datetime together
+  - unified status updates now create a structured Team Tracker check-in entry instead of relying on split `PATCH /day` plus optional note
+  - `TrackerCheckIn` now includes optional `status`, `rationale`, and `nextFollowUpAt`
+  - `TrackerDeveloperDay` now includes optional `nextFollowUpAt`
+  - Team Tracker check-ins now persist manager authorship account ids from the manager route
+  - any later check-in clears the pending `nextFollowUpAt` marker
+- Frontend follow-up remains:
+  - replace free-floating status pills with a single `Update Status` action flow in the drawer
+  - route status changes through the new unified backend endpoint instead of split day/check-in mutations
+  - keep or restyle general note-only check-ins separately as needed, but do not use them for status changes
+- Backend validation completed:
+  - `npm run test --workspace=server -- team-tracker.service.test.ts team-tracker.routes.test.ts`
+  - `npm run typecheck`
+- Frontend handoff prompt created:
+  - `docs/team-tracker-unified-status-checkin-frontend-agent.md`
 
 ## 4. Show Check-In Authorship and Absolute Timestamps
 

@@ -257,6 +257,78 @@ describe("team tracker routes", () => {
     expect(res.body?.capacityUnits).toBe(4);
   });
 
+  it("POST /api/team-tracker/:accountId/checkins records manager-authored attribution", async () => {
+    const app = createTestApp();
+
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/team-tracker/dev-1/checkins",
+      body: {
+        date: "2026-03-07",
+        summary: "Reviewed progress in standup",
+        status: "on_track",
+      },
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      summary: "Reviewed progress in standup",
+      authorType: "manager",
+      authorAccountId: "manager-1",
+      status: "on_track",
+    });
+  });
+
+  it("POST /api/team-tracker/:accountId/status-update records a unified manager status action", async () => {
+    const app = createTestApp();
+
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/team-tracker/dev-1/status-update",
+      body: {
+        date: "2026-03-07",
+        status: "blocked",
+        rationale: "Waiting on platform review",
+        summary: "Escalated in #backend-help",
+        nextFollowUpAt: "2026-03-07T10:30:00.000Z",
+      },
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      status: "blocked",
+      nextFollowUpAt: "2026-03-07T10:30:00.000Z",
+      checkIns: [
+        expect.objectContaining({
+          summary: "Escalated in #backend-help",
+          status: "blocked",
+          rationale: "Waiting on platform review",
+          nextFollowUpAt: "2026-03-07T10:30:00.000Z",
+          authorType: "manager",
+          authorAccountId: "manager-1",
+        }),
+      ],
+    });
+  });
+
+  it("POST /api/team-tracker/:accountId/status-update rejects blocked updates without rationale", async () => {
+    const app = createTestApp();
+
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/team-tracker/dev-1/status-update",
+      body: {
+        date: "2026-03-07",
+        status: "blocked",
+      },
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body?.error).toBe(
+      "rationale is required when status is blocked or at_risk"
+    );
+  });
+
   it("POST /api/team-tracker/:accountId/items supports unlinked descriptive tasks", async () => {
     const app = createTestApp();
 

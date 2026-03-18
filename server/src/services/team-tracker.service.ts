@@ -57,6 +57,35 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function normalizeOptionalText(value: string | null | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function requiresStatusRationale(status: TrackerDeveloperStatus): boolean {
+  return status === "blocked" || status === "at_risk";
+}
+
+const TRACKER_STATUS_LABELS: Record<TrackerDeveloperStatus, string> = {
+  on_track: "On Track",
+  at_risk: "At Risk",
+  blocked: "Blocked",
+  waiting: "Waiting",
+  done_for_today: "Done for Today",
+};
+
+function buildStatusUpdateSummary(params: {
+  status: TrackerDeveloperStatus;
+  rationale?: string;
+  summary?: string;
+}): string {
+  return (
+    params.summary ??
+    params.rationale ??
+    `Status updated to ${TRACKER_STATUS_LABELS[params.status]}.`
+  );
+}
+
 function getHoursSince(value: string | null | undefined, now = new Date()): number | undefined {
   if (!value) {
     return undefined;
@@ -183,6 +212,9 @@ function mapCheckIn(
     createdAt: row.createdAt,
     authorType: row.authorType as UserRole,
     authorAccountId: row.authorAccountId ?? undefined,
+    status: (row.status as TrackerDeveloperStatus | null) ?? undefined,
+    rationale: row.rationale ?? undefined,
+    nextFollowUpAt: row.nextFollowUpAt ?? undefined,
   };
 }
 
@@ -640,6 +672,8 @@ export class TeamTrackerService {
     params: {
       summary: string;
       status?: TrackerDeveloperStatus;
+      rationale?: string;
+      nextFollowUpAt?: string | null;
     },
     actor?: {
       type: UserRole;
@@ -648,12 +682,22 @@ export class TeamTrackerService {
   ): Promise<TrackerCheckIn> {
     const day = await this.ensureDay(date, accountId);
     const now = nowIso();
+    const summary = params.summary.trim();
+    const rationale = normalizeOptionalText(params.rationale);
+    const nextFollowUpAt = params.nextFollowUpAt ?? null;
+
+    if (!summary) {
+      throw new HttpError(400, "summary is required");
+    }
 
     const inserted = await db
       .insert(teamTrackerCheckIns)
       .values({
         dayId: day.id,
-        summary: params.summary,
+        summary,
+        status: params.status ?? null,
+        rationale: rationale ?? null,
+        nextFollowUpAt,
         authorType: actor?.type ?? "manager",
         authorAccountId: actor?.accountId ?? null,
         createdAt: now,
@@ -665,6 +709,7 @@ export class TeamTrackerService {
     // Update last check-in time on the day row
     const dayUpdates: Record<string, unknown> = {
       lastCheckInAt: now,
+      nextFollowUpAt,
       updatedAt: now,
     };
     if (params.status) {
@@ -679,6 +724,49 @@ export class TeamTrackerService {
       .where(eq(teamTrackerDays.id, day.id));
 
     return mapCheckIn(checkInRow);
+  }
+
+  async recordStatusUpdate(
+    accountId: string,
+    date: string,
+    params: {
+      status: TrackerDeveloperStatus;
+      rationale?: string;
+      summary?: string;
+      nextFollowUpAt?: string | null;
+    },
+    actor?: {
+      type: UserRole;
+      accountId?: string;
+    }
+  ): Promise<TrackerDeveloperDay> {
+    const rationale = normalizeOptionalText(params.rationale);
+    const summary = normalizeOptionalText(params.summary);
+
+    if (requiresStatusRationale(params.status) && !rationale) {
+      throw new HttpError(
+        400,
+        "rationale is required when status is blocked or at_risk"
+      );
+    }
+
+    await this.addCheckIn(
+      accountId,
+      date,
+      {
+        summary: buildStatusUpdateSummary({
+          status: params.status,
+          rationale,
+          summary,
+        }),
+        status: params.status,
+        rationale,
+        nextFollowUpAt: params.nextFollowUpAt ?? null,
+      },
+      actor
+    );
+
+    return this.getDeveloperDay(date, accountId);
   }
 
   async assertItemBelongsToDeveloper(
@@ -982,6 +1070,7 @@ export class TeamTrackerService {
       capacityUnits: day.capacityUnits ?? undefined,
       managerNotes: day.managerNotes ?? undefined,
       lastCheckInAt: day.lastCheckInAt ?? undefined,
+      nextFollowUpAt: day.nextFollowUpAt ?? undefined,
       currentItem,
       plannedItems,
       completedItems,

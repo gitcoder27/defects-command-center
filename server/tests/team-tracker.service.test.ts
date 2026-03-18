@@ -411,6 +411,94 @@ describe("TeamTrackerService", () => {
       expect(devDay.status).toBe("blocked");
       expect(devDay.statusUpdatedAt).toBeDefined();
     });
+
+    it("clears the next follow-up marker when a new check-in is recorded", async () => {
+      await service.recordStatusUpdate(
+        "dev-1",
+        "2026-03-07",
+        {
+          status: "blocked",
+          rationale: "Waiting on platform input",
+          nextFollowUpAt: "2026-03-07T10:30:00.000Z",
+        },
+        {
+          type: "manager",
+          accountId: "manager-1",
+        }
+      );
+
+      await service.addCheckIn(
+        "dev-1",
+        "2026-03-07",
+        {
+          summary: "Platform replied, resuming work",
+          status: "on_track",
+        },
+        {
+          type: "developer",
+          accountId: "dev-1",
+        }
+      );
+
+      const board = await service.getBoard("2026-03-07");
+      const devDay = board.developers.find(
+        (d) => d.developer.accountId === "dev-1"
+      )!;
+
+      expect(devDay.status).toBe("on_track");
+      expect(devDay.nextFollowUpAt).toBeUndefined();
+    });
+  });
+
+  describe("recordStatusUpdate", () => {
+    it("requires rationale for blocked and at-risk updates", async () => {
+      await expect(
+        service.recordStatusUpdate(
+          "dev-1",
+          "2026-03-07",
+          {
+            status: "blocked",
+          },
+          {
+            type: "manager",
+            accountId: "manager-1",
+          }
+        )
+      ).rejects.toThrow(
+        "rationale is required when status is blocked or at_risk"
+      );
+    });
+
+    it("records a unified status update with rationale and follow-up metadata", async () => {
+      const day = await service.recordStatusUpdate(
+        "dev-1",
+        "2026-03-07",
+        {
+          status: "blocked",
+          rationale: "Waiting on platform review",
+          summary: "Escalated in #backend-help",
+          nextFollowUpAt: "2026-03-07T10:30:00.000Z",
+        },
+        {
+          type: "manager",
+          accountId: "manager-1",
+        }
+      );
+
+      expect(day.status).toBe("blocked");
+      expect(day.lastCheckInAt).toBeDefined();
+      expect(day.nextFollowUpAt).toBe("2026-03-07T10:30:00.000Z");
+      expect(day.checkIns).toHaveLength(1);
+      expect(day.checkIns[0]).toMatchObject({
+        summary: "Escalated in #backend-help",
+        status: "blocked",
+        rationale: "Waiting on platform review",
+        nextFollowUpAt: "2026-03-07T10:30:00.000Z",
+        authorType: "manager",
+        authorAccountId: "manager-1",
+      });
+      expect(day.signals.freshness.statusChangeWithoutFollowUp).toBe(false);
+    });
   });
 
   describe("updateDay", () => {
