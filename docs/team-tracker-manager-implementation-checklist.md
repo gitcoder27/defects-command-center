@@ -55,14 +55,24 @@ Notes:
   - `TrackerWorkItem` now exposes lifecycle metadata
   - `GET /api/manager-desk/tracker-items/:trackerItemId/detail` is read-only and no longer creates Manager Desk data on open
   - `POST /api/manager-desk/tracker-items/:trackerItemId/promote` explicitly creates and links a Manager Desk follow-up
+  - linked Manager Desk items now expose `delegatedExecution` state derived from Team Tracker / My Day execution
+  - Team Tracker / My Day execution changes now back-sync linked delegated state and execution notes into the Manager Desk read model
+  - linked delegated tasks can no longer be renamed or deleted from Team Tracker / My Day; title ownership stays with Manager Desk and execution work uses state transitions instead
 - Frontend changes completed:
   - Team Tracker add-task flows now create Team Tracker items directly instead of routing through Manager Desk creation
   - Task detail distinguishes tracker-only vs Manager Desk-linked work
   - Tracker-only detail exposes an explicit promote action instead of silent write-on-open behavior
+  - Manager Desk cards now show delegated execution chips for linked work
+  - shared task detail now separates `Manager Status` from developer `Execution`
+  - delegated Team Tracker / My Day rows now indicate Manager Desk ownership and no longer present linked title editing as a normal tracker-native action
 - Backend validation completed:
   - `npm run test --workspace=server -- manager-desk.routes.test.ts`
   - `npm run test --workspace=server -- team-tracker.service.test.ts team-tracker.routes.test.ts`
   - `npm run typecheck`
+- Additional delegated lifecycle sync validation completed:
+  - `npm run test --workspace=server`
+  - `npm run typecheck`
+  - manually validated in the UI across Manager Desk, Team Tracker, and My Day
 
 ## 2. Fix Carry-Forward So Team Tracker Work Carries Forward Predictably
 
