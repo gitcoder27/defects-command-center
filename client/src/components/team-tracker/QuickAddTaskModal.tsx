@@ -3,25 +3,30 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, Plus, Search, X, Zap } from 'lucide-react';
 import { JiraIssueLink } from '@/components/JiraIssueLink';
+import { TrackerIssueAssignmentConflictPanel } from './TrackerIssueAssignmentConflictPanel';
 import type { Issue } from '@/types';
 
 interface QuickAddTaskModalProps {
   open: boolean;
+  date: string;
   developerName: string;
   developerAccountId: string;
   issues?: Issue[];
   isPending?: boolean;
   onAdd: (params: { accountId: string; title: string; jiraKey?: string; note?: string }) => void;
+  onOpenExistingAssignment: (itemId: number) => void;
   onClose: () => void;
 }
 
 export function QuickAddTaskModal({
   open,
+  date,
   developerName,
   developerAccountId,
   issues,
   isPending,
   onAdd,
+  onOpenExistingAssignment,
   onClose,
 }: QuickAddTaskModalProps) {
   const titleRef = useRef<HTMLInputElement>(null);
@@ -99,6 +104,11 @@ export function QuickAddTaskModal({
       jiraKey: selectedIssue?.jiraKey,
       note: note.trim() || undefined,
     });
+  };
+
+  const handleOpenExistingAssignment = (itemId: number) => {
+    onClose();
+    onOpenExistingAssignment(itemId);
   };
 
   if (typeof document === 'undefined') return null;
@@ -264,36 +274,44 @@ export function QuickAddTaskModal({
                 </div>
 
                 {selectedIssue ? (
-                  <div
-                    className="flex items-start justify-between gap-2 rounded-xl px-3 py-2.5"
-                    style={{
-                      background: 'var(--accent-glow)',
-                      border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)',
-                    }}
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <Link size={11} style={{ color: 'var(--accent)' }} />
-                        <JiraIssueLink issueKey={selectedIssue.jiraKey} className="font-mono text-[11px] font-semibold" style={{ color: 'var(--accent)' }}>
-                          {selectedIssue.jiraKey}
-                        </JiraIssueLink>
-                      </div>
-                      <div className="text-[12px] mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>
-                        {selectedIssue.summary}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedIssue(null);
-                        setJiraSearch('');
+                  <div className="space-y-2">
+                    <div
+                      className="flex items-start justify-between gap-2 rounded-xl px-3 py-2.5"
+                      style={{
+                        background: 'var(--accent-glow)',
+                        border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)',
                       }}
-                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
-                      style={{ color: 'var(--text-muted)', background: 'var(--bg-elevated)' }}
-                      aria-label="Remove linked Jira"
                     >
-                      <X size={10} />
-                    </button>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <Link size={11} style={{ color: 'var(--accent)' }} />
+                          <JiraIssueLink issueKey={selectedIssue.jiraKey} className="font-mono text-[11px] font-semibold" style={{ color: 'var(--accent)' }}>
+                            {selectedIssue.jiraKey}
+                          </JiraIssueLink>
+                        </div>
+                        <div className="text-[12px] mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>
+                          {selectedIssue.summary}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedIssue(null);
+                          setJiraSearch('');
+                        }}
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
+                        style={{ color: 'var(--text-muted)', background: 'var(--bg-elevated)' }}
+                        aria-label="Remove linked Jira"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                    <TrackerIssueAssignmentConflictPanel
+                      jiraKey={selectedIssue.jiraKey}
+                      date={date}
+                      targetAccountId={developerAccountId}
+                      onOpenAssignment={handleOpenExistingAssignment}
+                    />
                   </div>
                 ) : !jiraPickerOpen ? (
                   <div

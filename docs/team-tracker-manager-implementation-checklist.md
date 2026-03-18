@@ -186,19 +186,24 @@ Notes:
 ## 6. Add Assignment-Conflict Visibility During Team Tracker Task Creation
 
 Type: `Both`
-Status: `Not started`
+Status: `Completed`
 
 Planning checklist:
 
-- [ ] Identify existing issue-assignment lookup capabilities we can reuse
-- [ ] Define warning states and allowed manager actions
-- [ ] List API/query changes required in Team Tracker flows
-- [ ] List form/modal UI changes
-- [ ] Define tests for duplicate and reassignment scenarios
+- [x] Identify existing issue-assignment lookup capabilities we can reuse
+- [x] Define warning states and allowed manager actions
+- [x] List API/query changes required in Team Tracker flows
+- [x] List form/modal UI changes
+- [x] Define tests for duplicate and reassignment scenarios
 
 Notes:
 
-- This becomes more important once task lifecycle behavior is explicit
+- Added a shared Team Tracker conflict panel that reuses the existing assignment lookup hook and shows same-day Jira collisions when a Jira issue is selected.
+- Both Team Tracker add-task entry points now surface the warning state and provide an `Open` action for existing assignments without blocking duplicate creation.
+- The implementation stays read-only on the backend; it reuses the current `GET /api/team-tracker/issues/:jiraKey/assignment` contract.
+- Validation completed:
+  - `npm run test --workspace=client -- TeamTracker.test.tsx useTeamTracker.test.tsx`
+  - `npm run typecheck --workspace=client`
 
 ## 7. Add Search, Sorting, Grouping, and Saved Views
 

@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Link, Plus, Search, X } from 'lucide-react';
 import { JiraIssueLink } from '@/components/JiraIssueLink';
+import { TrackerIssueAssignmentConflictPanel } from './TrackerIssueAssignmentConflictPanel';
 
 interface AddTrackerItemFormProps {
   onAdd: (params: { title: string; jiraKey?: string; note?: string }) => void;
+  date: string;
+  targetAccountId: string;
+  onOpenExistingAssignment: (itemId: number) => void;
   issues?: Array<{
     jiraKey: string;
     summary: string;
@@ -14,7 +18,14 @@ interface AddTrackerItemFormProps {
   isPending?: boolean;
 }
 
-export function AddTrackerItemForm({ onAdd, issues, isPending }: AddTrackerItemFormProps) {
+export function AddTrackerItemForm({
+  onAdd,
+  date,
+  targetAccountId,
+  onOpenExistingAssignment,
+  issues,
+  isPending,
+}: AddTrackerItemFormProps) {
   const [open, setOpen] = useState(false);
   const isOpen = open;
   const [title, setTitle] = useState('');
@@ -59,6 +70,11 @@ export function AddTrackerItemForm({ onAdd, issues, isPending }: AddTrackerItemF
       note: note.trim() || undefined,
     });
     resetForm();
+  };
+
+  const handleOpenExistingAssignment = (itemId: number) => {
+    resetForm();
+    onOpenExistingAssignment(itemId);
   };
 
   if (!isOpen) {
@@ -124,33 +140,41 @@ export function AddTrackerItemForm({ onAdd, issues, isPending }: AddTrackerItemF
         </div>
 
         {selectedIssue && (
-          <div
-            className="mt-1.5 flex items-start justify-between gap-2 rounded-lg px-2.5 py-2"
-            style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
-          >
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <Link size={10} style={{ color: 'var(--accent)' }} />
-                <JiraIssueLink issueKey={selectedIssue.jiraKey} className="font-mono text-[10px] font-semibold" style={{ color: 'var(--accent)' }}>
-                  {selectedIssue.jiraKey}
-                </JiraIssueLink>
-              </div>
-              <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                {selectedIssue.summary}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedIssue(null);
-                setJiraSearch('');
-              }}
-              className="h-6 w-6 rounded-md flex items-center justify-center"
-              style={{ color: 'var(--text-muted)', background: 'var(--bg-elevated)' }}
-              aria-label="Remove linked Jira"
+          <div className="mt-1.5 space-y-1.5">
+            <div
+              className="flex items-start justify-between gap-2 rounded-lg px-2.5 py-2"
+              style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
             >
-              <X size={10} />
-            </button>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <Link size={10} style={{ color: 'var(--accent)' }} />
+                  <JiraIssueLink issueKey={selectedIssue.jiraKey} className="font-mono text-[10px] font-semibold" style={{ color: 'var(--accent)' }}>
+                    {selectedIssue.jiraKey}
+                  </JiraIssueLink>
+                </div>
+                <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                  {selectedIssue.summary}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedIssue(null);
+                  setJiraSearch('');
+                }}
+                className="h-6 w-6 rounded-md flex items-center justify-center"
+                style={{ color: 'var(--text-muted)', background: 'var(--bg-elevated)' }}
+                aria-label="Remove linked Jira"
+              >
+                <X size={10} />
+              </button>
+            </div>
+            <TrackerIssueAssignmentConflictPanel
+              jiraKey={selectedIssue.jiraKey}
+              date={date}
+              targetAccountId={targetAccountId}
+              onOpenAssignment={handleOpenExistingAssignment}
+            />
           </div>
         )}
 

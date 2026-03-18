@@ -10,6 +10,7 @@ import { formatAbsoluteDateTime, formatRelativeTime } from '@/lib/utils';
 
 interface DeveloperTrackerCardProps {
   day: TrackerDeveloperDay;
+  date: string;
   index: number;
   onOpenDrawer: (accountId: string) => void;
   onOpenTaskDetail: (itemId: number, managerDeskItemId?: number) => void;
@@ -23,6 +24,7 @@ interface DeveloperTrackerCardProps {
 
 export function DeveloperTrackerCard({
   day,
+  date,
   index,
   onOpenDrawer,
   onOpenTaskDetail,
@@ -233,10 +235,12 @@ export function DeveloperTrackerCard({
       {/* Quick-add modal (portal) */}
       <QuickAddTaskModal
         open={quickAddOpen}
+        date={date}
         developerName={day.developer.displayName}
         developerAccountId={day.developer.accountId}
         issues={issues}
         isPending={isQuickAddPending}
+        onOpenExistingAssignment={(itemId) => onOpenTaskDetail(itemId)}
         onAdd={(params) => {
           onQuickAdd(params);
           setQuickAddOpen(false);

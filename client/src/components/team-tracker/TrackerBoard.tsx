@@ -3,6 +3,7 @@ import { DeveloperTrackerCard } from './DeveloperTrackerCard';
 import type { SummaryFilter } from './TrackerSummaryStrip';
 
 interface TrackerBoardProps {
+  date: string;
   developers: TrackerDeveloperDay[];
   filter: SummaryFilter;
   onOpenDrawer: (accountId: string) => void;
@@ -41,6 +42,7 @@ function applyFilter(days: TrackerDeveloperDay[], filter: SummaryFilter): Tracke
 }
 
 export function TrackerBoard({
+  date,
   developers,
   filter,
   onOpenDrawer,
@@ -75,6 +77,7 @@ export function TrackerBoard({
         <DeveloperTrackerCard
           key={day.developer.accountId}
           day={day}
+          date={date}
           index={i}
           onOpenDrawer={onOpenDrawer}
           onOpenTaskDetail={onOpenTaskDetail}

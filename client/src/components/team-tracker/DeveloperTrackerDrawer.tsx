@@ -12,6 +12,7 @@ import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskC
 import { JiraIssueLink } from '@/components/JiraIssueLink';
 
 interface DeveloperTrackerDrawerProps {
+  date: string;
   day: TrackerDeveloperDay | undefined;
   open: boolean;
   onClose: () => void;
@@ -60,6 +61,7 @@ function getCheckInAuthorBadge(authorType?: TrackerDeveloperDay['checkIns'][numb
 }
 
 export function DeveloperTrackerDrawer({
+  date,
   day,
   open,
   onClose,
@@ -391,6 +393,9 @@ export function DeveloperTrackerDrawer({
                 )}
                 <AddTrackerItemForm
                   onAdd={(params) => onAddItem({ accountId: day.developer.accountId, ...params })}
+                  date={date}
+                  targetAccountId={day.developer.accountId}
+                  onOpenExistingAssignment={(itemId) => onOpenTaskDetail(itemId)}
                   issues={issueList}
                   isPending={isAddItemPending}
                 />

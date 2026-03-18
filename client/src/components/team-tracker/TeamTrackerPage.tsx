@@ -436,6 +436,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
               pendingAccountId={updateAvailability.isPending ? updateAvailability.variables?.accountId : undefined}
             />
             <TrackerBoard
+              date={date}
               developers={board.developers}
               filter={summaryFilter}
               onOpenDrawer={setDrawerAccountId}
@@ -459,6 +460,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
 
       {/* Detail drawer */}
       <DeveloperTrackerDrawer
+        date={date}
         day={drawerDay}
         open={!!drawerAccountId}
         onClose={() => setDrawerAccountId(undefined)}

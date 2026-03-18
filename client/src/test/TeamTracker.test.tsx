@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { TestWrapper } from '@/test/wrapper';
-import type { TeamTrackerBoardResponse, TrackerDeveloperDay, Issue } from '@/types';
+import type { TeamTrackerBoardResponse, TrackerDeveloperDay, Issue, TrackerIssueAssignment } from '@/types';
 import { formatAbsoluteDateTime } from '@/lib/utils';
 
 const mockCarryForwardMutate = vi.fn();
@@ -16,6 +16,7 @@ const mockRefetchBoard = vi.fn();
 const mockRefetchCarryForwardPreview = vi.fn();
 let mockCarryForwardPreviewValue = 0;
 let mockIssues: Issue[] = [];
+let mockTrackerIssueAssignments: TrackerIssueAssignment[] = [];
 
 function buildSignals(overrides?: {
   freshness?: Partial<TrackerDeveloperDay['signals']['freshness']>;
@@ -202,6 +203,11 @@ vi.mock('@/hooks/useTeamTracker', () => ({
     isFetching: false,
     refetch: mockRefetchCarryForwardPreview,
   }),
+  useTrackerIssueAssignments: () => ({
+    data: mockTrackerIssueAssignments,
+    isLoading: false,
+    isError: false,
+  }),
 }));
 
 vi.mock('@/hooks/useTeamTrackerMutations', () => ({
@@ -290,6 +296,7 @@ describe('TeamTrackerPage', () => {
     mockRefetchCarryForwardPreview.mockReset();
     mockCarryForwardPreviewValue = 0;
     mockIssues = [];
+    mockTrackerIssueAssignments = [];
     mockBoard.inactiveDevelopers = [];
     window.sessionStorage.clear();
   });
@@ -465,6 +472,63 @@ describe('TeamTrackerPage', () => {
 
     expect(screen.getByRole('dialog', { name: /team tracker task detail/i })).toBeInTheDocument();
     expect(screen.getByText('Shared task detail for item 10')).toBeInTheDocument();
+  });
+
+  it('opens an existing assignment from the quick-add conflict panel', () => {
+    mockIssues = [
+      {
+        jiraKey: 'AM-456',
+        summary: 'Investigate API latency',
+        description: 'Investigate slow endpoint responses',
+        priorityName: 'Highest',
+        priorityId: '1',
+        statusName: 'To Do',
+        statusCategory: 'new',
+        assigneeId: 'dev-1',
+        assigneeName: 'Alice Smith',
+        reporterName: 'Lead',
+        component: 'API',
+        labels: [],
+        dueDate: '2026-03-08',
+        developmentDueDate: undefined,
+        flagged: false,
+        createdAt: '2026-03-07T08:00:00Z',
+        updatedAt: '2026-03-07T08:00:00Z',
+        localTags: [],
+      },
+    ];
+    mockTrackerIssueAssignments = [
+      {
+        date: '2026-03-07',
+        jiraKey: 'AM-456',
+        itemId: 77,
+        title: 'Existing API latency investigation',
+        state: 'planned',
+        developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+      },
+    ];
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: /add task/i })[0]!);
+    fireEvent.change(screen.getByPlaceholderText('Describe the work in one line…'), {
+      target: { value: 'Investigate API latency spike' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /\+ attach jira/i }));
+    fireEvent.change(screen.getByPlaceholderText('Search by key or summary…'), {
+      target: { value: 'AM-456' },
+    });
+    fireEvent.click(screen.getByText('Investigate API latency'));
+
+    expect(screen.getByText("AM-456 is already on Alice Smith's board today.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /open/i }));
+
+    expect(screen.queryByText("AM-456 is already on Alice Smith's board today.")).not.toBeInTheDocument();
+    expect(screen.getByText('Shared task detail for item 77')).toBeInTheDocument();
   });
 
   it('carries forward the selected board date to the next day', () => {
@@ -1214,11 +1278,22 @@ describe('TrackerItemRow', () => {
 });
 
 describe('AddTrackerItemForm', () => {
+  beforeEach(() => {
+    mockTrackerIssueAssignments = [];
+  });
+
   it('creates a descriptive task with an optional note', async () => {
     const { AddTrackerItemForm } = await import('@/components/team-tracker/AddTrackerItemForm');
     const onAdd = vi.fn();
 
-    render(<AddTrackerItemForm onAdd={onAdd} />);
+    render(
+      <AddTrackerItemForm
+        onAdd={onAdd}
+        date="2026-03-07"
+        targetAccountId="dev-1"
+        onOpenExistingAssignment={vi.fn()}
+      />
+    );
 
     fireEvent.click(screen.getByText('Add Task'));
     const titleInput = screen.getByPlaceholderText('Describe the work in one line');
@@ -1243,6 +1318,9 @@ describe('AddTrackerItemForm', () => {
     render(
       <AddTrackerItemForm
         onAdd={onAdd}
+        date="2026-03-07"
+        targetAccountId="dev-1"
+        onOpenExistingAssignment={vi.fn()}
         issues={[
           {
             jiraKey: 'AM-789',
@@ -1281,6 +1359,9 @@ describe('AddTrackerItemForm', () => {
     render(
       <AddTrackerItemForm
         onAdd={vi.fn()}
+        date="2026-03-07"
+        targetAccountId="dev-1"
+        onOpenExistingAssignment={vi.fn()}
         issues={[
           {
             jiraKey: 'AM-789',
@@ -1303,5 +1384,185 @@ describe('AddTrackerItemForm', () => {
 
     fireEvent.click(screen.getByText('Fix alert regression'));
     expect(screen.getByLabelText(/remove linked jira/i)).toBeInTheDocument();
+  });
+
+  it('shows a stronger warning when the selected developer already has the Jira issue', async () => {
+    const { AddTrackerItemForm } = await import('@/components/team-tracker/AddTrackerItemForm');
+
+    mockTrackerIssueAssignments = [
+      {
+        date: '2026-03-07',
+        jiraKey: 'AM-789',
+        itemId: 91,
+        title: 'Existing alert regression work',
+        state: 'planned',
+        developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+      },
+    ];
+
+    render(
+      <AddTrackerItemForm
+        onAdd={vi.fn()}
+        date="2026-03-07"
+        targetAccountId="dev-1"
+        onOpenExistingAssignment={vi.fn()}
+        issues={[
+          {
+            jiraKey: 'AM-789',
+            summary: 'Fix alert regression',
+            priorityName: 'High',
+            dueDate: '2026-03-10',
+          },
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Add Task'));
+    fireEvent.click(screen.getByText('Attach Jira'));
+    fireEvent.change(screen.getByPlaceholderText('Search Jira issues'), {
+      target: { value: 'AM-789' },
+    });
+    fireEvent.click(screen.getByText('Fix alert regression'));
+
+    expect(screen.getByText("AM-789 is already on Alice Smith's board today.")).toBeInTheDocument();
+    expect(screen.getByText(/duplicates are still allowed in this flow/i)).toBeInTheDocument();
+  });
+
+  it('clears the conflict warning when the Jira selection is removed', async () => {
+    const { AddTrackerItemForm } = await import('@/components/team-tracker/AddTrackerItemForm');
+
+    mockTrackerIssueAssignments = [
+      {
+        date: '2026-03-07',
+        jiraKey: 'AM-789',
+        itemId: 91,
+        title: 'Existing alert regression work',
+        state: 'planned',
+        developer: { accountId: 'dev-2', displayName: 'Bob Jones', isActive: true },
+      },
+    ];
+
+    render(
+      <AddTrackerItemForm
+        onAdd={vi.fn()}
+        date="2026-03-07"
+        targetAccountId="dev-1"
+        onOpenExistingAssignment={vi.fn()}
+        issues={[
+          {
+            jiraKey: 'AM-789',
+            summary: 'Fix alert regression',
+            priorityName: 'High',
+            dueDate: '2026-03-10',
+          },
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Add Task'));
+    fireEvent.click(screen.getByText('Attach Jira'));
+    fireEvent.change(screen.getByPlaceholderText('Search Jira issues'), {
+      target: { value: 'AM-789' },
+    });
+    fireEvent.click(screen.getByText('Fix alert regression'));
+
+    expect(screen.getByText('AM-789 is already assigned in Team Tracker today.')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText(/remove linked jira/i));
+
+    expect(screen.queryByText('AM-789 is already assigned in Team Tracker today.')).not.toBeInTheDocument();
+  });
+
+  it('still submits when a Jira conflict exists', async () => {
+    const { AddTrackerItemForm } = await import('@/components/team-tracker/AddTrackerItemForm');
+    const onAdd = vi.fn();
+
+    mockTrackerIssueAssignments = [
+      {
+        date: '2026-03-07',
+        jiraKey: 'AM-789',
+        itemId: 91,
+        title: 'Existing alert regression work',
+        state: 'planned',
+        developer: { accountId: 'dev-2', displayName: 'Bob Jones', isActive: true },
+      },
+    ];
+
+    render(
+      <AddTrackerItemForm
+        onAdd={onAdd}
+        date="2026-03-07"
+        targetAccountId="dev-1"
+        onOpenExistingAssignment={vi.fn()}
+        issues={[
+          {
+            jiraKey: 'AM-789',
+            summary: 'Fix alert regression',
+            priorityName: 'High',
+            dueDate: '2026-03-10',
+          },
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Add Task'));
+    fireEvent.change(screen.getByPlaceholderText('Describe the work in one line'), {
+      target: { value: 'Patch the regression anyway' },
+    });
+    fireEvent.click(screen.getByText('Attach Jira'));
+    fireEvent.change(screen.getByPlaceholderText('Search Jira issues'), {
+      target: { value: 'AM-789' },
+    });
+    fireEvent.click(screen.getByText('Fix alert regression'));
+    fireEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+
+    expect(onAdd).toHaveBeenCalledWith({
+      jiraKey: 'AM-789',
+      title: 'Patch the regression anyway',
+      note: undefined,
+    });
+  });
+
+  it('opens an existing assignment from the conflict panel', async () => {
+    const { AddTrackerItemForm } = await import('@/components/team-tracker/AddTrackerItemForm');
+    const onOpenExistingAssignment = vi.fn();
+
+    mockTrackerIssueAssignments = [
+      {
+        date: '2026-03-07',
+        jiraKey: 'AM-789',
+        itemId: 91,
+        title: 'Existing alert regression work',
+        state: 'planned',
+        developer: { accountId: 'dev-2', displayName: 'Bob Jones', isActive: true },
+      },
+    ];
+
+    render(
+      <AddTrackerItemForm
+        onAdd={vi.fn()}
+        date="2026-03-07"
+        targetAccountId="dev-1"
+        onOpenExistingAssignment={onOpenExistingAssignment}
+        issues={[
+          {
+            jiraKey: 'AM-789',
+            summary: 'Fix alert regression',
+            priorityName: 'High',
+            dueDate: '2026-03-10',
+          },
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Add Task'));
+    fireEvent.click(screen.getByText('Attach Jira'));
+    fireEvent.change(screen.getByPlaceholderText('Search Jira issues'), {
+      target: { value: 'AM-789' },
+    });
+    fireEvent.click(screen.getByText('Fix alert regression'));
+    fireEvent.click(screen.getByRole('button', { name: /open/i }));
+
+    expect(onOpenExistingAssignment).toHaveBeenCalledWith(91);
+    expect(screen.queryByText('AM-789 is already assigned in Team Tracker today.')).not.toBeInTheDocument();
   });
 });
