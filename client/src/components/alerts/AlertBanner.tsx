@@ -65,7 +65,9 @@ export function AlertBanner({ onAlertClick }: AlertBannerProps) {
 function summarizeAlerts(alerts: Alert[]): string {
   const counts: Record<string, number> = {};
   for (const a of alerts) {
-    const label = a.type.replace(/_/g, ' ');
+    const label = a.type === 'idle_developer'
+      ? 'idle (no planned work)'
+      : a.type.replace(/_/g, ' ');
     counts[label] = (counts[label] ?? 0) + 1;
   }
   return Object.entries(counts)

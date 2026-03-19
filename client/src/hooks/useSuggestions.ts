@@ -17,7 +17,10 @@ export function useSuggestions(issueKey?: string, priority?: string) {
 
   const assigneeSuggestion = useQuery<AssignmentSuggestion[]>({
     queryKey: ['suggestions', 'assignee', issueKey],
-    queryFn: () => api.get(`/suggestions/assignee/${issueKey}`),
+    queryFn: async () => {
+      const res = await api.get<{ issueKey: string; suggestions: AssignmentSuggestion[] }>(`/suggestions/assignee/${issueKey}`);
+      return res.suggestions;
+    },
     enabled: !!issueKey,
   });
 

@@ -5,6 +5,8 @@ const devRows = [
   { accountId: "dev-1", displayName: "Alice", email: null, avatarUrl: null, isActive: 1 },
   { accountId: "dev-2", displayName: "Bob", email: null, avatarUrl: null, isActive: 1 },
   { accountId: "dev-3", displayName: "Carol", email: null, avatarUrl: null, isActive: 1 },
+  { accountId: "dev-4", displayName: "Dan", email: null, avatarUrl: null, isActive: 1 },
+  { accountId: "dev-5", displayName: "Eve", email: null, avatarUrl: null, isActive: 1 },
 ];
 
 const issueRows = [
@@ -13,11 +15,14 @@ const issueRows = [
   { assigneeId: "dev-2", statusCategory: "new", priorityName: "Medium", dueDate: null, developmentDueDate: null, flagged: 0, excluded: 0, teamScopeState: "in_team", syncScopeState: "active" },
   { assigneeId: "dev-2", statusCategory: "done", priorityName: "Low", dueDate: null, developmentDueDate: null, flagged: 0, excluded: 0, teamScopeState: "in_team", syncScopeState: "active" },
   { assigneeId: "dev-3", statusCategory: "indeterminate", priorityName: "High", dueDate: null, developmentDueDate: null, flagged: 0, excluded: 1, teamScopeState: "in_team", syncScopeState: "active" },
+  { assigneeId: "dev-4", statusCategory: "indeterminate", priorityName: "Medium", dueDate: null, developmentDueDate: null, flagged: 0, excluded: 0, teamScopeState: "in_team", syncScopeState: "active" },
 ] as any[];
 
 const trackerDayRows = [
   { id: 1, date: "2026-03-09", developerAccountId: "dev-1", status: "on_track", capacityUnits: 3, lastCheckInAt: "2026-03-09T08:00:00.000Z" },
   { id: 2, date: "2026-03-09", developerAccountId: "dev-2", status: "blocked", capacityUnits: 1, lastCheckInAt: "2026-03-09T08:00:00.000Z" },
+  { id: 3, date: "2026-03-09", developerAccountId: "dev-3", status: "waiting", capacityUnits: 2, lastCheckInAt: "2026-03-09T08:00:00.000Z" },
+  { id: 5, date: "2026-03-09", developerAccountId: "dev-5", status: "done_for_today", capacityUnits: 2, lastCheckInAt: "2026-03-09T08:00:00.000Z" },
 ] as any[];
 
 const trackerItemRows = [
@@ -26,6 +31,7 @@ const trackerItemRows = [
   { id: 103, dayId: 1, state: "done" },
   { id: 201, dayId: 2, state: "planned" },
   { id: 202, dayId: 2, state: "planned" },
+  { id: 301, dayId: 3, state: "planned" },
 ] as any[];
 
 vi.mock("../src/db/connection", () => ({
@@ -61,10 +67,26 @@ describe("WorkloadService", () => {
 
   it("identifies idle developers from computed team list", () => {
     const team = [
-      { developer: { accountId: "dev-1", displayName: "Alice", isActive: true }, activeDefects: 1, dueToday: 0, blocked: 0, score: 3, level: "light" as const },
-      { developer: { accountId: "dev-2", displayName: "Bob", isActive: true }, activeDefects: 0, dueToday: 0, blocked: 0, score: 0, level: "light" as const },
+      {
+        developer: { accountId: "dev-1", displayName: "Alice", isActive: true },
+        activeDefects: 1,
+        dueToday: 0,
+        blocked: 0,
+        score: 3,
+        level: "light" as const,
+        signals: { idle: false, noCurrentItem: false, overCapacity: false, backlogTrackerMismatch: false },
+      },
+      {
+        developer: { accountId: "dev-2", displayName: "Bob", isActive: true },
+        activeDefects: 0,
+        dueToday: 0,
+        blocked: 0,
+        score: 0,
+        level: "light" as const,
+        signals: { idle: true, noCurrentItem: false, overCapacity: false, backlogTrackerMismatch: false },
+      },
     ];
-    const idle = team.filter((entry) => entry.activeDefects === 0).map((entry) => entry.developer.accountId);
+    const idle = team.filter((entry) => entry.signals?.idle === true).map((entry) => entry.developer.accountId);
     expect(idle).toEqual(["dev-2"]);
   });
 
@@ -72,24 +94,35 @@ describe("WorkloadService", () => {
     const service = new WorkloadService();
     const team = await service.getTeamWorkload("2026-03-09");
 
-    expect(team).toHaveLength(3);
+    expect(team).toHaveLength(5);
     expect(team.find((entry) => entry.developer.accountId === "dev-1")?.score).toBe(8);
     expect(team.find((entry) => entry.developer.accountId === "dev-2")?.activeDefects).toBe(1);
     expect(team.find((entry) => entry.developer.accountId === "dev-3")?.activeDefects).toBe(0);
     expect(team.find((entry) => entry.developer.accountId === "dev-1")?.assignedTodayCount).toBe(2);
     expect(team.find((entry) => entry.developer.accountId === "dev-1")?.capacityUnits).toBe(3);
     expect(team.find((entry) => entry.developer.accountId === "dev-2")?.signals?.overCapacity).toBe(true);
+    expect(team.find((entry) => entry.developer.accountId === "dev-3")?.signals?.idle).toBe(false);
+    expect(team.find((entry) => entry.developer.accountId === "dev-4")?.signals?.idle).toBe(true);
+    expect(team.find((entry) => entry.developer.accountId === "dev-5")?.signals?.idle).toBe(false);
+    expect(team.find((entry) => entry.developer.accountId === "dev-4")?.signals?.backlogTrackerMismatch).toBe(true);
   });
 
   it("returns idle developers and ranked suggestions using service methods", async () => {
     const service = new WorkloadService();
-    const idle = await service.getIdleDevelopers();
-    expect(idle.map((d) => d.accountId)).toContain("dev-3");
+    const idle = await service.getIdleDevelopers("2026-03-09");
+    expect(idle.map((d) => d.accountId)).toContain("dev-4");
+    expect(idle.map((d) => d.accountId)).not.toContain("dev-3");
+    expect(idle.map((d) => d.accountId)).not.toContain("dev-5");
 
     const ranked = await service.suggestAssignee();
-    expect(ranked[0]?.developer.accountId).toBe("dev-3");
+    expect(ranked[0]?.developer.accountId).toBe("dev-4");
+    expect(ranked[1]?.developer.accountId).toBe("dev-3");
+    expect(ranked.some((entry) => entry.developer.accountId === "dev-5" && entry.reason.includes("marked done for today"))).toBe(true);
     expect(ranked.at(-1)?.developer.accountId).toBe("dev-2");
     expect(ranked[0]?.reason).toContain("planned today");
+    expect(ranked[0]?.reason).toContain("backlog score");
+    expect(ranked[0]?.reason).toContain("active Jira issue");
+    expect(ranked[0]?.workload.developer.accountId).toBe("dev-4");
   });
 
   it("ignores excluded issues in workload and developer issue queries", async () => {

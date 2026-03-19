@@ -71,21 +71,17 @@ Why this is top 3:
 
 ### 4. Clean up dashboard alerts and workload trust signals
 
-The dashboard still has trust problems for live management. Some alerts are generated from the wrong issue set, and idle detection still ignores same-day tracker assignments.
+Status: Completed
+
+This follow-up is complete and should no longer be treated as an open dashboard trust gap.
 
 **Change nature:** Both frontend and backend
 
-Current evidence:
+Outcome:
 
-- `server/src/services/alert.service.ts` iterates every issue row directly and does not apply `isActiveTeamIssue`.
-- `server/src/services/workload.service.ts` still defines idle developers as `activeDefects === 0` in `getIdleDevelopers()`.
-- `server/src/services/workload.service.ts` does calculate `assignedTodayCount`, but suggestions and alert wording still center heavily on Jira backlog score.
-
-What to implement:
-
-- Generate issue alerts only from active in-team issues.
-- Redefine idle to account for current tracker work, planned tracker work, and availability state.
-- Make assignment rationale show both Jira backlog pressure and today's tracker load so the score does not overstate certainty.
+- Issue alerts now generate only from active in-team issues, so excluded, out-of-team, and sync-inactive rows no longer pollute dashboard risk signals.
+- Idle developer detection now follows same-day tracker reality instead of only Jira defect count, including suppression for developers already marked `done_for_today`.
+- Workload payloads and assignment suggestions now surface tracker load alongside Jira backlog pressure, so the dashboard and triage suggestion UI no longer overstate confidence from one backlog number.
 
 Why this is top 4:
 
@@ -153,12 +149,12 @@ These are still worthwhile, but they should follow the trust and safety fixes ab
 
 ### Feature 4. Dashboard alert and workload trust cleanup
 
-- [ ] Update backend alert generation to only use active in-team issues.
-- [ ] Redefine idle developer detection using tracker assignments and availability, not only Jira active defects.
-- [ ] Review workload scoring and suggestion text so tracker load is visible alongside Jira backlog pressure.
-- [ ] Update frontend dashboard messaging to reflect the refined alert and workload semantics.
-- [ ] Add or update backend tests for alert filtering and idle-developer logic.
-- [ ] Add or update frontend tests for workload and alert presentation where applicable.
+- [x] Update backend alert generation to only use active in-team issues.
+- [x] Redefine idle developer detection using tracker assignments and availability, not only Jira active defects.
+- [x] Review workload scoring and suggestion text so tracker load is visible alongside Jira backlog pressure.
+- [x] Update frontend dashboard messaging to reflect the refined alert and workload semantics.
+- [x] Add or update backend tests for alert filtering and idle-developer logic.
+- [x] Add or update frontend tests for workload and alert presentation where applicable.
 
 ### Feature 5. Structured issue context preservation
 

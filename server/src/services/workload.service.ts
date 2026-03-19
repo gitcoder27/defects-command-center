@@ -15,6 +15,12 @@ const PRIORITY_WEIGHTS: Record<string, number> = {
 };
 
 const TRACKER_STALE_HOURS = 4;
+const ACTIVE_TRACKER_STATUSES = new Set([
+  "on_track",
+  "at_risk",
+  "waiting",
+  undefined,
+]);
 
 function isTrackerStale(lastCheckInAt: string | null, now = new Date()): boolean {
   if (!lastCheckInAt) {
@@ -23,6 +29,33 @@ function isTrackerStale(lastCheckInAt: string | null, now = new Date()): boolean
 
   const diff = now.getTime() - new Date(lastCheckInAt).getTime();
   return diff > TRACKER_STALE_HOURS * 60 * 60 * 1000;
+}
+
+function getTrackerAvailabilityRank(status?: DeveloperWorkload["trackerStatus"]): number {
+  if (ACTIVE_TRACKER_STATUSES.has(status)) {
+    return 0;
+  }
+  if (status === "done_for_today") {
+    return 1;
+  }
+  if (status === "blocked") {
+    return 2;
+  }
+  return 0;
+}
+
+function buildSuggestionReason(entry: DeveloperWorkload): string {
+  const loadSummary = entry.capacityUnits !== undefined
+    ? `${entry.assignedTodayCount ?? 0}/${entry.capacityUnits} planned today`
+    : `${entry.assignedTodayCount ?? 0} planned today`;
+  const issueLabel = entry.activeDefects === 1 ? "issue" : "issues";
+  const statusNote = entry.trackerStatus === "done_for_today"
+    ? ", marked done for today"
+    : entry.trackerStatus === "blocked"
+      ? ", currently blocked"
+      : "";
+
+  return `${loadSummary}, backlog score ${entry.score} across ${entry.activeDefects} active Jira ${issueLabel}${statusNote}`;
 }
 
 export class WorkloadService {
@@ -107,6 +140,7 @@ export class WorkloadService {
       const hasCurrentItem = currentCount === 1;
       const overCapacity = capacityUnits !== undefined && capacityUsed > capacityUnits;
       const noCurrentItem = assignedTodayCount > 0 && !hasCurrentItem;
+      const idle = assignedTodayCount === 0 && trackerDay?.status !== "done_for_today";
 
       return {
         developer: dev,
@@ -128,6 +162,7 @@ export class WorkloadService {
         capacityRemaining,
         capacityUtilization,
         signals: {
+          idle,
           noCurrentItem,
           overCapacity,
           backlogTrackerMismatch: mine.length > 0 && assignedTodayCount === 0,
@@ -141,19 +176,19 @@ export class WorkloadService {
     return rows.filter((issue) => isActiveTeamIssue(issue));
   }
 
-  async getIdleDevelopers(): Promise<Developer[]> {
-    const team = await this.getTeamWorkload();
-    return team.filter((entry) => entry.activeDefects === 0).map((entry) => entry.developer);
+  async getIdleDevelopers(date = todayIsoDate()): Promise<Developer[]> {
+    const team = await this.getTeamWorkload(date);
+    return team.filter((entry) => entry.signals?.idle === true).map((entry) => entry.developer);
   }
 
   async suggestAssignee(): Promise<AssignmentSuggestion[]> {
     const team = await this.getTeamWorkload();
     return [...team]
       .sort((a, b) => {
-        const blockedDelta =
-          Number(a.trackerStatus === "blocked") - Number(b.trackerStatus === "blocked");
-        if (blockedDelta !== 0) {
-          return blockedDelta;
+        const trackerAvailabilityDelta =
+          getTrackerAvailabilityRank(a.trackerStatus) - getTrackerAvailabilityRank(b.trackerStatus);
+        if (trackerAvailabilityDelta !== 0) {
+          return trackerAvailabilityDelta;
         }
 
         const overCapacityDelta =
@@ -185,10 +220,8 @@ export class WorkloadService {
       .map((entry) => ({
         developer: entry.developer,
         score: entry.score,
-        reason:
-          entry.capacityUnits !== undefined
-            ? `${entry.assignedTodayCount ?? 0}/${entry.capacityUnits} planned today, score ${entry.score}`
-            : `${entry.assignedTodayCount ?? 0} planned today, score ${entry.score}`,
+        reason: buildSuggestionReason(entry),
+        workload: entry,
       }));
   }
 

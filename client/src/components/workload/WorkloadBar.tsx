@@ -90,6 +90,8 @@ export function WorkloadBar({ activeDeveloper, onDeveloperClick }: WorkloadBarPr
                   const color = workloadAccent(dev);
                   const isActive = activeDeveloper === dev.developer.accountId;
                   const loadLabel = workloadAssignedLabel(dev);
+                  const isIdle = dev.signals?.idle ?? false;
+                  const hasMismatch = dev.signals?.backlogTrackerMismatch ?? false;
                   return (
                     <button
                       key={dev.developer.accountId}
@@ -99,7 +101,7 @@ export function WorkloadBar({ activeDeveloper, onDeveloperClick }: WorkloadBarPr
                       aria-pressed={isActive}
                       className="flex items-center gap-1.5 shrink-0 rounded-full border px-2 py-1 transition-colors"
                       style={{
-                        borderColor: isActive ? 'var(--accent)' : 'var(--border)',
+                        borderColor: isActive ? 'var(--accent)' : hasMismatch ? 'rgba(245,158,11,0.4)' : 'var(--border)',
                         background: isActive
                           ? 'color-mix(in srgb, var(--accent-glow) 78%, var(--bg-secondary) 22%)'
                           : 'color-mix(in srgb, var(--bg-tertiary) 84%, transparent)',
@@ -121,7 +123,7 @@ export function WorkloadBar({ activeDeveloper, onDeveloperClick }: WorkloadBarPr
                       </span>
                       <span
                         className="text-[11px] truncate"
-                        style={{ color: isActive ? 'var(--accent)' : 'var(--text-secondary)', maxWidth: 76 }}
+                        style={{ color: isActive ? 'var(--accent)' : isIdle ? 'var(--text-muted)' : 'var(--text-secondary)', maxWidth: 76 }}
                       >
                         {dev.developer.displayName.split(' ')[0]}
                       </span>
@@ -131,6 +133,9 @@ export function WorkloadBar({ activeDeveloper, onDeveloperClick }: WorkloadBarPr
                       <span className="font-mono text-[10px]" style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}>
                         S{dev.score}
                       </span>
+                      {hasMismatch && !isActive && (
+                        <span className="text-[9px] font-semibold" style={{ color: 'var(--warning)' }}>⚡</span>
+                      )}
                     </button>
                   );
                 })}

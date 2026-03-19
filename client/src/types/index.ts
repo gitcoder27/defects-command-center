@@ -116,6 +116,7 @@ export interface DeveloperWorkload {
   capacityRemaining?: number;
   capacityUtilization?: number;
   signals?: {
+    idle: boolean;
     noCurrentItem: boolean;
     overCapacity: boolean;
     backlogTrackerMismatch: boolean;
@@ -162,6 +163,7 @@ export interface AssignmentSuggestion {
   developer: Developer;
   score: number;
   reason: string;
+  workload: DeveloperWorkload;
 }
 
 export interface SyncStatus {

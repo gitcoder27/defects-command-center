@@ -2,7 +2,7 @@ import type { Alert } from "shared/types";
 import { db } from "../db/connection";
 import { issues } from "../db/schema";
 import { isOlderThanHours, todayIsoDate } from "../utils/date";
-import { getEffectiveDueDate, isStaleIssue } from "./issue-rules";
+import { getEffectiveDueDate, isActiveTeamIssue, isStaleIssue } from "./issue-rules";
 import { SettingsService } from "./settings.service";
 import { WorkloadService } from "./workload.service";
 
@@ -19,12 +19,16 @@ export class AlertService {
     const alerts: Alert[] = [];
 
     for (const row of rows) {
+      if (!isActiveTeamIssue(row)) {
+        continue;
+      }
+
       const effectiveDueDate = getEffectiveDueDate(row);
 
-      if (effectiveDueDate && effectiveDueDate < today && row.statusCategory !== "done") {
+      if (effectiveDueDate && effectiveDueDate < today) {
         alerts.push(this.makeIssueAlert("overdue", "high", row.jiraKey, `Issue ${row.jiraKey} is overdue.`));
       }
-      if (row.statusCategory !== "done" && isStaleIssue(row, staleThresholdHours, now)) {
+      if (isStaleIssue(row, staleThresholdHours, now)) {
         alerts.push(this.makeIssueAlert("stale", "medium", row.jiraKey, `Issue ${row.jiraKey} is stale.`));
       }
       if (row.flagged === 1) {
@@ -46,7 +50,7 @@ export class AlertService {
       }
     }
 
-    const idleDevelopers = await this.workloadService.getIdleDevelopers();
+    const idleDevelopers = await this.workloadService.getIdleDevelopers(today);
     for (const dev of idleDevelopers) {
       alerts.push({
         id: `idle_developer:${dev.accountId}`,
@@ -54,7 +58,7 @@ export class AlertService {
         severity: "medium",
         developerAccountId: dev.accountId,
         developerName: dev.displayName,
-        message: `${dev.displayName} has no active defects assigned.`,
+        message: `${dev.displayName} has no current or planned work today.`,
         detectedAt: now.toISOString(),
       });
     }

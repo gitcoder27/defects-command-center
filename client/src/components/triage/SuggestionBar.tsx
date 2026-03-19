@@ -1,10 +1,63 @@
 import { useSuggestions } from '@/hooks/useSuggestions';
 import { useUpdateIssue } from '@/hooks/useUpdateIssue';
+import { workloadAssignedLabel } from '@/lib/utils';
 import { Sparkles } from 'lucide-react';
-import type { Issue } from '@/types';
+import type { Issue, AssignmentSuggestion } from '@/types';
 
 interface SuggestionBarProps {
   issue: Issue;
+}
+
+function AssigneeMetrics({ suggestion }: { suggestion: AssignmentSuggestion }) {
+  const w = suggestion.workload;
+  const todayLabel = workloadAssignedLabel(w);
+  const isIdle = w.signals?.idle ?? false;
+  const isDoneForToday = w.trackerStatus === 'done_for_today';
+  const isBlocked = w.trackerStatus === 'blocked';
+
+  return (
+    <span className="flex items-center gap-1.5 flex-wrap" style={{ color: 'var(--text-secondary)' }}>
+      👤 <strong style={{ color: 'var(--text-primary)' }}>{suggestion.developer.displayName}</strong>
+      <span className="flex items-center gap-1 text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
+        <span
+          className="rounded-full px-1.5 py-0.5"
+          style={{ background: 'var(--bg-tertiary)' }}
+        >
+          {todayLabel} today
+        </span>
+        <span
+          className="rounded-full px-1.5 py-0.5"
+          style={{ background: 'var(--bg-tertiary)' }}
+        >
+          S{w.score} · {w.activeDefects} Jira
+        </span>
+        {isIdle && (
+          <span
+            className="rounded-full px-1.5 py-0.5 uppercase"
+            style={{ background: 'var(--bg-tertiary)', letterSpacing: '0.06em' }}
+          >
+            idle
+          </span>
+        )}
+        {isDoneForToday && (
+          <span
+            className="rounded-full px-1.5 py-0.5 uppercase"
+            style={{ color: 'var(--text-muted)', background: 'var(--bg-tertiary)', letterSpacing: '0.06em' }}
+          >
+            done for today
+          </span>
+        )}
+        {isBlocked && (
+          <span
+            className="rounded-full px-1.5 py-0.5 uppercase"
+            style={{ color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.08)', letterSpacing: '0.06em' }}
+          >
+            blocked
+          </span>
+        )}
+      </span>
+    </span>
+  );
 }
 
 export function SuggestionBar({ issue }: SuggestionBarProps) {
@@ -64,10 +117,7 @@ export function SuggestionBar({ issue }: SuggestionBarProps) {
             </span>
           )}
           {topAssignee && (
-            <span className="flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
-              👤 <strong style={{ color: 'var(--text-primary)' }}>{topAssignee.developer.displayName}</strong>
-              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>({topAssignee.reason})</span>
-            </span>
+            <AssigneeMetrics suggestion={topAssignee} />
           )}
         </div>
       </div>

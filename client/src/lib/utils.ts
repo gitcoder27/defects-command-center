@@ -102,11 +102,11 @@ export function workloadAccent(workload: Pick<DeveloperWorkload, 'activeDefects'
     return 'var(--danger)';
   }
 
-  if (workload.signals?.noCurrentItem || workload.isTrackerStale) {
+  if (workload.signals?.backlogTrackerMismatch || workload.signals?.noCurrentItem || workload.isTrackerStale) {
     return 'var(--warning)';
   }
 
-  if ((workload.assignedTodayCount ?? 0) === 0 && workload.activeDefects === 0) {
+  if (workload.signals?.idle) {
     return 'var(--text-muted)';
   }
 

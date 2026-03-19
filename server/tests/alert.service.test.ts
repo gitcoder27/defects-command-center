@@ -13,6 +13,9 @@ const mockedIssues = [
     priorityName: "Medium",
     statusName: "In Progress",
     createdAt: "2026-03-05T10:00:00.000Z",
+    excluded: 0,
+    teamScopeState: "in_team",
+    syncScopeState: "active",
   },
   {
     jiraKey: "PROJ-2",
@@ -24,6 +27,9 @@ const mockedIssues = [
     priorityName: "Low",
     statusName: "In Progress",
     createdAt: "2026-03-05T10:00:00.000Z",
+    excluded: 0,
+    teamScopeState: "in_team",
+    syncScopeState: "active",
   },
   {
     jiraKey: "PROJ-3",
@@ -35,6 +41,9 @@ const mockedIssues = [
     priorityName: "Low",
     statusName: "In Progress",
     createdAt: "2026-03-05T10:00:00.000Z",
+    excluded: 0,
+    teamScopeState: "in_team",
+    syncScopeState: "active",
   },
   {
     jiraKey: "PROJ-4",
@@ -46,6 +55,9 @@ const mockedIssues = [
     priorityName: "High",
     statusName: "To Do",
     createdAt: "2026-03-05T06:00:00.000Z",
+    excluded: 0,
+    teamScopeState: "in_team",
+    syncScopeState: "active",
   },
   {
     jiraKey: "PROJ-5",
@@ -57,6 +69,51 @@ const mockedIssues = [
     priorityName: "Medium",
     statusName: "In Progress",
     createdAt: "2026-03-05T10:00:00.000Z",
+    excluded: 0,
+    teamScopeState: "in_team",
+    syncScopeState: "active",
+  },
+  {
+    jiraKey: "PROJ-6",
+    dueDate: "2026-03-01",
+    developmentDueDate: null,
+    statusCategory: "indeterminate",
+    updatedAt: "2026-03-03T11:00:00.000Z",
+    flagged: 1,
+    priorityName: "High",
+    statusName: "To Do",
+    createdAt: "2026-03-05T06:00:00.000Z",
+    excluded: 1,
+    teamScopeState: "in_team",
+    syncScopeState: "active",
+  },
+  {
+    jiraKey: "PROJ-7",
+    dueDate: "2026-03-01",
+    developmentDueDate: null,
+    statusCategory: "indeterminate",
+    updatedAt: "2026-03-03T11:00:00.000Z",
+    flagged: 1,
+    priorityName: "High",
+    statusName: "To Do",
+    createdAt: "2026-03-05T06:00:00.000Z",
+    excluded: 0,
+    teamScopeState: "out_of_team",
+    syncScopeState: "active",
+  },
+  {
+    jiraKey: "PROJ-8",
+    dueDate: "2026-03-01",
+    developmentDueDate: null,
+    statusCategory: "indeterminate",
+    updatedAt: "2026-03-03T11:00:00.000Z",
+    flagged: 1,
+    priorityName: "High",
+    statusName: "To Do",
+    createdAt: "2026-03-05T06:00:00.000Z",
+    excluded: 0,
+    teamScopeState: "in_team",
+    syncScopeState: "inaccessible",
   },
 ];
 
@@ -87,6 +144,7 @@ describe("AlertService", () => {
     expect(types).toContain("high_priority_not_started");
     expect(types).toContain("idle_developer");
     expect(alerts.find((a) => a.type === "idle_developer")?.developerAccountId).toBe("dev-2");
+    expect(alerts.find((a) => a.type === "idle_developer")?.message).toBe("Bob has no current or planned work today.");
   });
 
   it("uses development due date for overdue alerts", async () => {
@@ -107,5 +165,19 @@ describe("AlertService", () => {
     const alerts = await relaxedThresholdService.computeAlerts(new Date("2026-03-05T12:00:00.000Z"));
 
     expect(alerts.some((alert) => alert.type === "stale" && alert.issueKey === "PROJ-2")).toBe(false);
+  });
+
+  it("filters excluded, out-of-team, and sync-inactive issues before creating alerts", async () => {
+    const alerts = await service.computeAlerts(new Date("2026-03-05T12:00:00.000Z"));
+
+    expect(alerts.some((alert) => alert.issueKey === "PROJ-6")).toBe(false);
+    expect(alerts.some((alert) => alert.issueKey === "PROJ-7")).toBe(false);
+    expect(alerts.some((alert) => alert.issueKey === "PROJ-8")).toBe(false);
+  });
+
+  it("passes the computed date into idle-developer detection", async () => {
+    await service.computeAlerts(new Date("2026-03-05T12:00:00.000Z"));
+
+    expect(workloadService.getIdleDevelopers).toHaveBeenCalledWith("2026-03-05");
   });
 });

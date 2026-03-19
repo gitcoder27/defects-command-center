@@ -14,10 +14,12 @@ export function DeveloperCard({ dev, expanded, active = false, onClick }: Develo
   const fillPercent = Math.min((dev.score / maxScore) * 100, 100);
   const assignedLabel = workloadAssignedLabel(dev);
   const color = workloadAccent(dev);
-  const isIdle = dev.activeDefects === 0 && (dev.assignedTodayCount ?? 0) === 0;
+  const isIdle = dev.signals?.idle ?? false;
+  const hasMismatch = dev.signals?.backlogTrackerMismatch ?? false;
+  const noCurrentItem = dev.signals?.noCurrentItem ?? false;
   const statItems = [
-    { label: 'Active', value: dev.activeDefects },
-    { label: 'Assigned', value: dev.assignedTodayCount ?? 0 },
+    { label: 'Today', value: dev.assignedTodayCount ?? 0 },
+    { label: 'Active Jira', value: dev.activeDefects },
     { label: 'Done', value: dev.completedTodayCount ?? 0 },
     { label: 'Blocked', value: dev.blocked },
   ];
@@ -49,12 +51,12 @@ export function DeveloperCard({ dev, expanded, active = false, onClick }: Develo
           <span className="text-[13px] font-medium truncate block" style={{ color: 'var(--text-primary)' }}>
             {dev.developer.displayName}
           </span>
-          <div className="mt-1 flex items-center gap-1.5 text-[10px]">
+          <div className="mt-1 flex items-center gap-1.5 text-[10px] flex-wrap">
             <span
               className="rounded-full px-1.5 py-0.5 font-mono"
               style={{ color, background: `${color}14` }}
             >
-              {assignedLabel}
+              {assignedLabel} today
             </span>
             <span className="font-mono" style={{ color: 'var(--text-muted)' }}>
               S{dev.score}
@@ -66,11 +68,32 @@ export function DeveloperCard({ dev, expanded, active = false, onClick }: Develo
             )}
           </div>
         </div>
-        {isIdle && (
-          <span className="text-[10px] animate-glow-idle" style={{ color: 'var(--warning)' }}>
-            ⚠
-          </span>
-        )}
+        <div className="flex flex-col items-end gap-0.5 shrink-0">
+          {isIdle && (
+            <span
+              className="text-[9px] uppercase font-semibold rounded-full px-1.5 py-0.5"
+              style={{ color: 'var(--text-muted)', background: 'var(--bg-tertiary)', letterSpacing: '0.06em' }}
+            >
+              idle
+            </span>
+          )}
+          {hasMismatch && (
+            <span
+              className="text-[9px] uppercase font-semibold rounded-full px-1.5 py-0.5"
+              style={{ color: 'var(--warning)', background: 'rgba(245,158,11,0.10)', letterSpacing: '0.06em' }}
+            >
+              mismatch
+            </span>
+          )}
+          {noCurrentItem && !isIdle && (
+            <span
+              className="text-[9px] uppercase font-semibold rounded-full px-1.5 py-0.5"
+              style={{ color: 'var(--warning)', background: 'rgba(245,158,11,0.10)', letterSpacing: '0.06em' }}
+            >
+              no current
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="w-full h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-tertiary)' }}>

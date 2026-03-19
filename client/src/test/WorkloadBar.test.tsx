@@ -15,6 +15,7 @@ const mockWorkload: DeveloperWorkload[] = [
     assignedTodayCount: 2,
     completedTodayCount: 1,
     capacityUnits: 5,
+    signals: { idle: false, noCurrentItem: false, overCapacity: false, backlogTrackerMismatch: false },
   },
   {
     developer: { accountId: 'eve-5', displayName: 'Eve', isActive: true },
@@ -24,6 +25,7 @@ const mockWorkload: DeveloperWorkload[] = [
     score: 0,
     level: 'light',
     assignedTodayCount: 0,
+    signals: { idle: true, noCurrentItem: false, overCapacity: false, backlogTrackerMismatch: false },
   },
 ];
 
@@ -49,7 +51,7 @@ describe('WorkloadBar', () => {
     expect(screen.getByText('Eve')).toBeInTheDocument();
   });
 
-  it('shows idle badge for score=0', async () => {
+  it('shows idle badge for signals.idle', async () => {
     render(
       <TestWrapper>
         <WorkloadBar onDeveloperClick={onDeveloperClick} />
@@ -58,8 +60,8 @@ describe('WorkloadBar', () => {
 
     fireEvent.click(screen.getAllByLabelText('Expand workload panel')[0]!);
 
-    const warnings = screen.getAllByText('⚠');
-    expect(warnings.length).toBeGreaterThanOrEqual(1);
+    const idleBadges = screen.getAllByText('idle');
+    expect(idleBadges.length).toBeGreaterThanOrEqual(1);
   });
 
   it('displays load and score labels', () => {

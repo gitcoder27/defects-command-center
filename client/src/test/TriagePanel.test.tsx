@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { TriagePanel } from '@/components/triage/TriagePanel';
 import { TestWrapper } from '@/test/wrapper';
-import type { Developer, Issue, TrackerIssueAssignment } from '@/types';
+import type { Developer, DeveloperWorkload, Issue, TrackerIssueAssignment } from '@/types';
 
 function buildMockIssue(overrides: Partial<Issue> = {}): Issue {
   return {
@@ -33,7 +33,7 @@ let mockIssue: Issue = buildMockIssue();
 let mockSuggestions = {
   prioritySuggestion: { data: null as { suggested: string } | null },
   dueDateSuggestion: { data: null as { suggested: string } | null },
-  assigneeSuggestion: { data: null as { reason: string; developer: Developer }[] | null },
+  assigneeSuggestion: { data: null as { reason: string; developer: Developer; workload: DeveloperWorkload }[] | null },
 };
 
 const mockDevelopers: Developer[] = [
