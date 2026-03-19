@@ -8,6 +8,7 @@ import type {
   ManagerDeskUpdateItemPayload,
   ManagerDeskAddLinkPayload,
   ManagerDeskCarryForwardPayload,
+  ManagerDeskCarryForwardPreviewResponse,
   ManagerDeskIssueLookupItem,
   ManagerDeskDeveloperLookupItem,
   TrackerSharedTaskDetailResponse,
@@ -198,6 +199,24 @@ export function useRemoveManagerDeskLink(date: string) {
 }
 
 // ── Carry forward ───────────────────────────────────────
+
+export function useManagerDeskCarryForwardPreview(
+  fromDate: string,
+  toDate: string,
+  enabled = true,
+) {
+  return useQuery<ManagerDeskCarryForwardPreviewResponse>({
+    queryKey: ['manager-desk', 'carry-forward-preview', fromDate, toDate],
+    queryFn: () => {
+      const params = new URLSearchParams({ fromDate, toDate });
+      return api.get<ManagerDeskCarryForwardPreviewResponse>(
+        `/manager-desk/carry-forward-preview?${params.toString()}`,
+      );
+    },
+    enabled,
+    staleTime: 30_000,
+  });
+}
 
 export function useCarryForwardManagerDesk(date: string) {
   const qc = useQueryClient();

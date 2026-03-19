@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { eq } from "drizzle-orm";
 import { createManagerDeskRouter } from "../src/routes/manager-desk";
@@ -134,6 +134,10 @@ describe("manager desk routes", () => {
       role: "developer",
       developerAccountId: "dev-1",
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("GET /api/manager-desk returns an empty manager day for managers", async () => {
@@ -1058,7 +1062,99 @@ describe("manager desk routes", () => {
     ]);
   });
 
-  it("carry-forward copies unfinished items with links and skips duplicates on repeat runs", async () => {
+  it("GET /api/manager-desk/carry-forward-preview returns rebased times, warnings, and only still-carryable items", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-09T16:30:00.000Z"));
+
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const alreadyCarried = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Already moved forward",
+        status: "waiting",
+        followUpAt: "2026-03-08T12:00:00.000Z",
+      },
+    });
+
+    const stillCarryable = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Design sync that already ran",
+        kind: "meeting",
+        status: "planned",
+        plannedStartAt: "2026-03-08T15:00:00.000Z",
+        plannedEndAt: "2026-03-08T16:00:00.000Z",
+        followUpAt: "2026-03-08T15:30:00.000Z",
+      },
+    });
+
+    await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Closed work should not preview",
+        status: "done",
+      },
+    });
+
+    const carriedOnce = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/carry-forward",
+      headers: { cookie },
+      body: {
+        fromDate: "2026-03-08",
+        toDate: "2026-03-09",
+        itemIds: [alreadyCarried.body.id],
+      },
+    });
+    expect(carriedOnce.status).toBe(200);
+    expect(carriedOnce.body).toEqual({ created: 1 });
+
+    const preview = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk/carry-forward-preview?fromDate=2026-03-08&toDate=2026-03-09",
+      headers: { cookie },
+    });
+
+    expect(preview.status).toBe(200);
+    expect(preview.body).toEqual({
+      fromDate: "2026-03-08",
+      toDate: "2026-03-09",
+      carryable: 1,
+      overdueOnArrivalCount: 1,
+      timeMode: "rebase_to_target_date",
+      items: [
+        expect.objectContaining({
+          item: expect.objectContaining({
+            id: stillCarryable.body.id,
+            title: "Design sync that already ran",
+            plannedStartAt: "2026-03-08T15:00:00.000Z",
+            plannedEndAt: "2026-03-08T16:00:00.000Z",
+            followUpAt: "2026-03-08T15:30:00.000Z",
+          }),
+          rebasedPlannedStartAt: "2026-03-09T15:00:00.000Z",
+          rebasedPlannedEndAt: "2026-03-09T16:00:00.000Z",
+          rebasedFollowUpAt: "2026-03-09T15:30:00.000Z",
+          warningCodes: [
+            "follow_up_overdue_on_arrival",
+            "planned_end_overdue_on_arrival",
+          ],
+        }),
+      ],
+    });
+  });
+
+  it("carry-forward copies unfinished items with rebased times, links, and skips duplicates on repeat runs", async () => {
     const app = createTestApp();
     const cookie = await loginCookie("manager", "secret123");
 
@@ -1075,6 +1171,8 @@ describe("manager desk routes", () => {
         category: "follow_up",
         status: "waiting",
         priority: "high",
+        plannedStartAt: "2026-03-08T14:30:00.000Z",
+        plannedEndAt: "2026-03-08T15:15:00.000Z",
         followUpAt: "2026-03-08T15:00:00.000Z",
         links: [
           { linkType: "developer", developerAccountId: "dev-2" },
@@ -1129,6 +1227,9 @@ describe("manager desk routes", () => {
         expect.objectContaining({
           title: "Follow up with Rahul on blocker",
           status: "waiting",
+          plannedStartAt: "2026-03-09T14:30:00.000Z",
+          plannedEndAt: "2026-03-09T15:15:00.000Z",
+          followUpAt: "2026-03-09T15:00:00.000Z",
           links: expect.arrayContaining([
             expect.objectContaining({
               linkType: "developer",
@@ -1162,6 +1263,53 @@ describe("manager desk routes", () => {
 
     expect(repeat.status).toBe(200);
     expect(repeat.body).toEqual({ created: 0 });
+  });
+
+  it("carry-forward preserves overnight time spans relative to the target day", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Overnight rollout watch",
+        status: "planned",
+        plannedStartAt: "2026-03-08T23:00:00.000Z",
+        plannedEndAt: "2026-03-09T01:00:00.000Z",
+      },
+    });
+
+    const carryForward = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/carry-forward",
+      headers: { cookie },
+      body: {
+        fromDate: "2026-03-08",
+        toDate: "2026-03-10",
+        itemIds: [created.body.id],
+      },
+    });
+
+    expect(carryForward.status).toBe(200);
+    expect(carryForward.body).toEqual({ created: 1 });
+
+    const nextDay = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk?date=2026-03-10",
+      headers: { cookie },
+    });
+
+    expect(nextDay.status).toBe(200);
+    expect(nextDay.body?.items).toEqual([
+      expect.objectContaining({
+        title: "Overnight rollout watch",
+        plannedStartAt: "2026-03-10T23:00:00.000Z",
+        plannedEndAt: "2026-03-11T01:00:00.000Z",
+      }),
+    ]);
   });
 
   it("carry-forward preserves tracker notes for mirrored manager desk items", async () => {

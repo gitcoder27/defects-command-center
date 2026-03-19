@@ -208,6 +208,15 @@ const carryForwardSchema = z.object({
   query: z.any().optional(),
 });
 
+const carryForwardPreviewSchema = z.object({
+  query: z.object({
+    fromDate: z.string().regex(dateRegex, "fromDate must be YYYY-MM-DD"),
+    toDate: z.string().regex(dateRegex, "toDate must be YYYY-MM-DD"),
+  }),
+  params: z.any().optional(),
+  body: z.any().optional(),
+});
+
 const lookupSchema = z.object({
   query: z.object({
     q: z.string().max(200),
@@ -352,6 +361,27 @@ export function createManagerDeskRouter(
           parseInt(req.params.linkId as string, 10)
         );
         res.json({ deleted: true });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.get(
+    "/carry-forward-preview",
+    validate(carryForwardPreviewSchema),
+    async (req, res, next) => {
+      try {
+        const { fromDate, toDate } = req.query as {
+          fromDate: string;
+          toDate: string;
+        };
+        const preview = await managerDeskService.previewCarryForward(
+          req.auth!.user.accountId,
+          fromDate,
+          toDate
+        );
+        res.json(preview);
       } catch (error) {
         next(error);
       }

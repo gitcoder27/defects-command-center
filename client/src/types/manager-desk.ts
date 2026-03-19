@@ -188,6 +188,31 @@ export interface ManagerDeskCarryForwardPayload {
   itemIds?: number[];
 }
 
+// ── Carry-forward preview ───────────────────────────────
+
+export type ManagerDeskCarryForwardTimeMode = 'rebase_to_target_date';
+
+export type ManagerDeskCarryForwardWarningCode =
+  | 'follow_up_overdue_on_arrival'
+  | 'planned_end_overdue_on_arrival';
+
+export interface ManagerDeskCarryForwardPreviewItem {
+  item: ManagerDeskItem;
+  rebasedPlannedStartAt?: string;
+  rebasedPlannedEndAt?: string;
+  rebasedFollowUpAt?: string;
+  warningCodes: ManagerDeskCarryForwardWarningCode[];
+}
+
+export interface ManagerDeskCarryForwardPreviewResponse {
+  fromDate: string;
+  toDate: string;
+  carryable: number;
+  overdueOnArrivalCount: number;
+  timeMode: ManagerDeskCarryForwardTimeMode;
+  items: ManagerDeskCarryForwardPreviewItem[];
+}
+
 // ── Display helpers ─────────────────────────────────────
 
 export const KIND_LABELS: Record<ManagerDeskItemKind, string> = {

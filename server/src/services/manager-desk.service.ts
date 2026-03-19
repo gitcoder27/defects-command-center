@@ -2,6 +2,10 @@ import { and, desc, eq, inArray, like, or } from "drizzle-orm";
 import type {
   ManagerDeskAssignee,
   ManagerDeskCategory,
+  ManagerDeskCarryForwardPreviewItem,
+  ManagerDeskCarryForwardPreviewResponse,
+  ManagerDeskCarryForwardTimeMode,
+  ManagerDeskCarryForwardWarningCode,
   ManagerDeskDayResponse,
   ManagerDeskDelegatedExecution,
   ManagerDeskDeveloperLookupItem,
@@ -83,12 +87,120 @@ interface NormalizedManagerDeskLink {
   externalLabel?: string;
 }
 
+interface ManagerDeskCarryForwardPlanEntry {
+  item: ManagerDeskItemRow;
+  rawLinks: ManagerDeskLinkRow[];
+  normalizedLinks: NormalizedManagerDeskLink[];
+  trackerNote: string | null;
+  rebasedPlannedStartAt: string | null;
+  rebasedPlannedEndAt: string | null;
+  rebasedFollowUpAt: string | null;
+  warningCodes: ManagerDeskCarryForwardWarningCode[];
+}
+
 type ManagerDeskItemRow = typeof managerDeskItems.$inferSelect;
 type ManagerDeskLinkRow = typeof managerDeskLinks.$inferSelect;
 type TrackerItemRow = typeof teamTrackerItems.$inferSelect;
 
+const MANAGER_DESK_CARRY_FORWARD_TIME_MODE: ManagerDeskCarryForwardTimeMode =
+  "rebase_to_target_date";
+
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function parseIsoDate(value: string): { year: number; month: number; day: number } {
+  const match = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/.exec(value);
+  if (!match?.groups) {
+    throw new Error(`Invalid ISO date: ${value}`);
+  }
+
+  return {
+    year: Number(match.groups.year),
+    month: Number(match.groups.month),
+    day: Number(match.groups.day),
+  };
+}
+
+function formatIsoDateUtc(date: Date): string {
+  const year = String(date.getUTCFullYear()).padStart(4, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function diffIsoDatesInDays(left: string, right: string): number {
+  const leftParts = parseIsoDate(left);
+  const rightParts = parseIsoDate(right);
+  const leftUtc = Date.UTC(leftParts.year, leftParts.month - 1, leftParts.day);
+  const rightUtc = Date.UTC(rightParts.year, rightParts.month - 1, rightParts.day);
+  return Math.round((leftUtc - rightUtc) / (24 * 60 * 60 * 1000));
+}
+
+function addDaysToIsoDate(value: string, days: number): string {
+  const parts = parseIsoDate(value);
+  const utcDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+  utcDate.setUTCDate(utcDate.getUTCDate() + days);
+  return formatIsoDateUtc(utcDate);
+}
+
+function splitIsoDateTime(value: string): { datePart: string; timePart: string } {
+  const match = /^(?<date>\d{4}-\d{2}-\d{2})(?<time>T.*)$/.exec(value);
+  if (!match?.groups) {
+    throw new Error(`Invalid ISO datetime: ${value}`);
+  }
+
+  const datePart = match.groups.date;
+  const timePart = match.groups.time;
+  if (!datePart || !timePart) {
+    throw new Error(`Invalid ISO datetime: ${value}`);
+  }
+
+  return {
+    datePart,
+    timePart,
+  };
+}
+
+function rebaseTimestampToTargetDate(
+  timestamp: string | null | undefined,
+  sourceDate: string,
+  targetDate: string
+): string | null | undefined {
+  if (timestamp === undefined) {
+    return undefined;
+  }
+  if (timestamp === null) {
+    return null;
+  }
+
+  const { datePart, timePart } = splitIsoDateTime(timestamp);
+  const dayOffset = diffIsoDatesInDays(datePart, sourceDate);
+  return `${addDaysToIsoDate(targetDate, dayOffset)}${timePart}`;
+}
+
+function getCarryForwardWarningCodes(params: {
+  rebasedPlannedEndAt: string | null;
+  rebasedFollowUpAt: string | null;
+  now: number;
+}): ManagerDeskCarryForwardWarningCode[] {
+  const warningCodes: ManagerDeskCarryForwardWarningCode[] = [];
+
+  if (
+    params.rebasedFollowUpAt &&
+    new Date(params.rebasedFollowUpAt).getTime() < params.now
+  ) {
+    warningCodes.push("follow_up_overdue_on_arrival");
+  }
+
+  if (
+    params.rebasedPlannedEndAt &&
+    new Date(params.rebasedPlannedEndAt).getTime() < params.now
+  ) {
+    warningCodes.push("planned_end_overdue_on_arrival");
+  }
+
+  return warningCodes;
 }
 
 function normalizeRequiredTitle(title: string): string {
@@ -478,85 +590,74 @@ export class ManagerDeskService {
     }
   }
 
+  async previewCarryForward(
+    managerAccountId: string,
+    fromDate: string,
+    toDate: string
+  ): Promise<ManagerDeskCarryForwardPreviewResponse> {
+    this.assertCarryForwardDateOrder(fromDate, toDate);
+
+    const plan = await this.buildCarryForwardPlan(managerAccountId, {
+      fromDate,
+      toDate,
+    });
+
+    if (plan.length === 0) {
+      return {
+        fromDate,
+        toDate,
+        carryable: 0,
+        overdueOnArrivalCount: 0,
+        timeMode: MANAGER_DESK_CARRY_FORWARD_TIME_MODE,
+        items: [],
+      };
+    }
+
+    const items = await this.buildCarryForwardPreviewItems(plan, toDate);
+    return {
+      fromDate,
+      toDate,
+      carryable: items.length,
+      overdueOnArrivalCount: items.filter((item) => item.warningCodes.length > 0).length,
+      timeMode: MANAGER_DESK_CARRY_FORWARD_TIME_MODE,
+      items,
+    };
+  }
+
   async carryForward(
     managerAccountId: string,
     params: CarryForwardParams
   ): Promise<number> {
-    if (params.toDate <= params.fromDate) {
-      throw new HttpError(400, "toDate must be after fromDate");
-    }
+    this.assertCarryForwardDateOrder(params.fromDate, params.toDate);
 
-    const sourceDay = await this.findDay(managerAccountId, params.fromDate);
-    if (!sourceDay) {
-      return 0;
-    }
-
-    let sourceItems = await db
-      .select()
-      .from(managerDeskItems)
-      .where(eq(managerDeskItems.dayId, sourceDay.id));
-
-    if (params.itemIds && params.itemIds.length > 0) {
-      const requestedIds = new Set(params.itemIds);
-      sourceItems = sourceItems.filter((item) => requestedIds.has(item.id));
-      if (sourceItems.length !== requestedIds.size) {
-        throw new HttpError(404, "One or more items were not found for the source date");
-      }
-    }
-
-    const eligibleItems = sourceItems
-      .filter((item) => item.status !== "done" && item.status !== "cancelled")
-      .sort(compareItemRows);
-
-    if (eligibleItems.length === 0) {
+    const plan = await this.buildCarryForwardPlan(managerAccountId, params);
+    if (plan.length === 0) {
       return 0;
     }
 
     const targetDay = await this.ensureDay(managerAccountId, params.toDate);
-    const targetItems = await db
-      .select({
-        sourceItemId: managerDeskItems.sourceItemId,
-      })
-      .from(managerDeskItems)
-      .where(eq(managerDeskItems.dayId, targetDay.id));
-    const existingSourceItemIds = new Set(
-      targetItems
-        .map((item) => item.sourceItemId)
-        .filter((itemId): itemId is number => typeof itemId === "number")
-    );
-    const sourceLinksByItemId = await this.getRawLinksByItemIds(
-      eligibleItems.map((item) => item.id)
-    );
-    const sourceTrackerNotesByItemId = await this.getTrackerNotesByManagerDeskItemIds(
-      eligibleItems.map((item) => item.id)
-    );
-
     let created = 0;
     const now = nowIso();
 
-    for (const item of eligibleItems) {
-      if (existingSourceItemIds.has(item.id)) {
-        continue;
-      }
-
+    for (const entry of plan) {
       const inserted = await db
         .insert(managerDeskItems)
         .values({
           dayId: targetDay.id,
-          sourceItemId: item.id,
-          assigneeDeveloperAccountId: item.assigneeDeveloperAccountId,
-          title: item.title,
-          kind: item.kind,
-          category: item.category,
-          status: getCarryForwardStatus(item.status as ManagerDeskStatus),
-          priority: item.priority,
-          participants: item.participants,
-          contextNote: item.contextNote,
-          nextAction: item.nextAction,
-          outcome: item.outcome,
-          plannedStartAt: item.plannedStartAt,
-          plannedEndAt: item.plannedEndAt,
-          followUpAt: item.followUpAt,
+          sourceItemId: entry.item.id,
+          assigneeDeveloperAccountId: entry.item.assigneeDeveloperAccountId,
+          title: entry.item.title,
+          kind: entry.item.kind,
+          category: entry.item.category,
+          status: getCarryForwardStatus(entry.item.status as ManagerDeskStatus),
+          priority: entry.item.priority,
+          participants: entry.item.participants,
+          contextNote: entry.item.contextNote,
+          nextAction: entry.item.nextAction,
+          outcome: entry.item.outcome,
+          plannedStartAt: entry.rebasedPlannedStartAt,
+          plannedEndAt: entry.rebasedPlannedEndAt,
+          followUpAt: entry.rebasedFollowUpAt,
           completedAt: null,
           createdAt: now,
           updatedAt: now,
@@ -568,7 +669,7 @@ export class ManagerDeskService {
         throw new Error("Failed to carry manager desk item forward");
       }
 
-      for (const link of sourceLinksByItemId.get(item.id) ?? []) {
+      for (const link of entry.rawLinks) {
         await db.insert(managerDeskLinks).values({
           itemId: carriedItem.id,
           linkType: link.linkType,
@@ -584,17 +685,11 @@ export class ManagerDeskService {
         carriedItem.assigneeDeveloperAccountId,
         params.toDate,
         carriedItem.title,
-        (sourceLinksByItemId.get(item.id) ?? []).map((link) => ({
-          linkType: link.linkType as ManagerDeskLinkType,
-          issueKey: link.issueKey ?? undefined,
-          developerAccountId: link.developerAccountId ?? undefined,
-          externalLabel: link.externalLabel ?? undefined,
-        })),
+        entry.normalizedLinks,
         carriedItem.status as ManagerDeskStatus,
-        sourceTrackerNotesByItemId.get(item.id)
+        entry.trackerNote
       );
 
-      existingSourceItemIds.add(item.id);
       created += 1;
     }
 
@@ -843,6 +938,126 @@ export class ManagerDeskService {
       .limit(1);
 
     return rows[0];
+  }
+
+  private assertCarryForwardDateOrder(fromDate: string, toDate: string): void {
+    if (toDate <= fromDate) {
+      throw new HttpError(400, "toDate must be after fromDate");
+    }
+  }
+
+  private async buildCarryForwardPlan(
+    managerAccountId: string,
+    params: CarryForwardParams
+  ): Promise<ManagerDeskCarryForwardPlanEntry[]> {
+    const sourceDay = await this.findDay(managerAccountId, params.fromDate);
+    if (!sourceDay) {
+      return [];
+    }
+
+    let sourceItems = await db
+      .select()
+      .from(managerDeskItems)
+      .where(eq(managerDeskItems.dayId, sourceDay.id));
+
+    if (params.itemIds && params.itemIds.length > 0) {
+      const requestedIds = new Set(params.itemIds);
+      sourceItems = sourceItems.filter((item) => requestedIds.has(item.id));
+      if (sourceItems.length !== requestedIds.size) {
+        throw new HttpError(404, "One or more items were not found for the source date");
+      }
+    }
+
+    const eligibleItems = sourceItems
+      .filter((item) => isOpenStatus(item.status as ManagerDeskStatus))
+      .sort(compareItemRows);
+
+    if (eligibleItems.length === 0) {
+      return [];
+    }
+
+    const targetDay = await this.ensureDay(managerAccountId, params.toDate);
+    const targetItems = await db
+      .select({
+        sourceItemId: managerDeskItems.sourceItemId,
+      })
+      .from(managerDeskItems)
+      .where(eq(managerDeskItems.dayId, targetDay.id));
+    const existingSourceItemIds = new Set(
+      targetItems
+        .map((item) => item.sourceItemId)
+        .filter((itemId): itemId is number => typeof itemId === "number")
+    );
+
+    const sourceLinksByItemId = await this.getRawLinksByItemIds(
+      eligibleItems.map((item) => item.id)
+    );
+    const sourceTrackerNotesByItemId = await this.getTrackerNotesByManagerDeskItemIds(
+      eligibleItems.map((item) => item.id)
+    );
+    const now = Date.now();
+
+    return eligibleItems
+      .filter((item) => !existingSourceItemIds.has(item.id))
+      .map((item) => {
+        const rebasedPlannedStartAt =
+          rebaseTimestampToTargetDate(item.plannedStartAt, params.fromDate, params.toDate) ?? null;
+        const rebasedPlannedEndAt =
+          rebaseTimestampToTargetDate(item.plannedEndAt, params.fromDate, params.toDate) ?? null;
+        const rebasedFollowUpAt =
+          rebaseTimestampToTargetDate(item.followUpAt, params.fromDate, params.toDate) ?? null;
+        this.assertTimeRange(rebasedPlannedStartAt, rebasedPlannedEndAt);
+
+        const rawLinks = sourceLinksByItemId.get(item.id) ?? [];
+        return {
+          item,
+          rawLinks,
+          normalizedLinks: rawLinks.map((link) => ({
+            linkType: link.linkType as ManagerDeskLinkType,
+            issueKey: link.issueKey ?? undefined,
+            developerAccountId: link.developerAccountId ?? undefined,
+            externalLabel: link.externalLabel ?? undefined,
+          })),
+          trackerNote: sourceTrackerNotesByItemId.get(item.id) ?? null,
+          rebasedPlannedStartAt,
+          rebasedPlannedEndAt,
+          rebasedFollowUpAt,
+          warningCodes: getCarryForwardWarningCodes({
+            rebasedPlannedEndAt,
+            rebasedFollowUpAt,
+            now,
+          }),
+        };
+      });
+  }
+
+  private async buildCarryForwardPreviewItems(
+    plan: ManagerDeskCarryForwardPlanEntry[],
+    date: string
+  ): Promise<ManagerDeskCarryForwardPreviewItem[]> {
+    if (plan.length === 0) {
+      return [];
+    }
+
+    const itemIds = plan.map((entry) => entry.item.id);
+    const linksByItemId = await this.getLinksByItemIds(itemIds);
+    const delegatedExecutionByItemId = await this.getDelegatedExecutionByManagerDeskItemIds(itemIds);
+    const assigneesByAccountId = await this.getAssigneeMap(plan.map((entry) => entry.item), date);
+
+    return plan.map((entry) => ({
+      item: this.mapItem(
+        entry.item,
+        linksByItemId.get(entry.item.id) ?? [],
+        delegatedExecutionByItemId.get(entry.item.id),
+        entry.item.assigneeDeveloperAccountId
+          ? assigneesByAccountId.get(entry.item.assigneeDeveloperAccountId) ?? undefined
+          : undefined
+      ),
+      rebasedPlannedStartAt: entry.rebasedPlannedStartAt ?? undefined,
+      rebasedPlannedEndAt: entry.rebasedPlannedEndAt ?? undefined,
+      rebasedFollowUpAt: entry.rebasedFollowUpAt ?? undefined,
+      warningCodes: entry.warningCodes,
+    }));
   }
 
   private async getLinksByItemIds(itemIds: number[]): Promise<Map<number, ManagerDeskLink[]>> {

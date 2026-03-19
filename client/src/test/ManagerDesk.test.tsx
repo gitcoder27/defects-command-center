@@ -115,6 +115,12 @@ const mockCreateMutate = vi.fn();
 const mockUpdateMutate = vi.fn();
 const mockDeleteMutate = vi.fn();
 const mockCarryForwardMutate = vi.fn();
+const mockCarryForwardPreviewData = {
+  data: null as import('@/types/manager-desk').ManagerDeskCarryForwardPreviewResponse | null,
+  isLoading: false,
+  isFetching: false,
+  isError: false,
+};
 
 // ── Mock hooks ──────────────────────────────────────────
 
@@ -146,6 +152,7 @@ vi.mock('@/hooks/useManagerDesk', () => ({
     mutate: mockCarryForwardMutate,
     isPending: false,
   }),
+  useManagerDeskCarryForwardPreview: () => mockCarryForwardPreviewData,
   useAddManagerDeskLink: () => ({
     mutate: vi.fn(),
     isPending: false,
@@ -229,6 +236,11 @@ describe('ManagerDeskPage', () => {
     mockDeleteMutate.mockReset();
     mockCarryForwardMutate.mockReset();
     mockRefetch.mockReset();
+    mockCarryForwardPreviewData.data = null;
+    mockCarryForwardPreviewData.isLoading = false;
+    mockCarryForwardPreviewData.isFetching = false;
+    mockCarryForwardPreviewData.isError = false;
+    try { window.sessionStorage.clear(); } catch { /* noop */ }
   });
 
   afterEach(() => {
@@ -604,7 +616,21 @@ describe('ManagerDeskPage', () => {
     expect(screen.getByLabelText('Priority')).toBeInTheDocument();
   });
 
-  it('opens the bulk carry forward dialog with all open items selected by default', () => {
+  it('opens the bulk carry forward dialog with preview items selected by default', () => {
+    mockCarryForwardPreviewData.data = {
+      fromDate: '2026-03-08',
+      toDate: '2026-03-09',
+      carryable: 4,
+      overdueOnArrivalCount: 0,
+      timeMode: 'rebase_to_target_date',
+      items: [
+        { item: mockItem({ id: 1, title: 'Analyze root cause for DEF-241', status: 'planned' }), warningCodes: [] },
+        { item: mockItem({ id: 2, title: 'Design sync with onshore', kind: 'meeting', status: 'planned' }), warningCodes: [] },
+        { item: mockItem({ id: 3, title: 'Waiting on QA feedback', kind: 'waiting', status: 'waiting' }), warningCodes: [] },
+        { item: mockItem({ id: 4, title: 'Quick inbox thought', status: 'inbox' }), warningCodes: [] },
+      ],
+    };
+
     render(
       <TestWrapper>
         <ManagerDeskPage />
@@ -619,6 +645,15 @@ describe('ManagerDeskPage', () => {
   });
 
   it('does not hardcode a dark native color scheme on carry forward date inputs', () => {
+    mockCarryForwardPreviewData.data = {
+      fromDate: '2026-03-08',
+      toDate: '2026-03-09',
+      carryable: 1,
+      overdueOnArrivalCount: 0,
+      timeMode: 'rebase_to_target_date',
+      items: [{ item: mockItem({ id: 1, status: 'planned' }), warningCodes: [] }],
+    };
+
     render(
       <TestWrapper>
         <ManagerDeskPage />
@@ -631,6 +666,20 @@ describe('ManagerDeskPage', () => {
   });
 
   it('toggles all selections in the bulk carry forward dialog', () => {
+    mockCarryForwardPreviewData.data = {
+      fromDate: '2026-03-08',
+      toDate: '2026-03-09',
+      carryable: 4,
+      overdueOnArrivalCount: 0,
+      timeMode: 'rebase_to_target_date',
+      items: [
+        { item: mockItem({ id: 1, status: 'planned' }), warningCodes: [] },
+        { item: mockItem({ id: 2, kind: 'meeting', status: 'planned' }), warningCodes: [] },
+        { item: mockItem({ id: 3, kind: 'waiting', status: 'waiting' }), warningCodes: [] },
+        { item: mockItem({ id: 4, status: 'inbox' }), warningCodes: [] },
+      ],
+    };
+
     render(
       <TestWrapper>
         <ManagerDeskPage />
@@ -645,6 +694,15 @@ describe('ManagerDeskPage', () => {
   });
 
   it('limits the bulk carry forward date picker to future dates only', () => {
+    mockCarryForwardPreviewData.data = {
+      fromDate: '2026-03-08',
+      toDate: '2026-03-09',
+      carryable: 1,
+      overdueOnArrivalCount: 0,
+      timeMode: 'rebase_to_target_date',
+      items: [{ item: mockItem({ id: 1, status: 'planned' }), warningCodes: [] }],
+    };
+
     render(
       <TestWrapper>
         <ManagerDeskPage />
@@ -711,5 +769,252 @@ describe('ManagerDeskPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
 
     expect(mockRefetch).toHaveBeenCalled();
+  });
+
+  // ── First-visit previous-day carry-forward prompt ──────
+
+  it('shows first-visit carry-forward prompt when previous day has carryable items', () => {
+    mockCarryForwardPreviewData.data = {
+      fromDate: '2026-03-07',
+      toDate: '2026-03-08',
+      carryable: 3,
+      overdueOnArrivalCount: 0,
+      timeMode: 'rebase_to_target_date',
+      items: [
+        { item: mockItem({ id: 101, title: 'Yesterday task 1', status: 'planned' }), warningCodes: [] },
+        { item: mockItem({ id: 102, title: 'Yesterday task 2', status: 'in_progress' }), warningCodes: [] },
+        { item: mockItem({ id: 103, title: 'Yesterday task 3', status: 'waiting' }), warningCodes: [] },
+      ],
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    expect(screen.getByTestId('carry-forward-prompt')).toBeInTheDocument();
+    expect(screen.getByText(/3 unfinished items from/)).toBeInTheDocument();
+  });
+
+  it('does not show first-visit prompt when previous day has zero carryable items', () => {
+    mockCarryForwardPreviewData.data = {
+      fromDate: '2026-03-07',
+      toDate: '2026-03-08',
+      carryable: 0,
+      overdueOnArrivalCount: 0,
+      timeMode: 'rebase_to_target_date',
+      items: [],
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    expect(screen.queryByTestId('carry-forward-prompt')).not.toBeInTheDocument();
+  });
+
+  it('dismisses the carry-forward prompt and stores state in sessionStorage', () => {
+    mockCarryForwardPreviewData.data = {
+      fromDate: '2026-03-07',
+      toDate: '2026-03-08',
+      carryable: 2,
+      overdueOnArrivalCount: 0,
+      timeMode: 'rebase_to_target_date',
+      items: [
+        { item: mockItem({ id: 101, status: 'planned' }), warningCodes: [] },
+        { item: mockItem({ id: 102, status: 'in_progress' }), warningCodes: [] },
+      ],
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    expect(screen.getByTestId('carry-forward-prompt')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /dismiss carry-forward prompt/i }));
+    expect(screen.queryByTestId('carry-forward-prompt')).not.toBeInTheDocument();
+
+    expect(window.sessionStorage.getItem('manager-desk:carry-forward-prompt:2026-03-08')).toBe('dismissed');
+  });
+
+  it('does not show prompt if already dismissed in sessionStorage', () => {
+    window.sessionStorage.setItem('manager-desk:carry-forward-prompt:2026-03-08', 'dismissed');
+
+    mockCarryForwardPreviewData.data = {
+      fromDate: '2026-03-07',
+      toDate: '2026-03-08',
+      carryable: 2,
+      overdueOnArrivalCount: 0,
+      timeMode: 'rebase_to_target_date',
+      items: [
+        { item: mockItem({ id: 101, status: 'planned' }), warningCodes: [] },
+        { item: mockItem({ id: 102, status: 'in_progress' }), warningCodes: [] },
+      ],
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    expect(screen.queryByTestId('carry-forward-prompt')).not.toBeInTheDocument();
+  });
+
+  // ── Preview-driven dialog ─────────────────────────────
+
+  it('shows time rebase info banner in carry forward dialog', () => {
+    mockCarryForwardPreviewData.data = {
+      fromDate: '2026-03-08',
+      toDate: '2026-03-09',
+      carryable: 1,
+      overdueOnArrivalCount: 0,
+      timeMode: 'rebase_to_target_date',
+      items: [{ item: mockItem({ id: 1, status: 'planned' }), warningCodes: [] }],
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
+
+    expect(screen.getByText(/automatically rebased to the target day/)).toBeInTheDocument();
+  });
+
+  it('shows rebased time fields in preview items', () => {
+    mockCarryForwardPreviewData.data = {
+      fromDate: '2026-03-08',
+      toDate: '2026-03-09',
+      carryable: 1,
+      overdueOnArrivalCount: 0,
+      timeMode: 'rebase_to_target_date',
+      items: [{
+        item: mockItem({ id: 1, title: 'Design sync', kind: 'meeting', status: 'planned' }),
+        rebasedPlannedStartAt: '2026-03-09T14:00:00.000Z',
+        rebasedPlannedEndAt: '2026-03-09T15:00:00.000Z',
+        warningCodes: [],
+      }],
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
+
+    expect(screen.getByText('Design sync')).toBeInTheDocument();
+    // Rebased time window should show a formatted time range (timezone-dependent)
+    expect(screen.getByText(/\d{1,2}:\d{2}\s*(AM|PM)\s*–\s*\d{1,2}:\d{2}\s*(AM|PM)/i)).toBeInTheDocument();
+  });
+
+  // ── Warning rendering ──────────────────────────────────
+
+  it('shows overdue-on-arrival warnings in carry forward dialog', () => {
+    mockCarryForwardPreviewData.data = {
+      fromDate: '2026-03-08',
+      toDate: '2026-03-09',
+      carryable: 2,
+      overdueOnArrivalCount: 1,
+      timeMode: 'rebase_to_target_date',
+      items: [
+        {
+          item: mockItem({ id: 1, title: 'Past meeting', kind: 'meeting', status: 'planned' }),
+          rebasedPlannedEndAt: '2026-03-09T08:00:00.000Z',
+          warningCodes: ['planned_end_overdue_on_arrival'],
+        },
+        {
+          item: mockItem({ id: 2, title: 'Follow-up item', kind: 'action', status: 'planned' }),
+          rebasedFollowUpAt: '2026-03-09T09:00:00.000Z',
+          warningCodes: ['follow_up_overdue_on_arrival'],
+        },
+      ],
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
+
+    expect(screen.getByText('1 overdue on arrival')).toBeInTheDocument();
+    expect(screen.getByTestId('warning-planned_end_overdue_on_arrival')).toBeInTheDocument();
+    expect(screen.getByTestId('warning-follow_up_overdue_on_arrival')).toBeInTheDocument();
+    expect(screen.getByText(/will already have ended/)).toBeInTheDocument();
+    expect(screen.getByText(/will already be overdue/)).toBeInTheDocument();
+  });
+
+  // ── Subset carry-forward payloads ──────────────────────
+
+  it('sends subset itemIds when not all preview items are selected', () => {
+    mockCarryForwardPreviewData.data = {
+      fromDate: '2026-03-08',
+      toDate: '2026-03-09',
+      carryable: 3,
+      overdueOnArrivalCount: 0,
+      timeMode: 'rebase_to_target_date',
+      items: [
+        { item: mockItem({ id: 1, title: 'Item A', status: 'planned' }), warningCodes: [] },
+        { item: mockItem({ id: 2, title: 'Item B', status: 'planned' }), warningCodes: [] },
+        { item: mockItem({ id: 3, title: 'Item C', status: 'waiting' }), warningCodes: [] },
+      ],
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
+
+    // Deselect item B (id: 2)
+    fireEvent.click(screen.getByText('Item B'));
+
+    expect(screen.getByText('2 of 3 selected')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /carry 2 items forward/i }));
+
+    expect(mockCarryForwardMutate).toHaveBeenCalledWith(
+      {
+        fromDate: '2026-03-08',
+        toDate: '2026-03-09',
+        itemIds: expect.arrayContaining([1, 3]),
+      },
+      expect.anything(),
+    );
+  });
+
+  it('shows empty state in dialog when preview returns zero items', () => {
+    mockCarryForwardPreviewData.data = {
+      fromDate: '2026-03-08',
+      toDate: '2026-03-09',
+      carryable: 0,
+      overdueOnArrivalCount: 0,
+      timeMode: 'rebase_to_target_date',
+      items: [],
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
+
+    expect(screen.getByText(/no items are eligible/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /carry 0 items forward/i })).toBeDisabled();
   });
 });
