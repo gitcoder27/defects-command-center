@@ -727,10 +727,6 @@ export class ManagerDeskService {
 
   async lookupDevelopers(query: string, date?: string): Promise<ManagerDeskDeveloperLookupItem[]> {
     const normalizedQuery = query.trim();
-    if (!normalizedQuery) {
-      return [];
-    }
-
     const pattern = `%${normalizedQuery}%`;
     const rows = await db
       .select({
@@ -741,16 +737,18 @@ export class ManagerDeskService {
       })
       .from(developers)
       .where(
-        and(
-          eq(developers.isActive, 1),
-          or(
-            like(developers.accountId, pattern),
-            like(developers.displayName, pattern),
-            like(developers.email, pattern)
-          )
-        )
+        normalizedQuery
+          ? and(
+              eq(developers.isActive, 1),
+              or(
+                like(developers.accountId, pattern),
+                like(developers.displayName, pattern),
+                like(developers.email, pattern)
+              )
+            )
+          : eq(developers.isActive, 1)
       )
-      .limit(20);
+      .limit(normalizedQuery ? 20 : 200);
 
     const availabilityByAccountId = date
       ? await this.availability.getAvailabilityMapForDate(

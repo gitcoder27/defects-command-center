@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Header } from '@/components/layout/Header';
 
@@ -21,6 +21,14 @@ vi.mock('@/hooks/useSyncStatus', () => ({
 
 vi.mock('@/hooks/useTriggerSync', () => ({
   useTriggerSync: () => useTriggerSyncMock(),
+}));
+
+vi.mock('@/components/capture/GlobalCaptureDialog', () => ({
+  GlobalCaptureDialog: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="global-capture-dialog">
+      <button onClick={onClose}>close-capture</button>
+    </div>
+  ),
 }));
 
 describe('Header', () => {
@@ -64,5 +72,30 @@ describe('Header', () => {
     expect(screen.getByRole('link', { name: /open dashboard in new tab/i })).toHaveAttribute('href', '/');
     expect(screen.queryByRole('link', { name: /open team tracker in new tab/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /open manager desk in new tab/i })).toHaveAttribute('href', '/manager-desk');
+  });
+
+  it('shows the capture button on all manager views including manager-desk', () => {
+    const views = ['dashboard', 'team-tracker', 'manager-desk'] as const;
+
+    for (const view of views) {
+      const { unmount } = render(<Header activeView={view} onViewChange={vi.fn()} />);
+      expect(screen.getByText('Capture')).toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it('opens the global capture dialog when clicking capture', () => {
+    render(<Header activeView="dashboard" onViewChange={vi.fn()} />);
+
+    expect(screen.queryByTestId('global-capture-dialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Capture'));
+    expect(screen.getByTestId('global-capture-dialog')).toBeInTheDocument();
+  });
+
+  it('hides the capture button for non-manager users', () => {
+    useAuthMock.mockReturnValue({ user: { role: 'developer' } });
+    render(<Header activeView="dashboard" onViewChange={vi.fn()} />);
+
+    expect(screen.queryByText('Capture')).not.toBeInTheDocument();
   });
 });

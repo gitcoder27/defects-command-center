@@ -1062,6 +1062,51 @@ describe("manager desk routes", () => {
     ]);
   });
 
+  it("GET /api/manager-desk/lookups/developers supports blank q for quick-capture roster loading", async () => {
+    await db.insert(developers).values({
+      accountId: "dev-3",
+      displayName: "Zara Inactive",
+      email: "zara@example.com",
+      avatarUrl: null,
+      isActive: 0,
+    });
+    await trackerService.updateAvailability("dev-2", {
+      effectiveDate: "2026-03-08",
+      state: "inactive",
+      note: "PTO today",
+    });
+
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+    const developerLookup = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk/lookups/developers?q=&date=2026-03-08",
+      headers: {
+        cookie,
+      },
+    });
+
+    expect(developerLookup.status).toBe(200);
+    expect(developerLookup.body?.items).toEqual([
+      {
+        accountId: "dev-1",
+        displayName: "Alice Smith",
+        email: "alice@example.com",
+      },
+      {
+        accountId: "dev-2",
+        displayName: "Rahul Sharma",
+        email: "rahul@example.com",
+        avatarUrl: "https://example.com/rahul.png",
+        availability: {
+          state: "inactive",
+          note: "PTO today",
+          startDate: "2026-03-08",
+        },
+      },
+    ]);
+  });
+
   it("GET /api/manager-desk/carry-forward-preview returns rebased times, warnings, and only still-carryable items", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-09T16:30:00.000Z"));

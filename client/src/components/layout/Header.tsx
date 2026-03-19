@@ -7,7 +7,7 @@ import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { formatRelativeTime } from '@/lib/utils';
 import type { AppView } from '@/App';
-import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
+import { GlobalCaptureDialog } from '@/components/capture/GlobalCaptureDialog';
 import { HeaderNav } from '@/components/layout/HeaderNav';
 
 interface HeaderProps {
@@ -25,7 +25,7 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange }: Header
 
   const isSyncing = sync?.status === 'syncing' || triggerSync.isPending;
   const hasError = sync?.status === 'error';
-  const canQuickCapture = user?.role === 'manager' && activeView !== 'manager-desk';
+  const canQuickCapture = user?.role === 'manager';
 
   return (
     <>
@@ -175,13 +175,10 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange }: Header
       </motion.header>
 
       {captureOpen && (
-        <ManagerDeskCaptureDialog
+        <GlobalCaptureDialog
           onClose={() => setCaptureOpen(false)}
           onOpenManagerDesk={onViewChange ? () => onViewChange('manager-desk') : undefined}
-          heading="Quick Capture"
-          description="Drop a task into today's Manager Desk from anywhere in the manager workspace."
-          initialCategory="planning"
-          contextChips={[{ label: 'Source', value: 'Workspace', tone: 'generic' }]}
+          onOpenTeamTracker={onViewChange ? () => onViewChange('team-tracker') : undefined}
         />
       )}
     </>

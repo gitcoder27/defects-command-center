@@ -261,7 +261,7 @@ export function useManagerDeskDeveloperLookup(query: string, date?: string, enab
       );
       return res.items;
     },
-    enabled: enabled && query.length >= 2,
+    enabled: enabled && (query.length === 0 || query.length >= 2),
     staleTime: 15_000,
   });
 }
