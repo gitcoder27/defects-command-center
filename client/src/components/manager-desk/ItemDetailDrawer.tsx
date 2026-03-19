@@ -17,6 +17,8 @@ interface ItemDetailDrawerProps {
   onClose: () => void;
   onUpdate: (itemId: number, updates: Record<string, unknown>) => void;
   onDelete: (itemId: number) => void;
+  onCancelDelegatedTask?: (itemId: number) => void;
+  isCancelDelegatedPending?: boolean;
   onCarryForward?: () => void;
   isCarryForwardPending?: boolean;
   topSlot?: ReactNode;
@@ -32,6 +34,8 @@ export function ItemDetailDrawer({
   onClose,
   onUpdate,
   onDelete,
+  onCancelDelegatedTask,
+  isCancelDelegatedPending,
   onCarryForward,
   isCarryForwardPending,
   topSlot,
@@ -81,6 +85,8 @@ export function ItemDetailDrawer({
               onClose={onClose}
               onUpdate={onUpdate}
               onDelete={onDelete}
+              onCancelDelegatedTask={onCancelDelegatedTask}
+              isCancelDelegatedPending={isCancelDelegatedPending}
               onCarryForward={onCarryForward}
               isCarryForwardPending={isCarryForwardPending}
               topSlot={topSlot}
@@ -100,6 +106,8 @@ function DrawerContent({
   onClose,
   onUpdate,
   onDelete,
+  onCancelDelegatedTask,
+  isCancelDelegatedPending,
   onCarryForward,
   isCarryForwardPending,
   topSlot,
@@ -109,6 +117,8 @@ function DrawerContent({
   onClose: () => void;
   onUpdate: (itemId: number, updates: Record<string, unknown>) => void;
   onDelete: (itemId: number) => void;
+  onCancelDelegatedTask?: (itemId: number) => void;
+  isCancelDelegatedPending?: boolean;
   onCarryForward?: () => void;
   isCarryForwardPending?: boolean;
   topSlot?: ReactNode;
@@ -137,6 +147,8 @@ function DrawerContent({
         onClose={onClose}
         onUpdate={onUpdate}
         onDelete={onDelete}
+        onCancelDelegatedTask={onCancelDelegatedTask}
+        isCancelDelegatedPending={isCancelDelegatedPending}
         onCarryForward={onCarryForward}
         isCarryForwardPending={isCarryForwardPending}
       />

@@ -15,6 +15,7 @@ vi.mock('@/hooks/useManagerDesk', () => ({
   useTrackerSharedTaskDetail: (...args: unknown[]) => mockUseTrackerSharedTaskDetail(...args),
   useUpdateManagerDeskItem: () => ({ mutate: mockUpdateManagerDeskItemMutate, isPending: false }),
   useDeleteManagerDeskItem: () => ({ mutate: mockDeleteManagerDeskItemMutate, isPending: false }),
+  useCancelDelegatedManagerDeskTask: () => ({ mutate: vi.fn(), isPending: false }),
   usePromoteTrackerItem: () => ({ mutate: mockPromoteTrackerItemMutate, isPending: false }),
 }));
 

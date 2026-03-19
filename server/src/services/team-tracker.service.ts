@@ -1132,6 +1132,31 @@ export class TeamTrackerService {
     });
   }
 
+  async unlinkManagerDeskItem(managerDeskItemId: number): Promise<void> {
+    const existing = await this.getManagerDeskTrackerItem(managerDeskItemId);
+    if (!existing) {
+      return;
+    }
+
+    await db
+      .update(teamTrackerItems)
+      .set({
+        managerDeskItemId: null,
+        updatedAt: nowIso(),
+      })
+      .where(eq(teamTrackerItems.id, existing.id));
+  }
+
+  async cancelManagerDeskItem(managerDeskItemId: number): Promise<boolean> {
+    const existing = await this.getManagerDeskTrackerItem(managerDeskItemId);
+    if (!existing) {
+      return false;
+    }
+
+    await this.deleteItem(existing.id, { allowLinkedManagerDeskDelete: true });
+    return true;
+  }
+
   async updateItem(
     itemId: number,
     updates: {

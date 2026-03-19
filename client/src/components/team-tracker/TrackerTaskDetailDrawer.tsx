@@ -1,6 +1,7 @@
 import { AlertTriangle, ArrowUpRight, Loader2, X } from 'lucide-react';
 import { ItemDetailDrawer } from '@/components/manager-desk/ItemDetailDrawer';
 import {
+  useCancelDelegatedManagerDeskTask,
   useDeleteManagerDeskItem,
   usePromoteTrackerItem,
   useTrackerSharedTaskDetail,
@@ -31,6 +32,7 @@ export function TrackerTaskDetailDrawer({
   const detailDate = detail?.date ?? '';
   const updateManagerDeskItem = useUpdateManagerDeskItem(detailDate);
   const deleteManagerDeskItem = useDeleteManagerDeskItem(detailDate);
+  const cancelDelegated = useCancelDelegatedManagerDeskTask(detailDate);
   const updateTrackerItem = useUpdateTrackerItem(detailDate);
   const setCurrentItem = useSetCurrentItem(detailDate);
   const promoteItem = usePromoteTrackerItem();
@@ -75,6 +77,13 @@ export function TrackerTaskDetailDrawer({
       onDelete={(managerDeskItemId) =>
         deleteManagerDeskItem.mutate(managerDeskItemId, { onSuccess: onClose })
       }
+      onCancelDelegatedTask={(managerDeskItemId) =>
+        cancelDelegated.mutate(managerDeskItemId, {
+          onSuccess: () => addToast('Delegated task cancelled', 'success'),
+          onError: (err) => addToast(err.message, 'error'),
+        })
+      }
+      isCancelDelegatedPending={cancelDelegated.isPending}
       topSlot={
         detail ? (
           <TrackerTaskExecutionPanel

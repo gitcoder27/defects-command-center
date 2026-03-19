@@ -5,6 +5,7 @@ import { Briefcase } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import {
   useCarryForwardManagerDesk,
+  useCancelDelegatedManagerDeskTask,
   useCreateManagerDeskItem,
   useDeleteManagerDeskItem,
   useManagerDesk,
@@ -46,6 +47,7 @@ export function ManagerDeskPage() {
   const createItem = useCreateManagerDeskItem(date);
   const updateItem = useUpdateManagerDeskItem(date);
   const deleteItem = useDeleteManagerDeskItem(date);
+  const cancelDelegated = useCancelDelegatedManagerDeskTask(date);
   const carryForward = useCarryForwardManagerDesk(date);
 
   const filteredItems = useMemo(
@@ -123,7 +125,7 @@ export function ManagerDeskPage() {
     (itemId: number) => {
       deleteItem.mutate(itemId, {
         onSuccess: () => {
-          addToast('Item deleted', 'success');
+          addToast('Item removed from desk', 'success');
           setSelectedItemId((current) => (current === itemId ? null : current));
           setInlineTriageId((current) => (current === itemId ? null : current));
         },
@@ -131,6 +133,18 @@ export function ManagerDeskPage() {
       });
     },
     [addToast, deleteItem],
+  );
+
+  const handleCancelDelegatedTask = useCallback(
+    (itemId: number) => {
+      cancelDelegated.mutate(itemId, {
+        onSuccess: () => {
+          addToast('Delegated task cancelled', 'success');
+        },
+        onError: (err) => addToast(err.message, 'error'),
+      });
+    },
+    [addToast, cancelDelegated],
   );
 
   const handleCarryForward = useCallback(
@@ -313,6 +327,8 @@ export function ManagerDeskPage() {
         onClose={() => setSelectedItemId(null)}
         onUpdate={handleUpdateItem}
         onDelete={handleDeleteItem}
+        onCancelDelegatedTask={handleCancelDelegatedTask}
+        isCancelDelegatedPending={cancelDelegated.isPending}
         onCarryForward={selectedItem ? () => handleCarryForwardItem(selectedItem) : undefined}
         isCarryForwardPending={carryForward.isPending}
       />

@@ -124,7 +124,7 @@ export function useUpdateManagerDeskItem(date: string) {
   });
 }
 
-// ── Delete item ─────────────────────────────────────────
+// ── Remove from desk (preserves linked tracker work) ────
 
 export function useDeleteManagerDeskItem(date: string) {
   const qc = useQueryClient();
@@ -132,6 +132,31 @@ export function useDeleteManagerDeskItem(date: string) {
     mutationFn: (itemId: number) =>
       api.delete<{ deleted: boolean }>(`/manager-desk/items/${itemId}`),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
+      qc.invalidateQueries({ queryKey: ['workload'] });
+    },
+  });
+}
+
+// ── Cancel delegated task (deletes tracker execution) ───
+
+export function useCancelDelegatedManagerDeskTask(date: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: number) =>
+      api.post<ManagerDeskItem>(`/manager-desk/items/${itemId}/cancel-delegated-task`),
+    onSuccess: (item) => {
+      qc.setQueriesData<TrackerSharedTaskDetailResponse>(
+        { queryKey: ['manager-desk', 'task-detail'] },
+        (existing) => {
+          if (!existing?.managerDeskItem || existing.managerDeskItem.id !== item.id) {
+            return existing;
+          }
+          return { ...existing, managerDeskItem: item, trackerItem: undefined as never };
+        },
+      );
       qc.invalidateQueries({ queryKey: ['manager-desk', date] });
       qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['team-tracker'] });

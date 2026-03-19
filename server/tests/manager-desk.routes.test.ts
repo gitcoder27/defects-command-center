@@ -561,7 +561,65 @@ describe("manager desk routes", () => {
     });
   });
 
-  it("does not mirror closed items and removes tracker work when an assigned item is closed", async () => {
+  it("DELETE /api/manager-desk/items/:itemId removes only the desk item and preserves linked tracker work", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Investigate active blocker",
+        status: "planned",
+        assigneeDeveloperAccountId: "dev-1",
+        links: [{ linkType: "issue", issueKey: "PROJ-221" }],
+      },
+    });
+
+    const linkedTrackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, created.body.id));
+    expect(linkedTrackerRows).toHaveLength(1);
+
+    await trackerService.updateItem(linkedTrackerRows[0]!.id, {
+      state: "in_progress",
+      note: "Active execution note survives desk cleanup.",
+    });
+
+    const deleted = await invoke(app, {
+      method: "DELETE",
+      url: `/api/manager-desk/items/${created.body.id}`,
+      headers: { cookie },
+    });
+
+    expect(deleted.status).toBe(200);
+    expect(deleted.body).toEqual({ deleted: true });
+
+    const managerRows = await db
+      .select()
+      .from(managerDeskItems)
+      .where(eq(managerDeskItems.id, created.body.id));
+    expect(managerRows).toHaveLength(0);
+
+    const trackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.id, linkedTrackerRows[0]!.id));
+    expect(trackerRows).toEqual([
+      expect.objectContaining({
+        id: linkedTrackerRows[0]!.id,
+        managerDeskItemId: null,
+        title: "Investigate active blocker",
+        state: "in_progress",
+        note: "Active execution note survives desk cleanup.",
+      }),
+    ]);
+  });
+
+  it("does not mirror closed items and removes tracker work when an assigned item is marked done", async () => {
     const app = createTestApp();
     const cookie = await loginCookie("manager", "secret123");
 
@@ -608,18 +666,87 @@ describe("manager desk routes", () => {
       url: `/api/manager-desk/items/${created.body.id}`,
       headers: { cookie },
       body: {
-        status: "cancelled",
+        status: "done",
       },
     });
 
     expect(completed.status).toBe(200);
-    expect(completed.body?.status).toBe("cancelled");
+    expect(completed.body?.status).toBe("done");
 
     const removedTrackerRows = await db
       .select()
       .from(teamTrackerItems)
       .where(eq(teamTrackerItems.managerDeskItemId, created.body.id));
     expect(removedTrackerRows).toHaveLength(0);
+  });
+
+  it("POST /api/manager-desk/items/:itemId/cancel-delegated-task removes linked tracker work and keeps the desk item as cancelled", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Investigate active blocker",
+        status: "planned",
+        assigneeDeveloperAccountId: "dev-1",
+        contextNote: "Manager follow-up should remain visible after cancellation.",
+      },
+    });
+
+    const linkedTrackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, created.body.id));
+    expect(linkedTrackerRows).toHaveLength(1);
+
+    const cancelled = await invoke(app, {
+      method: "POST",
+      url: `/api/manager-desk/items/${created.body.id}/cancel-delegated-task`,
+      headers: { cookie },
+    });
+
+    expect(cancelled.status).toBe(200);
+    expect(cancelled.body).toMatchObject({
+      id: created.body.id,
+      status: "cancelled",
+      contextNote: "Manager follow-up should remain visible after cancellation.",
+    });
+    expect(cancelled.body?.completedAt).toBeDefined();
+    expect(cancelled.body?.delegatedExecution).toBeUndefined();
+
+    const trackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.id, linkedTrackerRows[0]!.id));
+    expect(trackerRows).toHaveLength(0);
+  });
+
+  it("POST /api/manager-desk/items/:itemId/cancel-delegated-task returns 409 when no linked tracker work exists", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Unassigned manager-only follow-up",
+      },
+    });
+
+    const cancelled = await invoke(app, {
+      method: "POST",
+      url: `/api/manager-desk/items/${created.body.id}/cancel-delegated-task`,
+      headers: { cookie },
+    });
+
+    expect(cancelled.status).toBe(409);
+    expect(cancelled.body?.error).toBe("Task has no linked delegated work to cancel");
   });
 
   it("reassigns mirrored tracker work to the new owner and resets it to planned", async () => {
@@ -689,7 +816,7 @@ describe("manager desk routes", () => {
     expect(targetDay[0]?.developerAccountId).toBe("dev-2");
   });
 
-  it("clearing the assignee removes the mirrored tracker item", async () => {
+  it("rejects clearing the assignee on linked delegated work", async () => {
     const app = createTestApp();
     const cookie = await loginCookie("manager", "secret123");
 
@@ -713,14 +840,46 @@ describe("manager desk routes", () => {
       },
     });
 
-    expect(cleared.status).toBe(200);
-    expect("assignee" in cleared.body).toBe(false);
+    expect(cleared.status).toBe(409);
+    expect(cleared.body?.error).toBe(
+      "Linked delegated tasks must be removed from your desk or cancelled explicitly"
+    );
 
     const trackerRows = await db
       .select()
       .from(teamTrackerItems)
       .where(eq(teamTrackerItems.managerDeskItemId, created.body.id));
-    expect(trackerRows).toHaveLength(0);
+    expect(trackerRows).toHaveLength(1);
+  });
+
+  it("rejects patching linked delegated work to cancelled without the dedicated cancel action", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Linked delegated item",
+        assigneeDeveloperAccountId: "dev-1",
+      },
+    });
+
+    const res = await invoke(app, {
+      method: "PATCH",
+      url: `/api/manager-desk/items/${created.body.id}`,
+      headers: { cookie },
+      body: {
+        status: "cancelled",
+      },
+    });
+
+    expect(res.status).toBe(409);
+    expect(res.body?.error).toBe(
+      "Linked delegated tasks must be cancelled with the dedicated cancel action"
+    );
   });
 
   it("POST /api/manager-desk/items/:itemId/links adds issue, developer, and external links and rejects duplicates", async () => {

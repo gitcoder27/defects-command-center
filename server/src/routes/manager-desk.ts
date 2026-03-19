@@ -312,6 +312,22 @@ export function createManagerDeskRouter(
     }
   });
 
+  router.post(
+    "/items/:itemId/cancel-delegated-task",
+    validate(itemIdParamSchema),
+    async (req, res, next) => {
+      try {
+        const item = await managerDeskService.cancelDelegatedTask(
+          req.auth!.user.accountId,
+          parseInt(req.params.itemId as string, 10)
+        );
+        res.json(item);
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
   router.post("/items/:itemId/links", validate(linkSchema), async (req, res, next) => {
     try {
       const link = await managerDeskService.addLink(

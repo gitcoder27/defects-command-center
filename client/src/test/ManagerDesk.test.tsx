@@ -138,6 +138,10 @@ vi.mock('@/hooks/useManagerDesk', () => ({
     mutate: mockDeleteMutate,
     isPending: false,
   }),
+  useCancelDelegatedManagerDeskTask: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+  }),
   useCarryForwardManagerDesk: () => ({
     mutate: mockCarryForwardMutate,
     isPending: false,

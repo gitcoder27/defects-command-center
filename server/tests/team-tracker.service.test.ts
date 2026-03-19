@@ -616,6 +616,63 @@ describe("TeamTrackerService", () => {
     });
   });
 
+  describe("manager desk linkage helpers", () => {
+    it("unlinks Manager Desk work without deleting tracker execution data", async () => {
+      const managerItem = await managerDeskService.createItem("manager-1", {
+        date: "2026-03-07",
+        title: "Shared delegated task",
+        assigneeDeveloperAccountId: "dev-1",
+      });
+      const linkedItem = (await service.getItemDetailContextForManagerDeskItem(managerItem.id))
+        ?.trackerItem;
+      expect(linkedItem).toBeDefined();
+
+      await service.updateItem(linkedItem!.id, {
+        state: "in_progress",
+        note: "Execution note should survive unlinking.",
+      });
+
+      vi.setSystemTime(new Date("2026-03-07T10:15:00.000Z"));
+      await service.unlinkManagerDeskItem(managerItem.id);
+
+      const rows = await db
+        .select()
+        .from(teamTrackerItems)
+        .where(eq(teamTrackerItems.id, linkedItem!.id));
+
+      expect(rows).toEqual([
+        expect.objectContaining({
+          id: linkedItem!.id,
+          managerDeskItemId: null,
+          title: "Shared delegated task",
+          state: "in_progress",
+          note: "Execution note should survive unlinking.",
+          updatedAt: "2026-03-07T10:15:00.000Z",
+        }),
+      ]);
+    });
+
+    it("cancels linked Manager Desk work by deleting the tracker item", async () => {
+      const managerItem = await managerDeskService.createItem("manager-1", {
+        date: "2026-03-07",
+        title: "Shared delegated task",
+        assigneeDeveloperAccountId: "dev-1",
+      });
+      const linkedItem = (await service.getItemDetailContextForManagerDeskItem(managerItem.id))
+        ?.trackerItem;
+      expect(linkedItem).toBeDefined();
+
+      const cancelled = await service.cancelManagerDeskItem(managerItem.id);
+      expect(cancelled).toBe(true);
+
+      const rows = await db
+        .select()
+        .from(teamTrackerItems)
+        .where(eq(teamTrackerItems.id, linkedItem!.id));
+      expect(rows).toHaveLength(0);
+    });
+  });
+
   describe("addCheckIn", () => {
     it("creates check-in and updates lastCheckInAt", async () => {
       const checkIn = await service.addCheckIn("dev-1", "2026-03-07", {

@@ -13,6 +13,7 @@ const priorities: ManagerDeskPriority[] = ['low', 'medium', 'high', 'critical'];
 
 export function InboxTriageRow({ item, onUpdate }: Props) {
   const { data: developers = [] } = useDevelopers();
+  const hasLinkedWork = !!item.delegatedExecution;
 
   return (
     <div className="rounded-lg border px-2.5 py-2" style={{ borderColor: 'var(--md-accent)', background: 'color-mix(in srgb, var(--md-accent-glow) 65%, var(--bg-primary) 35%)' }}>
@@ -26,7 +27,7 @@ export function InboxTriageRow({ item, onUpdate }: Props) {
           className="rounded-lg border px-2 py-1 text-[11px] outline-none"
           style={{ borderColor: 'var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
         >
-          <option value="">Unassigned</option>
+          {!hasLinkedWork && <option value="">Unassigned</option>}
           {developers.map((developer) => (
             <option key={developer.accountId} value={developer.accountId}>
               {developer.displayName}

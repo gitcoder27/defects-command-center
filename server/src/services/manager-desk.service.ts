@@ -262,6 +262,25 @@ export class ManagerDeskService {
     updates: UpdateManagerDeskItemParams
   ): Promise<ManagerDeskItem> {
     const existing = await this.getOwnedItemRow(managerAccountId, itemId);
+    const linkedTrackerContext =
+      await this.trackerService.getItemDetailContextForManagerDeskItem(itemId);
+
+    if (linkedTrackerContext && updates.status === "cancelled") {
+      throw new HttpError(
+        409,
+        "Linked delegated tasks must be cancelled with the dedicated cancel action"
+      );
+    }
+    if (
+      linkedTrackerContext &&
+      updates.assigneeDeveloperAccountId !== undefined &&
+      updates.assigneeDeveloperAccountId === null
+    ) {
+      throw new HttpError(
+        409,
+        "Linked delegated tasks must be removed from your desk or cancelled explicitly"
+      );
+    }
 
     const nextPlannedStartAt =
       updates.plannedStartAt !== undefined ? updates.plannedStartAt : existing.plannedStartAt;
@@ -347,15 +366,33 @@ export class ManagerDeskService {
 
   async deleteItem(managerAccountId: string, itemId: number): Promise<void> {
     await this.getOwnedItemRow(managerAccountId, itemId);
-    await this.trackerService.syncManagerDeskItem({
-      managerDeskItemId: itemId,
-      assigneeDeveloperAccountId: null,
-      date: "",
-      title: "",
-      issueKeys: [],
-    });
+    await this.trackerService.unlinkManagerDeskItem(itemId);
     await db.delete(managerDeskLinks).where(eq(managerDeskLinks.itemId, itemId));
     await db.delete(managerDeskItems).where(eq(managerDeskItems.id, itemId));
+  }
+
+  async cancelDelegatedTask(
+    managerAccountId: string,
+    itemId: number
+  ): Promise<ManagerDeskItem> {
+    const existing = await this.getOwnedItemRow(managerAccountId, itemId);
+    const cancelled = await this.trackerService.cancelManagerDeskItem(itemId);
+
+    if (!cancelled) {
+      throw new HttpError(409, "Task has no linked delegated work to cancel");
+    }
+
+    const now = nowIso();
+    await db
+      .update(managerDeskItems)
+      .set({
+        status: "cancelled",
+        completedAt: existing.completedAt ?? now,
+        updatedAt: now,
+      })
+      .where(eq(managerDeskItems.id, itemId));
+
+    return this.getItemById(managerAccountId, itemId);
   }
 
   async addLink(

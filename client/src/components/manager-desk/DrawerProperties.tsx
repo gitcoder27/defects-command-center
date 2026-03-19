@@ -19,6 +19,11 @@ export function DrawerProperties({ item, date, onFieldChange, onAssigneeChange }
   const { data: developers } = useDevelopers(date);
   const assigneeId = item.assignee?.accountId ?? '';
   const selectedDev = developers?.find((d) => d.accountId === assigneeId);
+  const hasLinkedWork = !!item.delegatedExecution;
+
+  const filteredStatusOpts = hasLinkedWork
+    ? statusOpts.filter((o) => o.value !== 'cancelled')
+    : statusOpts;
 
   return (
     <div className="space-y-3 px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
@@ -27,7 +32,7 @@ export function DrawerProperties({ item, date, onFieldChange, onAssigneeChange }
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
         <InlineSelect label="Kind" value={item.kind} options={kindOpts} onChange={(v) => onFieldChange('kind', v)} />
-        <InlineSelect label="Status" value={item.status} options={statusOpts} onChange={(v) => onFieldChange('status', v)} />
+        <InlineSelect label="Status" value={item.status} options={filteredStatusOpts} onChange={(v) => onFieldChange('status', v)} />
         <InlineSelect label="Category" value={item.category} options={categoryOpts} onChange={(v) => onFieldChange('category', v)} />
         <InlineSelect label="Priority" value={item.priority} options={priorityOpts} onChange={(v) => onFieldChange('priority', v)} />
         <div className="col-span-2">
@@ -39,8 +44,13 @@ export function DrawerProperties({ item, date, onFieldChange, onAssigneeChange }
               label: d.availability?.state === 'inactive' ? `${d.displayName} (inactive)` : d.displayName,
             }))}
             onChange={(v) => onAssigneeChange(v || null)}
-            emptyLabel="Unassigned"
+            emptyLabel={hasLinkedWork ? undefined : 'Unassigned'}
           />
+          {hasLinkedWork && assigneeId && (
+            <p className="mt-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              Assignee is locked while delegated work is active. Use the actions menu to remove from desk or cancel the task.
+            </p>
+          )}
           {selectedDev?.availability?.state === 'inactive' && (
             <p className="mt-1 text-[10px]" style={{ color: 'var(--warning)' }}>
               {selectedDev.availability.note || `${selectedDev.displayName} is inactive for ${date}.`}

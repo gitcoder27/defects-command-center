@@ -10,56 +10,42 @@ After re-checking the original review against the current codebase, a few points
 
 - **Already handled:** passive Team Tracker inspection no longer creates a Manager Desk item. The read path is now `GET /manager-desk/tracker-items/:trackerItemId/detail`, and promotion is a separate explicit `POST /manager-desk/tracker-items/:trackerItemId/promote` action. This is implemented in `server/src/routes/manager-desk.ts`, `server/src/services/manager-desk.service.ts`, `client/src/hooks/useManagerDesk.ts`, and `client/src/components/team-tracker/TrackerTaskDetailDrawer.tsx`.
 - **Already handled:** Team Tracker check-ins now show author attribution. `client/src/components/team-tracker/DeveloperTrackerDrawer.tsx` renders author badges from `authorType`.
+- **Already handled:** delegated task lifecycle synchronization now keeps linked Manager Desk, Team Tracker, and My Day state aligned, so this no longer belongs in the remaining top-priority fix list.
 - **Partially handled and narrowed:** Team Tracker carry-forward now includes Manager Desk-linked work through the `carryManagerDeskItems` callback path in `server/src/routes/team-tracker.ts` and `server/src/services/team-tracker.service.ts`. The remaining carry-forward problem is now on the Manager Desk side: time rebasing, overdue-on-arrival behavior, and previous-day continuity.
 
-The items below are the highest-value remaining fixes from the original review.
+The items below are the highest-value remaining fixes from the original review. Delegated lifecycle synchronization is left in the checklist as completed recordkeeping, but it is no longer an open follow-up item.
 
 ## Top 5 To Pick Up
 
-### 1. Synchronize delegated task lifecycle across Manager Desk, Team Tracker, and My Day
+### 1. Delegated task lifecycle synchronization across Manager Desk, Team Tracker, and My Day
 
-This is still the biggest trust gap. Manager Desk pushes assignment changes into Team Tracker through `syncTrackerAssignment`, but linked tracker state changes do not flow back into the Manager Desk item lifecycle.
+Status: Completed
+
+This follow-up is complete and should no longer be treated as an open trust gap. Keep it here only as a closed item tied back to the original review.
 
 **Change nature:** Both frontend and backend
 
-Current evidence:
+Outcome:
 
-- `server/src/services/manager-desk.service.ts` creates and updates linked tracker items through `syncTrackerAssignment`.
-- `server/src/services/team-tracker.service.ts` updates tracker item state in `updateItem` and `setCurrentItem`, but does not update the linked Manager Desk item.
-- `server/src/services/my-day.service.ts` reuses Team Tracker item mutations, so developer-side completion and dropping also bypass Manager Desk state.
-
-What to implement:
-
-- Define field ownership for linked delegated work: manager-owned fields vs developer-owned execution fields.
-- Add back-sync from linked tracker items into Manager Desk when execution meaningfully changes, especially `in_progress`, `done`, and `dropped`.
-- Decide how intentional divergence should work if the manager wants to keep the desk item open after execution completes.
-
-Why this is top 1:
-
-- Without this, the desk still cannot be treated as the authoritative list of delegated follow-ups.
+- Linked delegated work now synchronizes lifecycle changes across Manager Desk, Team Tracker, and My Day.
+- This removes the original state-divergence gap where developer execution changes could bypass the linked Manager Desk item lifecycle.
 
 ### 2. Split "delete desk item" from "cancel delegated work"
 
-This remains a safety issue. Deleting a Manager Desk item still deletes the linked Team Tracker task.
+Status: Completed
+
+This follow-up is complete and should no longer be treated as an open safety gap.
 
 **Change nature:** Both frontend and backend
 
-Current evidence:
+Outcome:
 
-- `server/src/services/manager-desk.service.ts` calls `trackerService.syncManagerDeskItem` with `assigneeDeveloperAccountId: null` inside `deleteItem`.
-- `server/src/services/team-tracker.service.ts` deletes the linked tracker item when a linked Manager Desk item is unassigned.
-- `client/src/components/team-tracker/TrackerTaskDetailDrawer.tsx` wires the shared drawer delete action straight into the Manager Desk delete mutation.
-- `client/src/components/manager-desk/DrawerHeader.tsx` still exposes a generic delete action with no delegated-work-specific distinction.
+- `Remove from my desk` now removes only the Manager Desk item and preserves linked developer execution work by unlinking it from Manager Desk.
+- `Cancel delegated task` is now the explicit destructive path that deletes the linked Team Tracker/My Day execution item and keeps the Manager Desk item as `cancelled`.
+- Linked delegated items now use explicit UI actions and confirmation copy instead of a generic shared delete path.
+- Backend protections reject implicit linked-task cancellation through generic `status: "cancelled"` updates or assignee clearing.
 
-What to implement:
-
-- Split the action into at least two explicit paths: `Remove from my desk` and `Cancel delegated task`.
-- Require stronger confirmation when the destructive option will delete the developer-facing execution item.
-- Preserve existing tracker notes and execution history unless the manager explicitly chooses cancellation.
-
-Why this is top 2:
-
-- This is a direct data-loss and workflow-loss risk on active delegated work.
+This removes the original data-loss risk where desk cleanup could silently erase active delegated work.
 
 ### 3. Finish Manager Desk carry-forward continuity
 
@@ -137,23 +123,23 @@ These are still worthwhile, but they should follow the trust and safety fixes ab
 
 ### Feature 1. Delegated lifecycle synchronization
 
-- [ ] Confirm the linked-task lifecycle model and document field ownership for Manager Desk vs Team Tracker/My Day.
-- [ ] Decide the exact back-sync rules for linked task execution states: `planned`, `in_progress`, `done`, and `dropped`.
-- [ ] Implement backend synchronization from Team Tracker item changes back into the linked Manager Desk item.
-- [ ] Ensure My Day mutations follow the same linked-task synchronization path.
-- [ ] Update shared detail UI to reflect linked lifecycle state clearly when execution changes.
-- [ ] Add or update backend tests for linked lifecycle sync.
-- [ ] Add or update frontend tests for linked lifecycle display behavior.
+- [x] Confirm the linked-task lifecycle model and document field ownership for Manager Desk vs Team Tracker/My Day.
+- [x] Decide the exact back-sync rules for linked task execution states: `planned`, `in_progress`, `done`, and `dropped`.
+- [x] Implement backend synchronization from Team Tracker item changes back into the linked Manager Desk item.
+- [x] Ensure My Day mutations follow the same linked-task synchronization path.
+- [x] Update shared detail UI to reflect linked lifecycle state clearly when execution changes.
+- [x] Add or update backend tests for linked lifecycle sync.
+- [x] Add or update frontend tests for linked lifecycle display behavior.
 
 ### Feature 2. Safe deletion and cancellation semantics
 
-- [ ] Define the product behavior difference between `Remove from my desk` and `Cancel delegated task`.
-- [ ] Update backend delete/cancel flows so removing a desk item does not implicitly delete active execution work unless explicitly requested.
-- [ ] Add a dedicated destructive path for true delegated-task cancellation.
-- [ ] Update Manager Desk and shared detail UI to expose the two actions separately.
-- [ ] Add explicit confirmation copy describing the impact on developer-facing work.
-- [ ] Add or update backend tests for removal vs cancellation behavior.
-- [ ] Add or update frontend tests for action labels, visibility, and confirmation flows.
+- [x] Define the product behavior difference between `Remove from my desk` and `Cancel delegated task`.
+- [x] Update backend delete/cancel flows so removing a desk item does not implicitly delete active execution work unless explicitly requested.
+- [x] Add a dedicated destructive path for true delegated-task cancellation.
+- [x] Update Manager Desk and shared detail UI to expose the two actions separately.
+- [x] Add explicit confirmation copy describing the impact on developer-facing work.
+- [x] Add or update backend tests for removal vs cancellation behavior.
+- [x] Add or update frontend tests for action labels, visibility, and confirmation flows.
 
 ### Feature 3. Manager Desk carry-forward continuity
 
