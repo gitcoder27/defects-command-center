@@ -30,10 +30,6 @@ vi.mock('@/components/overview/OverviewCards', () => ({
   ),
 }));
 
-vi.mock('@/components/alerts/AlertBanner', () => ({
-  AlertBanner: () => null,
-}));
-
 vi.mock('@/components/alerts/ErrorBanner', () => ({
   ErrorBanner: () => null,
 }));

@@ -1,6 +1,7 @@
 import type { Alert } from "shared/types";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db/connection";
-import { issues } from "../db/schema";
+import { alertDismissals, issues } from "../db/schema";
 import { isOlderThanHours, todayIsoDate } from "../utils/date";
 import { getEffectiveDueDate, isActiveTeamIssue, isStaleIssue } from "./issue-rules";
 import { SettingsService } from "./settings.service";
@@ -11,6 +12,65 @@ export class AlertService {
     private readonly workloadService: WorkloadService,
     private readonly settings = new SettingsService(),
   ) {}
+
+  async listAlertsForManager(managerAccountId: string, now = new Date()): Promise<Alert[]> {
+    const alerts = await this.computeAlerts(now);
+    const activeAlertIds = new Set(alerts.map((alert) => alert.id));
+    const dismissalRows = await db
+      .select()
+      .from(alertDismissals)
+      .where(eq(alertDismissals.managerAccountId, managerAccountId));
+
+    const staleDismissalIds = dismissalRows
+      .map((row) => row.alertId)
+      .filter((alertId) => !activeAlertIds.has(alertId));
+
+    if (staleDismissalIds.length > 0) {
+      await db
+        .delete(alertDismissals)
+        .where(
+          and(
+            eq(alertDismissals.managerAccountId, managerAccountId),
+            inArray(alertDismissals.alertId, staleDismissalIds),
+          ),
+        );
+    }
+
+    const dismissedIds = new Set(
+      dismissalRows
+        .map((row) => row.alertId)
+        .filter((alertId) => activeAlertIds.has(alertId)),
+    );
+
+    return alerts.filter((alert) => !dismissedIds.has(alert.id));
+  }
+
+  async dismissAlerts(managerAccountId: string, alertIds: string[], now = new Date()): Promise<string[]> {
+    const uniqueAlertIds = Array.from(new Set(alertIds.map((alertId) => alertId.trim()).filter(Boolean)));
+
+    if (uniqueAlertIds.length === 0) {
+      return [];
+    }
+
+    await db
+      .delete(alertDismissals)
+      .where(
+        and(
+          eq(alertDismissals.managerAccountId, managerAccountId),
+          inArray(alertDismissals.alertId, uniqueAlertIds),
+        ),
+      );
+
+    await db.insert(alertDismissals).values(
+      uniqueAlertIds.map((alertId) => ({
+        managerAccountId,
+        alertId,
+        dismissedAt: now.toISOString(),
+      })),
+    );
+
+    return uniqueAlertIds;
+  }
 
   async computeAlerts(now = new Date()): Promise<Alert[]> {
     const rows = await db.select().from(issues);

@@ -1,45 +1,95 @@
+import { AlertTriangle, Ban, Briefcase, Clock3, X } from 'lucide-react';
 import type { Alert } from '@/types';
 
 interface AlertListProps {
   alerts: Alert[];
   onAlertClick: (alert: Alert) => void;
+  onDismissAlert: (alert: Alert) => void;
 }
 
-export function AlertList({ alerts, onAlertClick }: AlertListProps) {
-  const severityIcon = (type: string) => {
-    switch (type) {
-      case 'overdue': return '🔴';
-      case 'stale': return '🟡';
-      case 'blocked': return '🔴';
-      case 'idle_developer': return '🟡';
-      case 'high_priority_not_started': return '🟠';
-      default: return '⚪';
-    }
-  };
+const typeMeta = {
+  overdue: { icon: AlertTriangle, tint: 'var(--danger)', bg: 'rgba(239,68,68,0.12)', label: 'Overdue' },
+  stale: { icon: Clock3, tint: 'var(--warning)', bg: 'rgba(245,158,11,0.12)', label: 'Stale' },
+  blocked: { icon: Ban, tint: 'var(--danger)', bg: 'rgba(239,68,68,0.12)', label: 'Blocked' },
+  idle_developer: { icon: Briefcase, tint: 'var(--warning)', bg: 'rgba(245,158,11,0.12)', label: 'Idle developer' },
+  high_priority_not_started: { icon: AlertTriangle, tint: 'var(--warning)', bg: 'rgba(245,158,11,0.12)', label: 'High priority' },
+} satisfies Record<Alert['type'], { icon: typeof AlertTriangle; tint: string; bg: string; label: string }>;
+
+export function AlertList({ alerts, onAlertClick, onDismissAlert }: AlertListProps) {
+  return (
+    <div className="space-y-1.5">
+      {alerts.map((alert) => (
+        <AlertListItem
+          key={alert.id}
+          alert={alert}
+          onClick={() => onAlertClick(alert)}
+          onDismiss={() => onDismissAlert(alert)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function AlertListItem({
+  alert,
+  onClick,
+  onDismiss,
+}: {
+  alert: Alert;
+  onClick: () => void;
+  onDismiss: () => void;
+}) {
+  const meta = typeMeta[alert.type];
+  const Icon = meta.icon;
 
   return (
     <div
-      className="absolute top-full right-0 mt-3 w-[min(420px,calc(100vw-2rem))] rounded-[24px] p-2 z-50"
+      className="group rounded-[18px] border px-3 py-3 transition-all"
       style={{
-        background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 96%, white 4%) 0%, color-mix(in srgb, var(--bg-primary) 88%, var(--bg-secondary) 12%) 100%)',
-        border: '1px solid var(--border)',
-        boxShadow: 'var(--panel-shadow)',
+        borderColor: 'color-mix(in srgb, var(--border) 82%, transparent)',
+        background: 'color-mix(in srgb, var(--bg-secondary) 80%, var(--bg-tertiary) 20%)',
       }}
     >
-      {alerts.map((alert) => (
+      <div className="flex items-start gap-3">
         <button
-          key={alert.id}
-          onClick={() => onAlertClick(alert)}
-          className="w-full text-left px-3 py-3 flex items-start gap-3 rounded-[18px] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
+          type="button"
+          onClick={onClick}
+          className="flex min-w-0 flex-1 items-start gap-3 text-left"
         >
-          <span className="text-[14px] mt-0.5 shrink-0 h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg-tertiary)' }}>
-            {severityIcon(alert.type)}
+          <span
+            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+            style={{ background: meta.bg, color: meta.tint }}
+          >
+            <Icon size={15} />
           </span>
-          <span className="text-[13px] leading-snug" style={{ color: 'var(--text-secondary)' }}>
-            {alert.message}
+          <span className="min-w-0 flex-1">
+            <span
+              className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em]"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              {meta.label}
+              {alert.issueKey ? <span className="truncate normal-case tracking-normal">{alert.issueKey}</span> : null}
+            </span>
+            <span className="mt-1 block text-[13px] leading-snug" style={{ color: 'var(--text-primary)' }}>
+              {alert.message}
+            </span>
           </span>
         </button>
-      ))}
+
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onDismiss();
+          }}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors"
+          style={{ color: 'var(--text-muted)', background: 'transparent' }}
+          aria-label={`Dismiss alert ${alert.id}`}
+          title="Dismiss alert"
+        >
+          <X size={14} />
+        </button>
+      </div>
     </div>
   );
 }

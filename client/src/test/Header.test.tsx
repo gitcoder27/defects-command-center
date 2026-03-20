@@ -31,6 +31,10 @@ vi.mock('@/components/capture/GlobalCaptureDialog', () => ({
   ),
 }));
 
+vi.mock('@/components/alerts/AlertInbox', () => ({
+  AlertInbox: () => <div data-testid="alert-inbox">Alert Inbox</div>,
+}));
+
 describe('Header', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -72,6 +76,18 @@ describe('Header', () => {
     expect(screen.getByRole('link', { name: /open dashboard in new tab/i })).toHaveAttribute('href', '/');
     expect(screen.queryByRole('link', { name: /open team tracker in new tab/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /open manager desk in new tab/i })).toHaveAttribute('href', '/manager-desk');
+  });
+
+  it('shows the alert inbox only on the dashboard when a dashboard alert handler is provided', () => {
+    const { rerender } = render(
+      <Header activeView="dashboard" onViewChange={vi.fn()} onDashboardAlertClick={vi.fn()} />
+    );
+
+    expect(screen.getByTestId('alert-inbox')).toBeInTheDocument();
+
+    rerender(<Header activeView="team-tracker" onViewChange={vi.fn()} onDashboardAlertClick={vi.fn()} />);
+
+    expect(screen.queryByTestId('alert-inbox')).not.toBeInTheDocument();
   });
 
   it('shows the capture button on all manager views including manager-desk', () => {

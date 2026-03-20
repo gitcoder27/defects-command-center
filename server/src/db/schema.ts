@@ -57,6 +57,12 @@ export const appSessions = sqliteTable("app_sessions", {
   lastSeenAt: text("last_seen_at").notNull(),
 });
 
+export const alertDismissals = sqliteTable("alert_dismissals", {
+  managerAccountId: text("manager_account_id").notNull(),
+  alertId: text("alert_id").notNull(),
+  dismissedAt: text("dismissed_at").notNull(),
+});
+
 export const componentMap = sqliteTable("component_map", {
   componentName: text("component_name").notNull(),
   accountId: text("account_id").notNull(),

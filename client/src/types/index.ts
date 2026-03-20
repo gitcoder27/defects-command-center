@@ -159,6 +159,15 @@ export interface Alert {
   detectedAt: string;
 }
 
+export interface AlertDismissRequest {
+  alertIds: string[];
+}
+
+export interface AlertDismissResponse {
+  success: true;
+  dismissedIds: string[];
+}
+
 export interface AssignmentSuggestion {
   developer: Developer;
   score: number;

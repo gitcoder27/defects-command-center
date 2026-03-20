@@ -7,16 +7,19 @@ import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { formatRelativeTime } from '@/lib/utils';
 import type { AppView } from '@/App';
+import type { Alert } from '@/types';
 import { GlobalCaptureDialog } from '@/components/capture/GlobalCaptureDialog';
 import { HeaderNav } from '@/components/layout/HeaderNav';
+import { AlertInbox } from '@/components/alerts/AlertInbox';
 
 interface HeaderProps {
   onOpenMobileSidebar?: () => void;
   activeView?: AppView;
   onViewChange?: (view: AppView) => void;
+  onDashboardAlertClick?: (alert: Alert) => void;
 }
 
-export function Header({ onOpenMobileSidebar, activeView, onViewChange }: HeaderProps) {
+export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashboardAlertClick }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const { data: sync } = useSyncStatus();
@@ -26,6 +29,7 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange }: Header
   const isSyncing = sync?.status === 'syncing' || triggerSync.isPending;
   const hasError = sync?.status === 'error';
   const canQuickCapture = user?.role === 'manager';
+  const showDashboardAlerts = user?.role === 'manager' && (activeView ?? 'dashboard') === 'dashboard' && Boolean(onDashboardAlertClick);
 
   return (
     <>
@@ -33,7 +37,7 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange }: Header
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="shrink-0 px-1 pt-0.5 md:px-1.5 md:pt-1"
+        className="relative z-[300] shrink-0 px-1 pt-0.5 md:px-1.5 md:pt-1"
       >
         <div
           className="dashboard-panel rounded-[14px] px-2.5 py-1.5 md:px-3 md:py-1.5 flex flex-col gap-1 lg:flex-row lg:items-center lg:justify-between"
@@ -103,6 +107,10 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange }: Header
             </div>
 
             <div className="flex items-center gap-1.5 self-start lg:self-auto">
+              {showDashboardAlerts && onDashboardAlertClick ? (
+                <AlertInbox onAlertClick={onDashboardAlertClick} />
+              ) : null}
+
               {canQuickCapture && (
                 <button
                   type="button"

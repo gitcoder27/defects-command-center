@@ -56,6 +56,12 @@ CREATE TABLE IF NOT EXISTS app_sessions (
   FOREIGN KEY (user_id) REFERENCES app_users(id)
 );
 
+CREATE TABLE IF NOT EXISTS alert_dismissals (
+  manager_account_id TEXT NOT NULL,
+  alert_id           TEXT NOT NULL,
+  dismissed_at       TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS component_map (
   component_name TEXT NOT NULL,
   account_id     TEXT NOT NULL,
@@ -229,6 +235,8 @@ CREATE INDEX IF NOT EXISTS idx_app_users_username ON app_users(username);
 CREATE INDEX IF NOT EXISTS idx_app_users_dev_account ON app_users(developer_account_id);
 CREATE INDEX IF NOT EXISTS idx_app_sessions_user ON app_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_app_sessions_expires ON app_sessions(expires_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_alert_dismissals_manager_alert ON alert_dismissals(manager_account_id, alert_id);
+CREATE INDEX IF NOT EXISTS idx_alert_dismissals_manager ON alert_dismissals(manager_account_id);
 CREATE INDEX IF NOT EXISTS idx_tracker_days_date ON team_tracker_days(date);
 CREATE INDEX IF NOT EXISTS idx_tracker_days_dev ON team_tracker_days(developer_account_id);
 CREATE INDEX IF NOT EXISTS idx_dev_availability_dev_dates ON developer_availability_periods(developer_account_id, start_date, end_date);
@@ -259,6 +267,9 @@ const alterStatements = [
   "CREATE INDEX IF NOT EXISTS idx_issues_sync_scope ON issues(sync_scope_state)",
   "CREATE INDEX IF NOT EXISTS idx_issues_workload_scope ON issues(team_scope_state, sync_scope_state, status_category, assignee_id)",
   "CREATE INDEX IF NOT EXISTS idx_issue_scope_history_key_observed ON issue_scope_history(jira_key, observed_at DESC)",
+  "CREATE TABLE IF NOT EXISTS alert_dismissals (manager_account_id TEXT NOT NULL, alert_id TEXT NOT NULL, dismissed_at TEXT NOT NULL)",
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_alert_dismissals_manager_alert ON alert_dismissals(manager_account_id, alert_id)",
+  "CREATE INDEX IF NOT EXISTS idx_alert_dismissals_manager ON alert_dismissals(manager_account_id)",
   "ALTER TABLE issues ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE team_tracker_days ADD COLUMN capacity_units INTEGER",
   "ALTER TABLE team_tracker_days ADD COLUMN next_follow_up_at TEXT",

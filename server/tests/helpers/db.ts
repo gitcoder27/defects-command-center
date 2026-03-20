@@ -4,6 +4,7 @@ import { migrate } from "../../src/db/migrate";
 export async function resetDatabase(): Promise<void> {
   migrate(rawDb);
   rawDb.exec(`
+    DELETE FROM alert_dismissals;
     DELETE FROM app_sessions;
     DELETE FROM app_users;
     DELETE FROM manager_desk_links;
