@@ -36,8 +36,18 @@ vi.mock('@/components/alerts/AlertInbox', () => ({
 }));
 
 describe('Header', () => {
+  const resizeObserverDisconnect = vi.fn();
+  const resizeObserverObserve = vi.fn();
+
   beforeEach(() => {
     vi.clearAllMocks();
+    resizeObserverDisconnect.mockReset();
+    resizeObserverObserve.mockReset();
+    document.documentElement.style.removeProperty('--app-header-height');
+    global.ResizeObserver = vi.fn().mockImplementation(() => ({
+      observe: resizeObserverObserve,
+      disconnect: resizeObserverDisconnect,
+    })) as unknown as typeof ResizeObserver;
     useThemeMock.mockReturnValue({
       theme: 'dark',
       toggleTheme: vi.fn(),
@@ -113,5 +123,17 @@ describe('Header', () => {
     render(<Header activeView="dashboard" onViewChange={vi.fn()} />);
 
     expect(screen.queryByText('Capture')).not.toBeInTheDocument();
+  });
+
+  it('publishes the measured header height for shell-aligned drawers and clears it on unmount', () => {
+    const { unmount } = render(<Header activeView="team-tracker" onViewChange={vi.fn()} />);
+
+    expect(document.documentElement.style.getPropertyValue('--app-header-height')).toBe('0px');
+    expect(resizeObserverObserve).toHaveBeenCalledTimes(1);
+
+    unmount();
+
+    expect(resizeObserverDisconnect).toHaveBeenCalledTimes(1);
+    expect(document.documentElement.style.getPropertyValue('--app-header-height')).toBe('');
   });
 });

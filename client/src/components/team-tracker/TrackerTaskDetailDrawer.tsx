@@ -138,14 +138,14 @@ function TrackerOnlyDrawer({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[70]"
+        className="workspace-shell-backdrop fixed inset-x-0 bottom-0 z-[70]"
         style={{ background: 'rgba(4,8,14,0.52)', backdropFilter: 'blur(6px)' }}
         onClick={onClose}
       />
 
       {/* Drawer */}
       <aside
-        className="fixed inset-y-0 right-0 z-[71] flex w-full max-w-lg flex-col overflow-hidden"
+        className="workspace-shell-drawer fixed right-0 z-[71] flex w-full max-w-lg flex-col overflow-hidden"
         style={{
           background: 'var(--bg-primary)',
           borderLeft: '1px solid var(--border)',

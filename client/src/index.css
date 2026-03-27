@@ -28,6 +28,7 @@
   --danger:        #EF4444;
   --danger-muted:  #DC2626;
   --info:          #8B5CF6;
+  --app-header-height: 72px;
 
   /* Manager Desk — light theme amber */
   --md-accent:     #B8860B;
@@ -145,6 +146,16 @@ body::after {
   border: 1px solid var(--border);
   box-shadow: var(--soft-shadow);
   backdrop-filter: blur(10px);
+}
+
+.workspace-shell-backdrop {
+  top: var(--app-header-height);
+  height: calc(100dvh - var(--app-header-height));
+}
+
+.workspace-shell-drawer {
+  top: var(--app-header-height);
+  height: calc(100dvh - var(--app-header-height));
 }
 
 .workspace-nav-new-tab {

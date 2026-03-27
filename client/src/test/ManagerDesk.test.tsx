@@ -396,6 +396,25 @@ describe('ManagerDeskPage', () => {
     expect(input).toHaveValue('');
   });
 
+  it('collapses quick capture options after mouse submit', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    const input = screen.getByPlaceholderText(/Quick capture/);
+    fireEvent.change(input, { target: { value: 'Mouse-added task' } });
+
+    expect(screen.getByText('↵ Enter')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^add$/i }));
+
+    expect(input).toHaveValue('');
+    expect(screen.queryByText('↵ Enter')).not.toBeInTheDocument();
+    expect(input).toHaveFocus();
+  });
+
   it('opens inline triage controls when an inbox item is selected', () => {
     render(
       <TestWrapper>

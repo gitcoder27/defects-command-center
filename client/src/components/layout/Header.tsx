@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { RefreshCw, Moon, Sun, PanelLeftOpen, Radar, Settings, Plus } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
@@ -25,15 +25,51 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
   const { data: sync } = useSyncStatus();
   const triggerSync = useTriggerSync();
   const [captureOpen, setCaptureOpen] = useState(false);
+  const headerRef = useRef<HTMLElement | null>(null);
 
   const isSyncing = sync?.status === 'syncing' || triggerSync.isPending;
   const hasError = sync?.status === 'error';
   const canQuickCapture = user?.role === 'manager';
   const showDashboardAlerts = user?.role === 'manager' && (activeView ?? 'dashboard') === 'dashboard' && Boolean(onDashboardAlertClick);
 
+  useLayoutEffect(() => {
+    const headerElement = headerRef.current;
+
+    if (!headerElement || typeof document === 'undefined') {
+      return undefined;
+    }
+
+    const rootStyle = document.documentElement.style;
+    const updateHeaderHeight = () => {
+      rootStyle.setProperty('--app-header-height', `${Math.ceil(headerElement.getBoundingClientRect().height)}px`);
+    };
+
+    updateHeaderHeight();
+    window.addEventListener('resize', updateHeaderHeight);
+
+    if (typeof ResizeObserver === 'undefined') {
+      return () => {
+        window.removeEventListener('resize', updateHeaderHeight);
+        rootStyle.removeProperty('--app-header-height');
+      };
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateHeaderHeight();
+    });
+    resizeObserver.observe(headerElement);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateHeaderHeight);
+      rootStyle.removeProperty('--app-header-height');
+    };
+  }, []);
+
   return (
     <>
       <motion.header
+        ref={headerRef}
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}

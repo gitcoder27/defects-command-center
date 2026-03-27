@@ -179,7 +179,7 @@ export function DeveloperTrackerDrawer({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[60]"
+            className="workspace-shell-backdrop fixed inset-x-0 bottom-0 z-[60]"
             style={{ background: 'rgba(0, 0, 0, 0.4)', backdropFilter: 'blur(2px)' }}
             onClick={onClose}
           />
@@ -188,7 +188,7 @@ export function DeveloperTrackerDrawer({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="fixed right-0 top-0 bottom-0 z-[61] w-full max-w-[480px] overflow-hidden flex flex-col"
+            className="workspace-shell-drawer fixed right-0 z-[61] flex w-full max-w-[480px] flex-col overflow-hidden"
             style={{
               background: 'linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)',
               borderLeft: '1px solid var(--border-strong)',

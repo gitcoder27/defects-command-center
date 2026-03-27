@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Zap, Tag } from 'lucide-react';
 import type { ManagerDeskItemKind, ManagerDeskCategory } from '@/types/manager-desk';
@@ -22,17 +22,24 @@ export function QuickCapture({ onCapture, isPending }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const shouldRestoreFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (!shouldRestoreFocusRef.current || title) return;
+    inputRef.current?.focus();
+    shouldRestoreFocusRef.current = false;
+  }, [title]);
 
   const handleSubmit = useCallback(() => {
     if (isPending) return;
     const trimmed = title.trim();
     if (!trimmed) return;
+    shouldRestoreFocusRef.current = true;
     onCapture(trimmed, kind || undefined, category || undefined);
     setTitle('');
     setKind('');
     setCategory('');
     setExpanded(false);
-    inputRef.current?.focus();
   }, [title, kind, category, onCapture, isPending]);
 
   const handleKeyDown = useCallback(
