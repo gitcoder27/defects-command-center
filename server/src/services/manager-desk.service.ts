@@ -3,6 +3,7 @@ import type {
   ManagerDeskAssignee,
   ManagerDeskCategory,
   ManagerDeskCarryForwardPreviewItem,
+  ManagerDeskCarryForwardContextResponse,
   ManagerDeskCarryForwardPreviewResponse,
   ManagerDeskCarryForwardTimeMode,
   ManagerDeskCarryForwardWarningCode,
@@ -104,6 +105,7 @@ type TrackerItemRow = typeof teamTrackerItems.$inferSelect;
 
 const MANAGER_DESK_CARRY_FORWARD_TIME_MODE: ManagerDeskCarryForwardTimeMode =
   "rebase_to_target_date";
+const SMART_CARRY_FORWARD_LOOKBACK_DAYS = 30;
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -624,6 +626,39 @@ export class ManagerDeskService {
     };
   }
 
+  async getCarryForwardContext(
+    managerAccountId: string,
+    toDate: string,
+    lookbackDays = SMART_CARRY_FORWARD_LOOKBACK_DAYS
+  ): Promise<ManagerDeskCarryForwardContextResponse> {
+    const fromDate = await this.resolveLatestCarryForwardSourceDate(
+      managerAccountId,
+      toDate,
+      lookbackDays
+    );
+
+    if (!fromDate) {
+      return {
+        fromDate: undefined,
+        toDate,
+        carryable: 0,
+        overdueOnArrivalCount: 0,
+        timeMode: MANAGER_DESK_CARRY_FORWARD_TIME_MODE,
+        items: [],
+      };
+    }
+
+    const preview = await this.previewCarryForward(managerAccountId, fromDate, toDate);
+    return {
+      fromDate,
+      toDate,
+      carryable: preview.carryable,
+      overdueOnArrivalCount: preview.overdueOnArrivalCount,
+      timeMode: preview.timeMode,
+      items: preview.items,
+    };
+  }
+
   async carryForward(
     managerAccountId: string,
     params: CarryForwardParams
@@ -1027,6 +1062,31 @@ export class ManagerDeskService {
           }),
         };
       });
+  }
+
+  private async resolveLatestCarryForwardSourceDate(
+    managerAccountId: string,
+    toDate: string,
+    lookbackDays: number
+  ): Promise<string | undefined> {
+    const boundedLookbackDays = Math.max(
+      1,
+      Math.min(SMART_CARRY_FORWARD_LOOKBACK_DAYS, Math.trunc(lookbackDays))
+    );
+
+    for (let dayOffset = 1; dayOffset <= boundedLookbackDays; dayOffset += 1) {
+      const candidateDate = addDaysToIsoDate(toDate, -dayOffset);
+      const plan = await this.buildCarryForwardPlan(managerAccountId, {
+        fromDate: candidateDate,
+        toDate,
+      });
+
+      if (plan.length > 0) {
+        return candidateDate;
+      }
+    }
+
+    return undefined;
   }
 
   private async buildCarryForwardPreviewItems(

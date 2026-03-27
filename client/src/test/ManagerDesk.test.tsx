@@ -121,6 +121,13 @@ const mockCarryForwardPreviewData = {
   isFetching: false,
   isError: false,
 };
+const mockCarryForwardContextData = {
+  data: null as import('@/types/manager-desk').ManagerDeskCarryForwardContextResponse | null,
+  isLoading: false,
+  isFetching: false,
+  isError: false,
+  refetch: vi.fn(),
+};
 
 // ── Mock hooks ──────────────────────────────────────────
 
@@ -152,6 +159,7 @@ vi.mock('@/hooks/useManagerDesk', () => ({
     mutate: mockCarryForwardMutate,
     isPending: false,
   }),
+  useManagerDeskCarryForwardContext: () => mockCarryForwardContextData,
   useManagerDeskCarryForwardPreview: () => mockCarryForwardPreviewData,
   useAddManagerDeskLink: () => ({
     mutate: vi.fn(),
@@ -240,6 +248,11 @@ describe('ManagerDeskPage', () => {
     mockCarryForwardPreviewData.isLoading = false;
     mockCarryForwardPreviewData.isFetching = false;
     mockCarryForwardPreviewData.isError = false;
+    mockCarryForwardContextData.data = null;
+    mockCarryForwardContextData.isLoading = false;
+    mockCarryForwardContextData.isFetching = false;
+    mockCarryForwardContextData.isError = false;
+    mockCarryForwardContextData.refetch.mockReset();
     try { window.sessionStorage.clear(); } catch { /* noop */ }
   });
 
@@ -790,10 +803,10 @@ describe('ManagerDeskPage', () => {
     expect(mockRefetch).toHaveBeenCalled();
   });
 
-  // ── First-visit previous-day carry-forward prompt ──────
+  // ── First-visit smart carry-forward prompt ────────────
 
-  it('shows first-visit carry-forward prompt when previous day has carryable items', () => {
-    mockCarryForwardPreviewData.data = {
+  it('shows first-visit carry-forward prompt when an earlier day has carryable items', () => {
+    mockCarryForwardContextData.data = {
       fromDate: '2026-03-07',
       toDate: '2026-03-08',
       carryable: 3,
@@ -816,9 +829,9 @@ describe('ManagerDeskPage', () => {
     expect(screen.getByText(/3 unfinished items from/)).toBeInTheDocument();
   });
 
-  it('does not show first-visit prompt when previous day has zero carryable items', () => {
-    mockCarryForwardPreviewData.data = {
-      fromDate: '2026-03-07',
+  it('does not show first-visit prompt when no earlier day has carryable items', () => {
+    mockCarryForwardContextData.data = {
+      fromDate: undefined,
       toDate: '2026-03-08',
       carryable: 0,
       overdueOnArrivalCount: 0,
@@ -836,7 +849,7 @@ describe('ManagerDeskPage', () => {
   });
 
   it('dismisses the carry-forward prompt and stores state in sessionStorage', () => {
-    mockCarryForwardPreviewData.data = {
+    mockCarryForwardContextData.data = {
       fromDate: '2026-03-07',
       toDate: '2026-03-08',
       carryable: 2,
@@ -858,13 +871,13 @@ describe('ManagerDeskPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /dismiss carry-forward prompt/i }));
     expect(screen.queryByTestId('carry-forward-prompt')).not.toBeInTheDocument();
 
-    expect(window.sessionStorage.getItem('manager-desk:carry-forward-prompt:2026-03-08')).toBe('dismissed');
+    expect(window.sessionStorage.getItem('manager-desk:carry-forward-prompt:2026-03-08:2026-03-07')).toBe('dismissed');
   });
 
-  it('does not show prompt if already dismissed in sessionStorage', () => {
-    window.sessionStorage.setItem('manager-desk:carry-forward-prompt:2026-03-08', 'dismissed');
+  it('does not show prompt if the current source date was already dismissed in sessionStorage', () => {
+    window.sessionStorage.setItem('manager-desk:carry-forward-prompt:2026-03-08:2026-03-07', 'dismissed');
 
-    mockCarryForwardPreviewData.data = {
+    mockCarryForwardContextData.data = {
       fromDate: '2026-03-07',
       toDate: '2026-03-08',
       carryable: 2,
@@ -883,6 +896,48 @@ describe('ManagerDeskPage', () => {
     );
 
     expect(screen.queryByTestId('carry-forward-prompt')).not.toBeInTheDocument();
+  });
+
+  it('re-enables header carry on a blank day when smart carry-forward context exists', () => {
+    currentMockDay = {
+      ...mockDayResponse,
+      items: [],
+      summary: {
+        ...mockSummary,
+        totalOpen: 0,
+        inbox: 0,
+        planned: 0,
+        inProgress: 0,
+        waiting: 0,
+      },
+    };
+    mockCarryForwardContextData.data = {
+      fromDate: '2026-03-05',
+      toDate: '2026-03-08',
+      carryable: 1,
+      overdueOnArrivalCount: 0,
+      timeMode: 'rebase_to_target_date',
+      items: [{ item: mockItem({ id: 21, title: 'Friday follow-up', status: 'planned' }), warningCodes: [] }],
+    };
+    mockCarryForwardPreviewData.data = {
+      fromDate: '2026-03-05',
+      toDate: '2026-03-08',
+      carryable: 1,
+      overdueOnArrivalCount: 0,
+      timeMode: 'rebase_to_target_date',
+      items: [{ item: mockItem({ id: 21, title: 'Friday follow-up', status: 'planned' }), warningCodes: [] }],
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^carry forward$/i }));
+
+    expect(screen.getByRole('dialog', { name: /carry forward/i })).toBeInTheDocument();
+    expect(screen.getByText(/move unfinished work from thu, mar 5 into sun, mar 8/i)).toBeInTheDocument();
   });
 
   // ── Preview-driven dialog ─────────────────────────────

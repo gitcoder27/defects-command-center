@@ -715,6 +715,40 @@ describe("team tracker routes", () => {
     expect(res.body).toEqual({ assignments: [] });
   });
 
+  it("GET /api/team-tracker/carry-forward-context finds the nearest earlier carryable day", async () => {
+    await trackerService.addItem("dev-1", "2026-03-06", {
+      title: "Friday tracker task",
+    });
+    await trackerService.addItem("dev-1", "2026-03-07", {
+      title: "Saturday tracker task",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/team-tracker/carry-forward-context?toDate=2026-03-09",
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      fromDate: "2026-03-07",
+      toDate: "2026-03-09",
+      carryable: 1,
+      developers: [
+        {
+          developer: expect.objectContaining({
+            accountId: "dev-1",
+          }),
+          items: [
+            expect.objectContaining({
+              title: "Saturday tracker task",
+            }),
+          ],
+        },
+      ],
+    });
+  });
+
   it("GET /api/team-tracker/carry-forward-preview reports remaining carryable items", async () => {
     await seedIssue();
     await trackerService.addItem("dev-1", "2026-03-06", {

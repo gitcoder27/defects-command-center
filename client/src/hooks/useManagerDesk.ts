@@ -8,6 +8,7 @@ import type {
   ManagerDeskUpdateItemPayload,
   ManagerDeskAddLinkPayload,
   ManagerDeskCarryForwardPayload,
+  ManagerDeskCarryForwardContextResponse,
   ManagerDeskCarryForwardPreviewResponse,
   ManagerDeskIssueLookupItem,
   ManagerDeskDeveloperLookupItem,
@@ -218,6 +219,18 @@ export function useManagerDeskCarryForwardPreview(
   });
 }
 
+export function useManagerDeskCarryForwardContext(toDate: string, enabled = true) {
+  return useQuery<ManagerDeskCarryForwardContextResponse>({
+    queryKey: ['manager-desk', 'carry-forward-context', toDate],
+    queryFn: () =>
+      api.get<ManagerDeskCarryForwardContextResponse>(
+        `/manager-desk/carry-forward-context?toDate=${encodeURIComponent(toDate)}`
+      ),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
 export function useCarryForwardManagerDesk(date: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -226,6 +239,8 @@ export function useCarryForwardManagerDesk(date: string) {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['manager-desk', date] });
       qc.invalidateQueries({ queryKey: ['manager-desk', variables.toDate] });
+      qc.invalidateQueries({ queryKey: ['manager-desk', 'carry-forward-context', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk', 'carry-forward-context', variables.toDate] });
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
     },

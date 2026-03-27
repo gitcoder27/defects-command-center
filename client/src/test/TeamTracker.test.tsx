@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { TestWrapper } from '@/test/wrapper';
-import type { TeamTrackerBoardResponse, TrackerDeveloperDay, Issue, TrackerIssueAssignment, TrackerCarryForwardPreviewResponse } from '@/types';
+import type { TeamTrackerBoardResponse, TrackerDeveloperDay, Issue, TrackerIssueAssignment, TrackerCarryForwardContextResponse, TrackerCarryForwardPreviewResponse } from '@/types';
 import { formatAbsoluteDateTime } from '@/lib/utils';
 
 const mockCarryForwardMutate = vi.fn();
@@ -14,7 +14,9 @@ const mockCreateManagerDeskItemMutate = vi.fn();
 const mockAddTrackerItemMutate = vi.fn();
 const mockRefetchBoard = vi.fn();
 const mockRefetchCarryForwardPreview = vi.fn();
+const mockRefetchCarryForwardContext = vi.fn();
 let mockCarryForwardPreviewValue: TrackerCarryForwardPreviewResponse | undefined;
+let mockCarryForwardContextValue: TrackerCarryForwardContextResponse | undefined;
 let mockIssues: Issue[] = [];
 let mockTrackerIssueAssignments: TrackerIssueAssignment[] = [];
 
@@ -305,6 +307,13 @@ vi.mock('@/hooks/useTeamTracker', () => ({
     isFetching: false,
     refetch: mockRefetchCarryForwardPreview,
   }),
+  useCarryForwardContext: () => ({
+    data: mockCarryForwardContextValue,
+    isLoading: false,
+    isError: false,
+    isFetching: false,
+    refetch: mockRefetchCarryForwardContext,
+  }),
   useTrackerIssueAssignments: () => ({
     data: mockTrackerIssueAssignments,
     isLoading: false,
@@ -397,7 +406,9 @@ describe('TeamTrackerPage', () => {
     mockAddTrackerItemMutate.mockReset();
     mockRefetchBoard.mockReset();
     mockRefetchCarryForwardPreview.mockReset();
+    mockRefetchCarryForwardContext.mockReset();
     mockCarryForwardPreviewValue = undefined;
+    mockCarryForwardContextValue = undefined;
     mockIssues = [];
     mockTrackerIssueAssignments = [];
     mockBoard.inactiveDevelopers = [];
@@ -525,7 +536,7 @@ describe('TeamTrackerPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /refresh team tracker/i }));
 
     expect(mockRefetchBoard).toHaveBeenCalled();
-    expect(mockRefetchCarryForwardPreview).toHaveBeenCalled();
+    expect(mockRefetchCarryForwardContext).toHaveBeenCalled();
   });
 
   it('shows "No current item" warning for developer without active work', () => {
@@ -652,8 +663,10 @@ describe('TeamTrackerPage', () => {
     expect(mockCarryForwardMutate).not.toHaveBeenCalled();
   });
 
-  it('shows a carry-forward prompt on first visit when previous-day work is available', () => {
-    mockCarryForwardPreviewValue = {
+  it('shows a carry-forward prompt on first visit when an earlier day has work available', () => {
+    mockCarryForwardContextValue = {
+      fromDate: '2026-03-06',
+      toDate: '2026-03-07',
       carryable: 2,
       developers: [
         {
@@ -682,7 +695,9 @@ describe('TeamTrackerPage', () => {
   });
 
   it('opens the selective preview dialog when clicking Review & Carry on the prompt', () => {
-    mockCarryForwardPreviewValue = {
+    mockCarryForwardContextValue = {
+      fromDate: '2026-03-06',
+      toDate: '2026-03-07',
       carryable: 2,
       developers: [
         {
@@ -718,7 +733,9 @@ describe('TeamTrackerPage', () => {
   });
 
   it('lets the user dismiss the carry-forward prompt for the viewed date', () => {
-    mockCarryForwardPreviewValue = {
+    mockCarryForwardContextValue = {
+      fromDate: '2026-03-06',
+      toDate: '2026-03-07',
       carryable: 1,
       developers: [
         {
@@ -739,11 +756,13 @@ describe('TeamTrackerPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /dismiss carry-forward prompt/i }));
 
     expect(screen.queryByText(/1 unfinished task from 2026-03-06/)).not.toBeInTheDocument();
-    expect(window.sessionStorage.getItem('team-tracker:carry-forward-prompt:2026-03-07')).toBe('dismissed');
+    expect(window.sessionStorage.getItem('team-tracker:carry-forward-prompt:2026-03-07:2026-03-06')).toBe('dismissed');
   });
 
   it('carry-forward prompt reflects task and developer count', () => {
-    mockCarryForwardPreviewValue = {
+    mockCarryForwardContextValue = {
+      fromDate: '2026-03-06',
+      toDate: '2026-03-07',
       carryable: 5,
       developers: [
         {
@@ -775,7 +794,9 @@ describe('TeamTrackerPage', () => {
   });
 
   it('carry-forward prompt uses singular form for a single task', () => {
-    mockCarryForwardPreviewValue = {
+    mockCarryForwardContextValue = {
+      fromDate: '2026-03-06',
+      toDate: '2026-03-07',
       carryable: 1,
       developers: [
         {
@@ -798,7 +819,9 @@ describe('TeamTrackerPage', () => {
   });
 
   it('carries all tasks when all remain selected in the preview dialog', () => {
-    mockCarryForwardPreviewValue = {
+    mockCarryForwardContextValue = {
+      fromDate: '2026-03-06',
+      toDate: '2026-03-07',
       carryable: 2,
       developers: [
         {
@@ -832,7 +855,9 @@ describe('TeamTrackerPage', () => {
   });
 
   it('sends only selected itemIds when a subset is chosen', () => {
-    mockCarryForwardPreviewValue = {
+    mockCarryForwardContextValue = {
+      fromDate: '2026-03-06',
+      toDate: '2026-03-07',
       carryable: 2,
       developers: [
         {
@@ -867,7 +892,9 @@ describe('TeamTrackerPage', () => {
   });
 
   it('deselects an entire developer group via the developer-level toggle', () => {
-    mockCarryForwardPreviewValue = {
+    mockCarryForwardContextValue = {
+      fromDate: '2026-03-06',
+      toDate: '2026-03-07',
       carryable: 3,
       developers: [
         {
@@ -908,7 +935,9 @@ describe('TeamTrackerPage', () => {
   });
 
   it('blocks confirm when zero tasks are selected', () => {
-    mockCarryForwardPreviewValue = {
+    mockCarryForwardContextValue = {
+      fromDate: '2026-03-06',
+      toDate: '2026-03-07',
       carryable: 1,
       developers: [
         {
@@ -938,7 +967,9 @@ describe('TeamTrackerPage', () => {
   });
 
   it('shows Manager Desk badge for linked tasks in the preview dialog', () => {
-    mockCarryForwardPreviewValue = {
+    mockCarryForwardContextValue = {
+      fromDate: '2026-03-06',
+      toDate: '2026-03-07',
       carryable: 2,
       developers: [
         {
@@ -963,6 +994,30 @@ describe('TeamTrackerPage', () => {
     expect(within(dialog).getByText('Desk')).toBeInTheDocument();
     expect(within(dialog).getByText('Tracker-only task')).toBeInTheDocument();
     expect(within(dialog).getByText('Desk-linked task')).toBeInTheDocument();
+  });
+
+  it('shows header carry on today when smart carry-forward context exists', () => {
+    mockCarryForwardContextValue = {
+      fromDate: '2026-03-05',
+      toDate: '2026-03-07',
+      carryable: 1,
+      developers: [
+        {
+          developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
+          items: [
+            { id: 100, dayId: 1, itemType: 'custom', title: 'Friday carry task', state: 'planned', position: 0, createdAt: '2026-03-05T08:00:00Z', updatedAt: '2026-03-05T08:00:00Z' },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    expect(screen.getByRole('button', { name: /carry forward/i })).toBeInTheDocument();
   });
 
   it('shows check-in authorship badges and absolute timestamps in the drawer', () => {

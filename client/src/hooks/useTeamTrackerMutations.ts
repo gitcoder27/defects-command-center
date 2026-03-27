@@ -197,6 +197,7 @@ export function useCarryForward() {
       api.post<{ carried: number }>('/team-tracker/carry-forward', params),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
+      qc.invalidateQueries({ queryKey: ['team-tracker', 'carry-forward-context'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueViews(qc);
     },

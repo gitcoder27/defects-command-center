@@ -217,6 +217,15 @@ const carryForwardPreviewSchema = z.object({
   body: z.any().optional(),
 });
 
+const carryForwardContextSchema = z.object({
+  query: z.object({
+    toDate: z.string().regex(dateRegex, "toDate must be YYYY-MM-DD"),
+    lookbackDays: z.coerce.number().int().min(1).max(30).optional(),
+  }),
+  params: z.any().optional(),
+  body: z.any().optional(),
+});
+
 const lookupSchema = z.object({
   query: z.object({
     q: z.string().max(200),
@@ -361,6 +370,23 @@ export function createManagerDeskRouter(
           parseInt(req.params.linkId as string, 10)
         );
         res.json({ deleted: true });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.get(
+    "/carry-forward-context",
+    validate(carryForwardContextSchema),
+    async (req, res, next) => {
+      try {
+        const preview = await managerDeskService.getCarryForwardContext(
+          req.auth!.user.accountId,
+          req.query.toDate as string,
+          req.query.lookbackDays as number | undefined
+        );
+        res.json(preview);
       } catch (error) {
         next(error);
       }

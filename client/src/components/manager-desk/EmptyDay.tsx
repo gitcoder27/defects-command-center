@@ -27,7 +27,7 @@ export function EmptyDay({ date }: Props) {
         Clean slate
       </h3>
       <p className="text-[11px] max-w-xs" style={{ color: 'var(--text-secondary)' }}>
-        No items for {date}. Use quick capture to start, or carry forward from yesterday.
+        No items for {date}. Use quick capture to start, or carry forward from the latest unfinished earlier day.
       </p>
 
       <div className="flex items-center gap-1 mt-2 text-[9px] font-medium" style={{ color: 'var(--text-muted)' }}>

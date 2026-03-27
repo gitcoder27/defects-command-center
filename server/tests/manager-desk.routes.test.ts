@@ -1107,6 +1107,56 @@ describe("manager desk routes", () => {
     ]);
   });
 
+  it("GET /api/manager-desk/carry-forward-context finds the nearest earlier carryable day", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-06",
+        title: "Friday follow-up",
+        status: "planned",
+      },
+    });
+
+    const saturday = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-07",
+        title: "Saturday carry source",
+        status: "waiting",
+      },
+    });
+
+    const preview = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk/carry-forward-context?toDate=2026-03-09",
+      headers: { cookie },
+    });
+
+    expect(preview.status).toBe(200);
+    expect(preview.body).toEqual({
+      fromDate: "2026-03-07",
+      toDate: "2026-03-09",
+      carryable: 1,
+      overdueOnArrivalCount: 0,
+      timeMode: "rebase_to_target_date",
+      items: [
+        expect.objectContaining({
+          item: expect.objectContaining({
+            id: saturday.body.id,
+            title: "Saturday carry source",
+          }),
+        }),
+      ],
+    });
+  });
+
   it("GET /api/manager-desk/carry-forward-preview returns rebased times, warnings, and only still-carryable items", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-09T16:30:00.000Z"));

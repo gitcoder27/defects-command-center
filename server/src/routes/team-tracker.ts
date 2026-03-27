@@ -138,6 +138,15 @@ const carryForwardPreviewSchema = z.object({
   params: z.any().optional(),
 });
 
+const carryForwardContextSchema = z.object({
+  query: z.object({
+    toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    lookbackDays: z.coerce.number().int().min(1).max(30).optional(),
+  }),
+  body: z.any().optional(),
+  params: z.any().optional(),
+});
+
 const issueAssignmentSchema = z.object({
   params: z.object({
     jiraKey: z.string().min(1, "jiraKey is required"),
@@ -488,6 +497,22 @@ export function createTeamTrackerRouter(
   );
 
   // POST /api/team-tracker/carry-forward
+  router.get(
+    "/carry-forward-context",
+    validate(carryForwardContextSchema),
+    async (req, res, next) => {
+      try {
+        const preview = await trackerService.getCarryForwardContext(
+          req.query.toDate as string,
+          req.query.lookbackDays as number | undefined
+        );
+        res.json(preview);
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
   router.get(
     "/carry-forward-preview",
     validate(carryForwardPreviewSchema),

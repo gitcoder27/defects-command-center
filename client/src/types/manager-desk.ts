@@ -213,6 +213,15 @@ export interface ManagerDeskCarryForwardPreviewResponse {
   items: ManagerDeskCarryForwardPreviewItem[];
 }
 
+export interface ManagerDeskCarryForwardContextResponse {
+  fromDate?: string;
+  toDate: string;
+  carryable: number;
+  overdueOnArrivalCount: number;
+  timeMode: ManagerDeskCarryForwardTimeMode;
+  items: ManagerDeskCarryForwardPreviewItem[];
+}
+
 // ── Display helpers ─────────────────────────────────────
 
 export const KIND_LABELS: Record<ManagerDeskItemKind, string> = {

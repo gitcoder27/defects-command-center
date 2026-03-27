@@ -2,7 +2,7 @@ import { ArrowRightFromLine, X } from 'lucide-react';
 
 interface Props {
   carryableCount: number;
-  previousDate: string;
+  sourceDate: string;
   viewedDate: string;
   isPending: boolean;
   onReviewAndCarry: () => void;
@@ -11,7 +11,7 @@ interface Props {
 
 export function CarryForwardPrompt({
   carryableCount,
-  previousDate,
+  sourceDate,
   viewedDate,
   isPending,
   onReviewAndCarry,
@@ -31,7 +31,7 @@ export function CarryForwardPrompt({
       <div className="min-w-0">
         <div className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
           {carryableCount} unfinished item{carryableCount === 1 ? '' : 's'} from{' '}
-          <span style={{ color: 'var(--md-accent)' }}>{previousDate}</span>
+          <span style={{ color: 'var(--md-accent)' }}>{sourceDate}</span>
         </div>
         <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
           Review and carry items into {viewedDate}.

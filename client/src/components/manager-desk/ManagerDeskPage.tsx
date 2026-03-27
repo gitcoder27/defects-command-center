@@ -9,7 +9,7 @@ import {
   useCreateManagerDeskItem,
   useDeleteManagerDeskItem,
   useManagerDesk,
-  useManagerDeskCarryForwardPreview,
+  useManagerDeskCarryForwardContext,
   useUpdateManagerDeskItem,
 } from '@/hooks/useManagerDesk';
 import type { ManagerDeskItem } from '@/types/manager-desk';
@@ -35,23 +35,23 @@ import {
 
 // ── Session-scoped carry-forward prompt helpers ─────────
 
-function getCarryForwardPromptKey(date: string): string {
-  return `manager-desk:carry-forward-prompt:${date}`;
+function getCarryForwardPromptKey(date: string, sourceDate: string | null): string {
+  return `manager-desk:carry-forward-prompt:${date}:${sourceDate ?? 'none'}`;
 }
 
-function readCarryForwardPromptState(date: string): boolean {
+function readCarryForwardPromptState(date: string, sourceDate: string | null): boolean {
   if (typeof window === 'undefined') return false;
   try {
-    return window.sessionStorage.getItem(getCarryForwardPromptKey(date)) === 'dismissed';
+    return window.sessionStorage.getItem(getCarryForwardPromptKey(date, sourceDate)) === 'dismissed';
   } catch {
     return false;
   }
 }
 
-function writeCarryForwardPromptState(date: string): void {
+function writeCarryForwardPromptState(date: string, sourceDate: string | null): void {
   if (typeof window === 'undefined') return;
   try {
-    window.sessionStorage.setItem(getCarryForwardPromptKey(date), 'dismissed');
+    window.sessionStorage.setItem(getCarryForwardPromptKey(date, sourceDate), 'dismissed');
   } catch {
     // Ignore — prompt will reappear next visit
   }
@@ -67,8 +67,8 @@ export function ManagerDeskPage() {
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [inlineTriageId, setInlineTriageId] = useState<number | null>(null);
   const [showCarryForward, setShowCarryForward] = useState(false);
-  const [carryDialogMode, setCarryDialogMode] = useState<'prompt' | 'header'>('header');
-  const [carryPromptDismissed, setCarryPromptDismissed] = useState(() => readCarryForwardPromptState(format(new Date(), 'yyyy-MM-dd')));
+  const [carryDialogMode, setCarryDialogMode] = useState<'smart' | 'header'>('header');
+  const [carryPromptDismissed, setCarryPromptDismissed] = useState(false);
   const [filters, setFilters] = useState<ManagerDeskFilterState>(defaultFilters);
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,24 +83,26 @@ export function ManagerDeskPage() {
   // Previous-day continuity
   const previousDate = useMemo(() => format(subDays(parseISO(date), 1), 'yyyy-MM-dd'), [date]);
   const nextDate = useMemo(() => format(addDays(parseISO(date), 1), 'yyyy-MM-dd'), [date]);
-  const promptPreview = useManagerDeskCarryForwardPreview(previousDate, date, !carryPromptDismissed);
-  const carryableFromPreviousDay = promptPreview.data?.carryable ?? 0;
+  const smartCarryContext = useManagerDeskCarryForwardContext(date);
+  const smartSourceDate = smartCarryContext.data?.fromDate ?? null;
+  const carryableFromEarlierDay = smartCarryContext.data?.carryable ?? 0;
 
   // Reset prompt state when date changes
   useEffect(() => {
-    setCarryPromptDismissed(readCarryForwardPromptState(date));
-  }, [date]);
+    setCarryPromptDismissed(readCarryForwardPromptState(date, smartSourceDate));
+  }, [date, smartSourceDate]);
 
   const dismissCarryForwardPrompt = useCallback(() => {
-    writeCarryForwardPromptState(date);
+    writeCarryForwardPromptState(date, smartSourceDate);
     setCarryPromptDismissed(true);
-  }, [date]);
+  }, [date, smartSourceDate]);
 
   const showCarryForwardPrompt =
     !carryPromptDismissed &&
-    !promptPreview.isLoading &&
-    !promptPreview.isError &&
-    carryableFromPreviousDay > 0;
+    !smartCarryContext.isLoading &&
+    !smartCarryContext.isError &&
+    carryableFromEarlierDay > 0 &&
+    smartSourceDate !== null;
 
   const filteredItems = useMemo(
     () => filterItems(day?.items ?? [], searchQuery, quickFilter, filters),
@@ -108,10 +110,11 @@ export function ManagerDeskPage() {
   );
   const sections = useMemo(() => buildSections(filteredItems), [filteredItems]);
   const openItems = useMemo(() => getOpenItems(filteredItems), [filteredItems]);
-  const hasCarryableItems = useMemo(
+  const hasCurrentCarryableItems = useMemo(
     () => (day?.items ?? []).some((item) => item.status !== 'done' && item.status !== 'cancelled'),
     [day?.items],
   );
+  const canHeaderCarry = hasCurrentCarryableItems || carryableFromEarlierDay > 0;
   const selectedItem = useMemo(
     () => filteredItems.find((item) => item.id === selectedItemId) ?? null,
     [filteredItems, selectedItemId],
@@ -201,14 +204,14 @@ export function ManagerDeskPage() {
 
   const handleCarryForward = useCallback(
     (toDate: string, itemIds?: number[]) => {
-      const fromDate = carryDialogMode === 'prompt' ? previousDate : date;
+      const fromDate = carryDialogMode === 'smart' ? smartSourceDate ?? previousDate : date;
       carryForward.mutate(
         { fromDate, toDate, itemIds },
         {
           onSuccess: (res) => {
             addToast(res.created === 0 ? 'Nothing new was carried forward' : `${res.created} item(s) carried forward`, res.created === 0 ? 'info' : 'success');
             setShowCarryForward(false);
-            if (carryDialogMode === 'prompt') {
+            if (carryDialogMode === 'smart') {
               dismissCarryForwardPrompt();
             }
           },
@@ -216,7 +219,7 @@ export function ManagerDeskPage() {
         },
       );
     },
-    [addToast, carryDialogMode, carryForward, date, dismissCarryForwardPrompt, previousDate],
+    [addToast, carryDialogMode, carryForward, date, dismissCarryForwardPrompt, previousDate, smartSourceDate],
   );
 
   const handleCarryForwardItem = useCallback(
@@ -270,22 +273,25 @@ export function ManagerDeskPage() {
         displayDate={displayDate}
         isTodayDate={isToday(dateObj)}
         isFetching={isFetching}
-        canCarryForward={hasCarryableItems}
+        canCarryForward={canHeaderCarry}
         onPrev={goPrev}
         onNext={goNext}
         onToday={goToday}
         onRefresh={() => void refetch()}
-        onCarryForward={() => { setCarryDialogMode('header'); setShowCarryForward(true); }}
+        onCarryForward={() => {
+          setCarryDialogMode(hasCurrentCarryableItems ? 'header' : 'smart');
+          setShowCarryForward(true);
+        }}
       />
 
       {showCarryForwardPrompt && (
         <div className="px-2 pt-1 md:px-3">
           <CarryForwardPrompt
-            carryableCount={carryableFromPreviousDay}
-            previousDate={previousDate}
+            carryableCount={carryableFromEarlierDay}
+            sourceDate={smartSourceDate ?? previousDate}
             viewedDate={date}
             isPending={carryForward.isPending}
-            onReviewAndCarry={() => { setCarryDialogMode('prompt'); setShowCarryForward(true); }}
+            onReviewAndCarry={() => { setCarryDialogMode('smart'); setShowCarryForward(true); }}
             onDismiss={dismissCarryForwardPrompt}
           />
         </div>
@@ -404,8 +410,8 @@ export function ManagerDeskPage() {
 
       {showCarryForward && (
         <CarryForwardDialog
-          fromDate={carryDialogMode === 'prompt' ? previousDate : date}
-          toDate={carryDialogMode === 'prompt' ? date : nextDate}
+          fromDate={carryDialogMode === 'smart' ? smartSourceDate ?? previousDate : date}
+          toDate={carryDialogMode === 'smart' ? date : nextDate}
           allowDateChange={carryDialogMode === 'header'}
           isPending={carryForward.isPending}
           onConfirm={handleCarryForward}

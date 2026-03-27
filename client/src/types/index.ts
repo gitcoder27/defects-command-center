@@ -332,6 +332,12 @@ export interface TrackerCarryForwardPreviewResponse {
   developers: TrackerCarryForwardPreviewGroup[];
 }
 
+export interface TrackerCarryForwardContextResponse
+  extends TrackerCarryForwardPreviewResponse {
+  fromDate?: string;
+  toDate: string;
+}
+
 export interface TrackerDeveloperDay {
   id: number;
   date: string;

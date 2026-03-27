@@ -4,6 +4,7 @@ import type {
   TeamTrackerBoardResponse,
   TeamTrackerBoardQuery,
   TrackerIssueAssignment,
+  TrackerCarryForwardContextResponse,
   TrackerCarryForwardPreviewResponse,
 } from '@/types';
 
@@ -38,6 +39,18 @@ export function useCarryForwardPreview(fromDate: string, toDate: string, enabled
         `/team-tracker/carry-forward-preview?${params.toString()}`
       );
     },
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useCarryForwardContext(toDate: string, enabled = true) {
+  return useQuery<TrackerCarryForwardContextResponse>({
+    queryKey: ['team-tracker', 'carry-forward-context', toDate],
+    queryFn: () =>
+      api.get<TrackerCarryForwardContextResponse>(
+        `/team-tracker/carry-forward-context?toDate=${encodeURIComponent(toDate)}`
+      ),
     enabled,
     staleTime: 30_000,
   });

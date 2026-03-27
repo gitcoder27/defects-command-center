@@ -13,6 +13,7 @@ import type {
   TrackerAttentionReason,
   TrackerAttentionReasonCode,
   TrackerAttentionQuickAction,
+  TrackerCarryForwardContextResponse,
   TrackerCarryForwardPreviewGroup,
   TrackerCarryForwardPreviewResponse,
   Developer,
@@ -124,6 +125,34 @@ const BLOCKED_FIRST_STATUS_ORDER: Record<TrackerDeveloperStatus, number> = {
   on_track: 3,
   done_for_today: 4,
 };
+const SMART_CARRY_FORWARD_LOOKBACK_DAYS = 30;
+
+function parseIsoDate(value: string): { year: number; month: number; day: number } {
+  const match = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/.exec(value);
+  if (!match?.groups) {
+    throw new Error(`Invalid ISO date: ${value}`);
+  }
+
+  return {
+    year: Number(match.groups.year),
+    month: Number(match.groups.month),
+    day: Number(match.groups.day),
+  };
+}
+
+function formatIsoDateUtc(date: Date): string {
+  const year = String(date.getUTCFullYear()).padStart(4, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addDaysToIsoDate(value: string, days: number): string {
+  const parts = parseIsoDate(value);
+  const utcDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+  utcDate.setUTCDate(utcDate.getUTCDate() + days);
+  return formatIsoDateUtc(utcDate);
+}
 
 function buildStatusUpdateSummary(params: {
   status: TrackerDeveloperStatus;
@@ -1521,6 +1550,29 @@ export class TeamTrackerService {
     return this.buildCarryForwardPreview(plan.entries);
   }
 
+  async getCarryForwardContext(
+    toDate: string,
+    lookbackDays = SMART_CARRY_FORWARD_LOOKBACK_DAYS
+  ): Promise<TrackerCarryForwardContextResponse> {
+    const fromDate = await this.resolveLatestCarryForwardSourceDate(toDate, lookbackDays);
+    if (!fromDate) {
+      return {
+        fromDate: undefined,
+        toDate,
+        carryable: 0,
+        developers: [],
+      };
+    }
+
+    const preview = await this.previewCarryForward(fromDate, toDate);
+    return {
+      fromDate,
+      toDate,
+      carryable: preview.carryable,
+      developers: preview.developers,
+    };
+  }
+
   async carryForward(
     fromDate: string,
     toDate: string,
@@ -2208,6 +2260,26 @@ export class TeamTrackerService {
     }
 
     return carried;
+  }
+
+  private async resolveLatestCarryForwardSourceDate(
+    toDate: string,
+    lookbackDays: number
+  ): Promise<string | undefined> {
+    const boundedLookbackDays = Math.max(
+      1,
+      Math.min(SMART_CARRY_FORWARD_LOOKBACK_DAYS, Math.trunc(lookbackDays))
+    );
+
+    for (let dayOffset = 1; dayOffset <= boundedLookbackDays; dayOffset += 1) {
+      const candidateDate = addDaysToIsoDate(toDate, -dayOffset);
+      const plan = await this.buildCarryForwardPlan(candidateDate, toDate);
+      if (plan.entries.length > 0) {
+        return candidateDate;
+      }
+    }
+
+    return undefined;
   }
 
   private async reorderItem(

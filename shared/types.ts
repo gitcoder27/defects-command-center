@@ -382,6 +382,12 @@ export interface TrackerCarryForwardPreviewResponse {
   developers: TrackerCarryForwardPreviewGroup[];
 }
 
+export interface TrackerCarryForwardContextResponse
+  extends TrackerCarryForwardPreviewResponse {
+  fromDate?: string;
+  toDate: string;
+}
+
 export type TrackerBoardSummaryFilter =
   | "all"
   | "stale"
@@ -636,6 +642,15 @@ export interface ManagerDeskCarryForwardPreviewItem {
 
 export interface ManagerDeskCarryForwardPreviewResponse {
   fromDate: string;
+  toDate: string;
+  carryable: number;
+  overdueOnArrivalCount: number;
+  timeMode: ManagerDeskCarryForwardTimeMode;
+  items: ManagerDeskCarryForwardPreviewItem[];
+}
+
+export interface ManagerDeskCarryForwardContextResponse {
+  fromDate?: string;
   toDate: string;
   carryable: number;
   overdueOnArrivalCount: number;
