@@ -16,6 +16,10 @@ import { format, parseISO, isPast } from 'date-fns';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
 import { KIND_LABELS, PRIORITY_LABELS, EXECUTION_STATE_LABELS } from '@/types/manager-desk';
 import { AssigneePill } from './AssigneePill';
+import {
+  MANAGER_DESK_ACTION_REVEAL_TRANSITION_MS,
+  MANAGER_DESK_CARD_LAYOUT_TRANSITION,
+} from './motion';
 
 interface Props {
   item: ManagerDeskItem;
@@ -165,7 +169,8 @@ export function DeskItemCard({
 
   return (
     <motion.div
-      layout
+      layout="position"
+      transition={{ layout: MANAGER_DESK_CARD_LAYOUT_TRANSITION }}
       onClick={onSelect}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -173,7 +178,7 @@ export function DeskItemCard({
           onSelect();
         }
       }}
-      className="group relative cursor-pointer rounded-lg px-2.5 py-1.5 transition-all"
+      className="group relative cursor-pointer rounded-lg px-2.5 py-1.5 transition-[background-color,border-color,box-shadow,opacity] duration-150"
       role="button"
       tabIndex={0}
       aria-label={`Open ${item.title}`}
@@ -183,13 +188,19 @@ export function DeskItemCard({
         opacity: isDone ? 0.55 : 1,
         boxShadow: cardSurface.boxShadow,
       }}
-      whileHover={{ scale: 1.003, y: -1 }}
-      whileTap={{ scale: 0.998 }}
     >
       {isOverdue && (
         <div
           className="absolute inset-0 rounded-lg pointer-events-none"
           style={{ boxShadow: 'inset 0 0 0 1px rgba(239,68,68,0.25)' }}
+        />
+      )}
+      {!isDone && (
+        <div
+          className="pointer-events-none absolute inset-0 rounded-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+          style={{
+            boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--border-strong) 62%, transparent), 0 8px 20px rgba(15, 23, 42, 0.08)',
+          }}
         />
       )}
 
@@ -266,24 +277,30 @@ export function DeskItemCard({
 
       {quickAction && (
         <div
-          className="invisible absolute right-2 top-1/2 z-10 -translate-y-1/2 opacity-0 transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
-          style={{ pointerEvents: 'none' }}
+          className="absolute right-1.5 top-1/2 z-10 -translate-y-1/2 translate-x-1 opacity-0 transition-[opacity,transform] group-hover:translate-x-0 group-hover:opacity-100 group-focus-within:translate-x-0 group-focus-within:opacity-100"
+          style={{
+            pointerEvents: 'none',
+            transitionDuration: `${MANAGER_DESK_ACTION_REVEAL_TRANSITION_MS}ms`,
+          }}
         >
           <div
-            className="rounded-lg p-1"
+            className="rounded-full p-0.5"
             style={{
-              background: 'color-mix(in srgb, var(--bg-primary) 86%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--border) 78%, transparent)',
-              boxShadow: '0 10px 30px rgba(15, 23, 42, 0.18)',
-              backdropFilter: 'blur(10px)',
+              background: 'color-mix(in srgb, var(--bg-secondary) 94%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--border) 72%, transparent)',
+              boxShadow: '0 6px 14px rgba(15, 23, 42, 0.10)',
               pointerEvents: 'auto',
             }}
           >
             <button
               type="button"
               onClick={e => { e.stopPropagation(); onStatusChange(quickAction.status); }}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-[9px] font-bold uppercase transition-all"
-              style={{ background: 'var(--md-accent-glow)', color: 'var(--md-accent)', border: '1px solid var(--md-accent)' }}
+              className="flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] transition-[background-color,border-color,color] duration-150"
+              style={{
+                background: 'color-mix(in srgb, var(--md-accent-glow) 86%, var(--bg-primary) 14%)',
+                color: 'var(--md-accent)',
+                border: '1px solid color-mix(in srgb, var(--md-accent) 32%, transparent)',
+              }}
               aria-label={`${quickAction.label} ${item.title}`}
             >
               {quickAction.status === 'done' ? <CheckCircle2 size={8} /> : <ArrowRight size={8} />}

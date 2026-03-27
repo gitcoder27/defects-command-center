@@ -442,6 +442,49 @@ describe('ManagerDeskPage', () => {
     expect(screen.getByLabelText('Priority for Quick inbox thought')).toBeInTheDocument();
   });
 
+  it('updates an inbox item from the hover quick action without opening the drawer', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /plan quick inbox thought/i }));
+
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      {
+        itemId: 4,
+        status: 'planned',
+      },
+      expect.anything(),
+    );
+    expect(screen.queryByLabelText('Manager Desk item detail')).not.toBeInTheDocument();
+  });
+
+  it('keeps the planned quick action accessible from keyboard focus', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    const card = screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i });
+    fireEvent.focus(card);
+
+    const action = screen.getByRole('button', { name: /start analyze root cause for def-241/i });
+    fireEvent.focus(action);
+    fireEvent.click(action);
+
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      {
+        itemId: 1,
+        status: 'in_progress',
+      },
+      expect.anything(),
+    );
+    expect(screen.queryByLabelText('Manager Desk item detail')).not.toBeInTheDocument();
+  });
+
   it('shows loading state', () => {
     mockIsLoading = true;
     currentMockDay = undefined;

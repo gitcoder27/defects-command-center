@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { MotionConfig, motion } from 'framer-motion';
 import { addDays, format, isToday, parseISO, subDays } from 'date-fns';
 import { Briefcase } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
@@ -24,6 +24,7 @@ import { ManagerDeskCommandBar } from './ManagerDeskCommandBar';
 import { ManagerDeskHeader } from './ManagerDeskHeader';
 import { TaskRail } from './TaskRail';
 import { WorkbenchSection } from './WorkbenchSection';
+import { MANAGER_DESK_CARD_LAYOUT_TRANSITION } from './motion';
 import {
   buildSections,
   filterItems,
@@ -326,70 +327,77 @@ export function ManagerDeskPage() {
             <TaskRail items={openItems} selectedItemId={selectedItemId} onSelect={handleSelectItem} />
 
             <div className="min-h-0 overflow-y-auto">
-              {(day?.items.length ?? 0) === 0 && !hasAnyNarrowing ? (
-                <EmptyDay date={displayDate} />
-              ) : (
-                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
-                  <div className="grid gap-2 xl:grid-cols-2">
-                    <WorkbenchSection title="Focus" subtitle="Planned and in-progress work" count={sections.focus.length} accent="var(--md-accent)" emptyMessage="No active work matches the current view.">
-                      {sections.focus.map((item) => (
-                        <DeskItemCard
-                          key={item.id}
-                          item={item}
-                          onSelect={() => handleSelectItem(item)}
-                          onStatusChange={(status) => handleUpdateItem(item.id, { status })}
-                        />
-                      ))}
-                    </WorkbenchSection>
-
-                    <WorkbenchSection title="Waiting" subtitle="Blocked items and overdue follow-ups" count={sections.waiting.length} accent="var(--warning)" emptyMessage="Nothing is currently waiting on someone else.">
-                      {sections.waiting.map((item) => (
-                        <DeskItemCard
-                          key={item.id}
-                          item={item}
-                          onSelect={() => handleSelectItem(item)}
-                          onStatusChange={(status) => handleUpdateItem(item.id, { status })}
-                          variant="waiting"
-                        />
-                      ))}
-                    </WorkbenchSection>
-
-                    <WorkbenchSection title="Meetings" subtitle="Time-bound conversations and sync points" count={sections.meetings.length} accent="var(--info)" emptyMessage="No meetings match the current view.">
-                      {sections.meetings.map((item) => (
-                        <DeskItemCard
-                          key={item.id}
-                          item={item}
-                          onSelect={() => handleSelectItem(item)}
-                          onStatusChange={(status) => handleUpdateItem(item.id, { status })}
-                          variant="meeting"
-                        />
-                      ))}
-                    </WorkbenchSection>
-
-                    <WorkbenchSection title="Inbox" subtitle="Fresh captures waiting for triage" count={sections.inbox.length} accent="var(--text-muted)" emptyMessage="Inbox is clear.">
-                      {sections.inbox.map((item) => (
-                        <div key={item.id} className="space-y-2">
+              <MotionConfig reducedMotion="user">
+                {(day?.items.length ?? 0) === 0 && !hasAnyNarrowing ? (
+                  <EmptyDay date={displayDate} />
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={MANAGER_DESK_CARD_LAYOUT_TRANSITION}
+                    className="space-y-2"
+                  >
+                    <div className="grid gap-2 xl:grid-cols-2">
+                      <WorkbenchSection title="Focus" subtitle="Planned and in-progress work" count={sections.focus.length} accent="var(--md-accent)" emptyMessage="No active work matches the current view.">
+                        {sections.focus.map((item) => (
                           <DeskItemCard
+                            key={item.id}
                             item={item}
                             onSelect={() => handleSelectItem(item)}
                             onStatusChange={(status) => handleUpdateItem(item.id, { status })}
-                            variant="inbox"
                           />
-                          {inlineTriageId === item.id && (
-                            <InboxTriageRow item={item} onUpdate={handleUpdateItem} />
-                          )}
-                        </div>
-                      ))}
-                    </WorkbenchSection>
-                  </div>
+                        ))}
+                      </WorkbenchSection>
 
-                  <CompletedTray
-                    items={sections.completed}
-                    onSelect={handleSelectItem}
-                    onStatusChange={(itemId, status) => handleUpdateItem(itemId, { status })}
-                  />
-                </motion.div>
-              )}
+                      <WorkbenchSection title="Waiting" subtitle="Blocked items and overdue follow-ups" count={sections.waiting.length} accent="var(--warning)" emptyMessage="Nothing is currently waiting on someone else.">
+                        {sections.waiting.map((item) => (
+                          <DeskItemCard
+                            key={item.id}
+                            item={item}
+                            onSelect={() => handleSelectItem(item)}
+                            onStatusChange={(status) => handleUpdateItem(item.id, { status })}
+                            variant="waiting"
+                          />
+                        ))}
+                      </WorkbenchSection>
+
+                      <WorkbenchSection title="Meetings" subtitle="Time-bound conversations and sync points" count={sections.meetings.length} accent="var(--info)" emptyMessage="No meetings match the current view.">
+                        {sections.meetings.map((item) => (
+                          <DeskItemCard
+                            key={item.id}
+                            item={item}
+                            onSelect={() => handleSelectItem(item)}
+                            onStatusChange={(status) => handleUpdateItem(item.id, { status })}
+                            variant="meeting"
+                          />
+                        ))}
+                      </WorkbenchSection>
+
+                      <WorkbenchSection title="Inbox" subtitle="Fresh captures waiting for triage" count={sections.inbox.length} accent="var(--text-muted)" emptyMessage="Inbox is clear.">
+                        {sections.inbox.map((item) => (
+                          <div key={item.id} className="space-y-2">
+                            <DeskItemCard
+                              item={item}
+                              onSelect={() => handleSelectItem(item)}
+                              onStatusChange={(status) => handleUpdateItem(item.id, { status })}
+                              variant="inbox"
+                            />
+                            {inlineTriageId === item.id && (
+                              <InboxTriageRow item={item} onUpdate={handleUpdateItem} />
+                            )}
+                          </div>
+                        ))}
+                      </WorkbenchSection>
+                    </div>
+
+                    <CompletedTray
+                      items={sections.completed}
+                      onSelect={handleSelectItem}
+                      onStatusChange={(itemId, status) => handleUpdateItem(itemId, { status })}
+                    />
+                  </motion.div>
+                )}
+              </MotionConfig>
             </div>
           </div>
         )}
