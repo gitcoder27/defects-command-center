@@ -97,6 +97,37 @@ Final target flow:
 
 Once the domain setup is live, use this process whenever you want production to pick up newer code from this repo.
 
+### One-Command Deploy
+
+You can now trigger the production redeploy from the development checkout with one command:
+
+```bash
+cd /home/ubuntu/Development/defects-command-center
+npm run deploy:prod
+```
+
+Equivalent npm form:
+
+```bash
+cd /home/ubuntu/Development/defects-command-center
+npm run deploy -- prod
+```
+
+What it does:
+
+- switches into the production checkout at `/home/ubuntu/apps/defects-command-center-prod`
+- refuses to run if the production checkout is dirty
+- fetches and fast-forwards to `origin/main`
+- runs `npm install`
+- runs the full production build
+- restarts `defects-dashboard`
+- verifies the manager URL, developer `/my-day` URL, and `/api/health`
+
+Important:
+
+- database migration is already handled automatically on server startup in `server/src/index.ts`
+- the command is designed for this VPS layout and expects the production checkout to exist at `/home/ubuntu/apps/defects-command-center-prod`
+
 ### Production And Development Separation
 
 This VPS now uses two separate checkouts:
