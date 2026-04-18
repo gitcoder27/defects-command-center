@@ -10,6 +10,7 @@ import { AssigneePill } from './AssigneePill';
 
 interface DrawerHeaderProps {
   item: ManagerDeskItem;
+  readOnly?: boolean;
   onClose: () => void;
   onUpdate: (itemId: number, updates: Record<string, unknown>) => void;
   onDelete: (itemId: number) => void;
@@ -44,7 +45,7 @@ function execTone(state: string): CSSProperties {
 }
 
 export function DrawerHeader({
-  item, onClose, onUpdate, onDelete, onCancelDelegatedTask, isCancelDelegatedPending = false, onCarryForward, isCarryForwardPending = false,
+  item, readOnly = false, onClose, onUpdate, onDelete, onCancelDelegatedTask, isCancelDelegatedPending = false, onCarryForward, isCarryForwardPending = false,
 }: DrawerHeaderProps) {
   const [editTitle, setEditTitle] = useState(item.title);
   const [actionMenu, setActionMenu] = useState<ActionMenuState>('closed');
@@ -88,7 +89,7 @@ export function DrawerHeader({
           #{item.id}
         </span>
         <div className="relative flex items-center gap-0.5" ref={menuRef}>
-          {hasLinkedWork ? (
+          {readOnly ? null : hasLinkedWork ? (
             <button
               onClick={() => setActionMenu((s) => s === 'closed' ? 'choosing' : 'closed')}
               className="flex h-7 w-7 items-center justify-center rounded-lg transition-opacity hover:opacity-70"
@@ -137,6 +138,7 @@ export function DrawerHeader({
         onChange={(e) => setEditTitle(e.target.value)}
         onBlur={commitTitle}
         onKeyDown={(e) => e.key === 'Enter' && commitTitle()}
+        readOnly={readOnly}
         className="mt-2 w-full bg-transparent text-[17px] font-semibold leading-snug outline-none"
         style={{ color: 'var(--text-primary)', caretColor: 'var(--md-accent)' }}
         maxLength={200}
@@ -185,7 +187,8 @@ export function DrawerHeader({
         </div>
       )}
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
+      {!readOnly && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
         {!isDone ? (
           <>
             <button onClick={() => onUpdate(item.id, { status: 'done' })} className={actionClass} style={{ background: 'rgba(16,185,129,0.12)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.24)' }}>
@@ -213,7 +216,8 @@ export function DrawerHeader({
             <RotateCcw size={11} /> Reopen
           </button>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

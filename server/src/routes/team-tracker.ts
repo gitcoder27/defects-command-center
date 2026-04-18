@@ -555,7 +555,7 @@ export function createTeamTrackerRouter(
               );
             }
 
-            return managerDeskService.carryForward(req.auth.user.accountId, params);
+            return managerDeskService.moveLinkedItemsToDate(req.auth.user.accountId, params);
           },
         });
         res.json({ carried });

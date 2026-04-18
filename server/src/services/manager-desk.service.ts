@@ -18,6 +18,7 @@ import type {
   ManagerDeskPriority,
   ManagerDeskStatus,
   ManagerDeskSummary,
+  ManagerDeskViewMode,
   TrackerItemState,
   TrackerSharedTaskDetailResponse,
 } from "shared/types";
@@ -26,6 +27,7 @@ import {
   developers,
   issues,
   managerDeskDays,
+  managerDeskItemHistory,
   managerDeskItems,
   managerDeskLinks,
   teamTrackerItems,
@@ -99,8 +101,17 @@ interface ManagerDeskCarryForwardPlanEntry {
   warningCodes: ManagerDeskCarryForwardWarningCode[];
 }
 
+interface ManagerDeskHistoryEntry {
+  itemId: number;
+  managerAccountId: string;
+  eventType: "upsert" | "deleted";
+  snapshot: ManagerDeskItem;
+  recordedAt: string;
+}
+
 type ManagerDeskItemRow = typeof managerDeskItems.$inferSelect;
 type ManagerDeskLinkRow = typeof managerDeskLinks.$inferSelect;
+type ManagerDeskItemHistoryRow = typeof managerDeskItemHistory.$inferSelect;
 type TrackerItemRow = typeof teamTrackerItems.$inferSelect;
 
 const MANAGER_DESK_CARRY_FORWARD_TIME_MODE: ManagerDeskCarryForwardTimeMode =
@@ -109,6 +120,14 @@ const SMART_CARRY_FORWARD_LOOKBACK_DAYS = 30;
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function localTodayIso(): string {
+  const now = new Date();
+  const year = String(now.getFullYear()).padStart(4, "0");
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function parseIsoDate(value: string): { year: number; month: number; day: number } {
@@ -240,12 +259,45 @@ function isOpenStatus(status: ManagerDeskStatus): boolean {
   return status !== "done" && status !== "cancelled";
 }
 
-function getItemSortTimestamp(item: Pick<ManagerDeskItemRow, "plannedStartAt" | "followUpAt" | "createdAt">): number {
+function endOfIsoDate(date: string): string {
+  return `${date}T23:59:59.999Z`;
+}
+
+function isoDatePart(value: string | undefined): string | undefined {
+  return value?.slice(0, 10);
+}
+
+function getViewMode(date: string): ManagerDeskViewMode {
+  const today = localTodayIso();
+  if (date < today) {
+    return "history";
+  }
+  if (date > today) {
+    return "planning";
+  }
+  return "live";
+}
+
+function getItemSortTimestamp(item: {
+  plannedStartAt?: string | null;
+  followUpAt?: string | null;
+  createdAt: string;
+}): number {
   return new Date(item.plannedStartAt ?? item.followUpAt ?? item.createdAt).getTime();
 }
 
 function compareItemRows(left: ManagerDeskItemRow, right: ManagerDeskItemRow): number {
   return getItemSortTimestamp(left) - getItemSortTimestamp(right) || left.id - right.id;
+}
+
+function compareDeskItems(
+  left: Pick<ManagerDeskItem, "plannedStartAt" | "followUpAt" | "createdAt" | "id">,
+  right: Pick<ManagerDeskItem, "plannedStartAt" | "followUpAt" | "createdAt" | "id">
+): number {
+  return (
+    getItemSortTimestamp(left) - getItemSortTimestamp(right) ||
+    left.id - right.id
+  );
 }
 
 function getCarryForwardStatus(status: ManagerDeskStatus): ManagerDeskStatus {
@@ -269,34 +321,16 @@ export class ManagerDeskService {
   ) {}
 
   async getDay(managerAccountId: string, date: string): Promise<ManagerDeskDayResponse> {
-    const day = await this.ensureDay(managerAccountId, date);
-    const itemRows = await db
-      .select()
-      .from(managerDeskItems)
-      .where(eq(managerDeskItems.dayId, day.id));
-    const linksByItemId = await this.getLinksByItemIds(itemRows.map((item) => item.id));
-    const delegatedExecutionByItemId = await this.getDelegatedExecutionByManagerDeskItemIds(
-      itemRows.map((item) => item.id)
-    );
-    const assigneesByAccountId = await this.getAssigneeMap(itemRows, date);
-    const items = itemRows
-      .sort(compareItemRows)
-      .map((item) =>
-        this.mapItem(
-          item,
-          linksByItemId.get(item.id) ?? [],
-          delegatedExecutionByItemId.get(item.id),
-          item.assigneeDeveloperAccountId
-            ? assigneesByAccountId.get(item.assigneeDeveloperAccountId) ?? undefined
-            : undefined
-        )
-      );
+    await this.ensureDay(managerAccountId, date);
 
-    return {
-      date,
-      items,
-      summary: this.buildSummary(items),
-    };
+    const viewMode = getViewMode(date);
+    if (viewMode === "history") {
+      return this.buildHistoricalDayView(managerAccountId, date);
+    }
+    if (viewMode === "planning") {
+      return this.buildPlanningDayView(managerAccountId, date);
+    }
+    return this.buildLiveDayView(managerAccountId, date);
   }
 
   async createItem(
@@ -336,7 +370,10 @@ export class ManagerDeskService {
         plannedStartAt,
         plannedEndAt,
         followUpAt,
-        completedAt: (params.status ?? "inbox") === "done" ? now : null,
+        completedAt:
+          (params.status ?? "inbox") === "done" || (params.status ?? "inbox") === "cancelled"
+            ? now
+            : null,
         createdAt: now,
         updatedAt: now,
       })
@@ -366,7 +403,7 @@ export class ManagerDeskService {
       normalizedLinks,
       item.status as ManagerDeskStatus
     );
-
+    await this.recordHistorySnapshotForItem(managerAccountId, item.id);
     return this.getItemById(managerAccountId, item.id);
   }
 
@@ -447,9 +484,9 @@ export class ManagerDeskService {
     }
     if (updates.status !== undefined) {
       setFields.status = updates.status;
-      if (updates.status === "done") {
+      if (updates.status === "done" || updates.status === "cancelled") {
         setFields.completedAt = existing.completedAt ?? now;
-      } else if (existing.status === "done") {
+      } else if (existing.status === "done" || existing.status === "cancelled") {
         setFields.completedAt = null;
       }
     }
@@ -474,12 +511,14 @@ export class ManagerDeskService {
       updatedLinks,
       updatedItem.status as ManagerDeskStatus
     );
-
+    await this.recordHistorySnapshotForItem(managerAccountId, itemId);
     return this.getItemById(managerAccountId, itemId);
   }
 
   async deleteItem(managerAccountId: string, itemId: number): Promise<void> {
-    await this.getOwnedItemRow(managerAccountId, itemId);
+    const existing = await this.getOwnedItemRow(managerAccountId, itemId);
+    const snapshot = await this.getItemById(managerAccountId, itemId);
+    await this.insertHistoryRow(managerAccountId, existing.id, snapshot, "deleted");
     await this.trackerService.unlinkManagerDeskItem(itemId);
     await db.delete(managerDeskLinks).where(eq(managerDeskLinks.itemId, itemId));
     await db.delete(managerDeskItems).where(eq(managerDeskItems.id, itemId));
@@ -506,6 +545,7 @@ export class ManagerDeskService {
       })
       .where(eq(managerDeskItems.id, itemId));
 
+    await this.recordHistorySnapshotForItem(managerAccountId, itemId);
     return this.getItemById(managerAccountId, itemId);
   }
 
@@ -557,6 +597,7 @@ export class ManagerDeskService {
       );
     }
 
+    await this.recordHistorySnapshotForItem(managerAccountId, itemId);
     return createdLink;
   }
 
@@ -590,6 +631,8 @@ export class ManagerDeskService {
         item.status as ManagerDeskStatus
       );
     }
+
+    await this.recordHistorySnapshotForItem(managerAccountId, itemId);
   }
 
   async previewCarryForward(
@@ -725,10 +768,45 @@ export class ManagerDeskService {
         entry.trackerNote
       );
 
+      await this.recordHistorySnapshotForItem(managerAccountId, carriedItem.id);
+
       created += 1;
     }
 
     return created;
+  }
+
+  async moveLinkedItemsToDate(
+    managerAccountId: string,
+    params: CarryForwardParams
+  ): Promise<number> {
+    this.assertCarryForwardDateOrder(params.fromDate, params.toDate);
+
+    const uniqueIds = [...new Set(params.itemIds ?? [])];
+    if (uniqueIds.length === 0) {
+      return 0;
+    }
+
+    let moved = 0;
+    for (const itemId of uniqueIds) {
+      const item = await this.getOwnedItemRow(managerAccountId, itemId);
+      if (!isOpenStatus(item.status as ManagerDeskStatus)) {
+        continue;
+      }
+
+      const links = await this.getNormalizedLinksByItemId(itemId);
+      await this.syncTrackerAssignment(
+        itemId,
+        item.assigneeDeveloperAccountId,
+        params.toDate,
+        item.title,
+        links,
+        item.status as ManagerDeskStatus
+      );
+      moved += 1;
+    }
+
+    return moved;
   }
 
   async lookupIssues(query: string): Promise<ManagerDeskIssueLookupItem[]> {
@@ -875,6 +953,164 @@ export class ManagerDeskService {
     return day;
   }
 
+  private async buildLiveDayView(
+    managerAccountId: string,
+    date: string
+  ): Promise<ManagerDeskDayResponse> {
+    const items = await this.getCurrentItemsForManager(managerAccountId, date);
+    const visible = items.filter((item) => {
+      if (isOpenStatus(item.status)) {
+        return true;
+      }
+      return isoDatePart(item.completedAt) === date;
+    });
+
+    return {
+      date,
+      viewMode: "live",
+      items: visible,
+      summary: this.buildSummary(visible),
+    };
+  }
+
+  private async buildPlanningDayView(
+    managerAccountId: string,
+    date: string
+  ): Promise<ManagerDeskDayResponse> {
+    const items = await this.getCurrentItemsForManager(managerAccountId, date);
+    const visible = items.filter((item) => this.isRelevantToPlanningDate(item, date));
+
+    return {
+      date,
+      viewMode: "planning",
+      items: visible,
+      summary: this.buildSummary(visible),
+    };
+  }
+
+  private async buildHistoricalDayView(
+    managerAccountId: string,
+    date: string
+  ): Promise<ManagerDeskDayResponse> {
+    const history = await this.getHistoricalItemsForDate(managerAccountId, date);
+    const createdThatDayItems = history.filter((item) => isoDatePart(item.createdAt) === date);
+
+    return {
+      date,
+      viewMode: "history",
+      items: history,
+      summary: this.buildSummary(history),
+      createdThatDayItems,
+    };
+  }
+
+  private async getCurrentItemsForManager(
+    managerAccountId: string,
+    date: string
+  ): Promise<ManagerDeskItem[]> {
+    const days = await db
+      .select()
+      .from(managerDeskDays)
+      .where(eq(managerDeskDays.managerAccountId, managerAccountId));
+
+    if (days.length === 0) {
+      return [];
+    }
+
+    const dayById = new Map(days.map((day) => [day.id, day]));
+    const itemRows = await db
+      .select()
+      .from(managerDeskItems)
+      .where(inArray(managerDeskItems.dayId, days.map((day) => day.id)));
+
+    const linksByItemId = await this.getLinksByItemIds(itemRows.map((item) => item.id));
+    const delegatedExecutionByItemId = await this.getDelegatedExecutionByManagerDeskItemIds(
+      itemRows.map((item) => item.id)
+    );
+    const assigneesByAccountId = await this.getAssigneeMap(itemRows, date);
+
+    return itemRows
+      .sort(compareItemRows)
+      .map((item) =>
+        this.mapItem(
+          item,
+          linksByItemId.get(item.id) ?? [],
+          delegatedExecutionByItemId.get(item.id),
+          item.assigneeDeveloperAccountId
+            ? assigneesByAccountId.get(item.assigneeDeveloperAccountId) ?? undefined
+            : undefined,
+          dayById.get(item.dayId)?.date ?? date
+        )
+      );
+  }
+
+  private async getHistoricalItemsForDate(
+    managerAccountId: string,
+    date: string
+  ): Promise<ManagerDeskItem[]> {
+    const historyRows = await db
+      .select()
+      .from(managerDeskItemHistory)
+      .where(eq(managerDeskItemHistory.managerAccountId, managerAccountId));
+
+    const cutoff = endOfIsoDate(date);
+    const latestByItemId = new Map<number, ManagerDeskHistoryEntry>();
+
+    for (const row of historyRows) {
+      if (row.recordedAt > cutoff) {
+        continue;
+      }
+
+      const parsed = this.parseHistoryRow(row);
+      const existing = latestByItemId.get(parsed.itemId);
+      if (!existing || existing.recordedAt < parsed.recordedAt) {
+        latestByItemId.set(parsed.itemId, parsed);
+      }
+    }
+
+    const snapshotItems = [...latestByItemId.values()]
+      .filter((entry) => entry.eventType !== "deleted")
+      .map((entry) => entry.snapshot)
+      .sort(compareDeskItems);
+
+    if (snapshotItems.length > 0) {
+      return snapshotItems;
+    }
+
+    return this.getLegacyHistoricalItemsForDate(managerAccountId, date);
+  }
+
+  private async getLegacyHistoricalItemsForDate(
+    managerAccountId: string,
+    date: string
+  ): Promise<ManagerDeskItem[]> {
+    const items = await this.getCurrentItemsForManager(managerAccountId, date);
+    const cutoff = endOfIsoDate(date);
+
+    return items.filter((item) => {
+      if (item.createdAt > cutoff) {
+        return false;
+      }
+      if (!item.completedAt) {
+        return true;
+      }
+      return item.completedAt <= cutoff || isOpenStatus(item.status);
+    });
+  }
+
+  private isRelevantToPlanningDate(item: ManagerDeskItem, date: string): boolean {
+    if (!isOpenStatus(item.status)) {
+      return false;
+    }
+
+    return (
+      item.originDate === date ||
+      isoDatePart(item.plannedStartAt) === date ||
+      isoDatePart(item.plannedEndAt) === date ||
+      isoDatePart(item.followUpAt) === date
+    );
+  }
+
   private buildSummary(items: ManagerDeskItem[]): ManagerDeskSummary {
     const now = Date.now();
 
@@ -930,7 +1166,8 @@ export class ManagerDeskService {
       delegatedExecutionByItemId.get(item.id),
       item.assigneeDeveloperAccountId
         ? assigneesByAccountId.get(item.assigneeDeveloperAccountId) ?? undefined
-        : undefined
+        : undefined,
+      day?.date ?? localTodayIso()
     );
   }
 
@@ -1109,7 +1346,8 @@ export class ManagerDeskService {
         delegatedExecutionByItemId.get(entry.item.id),
         entry.item.assigneeDeveloperAccountId
           ? assigneesByAccountId.get(entry.item.assigneeDeveloperAccountId) ?? undefined
-          : undefined
+          : undefined,
+        date
       ),
       rebasedPlannedStartAt: entry.rebasedPlannedStartAt ?? undefined,
       rebasedPlannedEndAt: entry.rebasedPlannedEndAt ?? undefined,
@@ -1229,15 +1467,52 @@ export class ManagerDeskService {
     );
   }
 
+  private parseHistoryRow(row: ManagerDeskItemHistoryRow): ManagerDeskHistoryEntry {
+    const parsed = JSON.parse(row.snapshotJson) as ManagerDeskItem;
+    return {
+      itemId: row.itemId,
+      managerAccountId: row.managerAccountId,
+      eventType: row.eventType as "upsert" | "deleted",
+      snapshot: parsed,
+      recordedAt: row.recordedAt,
+    };
+  }
+
+  private async recordHistorySnapshotForItem(
+    managerAccountId: string,
+    itemId: number,
+    eventType: "upsert" | "deleted" = "upsert"
+  ): Promise<void> {
+    const snapshot = await this.getItemById(managerAccountId, itemId);
+    await this.insertHistoryRow(managerAccountId, itemId, snapshot, eventType);
+  }
+
+  private async insertHistoryRow(
+    managerAccountId: string,
+    itemId: number,
+    snapshot: ManagerDeskItem,
+    eventType: "upsert" | "deleted"
+  ): Promise<void> {
+    await db.insert(managerDeskItemHistory).values({
+      itemId,
+      managerAccountId,
+      eventType,
+      snapshotJson: JSON.stringify(snapshot),
+      recordedAt: nowIso(),
+    });
+  }
+
   private mapItem(
     item: ManagerDeskItemRow,
     links: ManagerDeskLink[],
     delegatedExecution?: ManagerDeskDelegatedExecution,
-    assignee?: ManagerDeskAssignee
+    assignee?: ManagerDeskAssignee,
+    originDate?: string
   ): ManagerDeskItem {
     return {
       id: item.id,
       dayId: item.dayId,
+      originDate: originDate ?? localTodayIso(),
       title: item.title,
       kind: item.kind as ManagerDeskItemKind,
       category: item.category as ManagerDeskCategory,
@@ -1477,6 +1752,7 @@ export class ManagerDeskService {
     }
 
     await this.trackerService.linkManagerDeskItem(trackerContext.trackerItem.id, item.id);
+    await this.recordHistorySnapshotForItem(managerAccountId, item.id);
 
     return item.id;
   }

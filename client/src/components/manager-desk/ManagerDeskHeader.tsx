@@ -1,29 +1,33 @@
 import type { ReactNode } from 'react';
-import { ChevronLeft, ChevronRight, Briefcase, RefreshCw, ArrowRightFromLine } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Briefcase, RefreshCw } from 'lucide-react';
+import type { ManagerDeskViewMode } from '@/types/manager-desk';
 
 interface Props {
   displayDate: string;
   isTodayDate: boolean;
   isFetching: boolean;
-  canCarryForward: boolean;
+  viewMode: ManagerDeskViewMode;
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
   onRefresh: () => void;
-  onCarryForward: () => void;
 }
 
 export function ManagerDeskHeader({
   displayDate,
   isTodayDate,
   isFetching,
-  canCarryForward,
+  viewMode,
   onPrev,
   onNext,
   onToday,
   onRefresh,
-  onCarryForward,
 }: Props) {
+  const modeLabel =
+    viewMode === 'history' ? 'History'
+      : viewMode === 'planning' ? 'Planning'
+      : 'Live';
+
   return (
     <div className="sticky top-0 z-20 px-2 pt-2 md:px-3">
       <div className="md-header-panel rounded-xl px-3 py-2">
@@ -68,14 +72,17 @@ export function ManagerDeskHeader({
             {displayDate}
           </span>
 
-          <div className="ml-auto flex items-center gap-1">
-            {canCarryForward && (
-              <ActionBtn onClick={onCarryForward} label="Carry Forward">
-                <ArrowRightFromLine size={11} />
-                <span className="hidden sm:inline">Carry</span>
-              </ActionBtn>
-            )}
+          <span
+            className="rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em]"
+            style={{
+              background: viewMode === 'history' ? 'rgba(59,130,246,0.10)' : viewMode === 'planning' ? 'rgba(6,182,212,0.10)' : 'var(--md-accent-glow)',
+              color: viewMode === 'history' ? 'var(--info)' : viewMode === 'planning' ? 'var(--accent)' : 'var(--md-accent)',
+            }}
+          >
+            {modeLabel}
+          </span>
 
+          <div className="ml-auto flex items-center gap-1">
             <ActionBtn onClick={onRefresh} label="Refresh" disabled={isFetching}>
               <RefreshCw size={11} className={isFetching ? 'animate-spin' : ''} />
             </ActionBtn>

@@ -14,6 +14,7 @@ interface ItemDetailDrawerProps {
   item: ManagerDeskItem | null;
   open?: boolean;
   date: string;
+  readOnly?: boolean;
   onClose: () => void;
   onUpdate: (itemId: number, updates: Record<string, unknown>) => void;
   onDelete: (itemId: number) => void;
@@ -31,6 +32,7 @@ export function ItemDetailDrawer({
   item,
   open,
   date,
+  readOnly = false,
   onClose,
   onUpdate,
   onDelete,
@@ -82,6 +84,7 @@ export function ItemDetailDrawer({
             <DrawerContent
               item={item}
               date={date}
+              readOnly={readOnly}
               onClose={onClose}
               onUpdate={onUpdate}
               onDelete={onDelete}
@@ -103,6 +106,7 @@ export function ItemDetailDrawer({
 function DrawerContent({
   item,
   date,
+  readOnly,
   onClose,
   onUpdate,
   onDelete,
@@ -114,6 +118,7 @@ function DrawerContent({
 }: {
   item: ManagerDeskItem;
   date: string;
+  readOnly: boolean;
   onClose: () => void;
   onUpdate: (itemId: number, updates: Record<string, unknown>) => void;
   onDelete: (itemId: number) => void;
@@ -144,6 +149,7 @@ function DrawerContent({
     <>
       <DrawerHeader
         item={item}
+        readOnly={readOnly}
         onClose={onClose}
         onUpdate={onUpdate}
         onDelete={onDelete}
@@ -157,11 +163,19 @@ function DrawerContent({
         <DrawerProperties
           item={item}
           date={date}
+          readOnly={readOnly}
           onFieldChange={handleFieldChange}
           onAssigneeChange={(accountId) => onUpdate(item.id, { assigneeDeveloperAccountId: accountId })}
         />
-        <DrawerNotes key={item.id} item={item} onFieldChange={handleFieldChange} />
-        <DrawerLinks key={`links-${item.id}`} item={item} date={date} addLink={addLink} onDeleteLink={handleDeleteLink} />
+        <DrawerNotes key={item.id} item={item} readOnly={readOnly} onFieldChange={handleFieldChange} />
+        <DrawerLinks
+          key={`links-${item.id}`}
+          item={item}
+          date={date}
+          readOnly={readOnly}
+          addLink={addLink}
+          onDeleteLink={handleDeleteLink}
+        />
       </div>
     </>
   );

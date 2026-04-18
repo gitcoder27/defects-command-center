@@ -7,6 +7,8 @@ import { KIND_LABELS, CATEGORY_LABELS } from '@/types/manager-desk';
 interface Props {
   onCapture: (title: string, kind?: ManagerDeskItemKind, category?: ManagerDeskCategory) => void;
   isPending: boolean;
+  disabled?: boolean;
+  disabledLabel?: string;
 }
 
 const kindOptions: ManagerDeskItemKind[] = ['action', 'meeting', 'decision', 'waiting'];
@@ -15,7 +17,7 @@ const categoryOptions: ManagerDeskCategory[] = [
   'follow_up', 'escalation', 'admin', 'planning', 'other',
 ];
 
-export function QuickCapture({ onCapture, isPending }: Props) {
+export function QuickCapture({ onCapture, isPending, disabled = false, disabledLabel = 'Capture is unavailable for this view.' }: Props) {
   const [title, setTitle] = useState('');
   const [kind, setKind] = useState<ManagerDeskItemKind | ''>('');
   const [category, setCategory] = useState<ManagerDeskCategory | ''>('');
@@ -31,7 +33,7 @@ export function QuickCapture({ onCapture, isPending }: Props) {
   }, [title]);
 
   const handleSubmit = useCallback(() => {
-    if (isPending) return;
+    if (isPending || disabled) return;
     const trimmed = title.trim();
     if (!trimmed) return;
     shouldRestoreFocusRef.current = true;
@@ -40,7 +42,7 @@ export function QuickCapture({ onCapture, isPending }: Props) {
     setKind('');
     setCategory('');
     setExpanded(false);
-  }, [title, kind, category, onCapture, isPending]);
+  }, [title, kind, category, onCapture, isPending, disabled]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -82,6 +84,7 @@ export function QuickCapture({ onCapture, isPending }: Props) {
             if (e.target.value && !expanded) setExpanded(true);
           }}
           onFocus={() => {
+            if (disabled) return;
             setIsFocused(true);
             if (title) setExpanded(true);
           }}
@@ -94,12 +97,13 @@ export function QuickCapture({ onCapture, isPending }: Props) {
             caretColor: 'var(--md-accent)',
           }}
           aria-busy={isPending}
+          disabled={disabled}
           maxLength={200}
         />
 
         <button
           onClick={handleSubmit}
-          disabled={!title.trim() || isPending}
+          disabled={!title.trim() || isPending || disabled}
           className="h-5 px-2 rounded text-[9px] font-bold uppercase tracking-wide transition-all disabled:opacity-30"
           style={{
             background: 'var(--md-accent)',
@@ -111,7 +115,7 @@ export function QuickCapture({ onCapture, isPending }: Props) {
       </div>
 
       {/* Expanded options row */}
-      {expanded && (
+      {expanded && !disabled && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
@@ -154,6 +158,15 @@ export function QuickCapture({ onCapture, isPending }: Props) {
             ↵ Enter
           </span>
         </motion.div>
+      )}
+
+      {disabled && (
+        <div
+          className="border-t px-2 py-1 text-[10px]"
+          style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+        >
+          {disabledLabel}
+        </div>
       )}
     </div>
   );

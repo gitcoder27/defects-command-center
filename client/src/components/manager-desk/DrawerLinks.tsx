@@ -10,6 +10,7 @@ import { DrawerLinkedJira } from './DrawerLinkedJira';
 interface DrawerLinksProps {
   item: ManagerDeskItem;
   date: string;
+  readOnly?: boolean;
   addLink: ReturnType<typeof useAddManagerDeskLink>;
   onDeleteLink: (linkId: number) => void;
 }
@@ -20,7 +21,7 @@ const linkIcons: Record<string, ReactNode> = {
   external_group: <Users size={11} style={{ color: 'var(--text-secondary)' }} />,
 };
 
-export function DrawerLinks({ item, date, addLink, onDeleteLink }: DrawerLinksProps) {
+export function DrawerLinks({ item, date, readOnly = false, addLink, onDeleteLink }: DrawerLinksProps) {
   const [showSearch, setShowSearch] = useState<'issue' | 'developer' | 'external' | null>(null);
   const issueKeys = useMemo(
     () => item.links.filter((l) => l.linkType === 'issue' && Boolean(l.issueKey)).map((l) => l.issueKey!),
@@ -36,11 +37,13 @@ export function DrawerLinks({ item, date, addLink, onDeleteLink }: DrawerLinksPr
           <span className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
             Connections
           </span>
-          <div className="flex items-center gap-1">
-            <AddButton icon={<Bug size={10} />} label="Issue" onClick={() => setShowSearch('issue')} />
-            <AddButton icon={<UserCircle size={10} />} label="Dev" onClick={() => setShowSearch('developer')} />
-            <AddButton icon={<Users size={10} />} label="External" onClick={() => setShowSearch('external')} />
-          </div>
+          {!readOnly && (
+            <div className="flex items-center gap-1">
+              <AddButton icon={<Bug size={10} />} label="Issue" onClick={() => setShowSearch('issue')} />
+              <AddButton icon={<UserCircle size={10} />} label="Dev" onClick={() => setShowSearch('developer')} />
+              <AddButton icon={<Users size={10} />} label="External" onClick={() => setShowSearch('external')} />
+            </div>
+          )}
         </div>
 
         {item.links.length > 0 ? (
@@ -59,14 +62,16 @@ export function DrawerLinks({ item, date, addLink, onDeleteLink }: DrawerLinksPr
                 ) : (
                   <span className="flex-1 truncate text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>{link.displayLabel}</span>
                 )}
-                <button
-                  onClick={() => onDeleteLink(link.id)}
-                  className="transition-opacity group-hover:opacity-100 xl:opacity-0"
-                  style={{ color: 'var(--text-muted)' }}
-                  aria-label={`Remove ${link.displayLabel}`}
-                >
-                  <X size={11} />
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={() => onDeleteLink(link.id)}
+                    className="transition-opacity group-hover:opacity-100 xl:opacity-0"
+                    style={{ color: 'var(--text-muted)' }}
+                    aria-label={`Remove ${link.displayLabel}`}
+                  >
+                    <X size={11} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -76,7 +81,7 @@ export function DrawerLinks({ item, date, addLink, onDeleteLink }: DrawerLinksPr
           </div>
         )}
 
-        {showSearch && (
+        {showSearch && !readOnly && (
           <LinkSearchPanel type={showSearch} itemId={item.id} date={date} onClose={() => setShowSearch(null)} addLink={addLink} />
         )}
       </div>

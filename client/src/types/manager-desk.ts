@@ -31,6 +31,8 @@ export type ManagerDeskStatus =
 
 export type ManagerDeskPriority = 'low' | 'medium' | 'high' | 'critical';
 
+export type ManagerDeskViewMode = 'live' | 'history' | 'planning';
+
 export type ManagerDeskLinkType = 'issue' | 'developer' | 'external_group';
 
 // ── Link ────────────────────────────────────────────────
@@ -61,6 +63,7 @@ export interface ManagerDeskDelegatedExecution {
 export interface ManagerDeskItem {
   id: number;
   dayId: number;
+  originDate: string;
   title: string;
   kind: ManagerDeskItemKind;
   category: ManagerDeskCategory;
@@ -99,8 +102,10 @@ export interface ManagerDeskSummary {
 
 export interface ManagerDeskDayResponse {
   date: string;
+  viewMode: ManagerDeskViewMode;
   items: ManagerDeskItem[];
   summary: ManagerDeskSummary;
+  createdThatDayItems?: ManagerDeskItem[];
 }
 
 export interface TrackerSharedTaskDetailResponse {
@@ -248,8 +253,8 @@ export const STATUS_LABELS: Record<ManagerDeskStatus, string> = {
   planned: 'Planned',
   in_progress: 'In Progress',
   waiting: 'Waiting',
-  done: 'Done',
-  cancelled: 'Cancelled',
+  done: 'Completed',
+  cancelled: 'Dropped',
 };
 
 export const PRIORITY_LABELS: Record<ManagerDeskPriority, string> = {

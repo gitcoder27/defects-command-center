@@ -231,6 +231,15 @@ CREATE TABLE IF NOT EXISTS manager_desk_links (
   FOREIGN KEY (item_id) REFERENCES manager_desk_items(id)
 );
 
+CREATE TABLE IF NOT EXISTS manager_desk_item_history (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id            INTEGER NOT NULL,
+  manager_account_id TEXT NOT NULL,
+  event_type         TEXT NOT NULL,
+  snapshot_json      TEXT NOT NULL,
+  recorded_at        TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_app_users_username ON app_users(username);
 CREATE INDEX IF NOT EXISTS idx_app_users_dev_account ON app_users(developer_account_id);
 CREATE INDEX IF NOT EXISTS idx_app_sessions_user ON app_sessions(user_id);
@@ -252,6 +261,8 @@ CREATE INDEX IF NOT EXISTS idx_manager_desk_items_source_item_id ON manager_desk
 CREATE INDEX IF NOT EXISTS idx_manager_desk_links_item ON manager_desk_links(item_id);
 CREATE INDEX IF NOT EXISTS idx_manager_desk_links_issue_key ON manager_desk_links(issue_key);
 CREATE INDEX IF NOT EXISTS idx_manager_desk_links_developer_account_id ON manager_desk_links(developer_account_id);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_item_history_item_recorded ON manager_desk_item_history(item_id, recorded_at);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_item_history_manager_recorded ON manager_desk_item_history(manager_account_id, recorded_at);
 `;
 
 const alterStatements = [
@@ -297,6 +308,9 @@ const alterStatements = [
   "CREATE INDEX IF NOT EXISTS idx_manager_desk_links_item ON manager_desk_links(item_id)",
   "CREATE INDEX IF NOT EXISTS idx_manager_desk_links_issue_key ON manager_desk_links(issue_key)",
   "CREATE INDEX IF NOT EXISTS idx_manager_desk_links_developer_account_id ON manager_desk_links(developer_account_id)",
+  "CREATE TABLE IF NOT EXISTS manager_desk_item_history (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, manager_account_id TEXT NOT NULL, event_type TEXT NOT NULL, snapshot_json TEXT NOT NULL, recorded_at TEXT NOT NULL)",
+  "CREATE INDEX IF NOT EXISTS idx_manager_desk_item_history_item_recorded ON manager_desk_item_history(item_id, recorded_at)",
+  "CREATE INDEX IF NOT EXISTS idx_manager_desk_item_history_manager_recorded ON manager_desk_item_history(manager_account_id, recorded_at)",
 ];
 
 export function migrate(sqlite: BetterSqlite3.Database): void {

@@ -118,6 +118,8 @@ function createTestApp() {
 
 describe("manager desk routes", () => {
   beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-08T08:00:00.000Z"));
     await resetDatabase();
     await seedDevelopers();
     await seedIssues();
@@ -151,8 +153,9 @@ describe("manager desk routes", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({
+    expect(res.body).toMatchObject({
       date: "2026-03-08",
+      viewMode: "live",
       items: [],
       summary: {
         totalOpen: 0,

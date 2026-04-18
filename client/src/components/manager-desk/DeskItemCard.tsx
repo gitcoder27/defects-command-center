@@ -24,8 +24,9 @@ import {
 interface Props {
   item: ManagerDeskItem;
   onSelect: () => void;
-  onStatusChange: (status: ManagerDeskStatus) => void;
+  onStatusChange?: (status: ManagerDeskStatus) => void;
   variant?: 'default' | 'meeting' | 'waiting' | 'inbox' | 'completed';
+  readOnly?: boolean;
 }
 
 const kindIcons = {
@@ -47,6 +48,7 @@ export function DeskItemCard({
   onSelect,
   onStatusChange,
   variant = 'default',
+  readOnly = false,
 }: Props) {
   const KindIcon = kindIcons[item.kind];
   const isDone = item.status === 'done' || item.status === 'cancelled';
@@ -275,7 +277,7 @@ export function DeskItemCard({
         {/* Hover-only actions */}
       </div>
 
-      {quickAction && (
+      {quickAction && onStatusChange && !readOnly && (
         <div
           className="absolute right-1.5 top-1/2 z-10 -translate-y-1/2 translate-x-1 opacity-0 transition-[opacity,transform] group-hover:translate-x-0 group-hover:opacity-100 group-focus-within:translate-x-0 group-focus-within:opacity-100"
           style={{

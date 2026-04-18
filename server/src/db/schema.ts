@@ -215,3 +215,12 @@ export const managerDeskLinks = sqliteTable("manager_desk_links", {
   externalLabel: text("external_label"),
   createdAt: text("created_at").notNull(),
 });
+
+export const managerDeskItemHistory = sqliteTable("manager_desk_item_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  itemId: integer("item_id").notNull(),
+  managerAccountId: text("manager_account_id").notNull(),
+  eventType: text("event_type").notNull(),
+  snapshotJson: text("snapshot_json").notNull(),
+  recordedAt: text("recorded_at").notNull(),
+});

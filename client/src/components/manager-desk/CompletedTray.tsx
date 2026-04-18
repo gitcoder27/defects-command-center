@@ -6,10 +6,11 @@ import { DeskItemCard } from './DeskItemCard';
 interface Props {
   items: ManagerDeskItem[];
   onSelect: (item: ManagerDeskItem) => void;
-  onStatusChange: (itemId: number, status: ManagerDeskStatus) => void;
+  onStatusChange?: (itemId: number, status: ManagerDeskStatus) => void;
+  readOnly?: boolean;
 }
 
-export function CompletedTray({ items, onSelect, onStatusChange }: Props) {
+export function CompletedTray({ items, onSelect, onStatusChange, readOnly = false }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -47,8 +48,9 @@ export function CompletedTray({ items, onSelect, onStatusChange }: Props) {
                   key={item.id}
                   item={item}
                   onSelect={() => onSelect(item)}
-                  onStatusChange={(status) => onStatusChange(item.id, status)}
+                  onStatusChange={onStatusChange ? (status) => onStatusChange(item.id, status) : undefined}
                   variant="completed"
+                  readOnly={readOnly}
                 />
               ))}
             </div>

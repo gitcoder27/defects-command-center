@@ -21,6 +21,8 @@ interface Props {
   filters: ManagerDeskFilterState;
   showFilters: boolean;
   isCreatePending: boolean;
+  captureDisabled?: boolean;
+  captureDisabledLabel?: string;
   onSearchChange: (value: string) => void;
   onQuickFilterChange: (value: ManagerDeskQuickFilter) => void;
   onToggleFilters: () => void;
@@ -37,6 +39,8 @@ export function ManagerDeskCommandBar({
   filters,
   showFilters,
   isCreatePending,
+  captureDisabled = false,
+  captureDisabledLabel,
   onSearchChange,
   onQuickFilterChange,
   onToggleFilters,
@@ -52,7 +56,12 @@ export function ManagerDeskCommandBar({
       <div className="md-glass-panel rounded-xl p-2">
         <div className="flex gap-2 items-stretch">
           <div className="flex-1 min-w-0">
-            <QuickCapture onCapture={onCapture} isPending={isCreatePending} />
+            <QuickCapture
+              onCapture={onCapture}
+              isPending={isCreatePending}
+              disabled={captureDisabled}
+              disabledLabel={captureDisabledLabel}
+            />
           </div>
 
           <div className="flex items-center gap-1.5 rounded-lg border px-2 py-1" style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)' }}>

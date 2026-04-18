@@ -3,10 +3,11 @@ import { useDraftField, type DraftSaveState } from './useDraftField';
 
 interface DrawerNotesProps {
   item: ManagerDeskItem;
+  readOnly?: boolean;
   onFieldChange: (field: keyof ManagerDeskUpdateItemPayload, value: string) => void;
 }
 
-export function DrawerNotes({ item, onFieldChange }: DrawerNotesProps) {
+export function DrawerNotes({ item, readOnly = false, onFieldChange }: DrawerNotesProps) {
   const context = useDraftField({
     value: item.contextNote ?? '',
     onChange: (v) => onFieldChange('contextNote', v),
@@ -32,6 +33,7 @@ export function DrawerNotes({ item, onFieldChange }: DrawerNotesProps) {
         placeholder="Agenda, background, dependencies, reminders…"
         rows={5}
         variant="primary"
+        readOnly={readOnly}
       />
       <DraftArea
         label="Next Action"
@@ -42,6 +44,7 @@ export function DrawerNotes({ item, onFieldChange }: DrawerNotesProps) {
         onBlur={() => nextAction.commitDraft(nextAction.localRef.current)}
         placeholder="What should happen next?"
         rows={2}
+        readOnly={readOnly}
       />
       <DraftArea
         label="Outcome"
@@ -52,12 +55,13 @@ export function DrawerNotes({ item, onFieldChange }: DrawerNotesProps) {
         onBlur={() => outcome.commitDraft(outcome.localRef.current)}
         placeholder="What was the result or decision?"
         rows={2}
+        readOnly={readOnly}
       />
     </div>
   );
 }
 
-function DraftArea({ label, fieldId, value, saveState, onChange, onBlur, placeholder, rows, variant = 'default' }: {
+function DraftArea({ label, fieldId, value, saveState, onChange, onBlur, placeholder, rows, variant = 'default', readOnly = false }: {
   label: string;
   fieldId: string;
   value: string;
@@ -67,6 +71,7 @@ function DraftArea({ label, fieldId, value, saveState, onChange, onBlur, placeho
   placeholder: string;
   rows: number;
   variant?: 'primary' | 'default';
+  readOnly?: boolean;
 }) {
   const borderStyle = variant === 'primary'
     ? '1px solid color-mix(in srgb, var(--md-accent) 20%, var(--border) 80%)'
@@ -89,9 +94,10 @@ function DraftArea({ label, fieldId, value, saveState, onChange, onBlur, placeho
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
+        readOnly={readOnly}
         placeholder={placeholder}
         rows={rows}
-        className="w-full resize-y rounded-lg px-3 py-2 text-[12px] leading-relaxed outline-none"
+        className="w-full resize-y rounded-lg px-3 py-2 text-[12px] leading-relaxed outline-none read-only:cursor-default"
         style={{
           background: 'var(--bg-secondary)',
           color: 'var(--text-primary)',

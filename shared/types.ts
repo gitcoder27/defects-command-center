@@ -554,6 +554,8 @@ export type ManagerDeskStatus =
 
 export type ManagerDeskPriority = "low" | "medium" | "high" | "critical";
 
+export type ManagerDeskViewMode = "live" | "history" | "planning";
+
 export type ManagerDeskLinkType =
   | "issue"
   | "developer"
@@ -588,6 +590,7 @@ export interface ManagerDeskAssignee {
 export interface ManagerDeskItem {
   id: number;
   dayId: number;
+  originDate: string;
   title: string;
   kind: ManagerDeskItemKind;
   category: ManagerDeskCategory;
@@ -622,8 +625,10 @@ export interface ManagerDeskSummary {
 
 export interface ManagerDeskDayResponse {
   date: string;
+  viewMode: ManagerDeskViewMode;
   items: ManagerDeskItem[];
   summary: ManagerDeskSummary;
+  createdThatDayItems?: ManagerDeskItem[];
 }
 
 export type ManagerDeskCarryForwardTimeMode = "rebase_to_target_date";

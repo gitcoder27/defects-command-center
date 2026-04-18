@@ -81,7 +81,7 @@ export function useCreateManagerDeskItem(date: string) {
     mutationFn: (payload: ManagerDeskCreateItemPayload) =>
       api.post<ManagerDeskItem>('/manager-desk/items', payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk'] });
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
     },
@@ -118,7 +118,7 @@ export function useUpdateManagerDeskItem(date: string) {
           };
         }
       );
-      qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk'] });
       qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
@@ -134,7 +134,7 @@ export function useDeleteManagerDeskItem(date: string) {
     mutationFn: (itemId: number) =>
       api.delete<{ deleted: boolean }>(`/manager-desk/items/${itemId}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk'] });
       qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
@@ -159,7 +159,7 @@ export function useCancelDelegatedManagerDeskTask(date: string) {
           return { ...existing, managerDeskItem: item, trackerItem: undefined as never };
         },
       );
-      qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk'] });
       qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
@@ -175,7 +175,7 @@ export function useAddManagerDeskLink(date: string) {
     mutationFn: ({ itemId, ...body }: ManagerDeskAddLinkPayload & { itemId: number }) =>
       api.post<ManagerDeskLink>(`/manager-desk/items/${itemId}/links`, body),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk'] });
       qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
@@ -191,7 +191,7 @@ export function useRemoveManagerDeskLink(date: string) {
     mutationFn: ({ itemId, linkId }: { itemId: number; linkId: number }) =>
       api.delete<{ deleted: boolean }>(`/manager-desk/items/${itemId}/links/${linkId}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['manager-desk', date] });
+      qc.invalidateQueries({ queryKey: ['manager-desk'] });
       qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
