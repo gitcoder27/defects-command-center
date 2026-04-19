@@ -181,8 +181,41 @@ describe("team tracker routes", () => {
     });
 
     expect(res.status).toBe(200);
+    expect(res.body?.viewMode).toBe("live");
     expect(res.body?.developers).toHaveLength(1);
     expect(res.body?.developers[0]?.developer.accountId).toBe("dev-1");
+  });
+
+  it("GET /api/team-tracker keeps unfinished work visible on the live board and preserves past snapshots", async () => {
+    await trackerService.addItem("dev-1", "2026-03-06", {
+      title: "Friday follow-up",
+    });
+    await trackerService.addItem("dev-1", "2026-03-07", {
+      title: "Saturday planning item",
+    });
+
+    const app = createTestApp();
+    const liveRes = await invoke(app, {
+      method: "GET",
+      url: "/api/team-tracker?date=2026-03-07",
+    });
+    const historyRes = await invoke(app, {
+      method: "GET",
+      url: "/api/team-tracker?date=2026-03-06",
+    });
+
+    expect(liveRes.status).toBe(200);
+    expect(liveRes.body?.viewMode).toBe("live");
+    expect(
+      liveRes.body?.developers[0]?.plannedItems.map((item: any) => item.title)
+    ).toEqual(["Friday follow-up", "Saturday planning item"]);
+
+    expect(historyRes.status).toBe(200);
+    expect(historyRes.body?.viewMode).toBe("history");
+    expect(historyRes.body?.attentionQueue).toEqual([]);
+    expect(
+      historyRes.body?.developers[0]?.plannedItems.map((item: any) => item.title)
+    ).toEqual(["Friday follow-up"]);
   });
 
   it("GET /api/team-tracker applies search, sort, grouping, and visible summary metadata", async () => {
@@ -837,13 +870,23 @@ describe("team tracker routes", () => {
       .select()
       .from(managerDeskItems)
       .where(eq(managerDeskItems.sourceItemId, sourceManagerItem.id));
-    expect(carriedManagerItems).toHaveLength(1);
+    expect(carriedManagerItems).toHaveLength(0);
+
+    const targetDeskDay = await managerDeskService.getDay("manager-1", "2026-03-07");
+    expect(targetDeskDay.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: sourceManagerItem.id,
+          title: "Manager follow-up",
+        }),
+      ])
+    );
 
     const linkedItem = devDay.plannedItems.find(
       (item) => item.title === "Manager follow-up"
     );
     expect(linkedItem?.lifecycle).toBe("manager_desk_linked");
-    expect(linkedItem?.managerDeskItemId).toBe(carriedManagerItems[0]!.id);
+    expect(linkedItem?.managerDeskItemId).toBe(sourceManagerItem.id);
   });
 
   it("POST /api/team-tracker/carry-forward supports partial selection by tracker item id", async () => {

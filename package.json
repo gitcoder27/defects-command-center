@@ -17,6 +17,7 @@
     "build": "npm run build --workspace=client && npm run build --workspace=server",
     "build:check": "npm run build:check --workspace=client && npm run build:check --workspace=server",
     "backup:restore": "npm run backup:restore --workspace=server --",
+    "manager-desk:cleanup-carry-forward": "npm run manager-desk:cleanup-carry-forward --workspace=server --",
     "start": "npm run start --workspace=server",
     "test": "npm run test --workspace=server",
     "test:coverage": "npm run test:coverage --workspace=server",

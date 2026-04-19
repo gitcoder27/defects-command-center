@@ -273,6 +273,7 @@ export type TrackerDeveloperStatus =
 export type TrackerItemState = "planned" | "in_progress" | "done" | "dropped";
 export type TrackerItemType = "jira" | "custom";
 export type TrackerTaskLifecycle = "tracker_only" | "manager_desk_linked";
+export type TeamTrackerViewMode = "live" | "history";
 
 export interface TrackerCheckIn {
   id: number;
@@ -448,6 +449,7 @@ export interface TeamTrackerSavedView {
 
 export interface TeamTrackerBoardResponse {
   date: string;
+  viewMode: TeamTrackerViewMode;
   developers: TrackerDeveloperDay[];
   inactiveDevelopers: InactiveDeveloperListItem[];
   summary: TrackerBoardSummary;

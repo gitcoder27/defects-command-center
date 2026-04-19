@@ -109,6 +109,24 @@ interface ManagerDeskHistoryEntry {
   recordedAt: string;
 }
 
+interface LegacyCarryForwardCleanupChain {
+  managerAccountId: string;
+  rootItemId: number;
+  keptItemId: number;
+  removedItemIds: number[];
+  title: string;
+  skippedBecauseTrackerLinked: boolean;
+}
+
+interface LegacyCarryForwardCleanupResult {
+  dryRun: boolean;
+  scannedChains: number;
+  collapsedChains: number;
+  removedItems: number;
+  skippedChains: number;
+  chains: LegacyCarryForwardCleanupChain[];
+}
+
 type ManagerDeskItemRow = typeof managerDeskItems.$inferSelect;
 type ManagerDeskLinkRow = typeof managerDeskLinks.$inferSelect;
 type ManagerDeskItemHistoryRow = typeof managerDeskItemHistory.$inferSelect;
@@ -298,6 +316,22 @@ function compareDeskItems(
     getItemSortTimestamp(left) - getItemSortTimestamp(right) ||
     left.id - right.id
   );
+}
+
+function compareLineageCandidates(left: ManagerDeskItemRow, right: ManagerDeskItemRow): number {
+  const createdDiff =
+    new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+  if (createdDiff !== 0) {
+    return createdDiff;
+  }
+
+  const updatedDiff =
+    new Date(left.updatedAt).getTime() - new Date(right.updatedAt).getTime();
+  if (updatedDiff !== 0) {
+    return updatedDiff;
+  }
+
+  return left.id - right.id;
 }
 
 function getCarryForwardStatus(status: ManagerDeskStatus): ManagerDeskStatus {
@@ -714,66 +748,37 @@ export class ManagerDeskService {
     }
 
     const targetDay = await this.ensureDay(managerAccountId, params.toDate);
-    let created = 0;
+    let updated = 0;
     const now = nowIso();
 
     for (const entry of plan) {
-      const inserted = await db
-        .insert(managerDeskItems)
-        .values({
+      await db
+        .update(managerDeskItems)
+        .set({
           dayId: targetDay.id,
-          sourceItemId: entry.item.id,
-          assigneeDeveloperAccountId: entry.item.assigneeDeveloperAccountId,
-          title: entry.item.title,
-          kind: entry.item.kind,
-          category: entry.item.category,
-          status: getCarryForwardStatus(entry.item.status as ManagerDeskStatus),
-          priority: entry.item.priority,
-          participants: entry.item.participants,
-          contextNote: entry.item.contextNote,
-          nextAction: entry.item.nextAction,
-          outcome: entry.item.outcome,
           plannedStartAt: entry.rebasedPlannedStartAt,
           plannedEndAt: entry.rebasedPlannedEndAt,
           followUpAt: entry.rebasedFollowUpAt,
-          completedAt: null,
-          createdAt: now,
           updatedAt: now,
         })
-        .returning();
-
-      const carriedItem = inserted[0];
-      if (!carriedItem) {
-        throw new Error("Failed to carry manager desk item forward");
-      }
-
-      for (const link of entry.rawLinks) {
-        await db.insert(managerDeskLinks).values({
-          itemId: carriedItem.id,
-          linkType: link.linkType,
-          issueKey: link.issueKey,
-          developerAccountId: link.developerAccountId,
-          externalLabel: link.externalLabel,
-          createdAt: now,
-        });
-      }
+        .where(eq(managerDeskItems.id, entry.item.id));
 
       await this.syncTrackerAssignment(
-        carriedItem.id,
-        carriedItem.assigneeDeveloperAccountId,
+        entry.item.id,
+        entry.item.assigneeDeveloperAccountId,
         params.toDate,
-        carriedItem.title,
+        entry.item.title,
         entry.normalizedLinks,
-        carriedItem.status as ManagerDeskStatus,
+        entry.item.status as ManagerDeskStatus,
         entry.trackerNote
       );
 
-      await this.recordHistorySnapshotForItem(managerAccountId, carriedItem.id);
+      await this.recordHistorySnapshotForItem(managerAccountId, entry.item.id);
 
-      created += 1;
+      updated += 1;
     }
 
-    return created;
+    return updated;
   }
 
   async moveLinkedItemsToDate(
@@ -807,6 +812,129 @@ export class ManagerDeskService {
     }
 
     return moved;
+  }
+
+  async cleanupLegacyCarryForwardChains(options?: {
+    dryRun?: boolean;
+    managerAccountId?: string;
+  }): Promise<LegacyCarryForwardCleanupResult> {
+    const dryRun = options?.dryRun ?? true;
+    const allDays = await db.select().from(managerDeskDays);
+    const scopedDays = options?.managerAccountId
+      ? allDays.filter((day) => day.managerAccountId === options.managerAccountId)
+      : allDays;
+
+    if (scopedDays.length === 0) {
+      return {
+        dryRun,
+        scannedChains: 0,
+        collapsedChains: 0,
+        removedItems: 0,
+        skippedChains: 0,
+        chains: [],
+      };
+    }
+
+    const dayById = new Map(scopedDays.map((day) => [day.id, day]));
+    const itemRows = await db
+      .select()
+      .from(managerDeskItems)
+      .where(inArray(managerDeskItems.dayId, scopedDays.map((day) => day.id)));
+
+    const groupedByManager = new Map<string, ManagerDeskItemRow[]>();
+    for (const row of itemRows) {
+      const managerAccountId = dayById.get(row.dayId)?.managerAccountId;
+      if (!managerAccountId) {
+        continue;
+      }
+
+      const bucket = groupedByManager.get(managerAccountId);
+      if (bucket) {
+        bucket.push(row);
+      } else {
+        groupedByManager.set(managerAccountId, [row]);
+      }
+    }
+
+    const result: LegacyCarryForwardCleanupResult = {
+      dryRun,
+      scannedChains: 0,
+      collapsedChains: 0,
+      removedItems: 0,
+      skippedChains: 0,
+      chains: [],
+    };
+
+    for (const [managerAccountId, managerRows] of groupedByManager.entries()) {
+      for (const [rootItemId, lineageRows] of this.groupRowsByLineage(managerRows).entries()) {
+        if (lineageRows.length <= 1) {
+          continue;
+        }
+
+        result.scannedChains += 1;
+        const keptRow = this.selectCanonicalLineageRow(lineageRows);
+        const removedRows = lineageRows
+          .filter((row) => row.id !== keptRow.id)
+          .sort(compareLineageCandidates);
+        const removedItemIds = removedRows.map((row) => row.id);
+
+        if (removedItemIds.length === 0) {
+          continue;
+        }
+
+        const linkedTrackerRows = await db
+          .select({
+            id: teamTrackerItems.id,
+          })
+          .from(teamTrackerItems)
+          .where(inArray(teamTrackerItems.managerDeskItemId, removedItemIds));
+        const skippedBecauseTrackerLinked = linkedTrackerRows.length > 0;
+
+        result.chains.push({
+          managerAccountId,
+          rootItemId,
+          keptItemId: keptRow.id,
+          removedItemIds,
+          title: keptRow.title,
+          skippedBecauseTrackerLinked,
+        });
+
+        if (skippedBecauseTrackerLinked) {
+          result.skippedChains += 1;
+          continue;
+        }
+
+        if (!dryRun) {
+          if (keptRow.sourceItemId !== null) {
+            await db
+              .update(managerDeskItems)
+              .set({
+                sourceItemId: null,
+                updatedAt: nowIso(),
+              })
+              .where(eq(managerDeskItems.id, keptRow.id));
+            await this.recordHistorySnapshotForItem(managerAccountId, keptRow.id);
+          }
+
+          for (const removedRow of removedRows) {
+            const snapshot = await this.getItemById(managerAccountId, removedRow.id);
+            await this.insertHistoryRow(managerAccountId, removedRow.id, snapshot, "deleted");
+          }
+
+          await db
+            .delete(managerDeskLinks)
+            .where(inArray(managerDeskLinks.itemId, removedItemIds));
+          await db
+            .delete(managerDeskItems)
+            .where(inArray(managerDeskItems.id, removedItemIds));
+        }
+
+        result.collapsedChains += 1;
+        result.removedItems += removedItemIds.length;
+      }
+    }
+
+    return result;
   }
 
   async lookupIssues(query: string): Promise<ManagerDeskIssueLookupItem[]> {
@@ -1023,13 +1151,14 @@ export class ManagerDeskService {
       .from(managerDeskItems)
       .where(inArray(managerDeskItems.dayId, days.map((day) => day.id)));
 
-    const linksByItemId = await this.getLinksByItemIds(itemRows.map((item) => item.id));
+    const dedupedRows = this.dedupeCurrentLineageRows(itemRows);
+    const linksByItemId = await this.getLinksByItemIds(dedupedRows.map((item) => item.id));
     const delegatedExecutionByItemId = await this.getDelegatedExecutionByManagerDeskItemIds(
-      itemRows.map((item) => item.id)
+      dedupedRows.map((item) => item.id)
     );
-    const assigneesByAccountId = await this.getAssigneeMap(itemRows, date);
+    const assigneesByAccountId = await this.getAssigneeMap(dedupedRows, date);
 
-    return itemRows
+    return dedupedRows
       .sort(compareItemRows)
       .map((item) =>
         this.mapItem(
@@ -1042,6 +1171,55 @@ export class ManagerDeskService {
           dayById.get(item.dayId)?.date ?? date
         )
       );
+  }
+
+  private dedupeCurrentLineageRows(itemRows: ManagerDeskItemRow[]): ManagerDeskItemRow[] {
+    const grouped = this.groupRowsByLineage(itemRows);
+    return [...grouped.values()]
+      .map((lineageRows) => this.selectCanonicalLineageRow(lineageRows))
+      .sort(compareItemRows);
+  }
+
+  private groupRowsByLineage(itemRows: ManagerDeskItemRow[]): Map<number, ManagerDeskItemRow[]> {
+    const itemById = new Map(itemRows.map((row) => [row.id, row]));
+    const grouped = new Map<number, ManagerDeskItemRow[]>();
+
+    for (const row of itemRows) {
+      const rootId = this.resolveLineageRootId(row, itemById);
+      const bucket = grouped.get(rootId);
+      if (bucket) {
+        bucket.push(row);
+      } else {
+        grouped.set(rootId, [row]);
+      }
+    }
+
+    return grouped;
+  }
+
+  private resolveLineageRootId(
+    row: ManagerDeskItemRow,
+    itemById: Map<number, ManagerDeskItemRow>
+  ): number {
+    let current = row;
+    const visited = new Set<number>([row.id]);
+
+    while (typeof current.sourceItemId === "number") {
+      const parent = itemById.get(current.sourceItemId);
+      if (!parent || visited.has(parent.id)) {
+        break;
+      }
+      visited.add(parent.id);
+      current = parent;
+    }
+
+    return current.id;
+  }
+
+  private selectCanonicalLineageRow(lineageRows: ManagerDeskItemRow[]): ManagerDeskItemRow {
+    return lineageRows.reduce((best, candidate) => {
+      return compareLineageCandidates(best, candidate) >= 0 ? best : candidate;
+    });
   }
 
   private async getHistoricalItemsForDate(
@@ -1234,7 +1412,30 @@ export class ManagerDeskService {
       const requestedIds = new Set(params.itemIds);
       sourceItems = sourceItems.filter((item) => requestedIds.has(item.id));
       if (sourceItems.length !== requestedIds.size) {
-        throw new HttpError(404, "One or more items were not found for the source date");
+        const foundIds = new Set(sourceItems.map((item) => item.id));
+        const missingIds = params.itemIds.filter((itemId) => !foundIds.has(itemId));
+        const missingRows = await Promise.all(
+          missingIds.map(async (itemId) => {
+            try {
+              const item = await this.getOwnedItemRow(managerAccountId, itemId);
+              const day = await this.getDayById(item.dayId);
+              return {
+                itemId,
+                dayDate: day?.date,
+              };
+            } catch {
+              return {
+                itemId,
+                dayDate: undefined,
+              };
+            }
+          })
+        );
+
+        const alreadyMovedToTarget = missingRows.every((row) => row.dayDate === params.toDate);
+        if (!alreadyMovedToTarget) {
+          throw new HttpError(404, "One or more items were not found for the source date");
+        }
       }
     }
 

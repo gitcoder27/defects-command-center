@@ -6,12 +6,14 @@ interface InactiveDeveloperTrayProps {
   items: InactiveDeveloperListItem[];
   onReactivate: (accountId: string) => void;
   pendingAccountId?: string;
+  readOnly?: boolean;
 }
 
 export function InactiveDeveloperTray({
   items,
   onReactivate,
   pendingAccountId,
+  readOnly = false,
 }: InactiveDeveloperTrayProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -54,7 +56,9 @@ export function InactiveDeveloperTray({
               </span>
             </div>
             <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-              Hidden from the active board. Expand only when you need to restore someone.
+              {readOnly
+                ? 'Historical inactive state for the selected date.'
+                : 'Hidden from the active board. Expand only when you need to restore someone.'}
             </div>
           </div>
         </div>
@@ -86,20 +90,22 @@ export function InactiveDeveloperTray({
                     {item.availability.note || `Inactive since ${item.availability.startDate}`}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onReactivate(item.developer.accountId)}
-                  disabled={isPending}
-                  className="inline-flex items-center gap-1 rounded-xl px-2 py-1 text-[10px] font-semibold transition-colors disabled:opacity-50"
-                  style={{
-                    color: 'var(--accent)',
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid color-mix(in srgb, var(--accent) 24%, transparent)',
-                  }}
-                >
-                  <RotateCcw size={10} className={isPending ? 'animate-spin' : ''} />
-                  Active
-                </button>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => onReactivate(item.developer.accountId)}
+                    disabled={isPending}
+                    className="inline-flex items-center gap-1 rounded-xl px-2 py-1 text-[10px] font-semibold transition-colors disabled:opacity-50"
+                    style={{
+                      color: 'var(--accent)',
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid color-mix(in srgb, var(--accent) 24%, transparent)',
+                    }}
+                  >
+                    <RotateCcw size={10} className={isPending ? 'animate-spin' : ''} />
+                    Active
+                  </button>
+                )}
               </div>
             );
           })}

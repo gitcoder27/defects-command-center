@@ -9,13 +9,14 @@ interface TrackerBoardProps {
   isGrouped: boolean;
   searchActive: boolean;
   onOpenDrawer: (accountId: string) => void;
-  onOpenTaskDetail: (itemId: number, managerDeskItemId?: number) => void;
+  onOpenTaskDetail?: (itemId: number, managerDeskItemId?: number) => void;
   onMarkInactive: (day: TrackerDeveloperDay) => void;
   onSetCurrent: (itemId: number) => void;
   onMarkDone: (itemId: number) => void;
   onQuickAdd: (params: { accountId: string; title: string; jiraKey?: string; note?: string }) => void;
   issues?: Issue[];
   isQuickAddPending?: boolean;
+  readOnly?: boolean;
 }
 
 const groupColors: Record<string, string> = {
@@ -41,18 +42,20 @@ function CardGrid({
   onQuickAdd,
   issues,
   isQuickAddPending,
+  readOnly,
 }: {
   developers: TrackerDeveloperDay[];
   date: string;
   indexOffset: number;
   onOpenDrawer: (accountId: string) => void;
-  onOpenTaskDetail: (itemId: number, managerDeskItemId?: number) => void;
+  onOpenTaskDetail?: (itemId: number, managerDeskItemId?: number) => void;
   onMarkInactive: (day: TrackerDeveloperDay) => void;
   onSetCurrent: (itemId: number) => void;
   onMarkDone: (itemId: number) => void;
   onQuickAdd: (params: { accountId: string; title: string; jiraKey?: string; note?: string }) => void;
   issues?: Issue[];
   isQuickAddPending?: boolean;
+  readOnly?: boolean;
 }) {
   return (
     <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
@@ -70,6 +73,7 @@ function CardGrid({
           onQuickAdd={onQuickAdd}
           issues={issues}
           isQuickAddPending={isQuickAddPending}
+          readOnly={readOnly}
         />
       ))}
     </div>
@@ -90,6 +94,7 @@ export function TrackerBoard({
   onQuickAdd,
   issues,
   isQuickAddPending,
+  readOnly = false,
 }: TrackerBoardProps) {
   const visibleCount = isGrouped
     ? groups.reduce((sum, g) => sum + g.developers.length, 0)
@@ -120,6 +125,7 @@ export function TrackerBoard({
     onQuickAdd,
     issues,
     isQuickAddPending,
+    readOnly,
   };
 
   if (!isGrouped) {

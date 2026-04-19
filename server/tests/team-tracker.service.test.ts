@@ -104,7 +104,44 @@ describe("TeamTrackerService", () => {
       const board = await service.getBoard("2026-03-07");
       expect(board.developers).toHaveLength(2);
       expect(board.date).toBe("2026-03-07");
+      expect(board.viewMode).toBe("live");
       expect(board.summary.total).toBe(2);
+    });
+
+    it("surfaces unfinished work from earlier days on the live board without manual carry-forward", async () => {
+      await service.addItem("dev-1", "2026-03-06", {
+        title: "Yesterday follow-up",
+      });
+
+      const board = await service.getBoard("2026-03-07");
+      const devDay = board.developers.find(
+        (d) => d.developer.accountId === "dev-1"
+      )!;
+
+      expect(board.viewMode).toBe("live");
+      expect(devDay.plannedItems.map((item) => item.title)).toContain(
+        "Yesterday follow-up"
+      );
+    });
+
+    it("returns past dates as historical snapshots without pulling in future work", async () => {
+      await service.addItem("dev-1", "2026-03-06", {
+        title: "Yesterday follow-up",
+      });
+      await service.addItem("dev-1", "2026-03-07", {
+        title: "Today planning task",
+      });
+
+      const board = await service.getBoard("2026-03-06");
+      const devDay = board.developers.find(
+        (d) => d.developer.accountId === "dev-1"
+      )!;
+
+      expect(board.viewMode).toBe("history");
+      expect(board.attentionQueue).toEqual([]);
+      expect(devDay.plannedItems.map((item) => item.title)).toEqual([
+        "Yesterday follow-up",
+      ]);
     });
 
     it("moves inactive developers into the restore tray for the selected date", async () => {
@@ -998,7 +1035,7 @@ describe("TeamTrackerService", () => {
       expect(devDay.plannedItems.some((i) => i.title === "Unfinished task")).toBe(true);
     });
 
-    it("carries Manager Desk-linked items into the next day by cloning their manager work", async () => {
+    it("carries Manager Desk-linked items into the next day by rebasing their manager work", async () => {
       const sourceManagerItem = await managerDeskService.createItem("manager-1", {
         date: "2026-03-06",
         title: "Shared task owned by Manager Desk",
@@ -1029,13 +1066,23 @@ describe("TeamTrackerService", () => {
         .select()
         .from(managerDeskItems)
         .where(eq(managerDeskItems.sourceItemId, sourceManagerItem.id));
-      expect(carriedManagerItems).toHaveLength(1);
+      expect(carriedManagerItems).toHaveLength(0);
+
+      const targetDeskDay = await managerDeskService.getDay("manager-1", "2026-03-07");
+      expect(targetDeskDay.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: sourceManagerItem.id,
+            title: "Shared task owned by Manager Desk",
+          }),
+        ])
+      );
 
       const linkedItem = devDay.plannedItems.find(
         (item) => item.title === "Shared task owned by Manager Desk"
       );
       expect(linkedItem?.lifecycle).toBe("manager_desk_linked");
-      expect(linkedItem?.managerDeskItemId).toBe(carriedManagerItems[0]!.id);
+      expect(linkedItem?.managerDeskItemId).toBe(sourceManagerItem.id);
     });
 
     it("supports partial carry-forward selection by Team Tracker item id across mixed sources", async () => {
@@ -1074,12 +1121,12 @@ describe("TeamTrackerService", () => {
         .select()
         .from(managerDeskItems)
         .where(eq(managerDeskItems.sourceItemId, sourceManagerItem.id));
-      expect(carriedManagerItems).toHaveLength(1);
+      expect(carriedManagerItems).toHaveLength(0);
 
       const linkedItem = devDay.plannedItems.find(
         (item) => item.title === "Shared task owned by Manager Desk"
       );
-      expect(linkedItem?.managerDeskItemId).toBe(carriedManagerItems[0]!.id);
+      expect(linkedItem?.managerDeskItemId).toBe(sourceManagerItem.id);
     });
 
     it("rejects duplicate carry-forward selection ids", async () => {
@@ -1166,8 +1213,15 @@ describe("TeamTrackerService", () => {
       )!;
       const plannedTitles = devDay.plannedItems.map((item) => item.title);
       expect(plannedTitles.filter((title) => title === "Already carried")).toHaveLength(1);
-      expect(plannedTitles.filter((title) => title === "Shared follow-up")).toHaveLength(1);
+      expect(plannedTitles.filter((title) => title === "Shared follow-up")).toHaveLength(2);
       expect(plannedTitles.filter((title) => title === "Needs follow-up")).toHaveLength(1);
+
+      expect(
+        devDay.plannedItems
+          .filter((item) => item.title === "Shared follow-up")
+          .map((item) => item.lifecycle)
+          .sort()
+      ).toEqual(["manager_desk_linked", "tracker_only"]);
     });
   });
 

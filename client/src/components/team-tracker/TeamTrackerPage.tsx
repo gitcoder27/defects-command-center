@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Calendar, ArrowRight, ChevronLeft, ChevronRight, RefreshCw, X } from 'lucide-react';
-import { useTeamTracker, useCarryForwardContext, useCarryForwardPreview } from '@/hooks/useTeamTracker';
+import { Calendar, ChevronLeft, ChevronRight, History, RefreshCw } from 'lucide-react';
+import { useTeamTracker } from '@/hooks/useTeamTracker';
 import {
   useUpdateDay,
   useUpdateAvailability,
@@ -9,7 +9,6 @@ import {
   useUpdateTrackerItem,
   useAddTrackerItem,
   useAddCheckIn,
-  useCarryForward,
 } from '@/hooks/useTeamTrackerMutations';
 import { useBoardQueryState } from '@/hooks/useBoardQueryState';
 import { useIssues } from '@/hooks/useIssues';
@@ -23,38 +22,9 @@ import { TrackerBoard } from './TrackerBoard';
 import { DeveloperTrackerDrawer } from './DeveloperTrackerDrawer';
 import { AvailabilityDialog } from './AvailabilityDialog';
 import { TrackerTaskDetailDrawer } from './TrackerTaskDetailDrawer';
-import { CarryForwardPreviewDialog } from './CarryForwardPreviewDialog';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
 import type { AppView } from '@/App';
 import type { TrackerAttentionItem, TrackerDeveloperDay, TrackerWorkItem } from '@/types';
-
-function getCarryForwardPromptKey(date: string, sourceDate: string | null): string {
-  return `team-tracker:carry-forward-prompt:${date}:${sourceDate ?? 'none'}`;
-}
-
-function readCarryForwardPromptState(date: string, sourceDate: string | null): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  try {
-    return window.sessionStorage.getItem(getCarryForwardPromptKey(date, sourceDate)) === 'dismissed';
-  } catch {
-    return false;
-  }
-}
-
-function writeCarryForwardPromptState(date: string, sourceDate: string | null): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    window.sessionStorage.setItem(getCarryForwardPromptKey(date, sourceDate), 'dismissed');
-  } catch {
-    // Ignore storage access failures; the prompt will simply reappear.
-  }
-}
 
 interface TeamTrackerPageProps {
   onViewChange?: (view: AppView) => void;
@@ -67,10 +37,6 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   const [selectedTask, setSelectedTask] = useState<{ trackerItemId: number; managerDeskItemId?: number } | null>(null);
   const [availabilityTarget, setAvailabilityTarget] = useState<TrackerDeveloperDay | undefined>();
   const [captureFollowUpTarget, setCaptureFollowUpTarget] = useState<TrackerAttentionItem | null>(null);
-  const [carryPromptDismissed, setCarryPromptDismissed] = useState(false);
-  const [carryDialogOpen, setCarryDialogOpen] = useState(false);
-  // Tracks carry-forward direction: 'smart' = earlier source→viewed day, 'header' = viewed→next
-  const [carryDialogMode, setCarryDialogMode] = useState<'smart' | 'header'>('smart');
 
   // Board query + saved views (extracted hook)
   const qs = useBoardQueryState(addToast);
@@ -86,14 +52,8 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   const resolvedQuery = board?.query;
 
   const { data: issues } = useIssues('all');
-  const previousDate = useMemo(() => shiftLocalIsoDate(date, -1), [date]);
-  const nextDate = useMemo(() => shiftLocalIsoDate(date, 1), [date]);
-  const smartCarryContext = useCarryForwardContext(date);
-  const previewData = smartCarryContext.data;
-  const smartSourceDate = previewData?.fromDate ?? null;
   const isToday = date === getLocalIsoDate();
-  // Header carry-forward: fetch preview for viewed date → next day (only when dialog requests it)
-  const headerCarryPreview = useCarryForwardPreview(date, nextDate, carryDialogOpen && carryDialogMode === 'header');
+  const nextDate = useMemo(() => shiftLocalIsoDate(date, 1), [date]);
 
   const addTrackerItem = useAddTrackerItem(date);
   const updateDay = useUpdateDay(date);
@@ -101,18 +61,15 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   const setCurrent = useSetCurrentItem(date);
   const updateItem = useUpdateTrackerItem(date);
   const addCheckIn = useAddCheckIn(date);
-  const carryForward = useCarryForward();
 
   const groups = board?.groups ?? [];
+  const viewMode = board?.viewMode ?? (isToday ? 'live' : 'history');
+  const readOnly = viewMode === 'history';
   const resolvedSummaryFilter = resolvedQuery?.summaryFilter ?? 'all';
   const resolvedSortBy = resolvedQuery?.sortBy ?? 'name';
   const resolvedGroupBy = resolvedQuery?.groupBy ?? 'none';
   const resolvedSearch = resolvedQuery?.q ?? '';
   const isGrouped = resolvedGroupBy !== 'none';
-  const hasCurrentDayCarryable = useMemo(
-    () => (board?.developers ?? []).some((developerDay) => developerDay.currentItem || developerDay.plannedItems.length > 0),
-    [board?.developers]
-  );
 
   const drawerDay = useMemo(
     () => board?.developers.find((d) => d.developer.accountId === drawerAccountId),
@@ -206,77 +163,22 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
 
   const handleCreateTask = useCallback(
     (params: { accountId: string; title: string; jiraKey?: string; note?: string }) => {
+      if (readOnly) {
+        return;
+      }
       addTrackerItem.mutate(params);
     },
-    [addTrackerItem]
-  );
-
-  const handleCarryForward = useCallback(() => {
-    const hasCurrentDayCarryable = (board?.developers ?? []).some(
-      (developerDay) => developerDay.currentItem || developerDay.plannedItems.length > 0
-    );
-    setCarryDialogMode(!isToday && hasCurrentDayCarryable ? 'header' : 'smart');
-    setCarryDialogOpen(true);
-  }, [board?.developers, isToday]);
-
-  const dismissCarryForwardPrompt = useCallback(() => {
-    writeCarryForwardPromptState(date, smartSourceDate);
-    setCarryPromptDismissed(true);
-  }, [date, smartSourceDate]);
-
-  const handleCarryForwardFromPreviousDay = useCallback(() => {
-    setCarryDialogMode('smart');
-    setCarryDialogOpen(true);
-  }, []);
-
-  const handleCarryForwardConfirm = useCallback(
-    (itemIds?: number[]) => {
-      const fromDate = carryDialogMode === 'smart' ? smartSourceDate ?? previousDate : date;
-      const toDate = carryDialogMode === 'smart' ? date : nextDate;
-      carryForward.mutate(
-        { fromDate, toDate, itemIds },
-        {
-          onSuccess: (data) => {
-            setCarryDialogOpen(false);
-            if (carryDialogMode === 'smart') {
-              dismissCarryForwardPrompt();
-            }
-            addToast(`${data.carried} task${data.carried === 1 ? '' : 's'} carried forward`, 'success');
-          },
-        }
-      );
-    },
-    [addToast, carryDialogMode, carryForward, date, dismissCarryForwardPrompt, nextDate, previousDate, smartSourceDate]
+    [addTrackerItem, readOnly]
   );
 
   const handleRefresh = useCallback(() => {
     void refetchBoard();
-    void smartCarryContext.refetch();
-  }, [refetchBoard, smartCarryContext]);
-
-  useEffect(() => {
-    setCarryPromptDismissed(readCarryForwardPromptState(date, smartSourceDate));
-  }, [date, smartSourceDate]);
+  }, [refetchBoard]);
 
   useEffect(() => {
     setSelectedTask(null);
-    setCarryDialogOpen(false);
   }, [date]);
-
-  const carryableFromEarlierDay = previewData?.carryable ?? 0;
-  const isRefreshing = isBoardFetching || smartCarryContext.isFetching;
-  const showCarryForwardPrompt =
-    !carryPromptDismissed &&
-    !smartCarryContext.isLoading &&
-    !smartCarryContext.isError &&
-    carryableFromEarlierDay > 0 &&
-    smartSourceDate !== null;
-  const canHeaderCarryForward = (!isToday && hasCurrentDayCarryable) || carryableFromEarlierDay > 0;
-
-  // Determine which preview data to show in the dialog
-  const activeCarryPreview = carryDialogMode === 'smart' ? previewData : headerCarryPreview.data;
-  const carryDialogFromDate = carryDialogMode === 'smart' ? smartSourceDate ?? previousDate : date;
-  const carryDialogToDate = carryDialogMode === 'smart' ? date : nextDate;
+  const isRefreshing = isBoardFetching;
 
   const handleMarkInactive = useCallback((day: TrackerDeveloperDay) => {
     setAvailabilityTarget(day);
@@ -362,22 +264,6 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
               <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
               Refresh
             </button>
-            {canHeaderCarryForward && (
-              <button
-                onClick={handleCarryForward}
-                disabled={carryForward.isPending}
-                className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50"
-                style={{
-                  background: 'var(--accent-glow)',
-                  color: 'var(--accent)',
-                  border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
-                }}
-                title="Review unfinished work and selectively carry forward, including manager-assigned tasks"
-              >
-                <ArrowRight size={12} />
-                Carry Forward
-              </button>
-            )}
             <div
               className="flex items-center gap-0.5 rounded-xl px-1 py-0.5"
               style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
@@ -456,54 +342,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
             isSaving={qs.isSaving}
           />
         )}
-
-        {showCarryForwardPrompt && (
-          <div
-            className="mt-2 flex items-center justify-between gap-3 rounded-[16px] border px-3 py-2"
-            style={{
-              borderColor: 'var(--border-strong)',
-              background: 'color-mix(in srgb, var(--accent-glow) 34%, var(--bg-secondary) 66%)',
-            }}
-          >
-            <div className="min-w-0">
-              <div className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                {carryableFromEarlierDay} unfinished task{carryableFromEarlierDay === 1 ? '' : 's'} from {smartSourceDate ?? previousDate}
-                {(previewData?.developers.length ?? 0) > 0 && (
-                  <span style={{ color: 'var(--text-secondary)' }}>
-                    {' '}across {previewData!.developers.length} developer{previewData!.developers.length === 1 ? '' : 's'}
-                  </span>
-                )}
-              </div>
-              <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                Review and select tasks to carry into {date}.
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={handleCarryForwardFromPreviousDay}
-                disabled={carryForward.isPending}
-                className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium disabled:opacity-50"
-                style={{
-                  background: 'var(--accent-glow)',
-                  color: 'var(--accent)',
-                  border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
-                }}
-              >
-                Review &amp; Carry
-              </button>
-              <button
-                type="button"
-                onClick={dismissCarryForwardPrompt}
-                className="h-8 w-8 rounded-lg flex items-center justify-center"
-                style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}
-                aria-label="Dismiss carry-forward prompt"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          </div>
-        )}
+        <TeamTrackerModeBanner date={date} viewMode={viewMode} />
       </motion.div>
 
       {/* Board area */}
@@ -522,17 +361,20 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
           </div>
         ) : board ? (
           <>
-            <AttentionQueue
-              items={board.attentionQueue}
-              date={date}
-              onOpenDrawer={setDrawerAccountId}
-              onMarkInactive={handleAttentionMarkInactive}
-              onCaptureFollowUp={handleAttentionCaptureFollowUp}
-            />
+            {!readOnly && (
+              <AttentionQueue
+                items={board.attentionQueue}
+                date={date}
+                onOpenDrawer={setDrawerAccountId}
+                onMarkInactive={handleAttentionMarkInactive}
+                onCaptureFollowUp={handleAttentionCaptureFollowUp}
+              />
+            )}
             <InactiveDeveloperTray
               items={board.inactiveDevelopers}
               onReactivate={handleReactivate}
               pendingAccountId={updateAvailability.isPending ? updateAvailability.variables?.accountId : undefined}
+              readOnly={readOnly}
             />
             <TrackerBoard
               date={date}
@@ -541,13 +383,14 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
               isGrouped={isGrouped}
               searchActive={!!resolvedSearch}
               onOpenDrawer={setDrawerAccountId}
-              onOpenTaskDetail={handleOpenTaskDetail}
+              onOpenTaskDetail={readOnly ? undefined : handleOpenTaskDetail}
               onMarkInactive={handleMarkInactive}
               onSetCurrent={handleSetCurrent}
               onMarkDone={handleMarkDone}
               onQuickAdd={handleCreateTask}
               issues={issues}
               isQuickAddPending={addTrackerItem.isPending}
+              readOnly={readOnly}
             />
           </>
         ) : (
@@ -578,6 +421,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
         onOpenManagerDesk={onViewChange ? () => onViewChange('manager-desk') : undefined}
         issues={issues}
         isAddItemPending={addTrackerItem.isPending}
+        readOnly={readOnly}
       />
       <TrackerTaskDetailDrawer
         trackerItemId={selectedTask?.trackerItemId ?? null}
@@ -611,15 +455,31 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
           />
         )}
       </AnimatePresence>
-      <CarryForwardPreviewDialog
-        open={carryDialogOpen && (activeCarryPreview?.developers.length ?? 0) > 0}
-        fromDate={carryDialogFromDate}
-        toDate={carryDialogToDate}
-        developers={activeCarryPreview?.developers ?? []}
-        isPending={carryForward.isPending}
-        onConfirm={handleCarryForwardConfirm}
-        onClose={() => setCarryDialogOpen(false)}
-      />
+    </div>
+  );
+}
+
+function TeamTrackerModeBanner({
+  date,
+  viewMode,
+}: {
+  date: string;
+  viewMode: 'live' | 'history';
+}) {
+  if (viewMode === 'live') {
+    return (
+      <div className="mt-2 rounded-[16px] border px-3 py-2 text-[12px]" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+        Open team work stays on the tracker until it is done or dropped. A new day changes the lens, not the task’s continuity.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 rounded-[16px] border px-3 py-2" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg-secondary) 94%, transparent)' }}>
+      <div className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+        <History size={13} style={{ color: 'var(--accent)' }} />
+        {date} is shown as a historical snapshot. This view is read-only so you can review who was working on what without changing the past.
+      </div>
     </div>
   );
 }

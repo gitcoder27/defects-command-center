@@ -10,6 +10,7 @@ import { resetDatabase, db } from "./helpers/db";
 import {
   developers,
   issues,
+  managerDeskDays,
   managerDeskItems,
   teamTrackerDays,
   teamTrackerItems,
@@ -168,6 +169,109 @@ describe("manager desk routes", () => {
         completed: 0,
       },
     });
+  });
+
+  it("GET /api/manager-desk collapses legacy carry-forward chains to the latest live item", async () => {
+    vi.setSystemTime(new Date("2026-03-10T08:00:00.000Z"));
+
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Legacy chain task",
+        status: "planned",
+      },
+    });
+
+    await db.insert(managerDeskDays).values([
+      {
+        date: "2026-03-09",
+        managerAccountId: "manager",
+        createdAt: "2026-03-09T08:00:00.000Z",
+        updatedAt: "2026-03-09T08:00:00.000Z",
+      },
+      {
+        date: "2026-03-10",
+        managerAccountId: "manager",
+        createdAt: "2026-03-10T08:00:00.000Z",
+        updatedAt: "2026-03-10T08:00:00.000Z",
+      },
+    ]);
+
+    const days = await db.select().from(managerDeskDays);
+    const day09 = days.find((day) => day.date === "2026-03-09" && day.managerAccountId === "manager");
+    const day10 = days.find((day) => day.date === "2026-03-10" && day.managerAccountId === "manager");
+    expect(day09).toBeDefined();
+    expect(day10).toBeDefined();
+
+    const firstClone = await db
+      .insert(managerDeskItems)
+      .values({
+        dayId: day09!.id,
+        sourceItemId: created.body.id,
+        assigneeDeveloperAccountId: null,
+        title: "Legacy chain task",
+        kind: "action",
+        category: "other",
+        status: "planned",
+        priority: "medium",
+        participants: null,
+        contextNote: null,
+        nextAction: null,
+        outcome: null,
+        plannedStartAt: null,
+        plannedEndAt: null,
+        followUpAt: null,
+        completedAt: null,
+        createdAt: "2026-03-09T08:05:00.000Z",
+        updatedAt: "2026-03-09T08:05:00.000Z",
+      })
+      .returning();
+    const latestClone = await db
+      .insert(managerDeskItems)
+      .values({
+        dayId: day10!.id,
+        sourceItemId: firstClone[0]!.id,
+        assigneeDeveloperAccountId: null,
+        title: "Legacy chain task",
+        kind: "action",
+        category: "other",
+        status: "planned",
+        priority: "medium",
+        participants: null,
+        contextNote: null,
+        nextAction: null,
+        outcome: null,
+        plannedStartAt: null,
+        plannedEndAt: null,
+        followUpAt: null,
+        completedAt: null,
+        createdAt: "2026-03-10T08:10:00.000Z",
+        updatedAt: "2026-03-10T08:10:00.000Z",
+      })
+      .returning();
+
+    const live = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk?date=2026-03-10",
+      headers: { cookie },
+    });
+
+    expect(live.status).toBe(200);
+    expect(live.body?.viewMode).toBe("live");
+    expect(live.body?.summary.totalOpen).toBe(1);
+    expect(live.body?.items).toEqual([
+      expect.objectContaining({
+        id: latestClone[0]!.id,
+        title: "Legacy chain task",
+        originDate: "2026-03-10",
+      }),
+    ]);
   });
 
   it("developer-role users receive 403 on manager desk routes", async () => {
@@ -1252,7 +1356,7 @@ describe("manager desk routes", () => {
     });
   });
 
-  it("carry-forward copies unfinished items with rebased times, links, and skips duplicates on repeat runs", async () => {
+  it("carry-forward moves unfinished items forward without cloning duplicates on repeat runs", async () => {
     const app = createTestApp();
     const cookie = await loginCookie("manager", "secret123");
 
@@ -1341,10 +1445,15 @@ describe("manager desk routes", () => {
         }),
         expect.objectContaining({
           title: "Continue design review",
-          status: "planned",
+          status: "in_progress",
+          originDate: "2026-03-09",
         }),
       ])
     );
+
+    const managerItemsAfterCarry = await db.select().from(managerDeskItems);
+    expect(managerItemsAfterCarry).toHaveLength(2);
+    expect(managerItemsAfterCarry.every((item) => item.sourceItemId === null)).toBe(true);
 
     const repeat = await invoke(app, {
       method: "POST",
@@ -1403,14 +1512,18 @@ describe("manager desk routes", () => {
     expect(nextDay.status).toBe(200);
     expect(nextDay.body?.items).toEqual([
       expect.objectContaining({
+        id: created.body.id,
         title: "Overnight rollout watch",
         plannedStartAt: "2026-03-10T23:00:00.000Z",
         plannedEndAt: "2026-03-11T01:00:00.000Z",
       }),
     ]);
+
+    const managerItemsAfterCarry = await db.select().from(managerDeskItems);
+    expect(managerItemsAfterCarry).toHaveLength(1);
   });
 
-  it("carry-forward preserves tracker notes for mirrored manager desk items", async () => {
+  it("carry-forward preserves tracker notes while moving linked manager desk items forward", async () => {
     const app = createTestApp();
     const cookie = await loginCookie("manager", "secret123");
 
@@ -1454,20 +1567,22 @@ describe("manager desk routes", () => {
     expect(carryForward.status).toBe(200);
     expect(carryForward.body).toEqual({ created: 1 });
 
-    const carriedItems = await db
+    const managerItemsAfterCarry = await db.select().from(managerDeskItems);
+    expect(managerItemsAfterCarry).toHaveLength(1);
+
+    const targetTrackerDay = await db
       .select()
-      .from(managerDeskItems)
-      .where(eq(managerDeskItems.sourceItemId, created.body.id));
-    const carriedItem = carriedItems[0];
-    expect(carriedItem).toBeDefined();
+      .from(teamTrackerDays)
+      .where(eq(teamTrackerDays.date, "2026-03-09"));
+    expect(targetTrackerDay).toHaveLength(1);
 
     const carriedTrackerRows = await db
       .select()
       .from(teamTrackerItems)
-      .where(eq(teamTrackerItems.managerDeskItemId, carriedItem.id));
+      .where(eq(teamTrackerItems.dayId, targetTrackerDay[0]!.id));
     expect(carriedTrackerRows).toEqual([
       expect.objectContaining({
-        managerDeskItemId: carriedItem.id,
+        managerDeskItemId: created.body.id,
         jiraKey: "PROJ-321",
         note: "Carry forward after confirming edge-case repro steps.",
         state: "planned",

@@ -34,7 +34,7 @@ export function useUpdateDay(date: string) {
         managerNotes: params.managerNotes,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
     },
   });
@@ -54,7 +54,7 @@ export function useUpdateAvailability(date: string) {
         note: params.note,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       qc.invalidateQueries({ queryKey: ['alerts'] });
       qc.invalidateQueries({ queryKey: ['manager-desk'] });
@@ -79,7 +79,7 @@ export function useAddTrackerItem(date: string) {
         note: params.note,
       }),
     onSuccess: (_data, params) => {
-      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
       invalidateIssueViews(qc);
@@ -106,7 +106,7 @@ export function useUpdateTrackerItem(date: string) {
       return api.patch<TrackerWorkItem>(`/team-tracker/items/${itemId}`, body);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['manager-desk'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
@@ -122,7 +122,7 @@ export function useDeleteTrackerItem(date: string) {
     mutationFn: (itemId: number) =>
       api.delete(`/team-tracker/items/${itemId}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
@@ -137,7 +137,7 @@ export function useSetCurrentItem(date: string) {
     mutationFn: (itemId: number) =>
       api.post<TrackerWorkItem>(`/team-tracker/items/${itemId}/set-current`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['manager-desk'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       invalidateIssueAssignments(qc, date);
@@ -160,7 +160,7 @@ export function useAddCheckIn(date: string) {
         status: params.status,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
     },
   });
@@ -183,7 +183,7 @@ export function useStatusUpdate(date: string) {
       });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['team-tracker', date] });
+      qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       qc.invalidateQueries({ queryKey: ['manager-desk'] });
     },

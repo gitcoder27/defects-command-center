@@ -13,13 +13,14 @@ interface DeveloperTrackerCardProps {
   date: string;
   index: number;
   onOpenDrawer: (accountId: string) => void;
-  onOpenTaskDetail: (itemId: number, managerDeskItemId?: number) => void;
+  onOpenTaskDetail?: (itemId: number, managerDeskItemId?: number) => void;
   onMarkInactive: (day: TrackerDeveloperDay) => void;
   onSetCurrent: (itemId: number) => void;
   onMarkDone: (itemId: number) => void;
   onQuickAdd: (params: { accountId: string; title: string; jiraKey?: string; note?: string }) => void;
   issues?: Issue[];
   isQuickAddPending?: boolean;
+  readOnly?: boolean;
 }
 
 export function DeveloperTrackerCard({
@@ -34,6 +35,7 @@ export function DeveloperTrackerCard({
   onQuickAdd,
   issues,
   isQuickAddPending,
+  readOnly = false,
 }: DeveloperTrackerCardProps) {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const assignedTodayCount = (day.currentItem ? 1 : 0) + day.plannedItems.length;
@@ -195,58 +197,64 @@ export function DeveloperTrackerCard({
               {day.managerNotes}
             </span>
           )}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMarkInactive(day);
-            }}
-            className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium transition-all hover:brightness-125"
-            style={{
-              background: 'rgba(245, 158, 11, 0.1)',
-              color: 'var(--warning)',
-              border: '1px solid rgba(245, 158, 11, 0.2)',
-            }}
-            title="Mark developer inactive"
-          >
-            <UserMinus size={9} />
-            Inactive
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setQuickAddOpen(true);
-            }}
-            className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium transition-all hover:brightness-125"
-            style={{
-              background: 'var(--accent-glow)',
-              color: 'var(--accent)',
-              border: '1px solid color-mix(in srgb, var(--accent) 28%, transparent)',
-            }}
-            title="Quick add a task"
-          >
-            <Plus size={9} />
-            Add task
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMarkInactive(day);
+              }}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium transition-all hover:brightness-125"
+              style={{
+                background: 'rgba(245, 158, 11, 0.1)',
+                color: 'var(--warning)',
+                border: '1px solid rgba(245, 158, 11, 0.2)',
+              }}
+              title="Mark developer inactive"
+            >
+              <UserMinus size={9} />
+              Inactive
+            </button>
+          )}
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setQuickAddOpen(true);
+              }}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium transition-all hover:brightness-125"
+              style={{
+                background: 'var(--accent-glow)',
+                color: 'var(--accent)',
+                border: '1px solid color-mix(in srgb, var(--accent) 28%, transparent)',
+              }}
+              title="Quick add a task"
+            >
+              <Plus size={9} />
+              Add task
+            </button>
+          )}
         </div>
       </div>
 
       {/* Quick-add modal (portal) */}
-      <QuickAddTaskModal
-        open={quickAddOpen}
-        date={date}
-        developerName={day.developer.displayName}
-        developerAccountId={day.developer.accountId}
-        issues={issues}
-        isPending={isQuickAddPending}
-        onOpenExistingAssignment={(itemId) => onOpenTaskDetail(itemId)}
-        onAdd={(params) => {
-          onQuickAdd(params);
-          setQuickAddOpen(false);
-        }}
-        onClose={() => setQuickAddOpen(false)}
-      />
+      {!readOnly && (
+        <QuickAddTaskModal
+          open={quickAddOpen}
+          date={date}
+          developerName={day.developer.displayName}
+          developerAccountId={day.developer.accountId}
+          issues={issues}
+          isPending={isQuickAddPending}
+          onOpenExistingAssignment={(itemId) => onOpenTaskDetail?.(itemId)}
+          onAdd={(params) => {
+            onQuickAdd(params);
+            setQuickAddOpen(false);
+          }}
+          onClose={() => setQuickAddOpen(false)}
+        />
+      )}
     </motion.div>
   );
 }

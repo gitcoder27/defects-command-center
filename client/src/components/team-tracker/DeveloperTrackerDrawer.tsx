@@ -29,6 +29,7 @@ interface DeveloperTrackerDrawerProps {
   onOpenManagerDesk?: () => void;
   issues?: Issue[];
   isAddItemPending?: boolean;
+  readOnly?: boolean;
 }
 
 const statusOptions: TrackerDeveloperStatus[] = ['on_track', 'at_risk', 'blocked', 'waiting', 'done_for_today'];
@@ -78,6 +79,7 @@ export function DeveloperTrackerDrawer({
   onOpenManagerDesk,
   issues,
   isAddItemPending,
+  readOnly = false,
 }: DeveloperTrackerDrawerProps) {
   const [checkInText, setCheckInText] = useState('');
   const [notesText, setNotesText] = useState('');
@@ -245,7 +247,8 @@ export function DeveloperTrackerDrawer({
                 {statusOptions.map((s) => (
                   <button
                     key={s}
-                    onClick={() => onUpdateDay({ accountId: day.developer.accountId, status: s })}
+                    onClick={() => !readOnly && onUpdateDay({ accountId: day.developer.accountId, status: s })}
+                    disabled={readOnly}
                     className={`transition-all ${day.status === s ? '' : 'opacity-40 hover:opacity-75'}`}
                   >
                     <TrackerStatusPill status={s} size="sm" />
@@ -285,6 +288,7 @@ export function DeveloperTrackerDrawer({
                     inputMode="numeric"
                     value={capacityText}
                     onChange={(e) => setCapacityText(e.target.value)}
+                    disabled={readOnly}
                     placeholder="–"
                     className="w-10 rounded-md px-1.5 py-0.5 text-[12px] text-center outline-none font-mono"
                     style={{
@@ -295,12 +299,13 @@ export function DeveloperTrackerDrawer({
                   />
                   <button
                     onClick={handleSaveCapacity}
+                    disabled={readOnly}
                     className="rounded-md px-1.5 py-0.5 text-[11px] font-medium"
                     style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
                   >
                     Save
                   </button>
-                  {day.capacityUnits !== undefined && (
+                  {!readOnly && day.capacityUnits !== undefined && (
                     <button
                       onClick={() => {
                         setCapacityText('');
@@ -330,16 +335,16 @@ export function DeveloperTrackerDrawer({
                   <TrackerItemRow
                     item={day.currentItem}
                     actionPreset="hover-done"
-                    onOpen={onOpenTaskDetail}
-                    onUpdateNote={(itemId, note) => onUpdateItemNote({ itemId, note })}
-                    onUpdateTitle={(itemId, title) => onUpdateItemTitle({ itemId, title })}
-                    onSetCurrent={onSetCurrent}
-                    onMarkDone={onMarkDone}
-                    onDrop={onDropItem}
+                    onOpen={readOnly ? undefined : onOpenTaskDetail}
+                    onUpdateNote={readOnly ? undefined : (itemId, note) => onUpdateItemNote({ itemId, note })}
+                    onUpdateTitle={readOnly ? undefined : (itemId, title) => onUpdateItemTitle({ itemId, title })}
+                    onSetCurrent={readOnly ? undefined : onSetCurrent}
+                    onMarkDone={readOnly ? undefined : onMarkDone}
+                    onDrop={readOnly ? undefined : onDropItem}
                   />
                 ) : (
                   <div className="text-[13px] py-2" style={{ color: 'var(--text-muted)' }}>
-                    No active item. Set one from the planned list.
+                    {readOnly ? 'No active item in this historical snapshot.' : 'No active item. Set one from the planned list.'}
                   </div>
                 )}
               </div>
@@ -350,6 +355,19 @@ export function DeveloperTrackerDrawer({
                   Planned ({day.plannedItems.length})
                 </div>
                 {localPlannedItems.length > 0 ? (
+                  readOnly ? (
+                    <div className="space-y-0.5">
+                      {localPlannedItems.map((item) => (
+                        <TrackerItemRow
+                          key={item.id}
+                          item={item}
+                          variant="drawer-planned"
+                          hideActions
+                          onOpen={undefined}
+                        />
+                      ))}
+                    </div>
+                  ) : (
                   <Reorder.Group
                     axis="y"
                     values={localPlannedItems}
@@ -388,17 +406,20 @@ export function DeveloperTrackerDrawer({
                       </Reorder.Item>
                     ))}
                   </Reorder.Group>
+                  )
                 ) : (
                   <div className="space-y-0.5" />
                 )}
-                <AddTrackerItemForm
-                  onAdd={(params) => onAddItem({ accountId: day.developer.accountId, ...params })}
-                  date={date}
-                  targetAccountId={day.developer.accountId}
-                  onOpenExistingAssignment={(itemId) => onOpenTaskDetail(itemId)}
-                  issues={issueList}
-                  isPending={isAddItemPending}
-                />
+                {!readOnly && (
+                  <AddTrackerItemForm
+                    onAdd={(params) => onAddItem({ accountId: day.developer.accountId, ...params })}
+                    date={date}
+                    targetAccountId={day.developer.accountId}
+                    onOpenExistingAssignment={(itemId) => onOpenTaskDetail(itemId)}
+                    issues={issueList}
+                    isPending={isAddItemPending}
+                  />
+                )}
               </div>
 
               {/* Completed items */}
@@ -409,7 +430,7 @@ export function DeveloperTrackerDrawer({
                   </div>
                   <div className="space-y-0.5">
                     {day.completedItems.map((item) => (
-                      <TrackerItemRow key={item.id} item={item} compact hideActions onOpen={onOpenTaskDetail} />
+                      <TrackerItemRow key={item.id} item={item} compact hideActions onOpen={undefined} />
                     ))}
                   </div>
                 </div>
@@ -423,12 +444,13 @@ export function DeveloperTrackerDrawer({
                   </div>
                   <div className="space-y-0.5">
                     {day.droppedItems.map((item) => (
-                      <TrackerItemRow key={item.id} item={item} compact hideActions onOpen={onOpenTaskDetail} />
+                      <TrackerItemRow key={item.id} item={item} compact hideActions onOpen={undefined} />
                     ))}
                   </div>
                 </div>
               )}
 
+              {!readOnly && (
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
@@ -475,6 +497,7 @@ export function DeveloperTrackerDrawer({
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Manager notes */}
               <div>
@@ -482,7 +505,7 @@ export function DeveloperTrackerDrawer({
                   <div className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
                     Manager Notes
                   </div>
-                  {!notesEditing && (
+                  {!readOnly && !notesEditing && (
                     <button
                       onClick={() => { setNotesText(day.managerNotes ?? ''); setNotesEditing(true); }}
                       className="text-[11px]"
@@ -492,7 +515,7 @@ export function DeveloperTrackerDrawer({
                     </button>
                   )}
                 </div>
-                {notesEditing ? (
+                {notesEditing && !readOnly ? (
                   <div className="space-y-1">
                     <textarea
                       value={notesText}
@@ -536,7 +559,9 @@ export function DeveloperTrackerDrawer({
                 </div>
                 <div className="space-y-1.5 mb-2">
                   {day.checkIns.length === 0 && (
-                    <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>No check-ins today.</div>
+                    <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                      {readOnly ? 'No check-ins recorded for this date.' : 'No check-ins today.'}
+                    </div>
                   )}
                   {[...day.checkIns].reverse().map((ci) => (
                     <div key={ci.id} className="rounded-lg px-2.5 py-2" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
@@ -569,38 +594,40 @@ export function DeveloperTrackerDrawer({
                 </div>
 
                 {/* New check-in input */}
-                <div className="flex items-center gap-1.5">
-                  <MessageSquare size={12} style={{ color: 'var(--text-muted)' }} />
-                  <input
-                    type="text"
-                    value={checkInText}
-                    onChange={(e) => setCheckInText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleCheckIn();
-                    }}
-                    placeholder="Add a check-in note..."
-                    className="flex-1 rounded-lg px-2 py-1.5 text-[13px] outline-none"
-                    style={{
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      border: '1px solid var(--border)',
-                    }}
-                  />
-                  <button
-                    onClick={handleCheckIn}
-                    disabled={!checkInText.trim()}
-                    className="shrink-0 h-7 rounded-lg px-2 text-[12px] font-medium disabled:opacity-40 transition-colors"
-                    style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
-                  >
-                    Save
-                  </button>
-                </div>
+                {!readOnly && (
+                  <div className="flex items-center gap-1.5">
+                    <MessageSquare size={12} style={{ color: 'var(--text-muted)' }} />
+                    <input
+                      type="text"
+                      value={checkInText}
+                      onChange={(e) => setCheckInText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleCheckIn();
+                      }}
+                      placeholder="Add a check-in note..."
+                      className="flex-1 rounded-lg px-2 py-1.5 text-[13px] outline-none"
+                      style={{
+                        background: 'var(--bg-tertiary)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border)',
+                      }}
+                    />
+                    <button
+                      onClick={handleCheckIn}
+                      disabled={!checkInText.trim()}
+                      className="shrink-0 h-7 rounded-lg px-2 text-[12px] font-medium disabled:opacity-40 transition-colors"
+                      style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
         </>
       )}
-      {deskCaptureOpen && day && (
+      {!readOnly && deskCaptureOpen && day && (
         <ManagerDeskCaptureDialog
           onClose={() => setDeskCaptureOpen(false)}
           onOpenManagerDesk={onOpenManagerDesk}
