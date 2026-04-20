@@ -16,6 +16,8 @@ Environment overrides:
   DEPLOY_SERVICE_NAME   systemd service to restart (default: defects-dashboard)
   DEPLOY_MANAGER_URL    manager URL for health checks (default: https://manager.daycommand.online)
   DEPLOY_DEVELOPER_URL  developer URL for route checks (default: https://developer.daycommand.online)
+  DEPLOY_HEALTH_TIMEOUT_SECONDS   total time to wait for health checks (default: 30)
+  DEPLOY_HEALTH_RETRY_DELAY_SECONDS   pause between health retries (default: 2)
 EOF
 }
 
@@ -30,6 +32,32 @@ run_cmd() {
   fi
 
   "$@"
+}
+
+wait_for_check() {
+  local label="$1"
+  shift
+
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    printf '[dry-run] wait for %s: %s\n' "${label}" "$*"
+    return 0
+  fi
+
+  local deadline=$((SECONDS + HEALTH_TIMEOUT_SECONDS))
+
+  while true; do
+    if "$@"; then
+      return 0
+    fi
+
+    if (( SECONDS >= deadline )); then
+      echo "Timed out waiting for ${label} after ${HEALTH_TIMEOUT_SECONDS}s." >&2
+      return 1
+    fi
+
+    log "${label} not ready yet; retrying in ${HEALTH_RETRY_DELAY_SECONDS}s"
+    sleep "${HEALTH_RETRY_DELAY_SECONDS}"
+  done
 }
 
 MODE="${1:-}"
@@ -73,6 +101,8 @@ EXPECTED_BASENAME="defects-command-center-prod"
 SERVICE_NAME="${DEPLOY_SERVICE_NAME:-defects-dashboard}"
 MANAGER_URL="${DEPLOY_MANAGER_URL:-https://manager.daycommand.online}"
 DEVELOPER_URL="${DEPLOY_DEVELOPER_URL:-https://developer.daycommand.online}"
+HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-30}"
+HEALTH_RETRY_DELAY_SECONDS="${DEPLOY_HEALTH_RETRY_DELAY_SECONDS:-2}"
 
 if [[ "$(basename "${ROOT_DIR}")" == "defects-command-center" ]]; then
   ROOT_DIR="/home/ubuntu/apps/${EXPECTED_BASENAME}"
@@ -123,12 +153,12 @@ log "Checking ${SERVICE_NAME} status"
 run_cmd sudo systemctl status "${SERVICE_NAME}" --no-pager
 
 log "Verifying manager URL"
-run_cmd curl -fsS -I "${MANAGER_URL}"
+wait_for_check "manager URL" curl -fsS -I "${MANAGER_URL}"
 
 log "Verifying developer URL"
-run_cmd curl -fsS -I "${DEVELOPER_URL}/my-day"
+wait_for_check "developer URL" curl -fsS -I "${DEVELOPER_URL}/my-day"
 
 log "Verifying health endpoint"
-run_cmd curl -fsS "${MANAGER_URL}/api/health"
+wait_for_check "health endpoint" curl -fsS "${MANAGER_URL}/api/health"
 
 log "Production deploy completed"
