@@ -32,6 +32,7 @@ import { api } from '@/lib/api';
 import { DEVELOPER_LOGIN_URL } from '@/lib/constants';
 import { useDevelopers } from '@/hooks/useDevelopers';
 import { TagManagementSection } from '@/components/settings/TagManagementSection';
+import { SettingsMaintenanceSection } from '@/components/settings/SettingsMaintenanceSection';
 import type { AuthUser, UserRole } from '@/types';
 
 interface JiraField {
@@ -56,7 +57,7 @@ interface DiscoverUsersResponse {
 }
 
 type FieldPickerTarget = 'dueDate' | 'aspenSeverity';
-type SectionId = 'connection' | 'sync' | 'team' | 'tags' | 'access';
+type SectionId = 'connection' | 'sync' | 'team' | 'tags' | 'maintenance' | 'access';
 
 export function SettingsPage() {
   const DISCOVER_PAGE_SIZE = 50;
@@ -587,6 +588,7 @@ export function SettingsPage() {
     sync: { title: 'Sync Scope', description: 'Define the base defect query and map custom Jira fields.' },
     team: { title: 'Team Members', description: 'Manage tracked developers for workload, routing, and sync scope.' },
     tags: { title: 'Defect Tags', description: 'Review the shared tag library and safely remove labels.' },
+    maintenance: { title: 'Data Maintenance', description: 'Preview and run rare cleanup resets for Manager Desk and Team Tracker.' },
     access: { title: 'Developer Access', description: 'Create developer accounts and manage app user access.' },
   };
 
@@ -595,6 +597,7 @@ export function SettingsPage() {
     { id: 'sync', icon: <RefreshCw size={13} />, label: 'Sync Scope', status: jql ? 'Query set' : 'No query', sv: jql ? 'muted' : 'warning' },
     { id: 'team', icon: <Users size={13} />, label: 'Team Members', status: `${developers.length} tracked`, sv: 'muted' },
     { id: 'tags', icon: <Tag size={13} />, label: 'Defect Tags', status: null, sv: 'muted' },
+    { id: 'maintenance', icon: <AlertTriangle size={13} />, label: 'Data Maintenance', status: 'Danger zone', sv: 'warning' },
     { id: 'access', icon: <Shield size={13} />, label: 'Developer Access', status: !loadingUsers ? `${appUsers.length} user${appUsers.length !== 1 ? 's' : ''}` : null, sv: 'muted' },
   ];
 
@@ -1205,6 +1208,11 @@ export function SettingsPage() {
                 <TagManagementSection />
               ) : null}
 
+              {/* ── DATA MAINTENANCE ────── */}
+              {activeSection === 'maintenance' ? (
+                <SettingsMaintenanceSection active={activeSection === 'maintenance'} />
+              ) : null}
+
               {/* ── DEVELOPER ACCESS ────── */}
               {activeSection === 'access' ? (
                 <div className="max-w-[720px] space-y-7">
@@ -1508,11 +1516,11 @@ export function SettingsPage() {
         className="shrink-0 border-t px-5 py-2"
         style={{ borderColor: 'var(--border-strong)', background: 'color-mix(in srgb, var(--bg-secondary) 74%, var(--bg-primary) 26%)' }}
       >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            Save stores settings only. Save &amp; Sync also triggers an immediate Jira refresh.
-          </p>
-          <div className="flex items-center gap-2">
+        {activeSection === 'maintenance' ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              Maintenance actions run immediately after typed confirmation. The standard Save footer is intentionally hidden here.
+            </p>
             <button
               type="button"
               onClick={handleResetConfig}
@@ -1521,30 +1529,48 @@ export function SettingsPage() {
               style={{ background: 'var(--settings-danger-soft-bg)', color: 'var(--danger-muted)', border: 'var(--settings-danger-soft-border)' }}
             >
               <AlertTriangle size={12} />
-              Reset &amp; Reconfigure
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={hasChanges}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11.5px] font-medium transition-colors disabled:opacity-50"
-              style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-strong)' }}
-            >
-              <Save size={12} />
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveAndSync}
-              disabled={hasChanges || triggerSync.isPending}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11.5px] font-semibold transition-colors disabled:opacity-50"
-              style={{ background: 'var(--settings-cta-primary-bg)', color: 'var(--settings-cta-primary-text)' }}
-            >
-              <RefreshCw size={12} className={triggerSync.isPending ? 'animate-spin' : ''} />
-              Save &amp; Sync
+              Reset &amp; Reconfigure App
             </button>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              Save stores settings only. Save &amp; Sync also triggers an immediate Jira refresh.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResetConfig}
+                disabled={hasChanges}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11.5px] font-medium transition-colors disabled:opacity-50"
+                style={{ background: 'var(--settings-danger-soft-bg)', color: 'var(--danger-muted)', border: 'var(--settings-danger-soft-border)' }}
+              >
+                <AlertTriangle size={12} />
+                Reset &amp; Reconfigure
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={hasChanges}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11.5px] font-medium transition-colors disabled:opacity-50"
+                style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-strong)' }}
+              >
+                <Save size={12} />
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAndSync}
+                disabled={hasChanges || triggerSync.isPending}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11.5px] font-semibold transition-colors disabled:opacity-50"
+                style={{ background: 'var(--settings-cta-primary-bg)', color: 'var(--settings-cta-primary-text)' }}
+              >
+                <RefreshCw size={12} className={triggerSync.isPending ? 'animate-spin' : ''} />
+                Save &amp; Sync
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </motion.div>
   );

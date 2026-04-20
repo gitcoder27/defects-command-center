@@ -1,0 +1,43 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import type {
+  WorkspaceMaintenancePreviewResponse,
+  WorkspaceMaintenanceResetResponse,
+  WorkspaceMaintenanceResetTarget,
+} from '@/types';
+
+export function useWorkspaceMaintenancePreview(enabled = true) {
+  return useQuery<WorkspaceMaintenancePreviewResponse>({
+    queryKey: ['config', 'maintenance-reset-preview'],
+    queryFn: () =>
+      api.get<WorkspaceMaintenancePreviewResponse>('/config/maintenance/reset-preview'),
+    enabled,
+    staleTime: 15_000,
+  });
+}
+
+export function useWorkspaceMaintenanceReset() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      target: WorkspaceMaintenanceResetTarget;
+      confirmationText: string;
+    }) =>
+      api.post<WorkspaceMaintenanceResetResponse>(
+        '/config/maintenance/reset',
+        params,
+      ),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['config', 'maintenance-reset-preview'] }),
+        queryClient.invalidateQueries({ queryKey: ['manager-desk'] }),
+        queryClient.invalidateQueries({ queryKey: ['team-tracker'] }),
+        queryClient.invalidateQueries({ queryKey: ['my-day'] }),
+        queryClient.invalidateQueries({ queryKey: ['workload'] }),
+        queryClient.invalidateQueries({ queryKey: ['overview'] }),
+        queryClient.invalidateQueries({ queryKey: ['alerts'] }),
+      ]);
+    },
+  });
+}

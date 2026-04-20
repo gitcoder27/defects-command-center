@@ -21,6 +21,7 @@ const mockConfig = {
   jiraDevDueDateField: 'customfield_10128',
   jiraAspenSeverityField: 'customfield_10129',
   managerJiraAccountId: 'manager-1',
+  backupBeforeReset: true,
 };
 const mockTagUsageById: Record<number, TagUsageResponse> = {
   1: {
@@ -156,6 +157,27 @@ describe('SettingsPage', () => {
 
       if (path === '/config/fields') {
         return { fields: [] };
+      }
+
+      if (path === '/config/maintenance/reset-preview') {
+        return {
+          backupBeforeReset: true,
+          managerDesk: {
+            dayCount: 3,
+            itemCount: 128,
+            linkCount: 44,
+            historyCount: 260,
+            linkedTrackerItemCount: 18,
+          },
+          teamTracker: {
+            dayCount: 14,
+            itemCount: 72,
+            checkInCount: 21,
+            availabilityPeriodCount: 2,
+            savedViewCount: 1,
+            linkedManagerDeskItemCount: 18,
+          },
+        };
       }
 
       return {};
@@ -579,6 +601,88 @@ describe('SettingsPage', () => {
           onError: expect.any(Function),
         })
       );
+    });
+  });
+
+  it('renders the maintenance section with reset previews', async () => {
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /data maintenance/i }));
+
+    expect(await screen.findByText(/automatic pre-reset backup is enabled/i)).toBeInTheDocument();
+    expect(screen.getByText('128 tasks')).toBeInTheDocument();
+    expect(screen.getAllByText('72 tracker items').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Reset Both Workspaces')).toBeInTheDocument();
+  });
+
+  it('runs the full maintenance reset after typed confirmation', async () => {
+    mockPost.mockImplementation(async (path: string, body?: unknown) => {
+      if (path === '/team/discover') {
+        return {
+          users: [
+            {
+              accountId: 'manager-1',
+              displayName: 'Morgan Manager',
+              email: 'manager@example.com',
+            },
+            {
+              accountId: 'manager-2',
+              displayName: 'Casey Lead',
+              email: 'casey@example.com',
+            },
+          ],
+          startAt: 0,
+          maxResults: 50,
+          count: 2,
+          hasMore: false,
+        };
+      }
+
+      if (path === '/config/maintenance/reset') {
+        expect(body).toEqual({
+          target: 'workspace',
+          confirmationText: 'CLEAR EVERYTHING',
+        });
+        return {
+          success: true,
+          target: 'workspace',
+          backup: {
+            name: 'dashboard.backup-20260420-010101-pre-reset.db',
+            createdAt: '2026-04-20T01:01:01.000Z',
+            reason: 'pre-reset',
+          },
+        };
+      }
+
+      return {};
+    });
+
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /data maintenance/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /arm reset both workspaces/i }));
+    fireEvent.change(screen.getByLabelText(/confirmation text for reset both workspaces/i), {
+      target: { value: 'CLEAR EVERYTHING' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /run reset both workspaces/i }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith('/config/maintenance/reset', {
+        target: 'workspace',
+        confirmationText: 'CLEAR EVERYTHING',
+      });
+      expect(mockAddToast).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'success',
+        title: 'Maintenance reset complete',
+      }));
     });
   });
 });

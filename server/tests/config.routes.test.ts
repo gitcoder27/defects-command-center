@@ -17,7 +17,24 @@ vi.mock("../src/config", () => ({
 }));
 
 import { createConfigRouter } from "../src/routes/config";
-import { configTable, developers, issues, componentMap, syncLog, issueTags, localTags } from "../src/db/schema";
+import {
+  configTable,
+  developers,
+  issues,
+  componentMap,
+  syncLog,
+  issueTags,
+  localTags,
+  developerAvailabilityPeriods,
+  managerDeskDays,
+  managerDeskItemHistory,
+  managerDeskItems,
+  managerDeskLinks,
+  teamTrackerCheckIns,
+  teamTrackerDays,
+  teamTrackerItems,
+  teamTrackerSavedViews,
+} from "../src/db/schema";
 import { db, rawDb } from "../src/db/connection";
 import { clearJiraApiToken, getJiraApiToken, setJiraApiToken } from "../src/runtime-credentials";
 import { notFoundHandler, errorHandler } from "../src/middleware/errorHandler";
@@ -46,6 +63,18 @@ beforeEach(async () => {
 function createTestApp() {
   const app = express();
   const backupService = new BackupService(new SettingsService(), rawDb);
+  app.use((req, _res, next) => {
+    req.auth = {
+      sessionId: "test-session",
+      user: {
+        username: "manager",
+        accountId: "manager-1",
+        displayName: "Manager One",
+        role: "manager",
+      },
+    };
+    next();
+  });
   app.use("/api/config", createConfigRouter(undefined, backupService));
   app.use(notFoundHandler);
   app.use(errorHandler);
@@ -226,6 +255,391 @@ ORDER BY updated DESC`);
     expect(map["jira_aspen_severity_field"]).toBe("customfield_11111");
     expect(map["jira_base_url"]).toBe("https://tenant.atlassian.net");
     expect(map["jira_project_key"]).toBe("AM");
+  });
+
+  it("GET /api/config/maintenance/reset-preview reports scoped maintenance counts", async () => {
+    const managerDay = (
+      await db
+        .insert(managerDeskDays)
+        .values({
+          date: "2026-03-07",
+          managerAccountId: "manager-1",
+          createdAt: "2026-03-07T08:00:00.000Z",
+          updatedAt: "2026-03-07T08:00:00.000Z",
+        })
+        .returning()
+    )[0]!;
+    const otherManagerDay = (
+      await db
+        .insert(managerDeskDays)
+        .values({
+          date: "2026-03-07",
+          managerAccountId: "manager-2",
+          createdAt: "2026-03-07T08:00:00.000Z",
+          updatedAt: "2026-03-07T08:00:00.000Z",
+        })
+        .returning()
+    )[0]!;
+    const managerItem = (
+      await db
+        .insert(managerDeskItems)
+        .values({
+          dayId: managerDay.id,
+          sourceItemId: null,
+          assigneeDeveloperAccountId: "dev-1",
+          title: "Manager follow-up",
+          kind: "action",
+          category: "follow_up",
+          status: "planned",
+          priority: "medium",
+          participants: null,
+          contextNote: null,
+          nextAction: null,
+          outcome: null,
+          plannedStartAt: null,
+          plannedEndAt: null,
+          followUpAt: null,
+          completedAt: null,
+          createdAt: "2026-03-07T08:00:00.000Z",
+          updatedAt: "2026-03-07T08:00:00.000Z",
+        })
+        .returning()
+    )[0]!;
+    await db.insert(managerDeskItems).values({
+      dayId: otherManagerDay.id,
+      sourceItemId: null,
+      assigneeDeveloperAccountId: null,
+      title: "Other manager item",
+      kind: "action",
+      category: "follow_up",
+      status: "planned",
+      priority: "medium",
+      participants: null,
+      contextNote: null,
+      nextAction: null,
+      outcome: null,
+      plannedStartAt: null,
+      plannedEndAt: null,
+      followUpAt: null,
+      completedAt: null,
+      createdAt: "2026-03-07T08:00:00.000Z",
+      updatedAt: "2026-03-07T08:00:00.000Z",
+    });
+    await db.insert(managerDeskLinks).values({
+      itemId: managerItem.id,
+      linkType: "developer",
+      developerAccountId: "dev-1",
+      issueKey: null,
+      externalLabel: null,
+      createdAt: "2026-03-07T08:00:00.000Z",
+    });
+    await db.insert(managerDeskItemHistory).values({
+      itemId: managerItem.id,
+      managerAccountId: "manager-1",
+      eventType: "updated",
+      snapshotJson: "{}",
+      recordedAt: "2026-03-07T08:30:00.000Z",
+    });
+
+    const trackerDay = (
+      await db
+        .insert(teamTrackerDays)
+        .values({
+          date: "2026-03-07",
+          developerAccountId: "dev-1",
+          status: "on_track",
+          capacityUnits: null,
+          managerNotes: null,
+          lastCheckInAt: null,
+          nextFollowUpAt: null,
+          statusUpdatedAt: "2026-03-07T08:00:00.000Z",
+          createdAt: "2026-03-07T08:00:00.000Z",
+          updatedAt: "2026-03-07T08:00:00.000Z",
+        })
+        .returning()
+    )[0]!;
+    await db.insert(teamTrackerItems).values({
+      dayId: trackerDay.id,
+      managerDeskItemId: managerItem.id,
+      itemType: "custom",
+      jiraKey: null,
+      title: "Linked execution",
+      state: "planned",
+      position: 0,
+      note: null,
+      completedAt: null,
+      createdAt: "2026-03-07T08:00:00.000Z",
+      updatedAt: "2026-03-07T08:00:00.000Z",
+    });
+    await db.insert(teamTrackerCheckIns).values({
+      dayId: trackerDay.id,
+      summary: "Daily stand-up update",
+      status: null,
+      rationale: null,
+      nextFollowUpAt: null,
+      authorType: "manager",
+      authorAccountId: "manager-1",
+      createdAt: "2026-03-07T09:00:00.000Z",
+    });
+    await db.insert(developerAvailabilityPeriods).values({
+      developerAccountId: "dev-1",
+      startDate: "2026-03-07",
+      endDate: null,
+      note: "PTO",
+      createdAt: "2026-03-07T07:00:00.000Z",
+      updatedAt: "2026-03-07T07:00:00.000Z",
+    });
+    await db.insert(teamTrackerSavedViews).values([
+      {
+        managerAccountId: "manager-1",
+        name: "Morning view",
+        searchQuery: "alice",
+        summaryFilter: "all",
+        sortBy: "name",
+        groupBy: "none",
+        createdAt: "2026-03-07T08:00:00.000Z",
+        updatedAt: "2026-03-07T08:00:00.000Z",
+      },
+      {
+        managerAccountId: "manager-2",
+        name: "Other manager view",
+        searchQuery: "bob",
+        summaryFilter: "all",
+        sortBy: "name",
+        groupBy: "none",
+        createdAt: "2026-03-07T08:00:00.000Z",
+        updatedAt: "2026-03-07T08:00:00.000Z",
+      },
+    ]);
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/config/maintenance/reset-preview",
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      backupBeforeReset: true,
+      managerDesk: {
+        dayCount: 1,
+        itemCount: 1,
+        linkCount: 1,
+        historyCount: 1,
+        linkedTrackerItemCount: 1,
+      },
+      teamTracker: {
+        dayCount: 1,
+        itemCount: 1,
+        checkInCount: 1,
+        availabilityPeriodCount: 1,
+        savedViewCount: 1,
+        linkedManagerDeskItemCount: 1,
+      },
+    });
+  });
+
+  it("POST /api/config/maintenance/reset clears both workspaces after typed confirmation", async () => {
+    const managerDay = (
+      await db
+        .insert(managerDeskDays)
+        .values({
+          date: "2026-03-07",
+          managerAccountId: "manager-1",
+          createdAt: "2026-03-07T08:00:00.000Z",
+          updatedAt: "2026-03-07T08:00:00.000Z",
+        })
+        .returning()
+    )[0]!;
+    const managerItem = (
+      await db
+        .insert(managerDeskItems)
+        .values({
+          dayId: managerDay.id,
+          sourceItemId: null,
+          assigneeDeveloperAccountId: "dev-1",
+          title: "Manager follow-up",
+          kind: "action",
+          category: "follow_up",
+          status: "planned",
+          priority: "medium",
+          participants: null,
+          contextNote: null,
+          nextAction: null,
+          outcome: null,
+          plannedStartAt: null,
+          plannedEndAt: null,
+          followUpAt: null,
+          completedAt: null,
+          createdAt: "2026-03-07T08:00:00.000Z",
+          updatedAt: "2026-03-07T08:00:00.000Z",
+        })
+        .returning()
+    )[0]!;
+    const otherManagerDay = (
+      await db
+        .insert(managerDeskDays)
+        .values({
+          date: "2026-03-08",
+          managerAccountId: "manager-2",
+          createdAt: "2026-03-08T08:00:00.000Z",
+          updatedAt: "2026-03-08T08:00:00.000Z",
+        })
+        .returning()
+    )[0]!;
+    await db.insert(managerDeskItems).values({
+      dayId: otherManagerDay.id,
+      sourceItemId: null,
+      assigneeDeveloperAccountId: null,
+      title: "Other manager item",
+      kind: "action",
+      category: "follow_up",
+      status: "planned",
+      priority: "medium",
+      participants: null,
+      contextNote: null,
+      nextAction: null,
+      outcome: null,
+      plannedStartAt: null,
+      plannedEndAt: null,
+      followUpAt: null,
+      completedAt: null,
+      createdAt: "2026-03-08T08:00:00.000Z",
+      updatedAt: "2026-03-08T08:00:00.000Z",
+    });
+    await db.insert(managerDeskLinks).values({
+      itemId: managerItem.id,
+      linkType: "developer",
+      developerAccountId: "dev-1",
+      issueKey: null,
+      externalLabel: null,
+      createdAt: "2026-03-07T08:00:00.000Z",
+    });
+    await db.insert(managerDeskItemHistory).values({
+      itemId: managerItem.id,
+      managerAccountId: "manager-1",
+      eventType: "updated",
+      snapshotJson: "{}",
+      recordedAt: "2026-03-07T08:30:00.000Z",
+    });
+
+    const trackerDay = (
+      await db
+        .insert(teamTrackerDays)
+        .values({
+          date: "2026-03-07",
+          developerAccountId: "dev-1",
+          status: "on_track",
+          capacityUnits: null,
+          managerNotes: null,
+          lastCheckInAt: null,
+          nextFollowUpAt: null,
+          statusUpdatedAt: "2026-03-07T08:00:00.000Z",
+          createdAt: "2026-03-07T08:00:00.000Z",
+          updatedAt: "2026-03-07T08:00:00.000Z",
+        })
+        .returning()
+    )[0]!;
+    await db.insert(teamTrackerItems).values([
+      {
+        dayId: trackerDay.id,
+        managerDeskItemId: managerItem.id,
+        itemType: "custom",
+        jiraKey: null,
+        title: "Linked execution",
+        state: "planned",
+        position: 0,
+        note: null,
+        completedAt: null,
+        createdAt: "2026-03-07T08:00:00.000Z",
+        updatedAt: "2026-03-07T08:00:00.000Z",
+      },
+      {
+        dayId: trackerDay.id,
+        managerDeskItemId: null,
+        itemType: "custom",
+        jiraKey: null,
+        title: "Tracker-only task",
+        state: "planned",
+        position: 1,
+        note: null,
+        completedAt: null,
+        createdAt: "2026-03-07T08:00:00.000Z",
+        updatedAt: "2026-03-07T08:00:00.000Z",
+      },
+    ]);
+    await db.insert(teamTrackerCheckIns).values({
+      dayId: trackerDay.id,
+      summary: "Daily stand-up update",
+      status: null,
+      rationale: null,
+      nextFollowUpAt: null,
+      authorType: "manager",
+      authorAccountId: "manager-1",
+      createdAt: "2026-03-07T09:00:00.000Z",
+    });
+    await db.insert(developerAvailabilityPeriods).values({
+      developerAccountId: "dev-1",
+      startDate: "2026-03-07",
+      endDate: null,
+      note: "PTO",
+      createdAt: "2026-03-07T07:00:00.000Z",
+      updatedAt: "2026-03-07T07:00:00.000Z",
+    });
+    await db.insert(teamTrackerSavedViews).values([
+      {
+        managerAccountId: "manager-1",
+        name: "Morning view",
+        searchQuery: "alice",
+        summaryFilter: "all",
+        sortBy: "name",
+        groupBy: "none",
+        createdAt: "2026-03-07T08:00:00.000Z",
+        updatedAt: "2026-03-07T08:00:00.000Z",
+      },
+      {
+        managerAccountId: "manager-2",
+        name: "Other manager view",
+        searchQuery: "bob",
+        summaryFilter: "all",
+        sortBy: "name",
+        groupBy: "none",
+        createdAt: "2026-03-07T08:00:00.000Z",
+        updatedAt: "2026-03-07T08:00:00.000Z",
+      },
+    ]);
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/config/maintenance/reset",
+      body: {
+        target: "workspace",
+        confirmationText: "CLEAR EVERYTHING",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.success).toBe(true);
+    expect(res.body?.target).toBe("workspace");
+    expect(res.body?.backup?.name).toContain("pre-reset");
+
+    expect(await db.select().from(teamTrackerDays)).toHaveLength(0);
+    expect(await db.select().from(teamTrackerItems)).toHaveLength(0);
+    expect(await db.select().from(teamTrackerCheckIns)).toHaveLength(0);
+    expect(await db.select().from(developerAvailabilityPeriods)).toHaveLength(0);
+    expect(
+      (await db.select().from(teamTrackerSavedViews)).map((row) => row.managerAccountId)
+    ).toEqual(["manager-2"]);
+
+    expect(await db.select().from(managerDeskDays)).toEqual([
+      expect.objectContaining({ managerAccountId: "manager-2" }),
+    ]);
+    expect(
+      (await db.select().from(managerDeskItems)).map((row) => row.title)
+    ).toEqual(["Other manager item"]);
+    expect(await db.select().from(managerDeskLinks)).toHaveLength(0);
+    expect(await db.select().from(managerDeskItemHistory)).toHaveLength(0);
   });
 
   it("PUT /api/config/settings stores and clears an optional manager Jira mapping", async () => {

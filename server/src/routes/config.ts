@@ -10,8 +10,10 @@ import { config } from "../config";
 import { clearJiraApiToken, getJiraApiToken, setJiraApiToken } from "../runtime-credentials";
 import { BackupService } from "../services/backup.service";
 import { SettingsService } from "../services/settings.service";
+import { WorkspaceMaintenanceService } from "../services/workspace-maintenance.service";
 import { SyncEngine } from "../sync/engine";
 import { logger } from "../utils/logger";
+import { HttpError } from "../middleware/errorHandler";
 
 const configSchema = z.object({
   body: z.object({
@@ -84,7 +86,26 @@ function normalizeManagerJiraAccountId(value: string | undefined): string | unde
 
 export function createConfigRouter(syncEngine?: SyncEngine, backupService?: BackupService): Router {
   const settings = new SettingsService();
+  const maintenance = new WorkspaceMaintenanceService(settings, backupService);
   const router = Router();
+
+  const maintenanceResetSchema = z.object({
+    body: z.object({
+      target: z.enum(["manager_desk", "team_tracker", "workspace"]),
+      confirmationText: z.string().trim().min(1),
+    }),
+    params: z.any().optional(),
+    query: z.any().optional(),
+  });
+
+  const expectedConfirmationText: Record<
+    "manager_desk" | "team_tracker" | "workspace",
+    string
+  > = {
+    manager_desk: "CLEAR MANAGER DESK",
+    team_tracker: "CLEAR TEAM TRACKER",
+    workspace: "CLEAR EVERYTHING",
+  };
 
   router.get("/", async (_req, res, next) => {
     try {
@@ -276,6 +297,44 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
       next(error);
     }
   });
+
+  router.get("/maintenance/reset-preview", async (req, res, next) => {
+    try {
+      const preview = await maintenance.getResetPreview(req.auth!.user.accountId);
+      res.json(preview);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post(
+    "/maintenance/reset",
+    validate(maintenanceResetSchema),
+    async (req, res, next) => {
+      try {
+        const target = req.body.target as keyof typeof expectedConfirmationText;
+        const expectedText = expectedConfirmationText[target];
+        if (req.body.confirmationText.trim().toUpperCase() !== expectedText) {
+          throw new HttpError(400, `Type "${expectedText}" to confirm this reset`);
+        }
+
+        const result = await maintenance.reset(
+          req.auth!.user.accountId,
+          target
+        );
+        logger.info(
+          {
+            managerAccountId: req.auth!.user.accountId,
+            target,
+          },
+          "Workspace maintenance reset completed"
+        );
+        res.json(result);
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
 
   router.post("/reset", async (_req, res, next) => {
     try {

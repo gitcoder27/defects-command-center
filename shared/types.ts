@@ -204,6 +204,46 @@ export interface DashboardConfig {
   isConfigured: boolean;
 }
 
+export type WorkspaceMaintenanceResetTarget =
+  | "manager_desk"
+  | "team_tracker"
+  | "workspace";
+
+export interface ManagerDeskMaintenancePreview {
+  dayCount: number;
+  itemCount: number;
+  linkCount: number;
+  historyCount: number;
+  linkedTrackerItemCount: number;
+}
+
+export interface TeamTrackerMaintenancePreview {
+  dayCount: number;
+  itemCount: number;
+  checkInCount: number;
+  availabilityPeriodCount: number;
+  savedViewCount: number;
+  linkedManagerDeskItemCount: number;
+}
+
+export interface WorkspaceMaintenancePreviewResponse {
+  backupBeforeReset: boolean;
+  managerDesk: ManagerDeskMaintenancePreview;
+  teamTracker: TeamTrackerMaintenancePreview;
+}
+
+export interface WorkspaceMaintenanceBackupSummary {
+  name: string;
+  createdAt: string;
+  reason: string;
+}
+
+export interface WorkspaceMaintenanceResetResponse {
+  success: true;
+  target: WorkspaceMaintenanceResetTarget;
+  backup?: WorkspaceMaintenanceBackupSummary;
+}
+
 export interface IssueUpdate {
   assigneeId?: string;
   priorityName?: string;
