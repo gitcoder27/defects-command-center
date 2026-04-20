@@ -13,3 +13,4 @@ client/dist/
 server/dist/
 client/.build-check/
 server/.build-check/
+*.tsbuildinfo
