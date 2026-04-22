@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -64,14 +65,31 @@ vi.mock('@/components/table/DefectTable', () => ({
     onSelectIssue?: (key: string) => void;
     onClearFilters?: () => void;
   }) => {
+    const [inlineEditorOpen, setInlineEditorOpen] = React.useState(false);
+
     defectTableSpy(props);
     return (
       <div>
         <div>Defect Table</div>
         <div data-testid="selected-key">{props.selectedKey ?? 'none'}</div>
         <div data-testid="highlighted-key">{props.highlightedKey ?? 'none'}</div>
+        <div data-testid="inline-editor-state">{inlineEditorOpen ? 'open' : 'closed'}</div>
         <button onClick={() => props.onSelectIssue?.('PROJ-101')}>Open PROJ-101</button>
         <button onClick={() => props.onSelectIssue?.('PROJ-102')}>Open PROJ-102</button>
+        <span
+          role="button"
+          tabIndex={0}
+          data-inline-edit-trigger="assignee"
+          onClick={() => setInlineEditorOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              setInlineEditorOpen(true);
+            }
+          }}
+        >
+          Open Assignee Inline Edit
+        </span>
         <button onClick={props.onClearFilters}>Clear Table Filters</button>
       </div>
     );
@@ -215,6 +233,28 @@ describe('DashboardLayout', () => {
 
     expect(screen.getByTestId('selected-key')).toHaveTextContent('PROJ-102');
     expect(screen.getByTestId('highlighted-key')).toHaveTextContent('PROJ-102');
+  });
+
+  it('does not clear the retained highlight when the next click opens an inline table control', () => {
+    vi.useFakeTimers();
+
+    render(<DashboardLayout />);
+
+    fireEvent.click(screen.getByText('Open PROJ-101'));
+    fireEvent.click(screen.getByText('Close Triage'));
+
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    fireEvent.click(screen.getByText('Open Assignee Inline Edit'));
+
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    expect(screen.getByTestId('inline-editor-state')).toHaveTextContent('open');
+    expect(screen.getByTestId('highlighted-key')).toHaveTextContent('PROJ-101');
   });
 
   it('clears active dashboard filters from the defect table toolbar action', () => {

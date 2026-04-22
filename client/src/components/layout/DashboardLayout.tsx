@@ -25,6 +25,20 @@ export const DEFAULT_DASHBOARD_FILTER_STATE: DashboardFilterState = {
   noTagsFilter: false,
 };
 
+const RETAINED_HIGHLIGHT_INTERACTIVE_SELECTOR = [
+  'button',
+  'a',
+  'input',
+  'select',
+  'textarea',
+  '[role="button"]',
+  '[role="link"]',
+  '[data-inline-edit-trigger]',
+  '[data-tag-editor-root]',
+  '[data-tag-editor-popover]',
+  '[contenteditable="true"]',
+].join(', ');
+
 interface DashboardLayoutProps {
   activeView?: AppView;
   onViewChange?: (view: AppView) => void;
@@ -236,7 +250,12 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
       return;
     }
 
-    const handleClick = () => {
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(RETAINED_HIGHLIGHT_INTERACTIVE_SELECTOR)) {
+        return;
+      }
+
       scheduleHighlightedIssueClear();
     };
 

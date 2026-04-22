@@ -419,7 +419,7 @@ export function DefectTable({
             );
           }
           return (
-            <span onClick={(e) => handleCellClick(issue.jiraKey, 'assignee', e)}>
+            <span data-inline-edit-trigger="assignee" onClick={(e) => handleCellClick(issue.jiraKey, 'assignee', e)}>
               <AssigneeCell name={info.getValue() ?? undefined} />
             </span>
           );
@@ -441,7 +441,7 @@ export function DefectTable({
             );
           }
           return (
-            <span onClick={(e) => handleCellClick(issue.jiraKey, 'dueDate', e)}>
+            <span data-inline-edit-trigger="dueDate" onClick={(e) => handleCellClick(issue.jiraKey, 'dueDate', e)}>
               <DueDateCell date={effectiveDueDate ?? undefined} />
             </span>
           );
