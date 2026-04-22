@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, Plus, Tag, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { useIssueTagActions } from '@/hooks/useIssueTagActions';
 import { findTagByName, normalizeTagName } from '@/lib/tag-utils';
 import type { LocalTag } from '@/types';
+import { resolveTagPopoverPosition } from '@/components/table/tagPopoverPosition';
 
 interface InlineEditTagsProps {
   issueKey: string;
   localTags: LocalTag[];
 }
+
+const TAG_POPOVER_WIDTH = 280;
 
 export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
   const { allTags, assignedTagIds, isPending, toggleTag, createOrAssignTag } = useIssueTagActions({
@@ -41,22 +44,28 @@ export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
       return null;
     }
 
-    const rect = triggerRef.current.getBoundingClientRect();
-    const popoverWidth = 280;
-    const viewportPadding = 8;
-    const maxLeft = Math.max(viewportPadding, window.innerWidth - popoverWidth - viewportPadding);
-    const nextLeft = Math.min(Math.max(rect.left, viewportPadding), maxLeft);
-
-    return {
-      top: rect.bottom + viewportPadding,
-      left: nextLeft,
-    };
+    return resolveTagPopoverPosition({
+      triggerRect: triggerRef.current.getBoundingClientRect(),
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      popoverWidth: TAG_POPOVER_WIDTH,
+      popoverHeight: popoverRef.current?.offsetHeight,
+    });
   }, []);
 
   const updatePopoverPosition = useCallback(() => {
     const nextPosition = computePopoverPosition();
     if (nextPosition) {
-      setPopoverPosition(nextPosition);
+      setPopoverPosition((currentPosition) => {
+        if (
+          currentPosition &&
+          currentPosition.top === nextPosition.top &&
+          currentPosition.left === nextPosition.left
+        ) {
+          return currentPosition;
+        }
+        return nextPosition;
+      });
     }
   }, [computePopoverPosition]);
 
@@ -80,14 +89,20 @@ export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
     setOpenState(true);
   }, [computePopoverPosition, isOpen, setOpenState]);
 
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    updatePopoverPosition();
+  }, [isOpen, updatePopoverPosition]);
+
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
     inputRef.current?.focus();
-
-    updatePopoverPosition();
 
     const onOutsideClick = (event: MouseEvent) => {
       const target = event.target as Node;
