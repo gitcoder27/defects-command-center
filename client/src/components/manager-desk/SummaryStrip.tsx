@@ -1,11 +1,7 @@
 import { motion } from 'framer-motion';
 import {
-  Inbox,
-  Target,
   Loader,
-  Clock,
   AlertTriangle,
-  CalendarCheck,
   CheckCircle2,
   BarChart3,
 } from 'lucide-react';
@@ -16,18 +12,14 @@ interface Props {
 }
 
 const signals: Array<{
-  key: keyof ManagerDeskSummary;
+  key: 'totalOpen' | 'inProgress' | 'needsAttention' | 'completed';
   label: string;
-  icon: typeof Inbox;
+  icon: typeof BarChart3;
   colorVar: string;
 }> = [
   { key: 'totalOpen', label: 'Open', icon: BarChart3, colorVar: 'var(--text-primary)' },
-  { key: 'inbox', label: 'Inbox', icon: Inbox, colorVar: 'var(--text-muted)' },
-  { key: 'planned', label: 'Planned', icon: Target, colorVar: 'var(--md-accent)' },
   { key: 'inProgress', label: 'Active', icon: Loader, colorVar: 'var(--accent)' },
-  { key: 'waiting', label: 'Waiting', icon: Clock, colorVar: 'var(--warning)' },
-  { key: 'overdueFollowUps', label: 'Overdue', icon: AlertTriangle, colorVar: 'var(--danger)' },
-  { key: 'meetings', label: 'Meetings', icon: CalendarCheck, colorVar: 'var(--info)' },
+  { key: 'needsAttention', label: 'Needs Attention', icon: AlertTriangle, colorVar: 'var(--warning)' },
   { key: 'completed', label: 'Done', icon: CheckCircle2, colorVar: 'var(--success)' },
 ];
 
@@ -36,12 +28,12 @@ export function SummaryStrip({ summary }: Props) {
     <div
       className="md-glass-panel rounded-xl px-2 py-1.5 grid gap-0.5"
       style={{
-        gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(128px, 1fr))',
       }}
     >
       {signals.map(({ key, label, icon: Icon, colorVar }, idx) => {
-        const value = summary?.[key] ?? 0;
-        const isHighlight = key === 'overdueFollowUps' && value > 0;
+        const value = getSummaryValue(summary, key);
+        const isHighlight = key === 'needsAttention' && value > 0;
         return (
           <motion.div
             key={key}
@@ -79,4 +71,12 @@ export function SummaryStrip({ summary }: Props) {
       })}
     </div>
   );
+}
+
+function getSummaryValue(summary: ManagerDeskSummary | null, key: 'totalOpen' | 'inProgress' | 'needsAttention' | 'completed') {
+  if (!summary) return 0;
+  if (key === 'needsAttention') {
+    return summary.overdueFollowUps + summary.inProgress + summary.waiting + summary.inbox;
+  }
+  return summary[key];
 }

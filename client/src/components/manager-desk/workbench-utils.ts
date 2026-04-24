@@ -14,29 +14,21 @@ export type ManagerDeskFilterState = {
 
 export type ManagerDeskQuickFilter =
   | 'all'
-  | 'overdue'
+  | 'attention'
   | 'waiting'
   | 'inbox'
   | 'meetings'
-  | 'highPriority'
-  | 'unassigned';
-
-export type ManagerDeskSections = {
-  focus: ManagerDeskItem[];
-  waiting: ManagerDeskItem[];
-  meetings: ManagerDeskItem[];
-  inbox: ManagerDeskItem[];
-  completed: ManagerDeskItem[];
-};
+  | 'done';
 
 const priorityWeight = { critical: 0, high: 1, medium: 2, low: 3 };
 const statusWeight = { in_progress: 0, planned: 1, waiting: 2, inbox: 3, done: 4, cancelled: 5 };
+const nonAttentionRank = 99;
 
-function isCompleted(item: ManagerDeskItem) {
+export function isCompleted(item: ManagerDeskItem) {
   return item.status === 'done' || item.status === 'cancelled';
 }
 
-function isOverdue(item: ManagerDeskItem) {
+export function isOverdue(item: ManagerDeskItem) {
   if (!item.followUpAt || isCompleted(item)) return false;
 
   try {
@@ -44,6 +36,20 @@ function isOverdue(item: ManagerDeskItem) {
   } catch {
     return false;
   }
+}
+
+export function isAttentionItem(item: ManagerDeskItem) {
+  return getAttentionRank(item) < nonAttentionRank;
+}
+
+function getAttentionRank(item: ManagerDeskItem) {
+  if (isCompleted(item)) return nonAttentionRank;
+  if (isOverdue(item)) return 0;
+  if (item.status === 'in_progress') return 1;
+  if (item.status === 'waiting') return 2;
+  if (item.status === 'inbox') return 3;
+  if (item.priority === 'critical' || item.priority === 'high') return 4;
+  return nonAttentionRank;
 }
 
 function getSearchText(item: ManagerDeskItem) {
@@ -80,35 +86,36 @@ export function filterItems(
     }
 
     switch (quickFilter) {
-      case 'overdue':
-        return isOverdue(item);
+      case 'attention':
+        return isAttentionItem(item);
       case 'waiting':
-        return item.status === 'waiting' || item.kind === 'waiting';
+        return !isCompleted(item) && (item.status === 'waiting' || item.kind === 'waiting');
       case 'inbox':
         return item.status === 'inbox';
       case 'meetings':
-        return item.kind === 'meeting';
-      case 'highPriority':
-        return item.priority === 'critical' || item.priority === 'high';
-      case 'unassigned':
-        return !item.assigneeDeveloperAccountId;
+        return !isCompleted(item) && item.kind === 'meeting';
+      case 'done':
+        return isCompleted(item);
       default:
-        return true;
+        return !isCompleted(item);
     }
   });
 }
 
 export function sortForWorkbench(items: ManagerDeskItem[]) {
   return [...items].sort((left, right) => {
-    const overdueDiff = Number(isOverdue(right)) - Number(isOverdue(left));
-    if (overdueDiff !== 0) return overdueDiff;
+    const attentionDiff = getAttentionRank(left) - getAttentionRank(right);
+    if (attentionDiff !== 0) return attentionDiff;
 
-    const priorityDiff = priorityWeight[left.priority] - priorityWeight[right.priority];
-    if (priorityDiff !== 0) return priorityDiff;
+    const statusDiff = statusWeight[left.status] - statusWeight[right.status];
+    if (statusDiff !== 0) return statusDiff;
 
     if (left.kind === 'meeting' || right.kind === 'meeting') {
       return (left.plannedStartAt ?? '').localeCompare(right.plannedStartAt ?? '');
     }
+
+    const priorityDiff = priorityWeight[left.priority] - priorityWeight[right.priority];
+    if (priorityDiff !== 0) return priorityDiff;
 
     if (left.status === 'inbox' || right.status === 'inbox') {
       return right.createdAt.localeCompare(left.createdAt);
@@ -118,41 +125,20 @@ export function sortForWorkbench(items: ManagerDeskItem[]) {
       return (left.plannedStartAt ?? '').localeCompare(right.plannedStartAt ?? '');
     }
 
-    const statusDiff = statusWeight[left.status] - statusWeight[right.status];
-    if (statusDiff !== 0) return statusDiff;
-
     return left.updatedAt.localeCompare(right.updatedAt);
   });
 }
 
-export function buildSections(items: ManagerDeskItem[]): ManagerDeskSections {
-  const sections: ManagerDeskSections = {
-    focus: [],
-    waiting: [],
-    meetings: [],
-    inbox: [],
-    completed: [],
-  };
-
-  for (const item of sortForWorkbench(items)) {
-    if (isCompleted(item)) {
-      sections.completed.push(item);
-    } else if (item.status === 'inbox') {
-      sections.inbox.push(item);
-    } else if (item.kind === 'meeting') {
-      sections.meetings.push(item);
-    } else if (item.status === 'waiting' || item.kind === 'waiting') {
-      sections.waiting.push(item);
-    } else {
-      sections.focus.push(item);
-    }
-  }
-
-  return sections;
-}
-
 export function getOpenItems(items: ManagerDeskItem[]) {
   return sortForWorkbench(items.filter((item) => !isCompleted(item)));
+}
+
+export function getCompletedItems(items: ManagerDeskItem[]) {
+  return sortForWorkbench(items.filter(isCompleted));
+}
+
+export function getContinuedOpenItems(items: ManagerDeskItem[], date: string) {
+  return getOpenItems(items).filter((item) => item.originDate < date);
 }
 
 export function getInitialSelection(items: ManagerDeskItem[]) {

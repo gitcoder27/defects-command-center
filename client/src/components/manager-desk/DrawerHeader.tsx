@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, type CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Trash2, CheckCircle2, XCircle, ArrowRightFromLine, RotateCcw, Users,
+  X, Trash2, CheckCircle2, XCircle, ArrowRight, Pause, RotateCcw, Users,
   MoreVertical, FolderMinus, Ban, AlertTriangle, ChevronRight,
 } from 'lucide-react';
 import type { ManagerDeskItem } from '@/types/manager-desk';
@@ -191,12 +191,32 @@ export function DrawerHeader({
         <div className="mt-3 flex flex-wrap gap-1.5">
         {!isDone ? (
           <>
+            {item.status !== 'in_progress' && (
+              <button
+                onClick={() => onUpdate(item.id, { status: item.status === 'inbox' ? 'planned' : 'in_progress' })}
+                className={actionClass}
+                style={{ background: 'rgba(217,169,78,0.14)', color: 'var(--md-accent)', border: '1px solid rgba(217,169,78,0.28)' }}
+              >
+                <ArrowRight size={11} /> {item.status === 'inbox' ? 'Plan' : 'Start'}
+              </button>
+            )}
+            {item.status !== 'waiting' && (
+              <button
+                onClick={() => onUpdate(item.id, { status: 'waiting' })}
+                className={actionClass}
+                style={{ background: 'rgba(245,158,11,0.10)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.22)' }}
+              >
+                <Pause size={11} /> Waiting
+              </button>
+            )}
             <button onClick={() => onUpdate(item.id, { status: 'done' })} className={actionClass} style={{ background: 'rgba(16,185,129,0.12)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.24)' }}>
               <CheckCircle2 size={11} /> Done
             </button>
-            <button onClick={onCarryForward} disabled={!onCarryForward || isCarryForwardPending} className={`${actionClass} disabled:opacity-40`} style={{ background: 'rgba(217,169,78,0.14)', color: 'var(--md-accent)', border: '1px solid rgba(217,169,78,0.28)' }} aria-label={`Carry forward ${item.title}`}>
-              <ArrowRightFromLine size={11} /> {isCarryForwardPending ? 'Carrying…' : 'Carry Forward'}
-            </button>
+            {onCarryForward && (
+              <button onClick={onCarryForward} disabled={isCarryForwardPending} className={`${actionClass} disabled:opacity-40`} style={{ background: 'rgba(217,169,78,0.14)', color: 'var(--md-accent)', border: '1px solid rgba(217,169,78,0.28)' }} aria-label={`Carry forward ${item.title}`}>
+                <ArrowRight size={11} /> {isCarryForwardPending ? 'Carrying...' : 'Carry Forward'}
+              </button>
+            )}
             {hasLinkedWork ? (
               <button
                 onClick={() => setActionMenu('confirm-cancel')}
@@ -207,7 +227,7 @@ export function DrawerHeader({
               </button>
             ) : (
               <button onClick={() => onUpdate(item.id, { status: 'cancelled' })} className={actionClass} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
-                <XCircle size={11} /> Cancel
+                <XCircle size={11} /> Drop
               </button>
             )}
           </>

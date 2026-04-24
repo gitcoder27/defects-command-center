@@ -11,22 +11,20 @@ import {
   useUpdateManagerDeskItem,
 } from '@/hooks/useManagerDesk';
 import type { ManagerDeskItem, ManagerDeskViewMode } from '@/types/manager-desk';
-import { CompletedTray } from './CompletedTray';
-import { DeskItemCard } from './DeskItemCard';
 import { EmptyDay } from './EmptyDay';
-import { InboxTriageRow } from './InboxTriageRow';
 import { ItemDetailDrawer } from './ItemDetailDrawer';
 import { ManagerDeskCommandBar } from './ManagerDeskCommandBar';
 import { ManagerDeskHeader } from './ManagerDeskHeader';
 import { SummaryStrip } from './SummaryStrip';
-import { TaskRail } from './TaskRail';
-import { WorkbenchSection } from './WorkbenchSection';
+import { UnifiedDeskList } from './UnifiedDeskList';
 import { MANAGER_DESK_CARD_LAYOUT_TRANSITION } from './motion';
 import {
-  buildSections,
   filterItems,
+  getCompletedItems,
+  getContinuedOpenItems,
   getOpenItems,
   isInboxItem,
+  sortForWorkbench,
   type ManagerDeskFilterState,
   type ManagerDeskQuickFilter,
 } from './workbench-utils';
@@ -34,6 +32,8 @@ import {
 const defaultFilters: ManagerDeskFilterState = { kind: null, category: null, status: null };
 
 type HistorySubview = 'snapshot' | 'created';
+const getDefaultQuickFilter = (viewMode: ManagerDeskViewMode): ManagerDeskQuickFilter =>
+  viewMode === 'live' ? 'attention' : 'all';
 
 export function ManagerDeskPage() {
   const { addToast } = useToast();
@@ -43,7 +43,7 @@ export function ManagerDeskPage() {
   const [filters, setFilters] = useState<ManagerDeskFilterState>(defaultFilters);
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [quickFilter, setQuickFilter] = useState<ManagerDeskQuickFilter>('all');
+  const [quickFilter, setQuickFilter] = useState<ManagerDeskQuickFilter>('attention');
   const [historySubview, setHistorySubview] = useState<HistorySubview>('snapshot');
 
   const { data: day, isLoading, isFetching, error, refetch } = useManagerDesk(date);
@@ -57,6 +57,9 @@ export function ManagerDeskPage() {
 
   useEffect(() => {
     setHistorySubview('snapshot');
+    setSearchQuery('');
+    setFilters(defaultFilters);
+    setQuickFilter(getDefaultQuickFilter(viewMode));
   }, [date, viewMode]);
 
   const sourceItems = useMemo(() => {
@@ -70,18 +73,20 @@ export function ManagerDeskPage() {
     () => filterItems(sourceItems, searchQuery, quickFilter, filters),
     [sourceItems, searchQuery, quickFilter, filters],
   );
-  const sections = useMemo(() => buildSections(filteredItems), [filteredItems]);
-  const openItems = useMemo(() => getOpenItems(filteredItems), [filteredItems]);
+  const listItems = useMemo(() => sortForWorkbench(filteredItems), [filteredItems]);
+  const openItems = useMemo(() => getOpenItems(sourceItems), [sourceItems]);
+  const completedItems = useMemo(() => getCompletedItems(sourceItems), [sourceItems]);
+  const continuedOpenItems = useMemo(() => getContinuedOpenItems(sourceItems, date), [date, sourceItems]);
   const selectedItem = useMemo(
-    () => filteredItems.find((item) => item.id === selectedItemId) ?? null,
-    [filteredItems, selectedItemId],
+    () => sourceItems.find((item) => item.id === selectedItemId) ?? null,
+    [sourceItems, selectedItemId],
   );
 
   useEffect(() => {
-    if (selectedItemId !== null && !filteredItems.some((item) => item.id === selectedItemId)) {
+    if (selectedItemId !== null && !sourceItems.some((item) => item.id === selectedItemId)) {
       setSelectedItemId(null);
     }
-  }, [filteredItems, selectedItemId]);
+  }, [sourceItems, selectedItemId]);
 
   useEffect(() => {
     if (!isInboxItem(selectedItem) && inlineTriageId !== null) {
@@ -92,6 +97,12 @@ export function ManagerDeskPage() {
   const goToday = useCallback(() => setDate(format(new Date(), 'yyyy-MM-dd')), []);
   const goPrev = useCallback(() => setDate((value) => format(subDays(parseISO(value), 1), 'yyyy-MM-dd')), []);
   const goNext = useCallback(() => setDate((value) => format(addDays(parseISO(value), 1), 'yyyy-MM-dd')), []);
+
+  const resetDeskView = useCallback(() => {
+    setSearchQuery('');
+    setFilters(defaultFilters);
+    setQuickFilter(getDefaultQuickFilter(viewMode));
+  }, [viewMode]);
 
   const handleSelectItem = useCallback((item: ManagerDeskItem) => {
     setSelectedItemId(item.id);
@@ -207,7 +218,7 @@ export function ManagerDeskPage() {
   const dateObj = parseISO(date);
   const displayDate = format(dateObj, 'EEEE, MMMM d, yyyy');
   const hasStructuredFilters = filters.kind !== null || filters.category !== null || filters.status !== null;
-  const hasAnyNarrowing = searchQuery.trim().length > 0 || quickFilter !== 'all' || hasStructuredFilters;
+  const hasAnyNarrowing = searchQuery.trim().length > 0 || quickFilter !== getDefaultQuickFilter(viewMode) || hasStructuredFilters;
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -240,6 +251,7 @@ export function ManagerDeskPage() {
         items={sourceItems}
         searchQuery={searchQuery}
         quickFilter={quickFilter}
+        defaultQuickFilter={getDefaultQuickFilter(viewMode)}
         filters={filters}
         showFilters={showFilters}
         isCreatePending={createItem.isPending}
@@ -250,6 +262,7 @@ export function ManagerDeskPage() {
         onToggleFilters={() => setShowFilters((current) => !current)}
         onClearSearch={() => setSearchQuery('')}
         onClearFilters={() => setFilters(defaultFilters)}
+        onResetView={resetDeskView}
         onChangeFilters={setFilters}
         onCapture={handleQuickCapture}
       />
@@ -263,111 +276,34 @@ export function ManagerDeskPage() {
             />
           </div>
         ) : (
-          <div className="grid h-full gap-2 lg:grid-cols-[200px_minmax(0,1fr)]">
-            <TaskRail items={openItems} selectedItemId={selectedItemId} onSelect={handleSelectItem} />
-
-            <div className="min-h-0 overflow-y-auto">
-              <MotionConfig reducedMotion="user">
-                {(sourceItems.length ?? 0) === 0 && !hasAnyNarrowing ? (
-                  <EmptyDay date={displayDate} viewMode={viewMode} />
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={MANAGER_DESK_CARD_LAYOUT_TRANSITION}
-                    className="space-y-2"
-                  >
-                    <div className="grid gap-2 xl:grid-cols-2">
-                      <WorkbenchSection
-                        title={viewMode === 'planning' ? 'Scheduled Work' : 'Focus'}
-                        subtitle={
-                          viewMode === 'planning'
-                            ? 'Work intentionally planned for this date'
-                            : 'Planned and in-progress work'
-                        }
-                        count={sections.focus.length}
-                        accent="var(--md-accent)"
-                        emptyMessage={
-                          viewMode === 'planning'
-                            ? 'No focused work is scheduled for this date.'
-                            : 'No active work matches the current view.'
-                        }
-                      >
-                        {sections.focus.map((item) => (
-                          <DeskItemCard
-                            key={item.id}
-                            item={item}
-                            onSelect={() => handleSelectItem(item)}
-                            onStatusChange={readOnly ? undefined : (status) => handleUpdateItem(item.id, { status })}
-                            readOnly={readOnly}
-                          />
-                        ))}
-                      </WorkbenchSection>
-
-                      <WorkbenchSection title="Waiting" subtitle="Blocked items and overdue follow-ups" count={sections.waiting.length} accent="var(--warning)" emptyMessage="Nothing is currently waiting on someone else.">
-                        {sections.waiting.map((item) => (
-                          <DeskItemCard
-                            key={item.id}
-                            item={item}
-                            onSelect={() => handleSelectItem(item)}
-                            onStatusChange={readOnly ? undefined : (status) => handleUpdateItem(item.id, { status })}
-                            variant="waiting"
-                            readOnly={readOnly}
-                          />
-                        ))}
-                      </WorkbenchSection>
-
-                      <WorkbenchSection title="Meetings" subtitle={viewMode === 'planning' ? 'Scheduled meetings for this date' : 'Time-bound conversations and sync points'} count={sections.meetings.length} accent="var(--info)" emptyMessage="No meetings match the current view.">
-                        {sections.meetings.map((item) => (
-                          <DeskItemCard
-                            key={item.id}
-                            item={item}
-                            onSelect={() => handleSelectItem(item)}
-                            onStatusChange={readOnly ? undefined : (status) => handleUpdateItem(item.id, { status })}
-                            variant="meeting"
-                            readOnly={readOnly}
-                          />
-                        ))}
-                      </WorkbenchSection>
-
-                      <WorkbenchSection
-                        title={viewMode === 'history' && historySubview === 'created' ? 'Captured That Day' : 'Inbox'}
-                        subtitle={
-                          viewMode === 'history' && historySubview === 'created'
-                            ? 'Items first captured on this date'
-                            : 'Fresh captures waiting for triage'
-                        }
-                        count={sections.inbox.length}
-                        accent="var(--text-muted)"
-                        emptyMessage={viewMode === 'history' && historySubview === 'created' ? 'Nothing was first captured on this date.' : 'Inbox is clear.'}
-                      >
-                        {sections.inbox.map((item) => (
-                          <div key={item.id} className="space-y-2">
-                            <DeskItemCard
-                              item={item}
-                              onSelect={() => handleSelectItem(item)}
-                              onStatusChange={readOnly ? undefined : (status) => handleUpdateItem(item.id, { status })}
-                              variant="inbox"
-                              readOnly={readOnly}
-                            />
-                            {!readOnly && inlineTriageId === item.id && (
-                              <InboxTriageRow item={item} onUpdate={handleUpdateItem} />
-                            )}
-                          </div>
-                        ))}
-                      </WorkbenchSection>
-                    </div>
-
-                    <CompletedTray
-                      items={sections.completed}
-                      onSelect={handleSelectItem}
-                      onStatusChange={readOnly ? undefined : (itemId, status) => handleUpdateItem(itemId, { status })}
-                      readOnly={readOnly}
-                    />
-                  </motion.div>
-                )}
-              </MotionConfig>
-            </div>
+          <div className="h-full min-h-0 overflow-y-auto">
+            <MotionConfig reducedMotion="user">
+              {(sourceItems.length ?? 0) === 0 && !hasAnyNarrowing ? (
+                <EmptyDay date={displayDate} viewMode={viewMode} />
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={MANAGER_DESK_CARD_LAYOUT_TRANSITION}
+                  className="mx-auto h-full max-w-[1180px]"
+                >
+                  <UnifiedDeskList
+                    items={listItems}
+                    totalOpenCount={openItems.length}
+                    completedCount={completedItems.length}
+                    continuedOpenCount={continuedOpenItems.length}
+                    quickFilter={quickFilter}
+                    selectedItemId={selectedItemId}
+                    inlineTriageId={inlineTriageId}
+                    readOnly={readOnly}
+                    viewMode={viewMode}
+                    onSelect={handleSelectItem}
+                    onStatusChange={readOnly ? undefined : (itemId, status) => handleUpdateItem(itemId, { status })}
+                    onUpdate={handleUpdateItem}
+                  />
+                </motion.div>
+              )}
+            </MotionConfig>
           </div>
         )}
       </div>

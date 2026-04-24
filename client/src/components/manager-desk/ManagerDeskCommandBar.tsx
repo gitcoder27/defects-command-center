@@ -5,19 +5,19 @@ import type { ManagerDeskFilterState, ManagerDeskQuickFilter } from './workbench
 import { getQuickFilterCount } from './workbench-utils';
 
 const quickFilters: Array<{ key: ManagerDeskQuickFilter; label: string }> = [
-  { key: 'all', label: 'All Open' },
-  { key: 'overdue', label: 'Overdue' },
+  { key: 'all', label: 'All' },
+  { key: 'attention', label: 'Needs Attention' },
   { key: 'waiting', label: 'Waiting' },
-  { key: 'inbox', label: 'Inbox' },
   { key: 'meetings', label: 'Meetings' },
-  { key: 'highPriority', label: 'High Priority' },
-  { key: 'unassigned', label: 'Unassigned' },
+  { key: 'inbox', label: 'Inbox' },
+  { key: 'done', label: 'Done' },
 ];
 
 interface Props {
   items: ManagerDeskItem[];
   searchQuery: string;
   quickFilter: ManagerDeskQuickFilter;
+  defaultQuickFilter: ManagerDeskQuickFilter;
   filters: ManagerDeskFilterState;
   showFilters: boolean;
   isCreatePending: boolean;
@@ -28,6 +28,7 @@ interface Props {
   onToggleFilters: () => void;
   onClearSearch: () => void;
   onClearFilters: () => void;
+  onResetView: () => void;
   onChangeFilters: (value: ManagerDeskFilterState) => void;
   onCapture: Parameters<typeof QuickCapture>[0]['onCapture'];
 }
@@ -36,6 +37,7 @@ export function ManagerDeskCommandBar({
   items,
   searchQuery,
   quickFilter,
+  defaultQuickFilter,
   filters,
   showFilters,
   isCreatePending,
@@ -46,10 +48,13 @@ export function ManagerDeskCommandBar({
   onToggleFilters,
   onClearSearch,
   onClearFilters,
+  onResetView,
   onChangeFilters,
   onCapture,
 }: Props) {
   const hasStructuredFilters = filters.kind !== null || filters.category !== null || filters.status !== null;
+  const hasSearch = searchQuery.trim().length > 0;
+  const hasCustomView = quickFilter !== defaultQuickFilter || hasSearch || hasStructuredFilters;
 
   return (
     <div className="sticky top-[52px] z-10 px-2 pt-2 md:px-3">
@@ -95,9 +100,24 @@ export function ManagerDeskCommandBar({
             <Filter size={10} />
             <span className="hidden sm:inline">{hasStructuredFilters ? 'Filtered' : 'Filters'}</span>
           </button>
+
+          {hasCustomView && (
+            <button
+              type="button"
+              onClick={onResetView}
+              className="rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em]"
+              style={{
+                background: 'var(--bg-secondary)',
+                borderColor: 'var(--border)',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              Reset
+            </button>
+          )}
         </div>
 
-        <div className="mt-1.5 flex flex-wrap gap-1">
+        <div className="mt-1.5 flex flex-wrap gap-1" aria-label="Manager Desk lenses">
           {quickFilters.map(({ key, label }) => (
             <button
               key={key}
@@ -109,6 +129,7 @@ export function ManagerDeskCommandBar({
                 borderColor: quickFilter === key ? 'var(--md-accent)' : 'var(--border)',
                 color: quickFilter === key ? 'var(--md-accent)' : 'var(--text-secondary)',
               }}
+              aria-pressed={quickFilter === key}
             >
               <span>{label}</span>
               <span className="tabular-nums" style={{ opacity: 0.7 }}>
