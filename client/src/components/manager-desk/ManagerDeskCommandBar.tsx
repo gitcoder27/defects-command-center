@@ -57,7 +57,7 @@ export function ManagerDeskCommandBar({
   const hasCustomView = quickFilter !== defaultQuickFilter || hasSearch || hasStructuredFilters;
 
   return (
-    <div className="sticky top-[52px] z-10 px-2 pt-2 md:px-3">
+    <div className="pt-2">
       <div className="md-glass-panel rounded-xl p-2">
         <div className="flex gap-2 items-stretch">
           <div className="flex-1 min-w-0">

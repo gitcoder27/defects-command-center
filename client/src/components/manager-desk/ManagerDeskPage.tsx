@@ -15,6 +15,7 @@ import { EmptyDay } from './EmptyDay';
 import { ItemDetailDrawer } from './ItemDetailDrawer';
 import { ManagerDeskCommandBar } from './ManagerDeskCommandBar';
 import { ManagerDeskHeader } from './ManagerDeskHeader';
+import { ManagerDeskWorkspace } from './ManagerDeskWorkspace';
 import { SummaryStrip } from './SummaryStrip';
 import { UnifiedDeskList } from './UnifiedDeskList';
 import { MANAGER_DESK_CARD_LAYOUT_TRANSITION } from './motion';
@@ -23,7 +24,6 @@ import {
   getCompletedItems,
   getContinuedOpenItems,
   getOpenItems,
-  isInboxItem,
   sortForWorkbench,
   type ManagerDeskFilterState,
   type ManagerDeskQuickFilter,
@@ -39,7 +39,6 @@ export function ManagerDeskPage() {
   const { addToast } = useToast();
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
-  const [inlineTriageId, setInlineTriageId] = useState<number | null>(null);
   const [filters, setFilters] = useState<ManagerDeskFilterState>(defaultFilters);
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,12 +87,6 @@ export function ManagerDeskPage() {
     }
   }, [sourceItems, selectedItemId]);
 
-  useEffect(() => {
-    if (!isInboxItem(selectedItem) && inlineTriageId !== null) {
-      setInlineTriageId((current) => (current === selectedItem?.id ? null : current));
-    }
-  }, [inlineTriageId, selectedItem]);
-
   const goToday = useCallback(() => setDate(format(new Date(), 'yyyy-MM-dd')), []);
   const goPrev = useCallback(() => setDate((value) => format(subDays(parseISO(value), 1), 'yyyy-MM-dd')), []);
   const goNext = useCallback(() => setDate((value) => format(addDays(parseISO(value), 1), 'yyyy-MM-dd')), []);
@@ -106,8 +99,7 @@ export function ManagerDeskPage() {
 
   const handleSelectItem = useCallback((item: ManagerDeskItem) => {
     setSelectedItemId(item.id);
-    setInlineTriageId(!readOnly && item.status === 'inbox' ? item.id : null);
-  }, [readOnly]);
+  }, []);
 
   const handleQuickCapture = useCallback(
     (title: string, kind?: ManagerDeskItem['kind'], category?: ManagerDeskItem['category']) => {
@@ -119,10 +111,8 @@ export function ManagerDeskPage() {
       createItem.mutate(
         { date, title, kind, category },
         {
-          onSuccess: (item) => {
-            addToast(viewMode === 'planning' ? 'Planned item added' : 'Item captured', 'success');
-            setSelectedItemId(item.id);
-            setInlineTriageId(item.status === 'inbox' ? item.id : null);
+          onSuccess: () => {
+            addToast(viewMode === 'planning' ? 'Planned item added' : 'Captured to Inbox', 'success');
           },
           onError: (err) => addToast(err.message, 'error'),
         },
@@ -140,14 +130,7 @@ export function ManagerDeskPage() {
 
       updateItem.mutate(
         { itemId, ...updates } as Parameters<typeof updateItem.mutate>[0],
-        {
-          onSuccess: (item) => {
-            if (item.status !== 'inbox') {
-              setInlineTriageId((current) => (current === item.id ? null : current));
-            }
-          },
-          onError: (err) => addToast(err.message, 'error'),
-        },
+        { onError: (err) => addToast(err.message, 'error') },
       );
     },
     [addToast, readOnly, updateItem],
@@ -164,7 +147,6 @@ export function ManagerDeskPage() {
         onSuccess: () => {
           addToast('Item removed from desk', 'success');
           setSelectedItemId((current) => (current === itemId ? null : current));
-          setInlineTriageId((current) => (current === itemId ? null : current));
         },
         onError: (err) => addToast(err.message, 'error'),
       });
@@ -233,11 +215,11 @@ export function ManagerDeskPage() {
         onRefresh={() => void refetch()}
       />
 
-      <div className="px-2 pt-2 md:px-3">
+      <ManagerDeskWorkspace className="pt-2">
         <SummaryStrip summary={day?.summary ?? null} />
-      </div>
+      </ManagerDeskWorkspace>
 
-      <div className="px-2 pt-2 md:px-3">
+      <ManagerDeskWorkspace className="pt-2">
         <ViewModeBanner
           date={date}
           viewMode={viewMode}
@@ -245,29 +227,31 @@ export function ManagerDeskPage() {
           createdThatDayCount={day?.createdThatDayItems?.length ?? 0}
           onChangeHistorySubview={setHistorySubview}
         />
-      </div>
+      </ManagerDeskWorkspace>
 
-      <ManagerDeskCommandBar
-        items={sourceItems}
-        searchQuery={searchQuery}
-        quickFilter={quickFilter}
-        defaultQuickFilter={getDefaultQuickFilter(viewMode)}
-        filters={filters}
-        showFilters={showFilters}
-        isCreatePending={createItem.isPending}
-        captureDisabled={readOnly}
-        captureDisabledLabel="Historical views are review-only. Open today or a future date to add work."
-        onSearchChange={setSearchQuery}
-        onQuickFilterChange={setQuickFilter}
-        onToggleFilters={() => setShowFilters((current) => !current)}
-        onClearSearch={() => setSearchQuery('')}
-        onClearFilters={() => setFilters(defaultFilters)}
-        onResetView={resetDeskView}
-        onChangeFilters={setFilters}
-        onCapture={handleQuickCapture}
-      />
+      <ManagerDeskWorkspace className="sticky top-[52px] z-10">
+        <ManagerDeskCommandBar
+          items={sourceItems}
+          searchQuery={searchQuery}
+          quickFilter={quickFilter}
+          defaultQuickFilter={getDefaultQuickFilter(viewMode)}
+          filters={filters}
+          showFilters={showFilters}
+          isCreatePending={createItem.isPending}
+          captureDisabled={readOnly}
+          captureDisabledLabel="Historical views are review-only. Open today or a future date to add work."
+          onSearchChange={setSearchQuery}
+          onQuickFilterChange={setQuickFilter}
+          onToggleFilters={() => setShowFilters((current) => !current)}
+          onClearSearch={() => setSearchQuery('')}
+          onClearFilters={() => setFilters(defaultFilters)}
+          onResetView={resetDeskView}
+          onChangeFilters={setFilters}
+          onCapture={handleQuickCapture}
+        />
+      </ManagerDeskWorkspace>
 
-      <div className="min-h-0 flex-1 overflow-hidden px-2 py-2 md:px-3">
+      <ManagerDeskWorkspace className="min-h-0 flex-1 overflow-hidden py-2">
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
             <div
@@ -285,7 +269,7 @@ export function ManagerDeskPage() {
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={MANAGER_DESK_CARD_LAYOUT_TRANSITION}
-                  className="mx-auto h-full max-w-[1180px]"
+                  className="h-full"
                 >
                   <UnifiedDeskList
                     items={listItems}
@@ -294,19 +278,17 @@ export function ManagerDeskPage() {
                     continuedOpenCount={continuedOpenItems.length}
                     quickFilter={quickFilter}
                     selectedItemId={selectedItemId}
-                    inlineTriageId={inlineTriageId}
                     readOnly={readOnly}
                     viewMode={viewMode}
                     onSelect={handleSelectItem}
                     onStatusChange={readOnly ? undefined : (itemId, status) => handleUpdateItem(itemId, { status })}
-                    onUpdate={handleUpdateItem}
                   />
                 </motion.div>
               )}
             </MotionConfig>
           </div>
         )}
-      </div>
+      </ManagerDeskWorkspace>
 
       <ItemDetailDrawer
         item={selectedItem}

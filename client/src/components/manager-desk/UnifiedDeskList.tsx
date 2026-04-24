@@ -1,7 +1,6 @@
 import { CheckCircle2, Clock3, ListChecks, Sparkles } from 'lucide-react';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
 import { DeskItemCard } from './DeskItemCard';
-import { InboxTriageRow } from './InboxTriageRow';
 import {
   getCardVariant,
   lensCopy,
@@ -17,12 +16,10 @@ interface Props {
   continuedOpenCount: number;
   quickFilter: ManagerDeskQuickFilter;
   selectedItemId: number | null;
-  inlineTriageId: number | null;
   readOnly?: boolean;
   viewMode: 'live' | 'history' | 'planning';
   onSelect: (item: ManagerDeskItem) => void;
   onStatusChange?: (itemId: number, status: ManagerDeskStatus) => void;
-  onUpdate: (itemId: number, updates: Record<string, unknown>) => void;
 }
 
 export function UnifiedDeskList({
@@ -32,12 +29,10 @@ export function UnifiedDeskList({
   continuedOpenCount,
   quickFilter,
   selectedItemId,
-  inlineTriageId,
   readOnly = false,
   viewMode,
   onSelect,
   onStatusChange,
-  onUpdate,
 }: Props) {
   const copy = lensCopy[quickFilter];
   const visibleTitle = viewMode === 'planning' && quickFilter === 'all' ? 'Scheduled Work' : copy.title;
@@ -97,7 +92,7 @@ export function UnifiedDeskList({
         ) : (
           <div className="space-y-1.5">
             {items.map((item) => (
-              <div key={item.id} className="space-y-1.5">
+              <div key={item.id}>
                 <DeskItemCard
                   item={item}
                   onSelect={() => onSelect(item)}
@@ -106,9 +101,6 @@ export function UnifiedDeskList({
                   selected={item.id === selectedItemId}
                   readOnly={readOnly}
                 />
-                {!readOnly && inlineTriageId === item.id && (
-                  <InboxTriageRow item={item} onUpdate={onUpdate} />
-                )}
               </div>
             ))}
           </div>

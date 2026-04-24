@@ -116,6 +116,7 @@ const mockRefetch = vi.fn();
 const mockCreateMutate = vi.fn();
 const mockUpdateMutate = vi.fn();
 const mockDeleteMutate = vi.fn();
+const mockAddToast = vi.fn();
 const mockCarryForwardMutate = vi.fn();
 const mockCarryForwardPreviewData = {
   data: null as import('@/types/manager-desk').ManagerDeskCarryForwardPreviewResponse | null,
@@ -194,7 +195,7 @@ vi.mock('@/context/ThemeContext', () => ({
 
 vi.mock('@/context/ToastContext', () => ({
   useToast: () => ({
-    addToast: vi.fn(),
+    addToast: mockAddToast,
   }),
 }));
 
@@ -244,6 +245,7 @@ describe('ManagerDeskPage', () => {
     mockCreateMutate.mockReset();
     mockUpdateMutate.mockReset();
     mockDeleteMutate.mockReset();
+    mockAddToast.mockReset();
     mockCarryForwardMutate.mockReset();
     mockRefetch.mockReset();
     mockCarryForwardPreviewData.data = null;
@@ -382,6 +384,17 @@ describe('ManagerDeskPage', () => {
       expect.objectContaining({ title: 'New task item', date: '2026-03-08' }),
       expect.anything(),
     );
+
+    const createCall = mockCreateMutate.mock.calls[0]!;
+    expect(createCall).toBeDefined();
+    const options = createCall[1] as { onSuccess: (item: ManagerDeskItem) => void };
+    act(() => {
+      options.onSuccess(mockItem({ id: 99, title: 'New task item', status: 'inbox' }));
+    });
+
+    expect(mockAddToast).toHaveBeenCalledWith('Captured to Inbox', 'success');
+    expect(screen.queryByLabelText('Manager Desk item detail')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Assign New task item')).not.toBeInTheDocument();
   });
 
   it('filters the workbench from the global search box', () => {
@@ -434,7 +447,7 @@ describe('ManagerDeskPage', () => {
     expect(input).toHaveFocus();
   });
 
-  it('opens inline triage controls when an inbox item is selected', () => {
+  it('opens inbox item detail without inline triage controls when selected', () => {
     render(
       <TestWrapper>
         <ManagerDeskPage />
@@ -443,9 +456,10 @@ describe('ManagerDeskPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^Open Quick inbox thought$/i }));
 
-    expect(screen.getByText('Triage')).toBeInTheDocument();
-    expect(screen.getByLabelText('Assign Quick inbox thought')).toBeInTheDocument();
-    expect(screen.getByLabelText('Priority for Quick inbox thought')).toBeInTheDocument();
+    expect(screen.getByLabelText('Manager Desk item detail')).toBeInTheDocument();
+    expect(screen.getByLabelText('Item title')).toHaveValue('Quick inbox thought');
+    expect(screen.queryByLabelText('Assign Quick inbox thought')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Priority for Quick inbox thought')).not.toBeInTheDocument();
   });
 
   it('updates an inbox item from the hover quick action without opening the drawer', () => {
