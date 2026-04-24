@@ -1,4 +1,4 @@
-import { Clock3, ListChecks, Sparkles } from 'lucide-react';
+import { Clock3, ListChecks } from 'lucide-react';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
 import { DeskItemCard } from './DeskItemCard';
 import {
@@ -48,7 +48,7 @@ export function UnifiedDeskList({
                   color: 'var(--md-accent)',
                 }}
               >
-                {quickFilter === 'attention' ? <Sparkles size={14} /> : <ListChecks size={14} />}
+                <ListChecks size={14} />
               </span>
               <div>
                 <h2 className="text-[15px] font-semibold leading-tight tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>

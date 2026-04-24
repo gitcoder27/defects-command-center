@@ -5,8 +5,7 @@ import type { ManagerDeskFilterState, ManagerDeskQuickFilter } from './workbench
 import { getQuickFilterCount } from './workbench-utils';
 
 const quickFilters: Array<{ key: ManagerDeskQuickFilter; label: string }> = [
-  { key: 'all', label: 'All' },
-  { key: 'attention', label: 'Needs Attention' },
+  { key: 'all', label: 'Open' },
   { key: 'waiting', label: 'Waiting' },
   { key: 'meetings', label: 'Meetings' },
   { key: 'inbox', label: 'Inbox' },

@@ -280,8 +280,8 @@ describe('ManagerDeskPage', () => {
         <ManagerDeskPage />
       </TestWrapper>,
     );
-    expect(screen.getByRole('button', { name: /all 4/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /needs attention/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /open 4/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /needs attention/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /done 1/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /filters/i })).toBeInTheDocument();
   });
@@ -313,7 +313,7 @@ describe('ManagerDeskPage', () => {
         <ManagerDeskPage />
       </TestWrapper>,
     );
-    expect(screen.getByRole('heading', { name: 'Needs Attention' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: "Today's Desk" })).toBeInTheDocument();
     expect(screen.queryByText('Rail')).not.toBeInTheDocument();
     expect(screen.queryByText('Focus')).not.toBeInTheDocument();
     expect(screen.getAllByText('Waiting').length).toBeGreaterThanOrEqual(1);
@@ -322,9 +322,6 @@ describe('ManagerDeskPage', () => {
     expect(screen.getAllByText('Waiting on QA feedback').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Quick inbox thought').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Design sync with onshore').length).toBeGreaterThanOrEqual(1);
-
-    fireEvent.click(screen.getByRole('button', { name: /all 4/i }));
-    expect(screen.getByRole('heading', { name: "Today's Desk" })).toBeInTheDocument();
     expect(screen.getAllByText('Design sync with onshore').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Alice Smith').length).toBeGreaterThanOrEqual(1);
   });
@@ -367,7 +364,6 @@ describe('ManagerDeskPage', () => {
     );
 
     expect(screen.getByText('Started')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /all 4/i }));
     expect(screen.getAllByText('Planned').length).toBeGreaterThan(0);
   });
 
@@ -788,8 +784,8 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
 
-    expect(screen.getByRole('button', { name: /all 4/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /needs attention/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /open 4/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /needs attention/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /done 1/i })).toBeInTheDocument();
     expect(screen.queryByText(/A new day changes the lens/i)).not.toBeInTheDocument();
   });
@@ -806,14 +802,13 @@ describe('ManagerDeskPage', () => {
     expect(screen.getByText('Clear')).toBeInTheDocument();
   });
 
-  it('resets search and lenses back to the attention view', () => {
+  it('resets search and lenses back to the open desk view', () => {
     render(
       <TestWrapper>
         <ManagerDeskPage />
       </TestWrapper>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /all 4/i }));
     expect(screen.getByRole('heading', { name: "Today's Desk" })).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole('textbox', { name: /search manager desk tasks/i }), {
@@ -822,7 +817,7 @@ describe('ManagerDeskPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^reset$/i }));
 
-    expect(screen.getByRole('heading', { name: 'Needs Attention' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: "Today's Desk" })).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: /search manager desk tasks/i })).toHaveValue('');
     expect(screen.queryByRole('button', { name: /^reset$/i })).not.toBeInTheDocument();
   });

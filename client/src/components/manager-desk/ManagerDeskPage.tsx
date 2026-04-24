@@ -29,8 +29,7 @@ import {
 const defaultFilters: ManagerDeskFilterState = { kind: null, category: null, status: null };
 
 type HistorySubview = 'snapshot' | 'created';
-const getDefaultQuickFilter = (viewMode: ManagerDeskViewMode): ManagerDeskQuickFilter =>
-  viewMode === 'live' ? 'attention' : 'all';
+const getDefaultQuickFilter = (): ManagerDeskQuickFilter => 'all';
 
 export function ManagerDeskPage() {
   const { addToast } = useToast();
@@ -39,7 +38,7 @@ export function ManagerDeskPage() {
   const [filters, setFilters] = useState<ManagerDeskFilterState>(defaultFilters);
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [quickFilter, setQuickFilter] = useState<ManagerDeskQuickFilter>('attention');
+  const [quickFilter, setQuickFilter] = useState<ManagerDeskQuickFilter>('all');
   const [historySubview, setHistorySubview] = useState<HistorySubview>('snapshot');
 
   const { data: day, isLoading, isFetching, error, refetch } = useManagerDesk(date);
@@ -55,7 +54,7 @@ export function ManagerDeskPage() {
     setHistorySubview('snapshot');
     setSearchQuery('');
     setFilters(defaultFilters);
-    setQuickFilter(getDefaultQuickFilter(viewMode));
+    setQuickFilter(getDefaultQuickFilter());
   }, [date, viewMode]);
 
   const sourceItems = useMemo(() => {
@@ -89,8 +88,8 @@ export function ManagerDeskPage() {
   const resetDeskView = useCallback(() => {
     setSearchQuery('');
     setFilters(defaultFilters);
-    setQuickFilter(getDefaultQuickFilter(viewMode));
-  }, [viewMode]);
+    setQuickFilter(getDefaultQuickFilter());
+  }, []);
 
   const handleSelectItem = useCallback((item: ManagerDeskItem) => {
     setSelectedItemId(item.id);
@@ -202,7 +201,7 @@ export function ManagerDeskPage() {
   const dateObj = parseISO(date);
   const displayDate = format(dateObj, 'EEEE, MMMM d, yyyy');
   const hasStructuredFilters = filters.kind !== null || filters.category !== null || filters.status !== null;
-  const hasAnyNarrowing = searchQuery.trim().length > 0 || quickFilter !== getDefaultQuickFilter(viewMode) || hasStructuredFilters;
+  const hasAnyNarrowing = searchQuery.trim().length > 0 || quickFilter !== getDefaultQuickFilter() || hasStructuredFilters;
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -234,7 +233,7 @@ export function ManagerDeskPage() {
           items={sourceItems}
           searchQuery={searchQuery}
           quickFilter={quickFilter}
-          defaultQuickFilter={getDefaultQuickFilter(viewMode)}
+          defaultQuickFilter={getDefaultQuickFilter()}
           filters={filters}
           showFilters={showFilters}
           isCreatePending={createItem.isPending}

@@ -14,7 +14,6 @@ export type ManagerDeskFilterState = {
 
 export type ManagerDeskQuickFilter =
   | 'all'
-  | 'attention'
   | 'waiting'
   | 'inbox'
   | 'meetings'
@@ -86,8 +85,6 @@ export function filterItems(
     }
 
     switch (quickFilter) {
-      case 'attention':
-        return isAttentionItem(item);
       case 'waiting':
         return !isCompleted(item) && (item.status === 'waiting' || item.kind === 'waiting');
       case 'inbox':

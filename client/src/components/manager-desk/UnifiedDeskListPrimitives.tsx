@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { AlertTriangle, CalendarCheck, CheckCircle2, Clock3, Inbox, ListChecks } from 'lucide-react';
+import { CalendarCheck, CheckCircle2, Clock3, Inbox, ListChecks } from 'lucide-react';
 import type { ManagerDeskItem } from '@/types/manager-desk';
 import type { ManagerDeskQuickFilter } from './workbench-utils';
 
@@ -8,11 +8,6 @@ export const lensCopy: Record<ManagerDeskQuickFilter, { title: string; subtitle:
     title: "Today's Desk",
     subtitle: 'Open work that still belongs on your plate.',
     empty: 'No open work matches this view.',
-  },
-  attention: {
-    title: 'Needs Attention',
-    subtitle: 'Active, blocked, overdue, or untriaged work first.',
-    empty: 'Nothing needs attention in this view.',
   },
   waiting: {
     title: 'Waiting',
@@ -85,8 +80,6 @@ export function UnifiedEmptyState({
     ? Clock3
     : quickFilter === 'inbox'
     ? Inbox
-    : quickFilter === 'attention'
-    ? AlertTriangle
     : ListChecks;
 
   return (
