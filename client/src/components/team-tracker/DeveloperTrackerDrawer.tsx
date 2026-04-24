@@ -7,7 +7,10 @@ import { TrackerItemRow } from './TrackerItemRow';
 import { AddTrackerItemForm } from './AddTrackerItemForm';
 import { formatAbsoluteDateTime, formatRelativeTime } from '@/lib/utils';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
-import { DrawerHeader, DrawerSection, HistorySection, ManagerFollowUpRow, StatusSummary } from './DeveloperDrawerSections';
+import { useManagerDesk, useUpdateManagerDeskItem } from '@/hooks/useManagerDesk';
+import { DrawerHeader, DrawerSection, HistorySection, StatusSummary } from './DeveloperDrawerSections';
+import { ManagerFollowUpRow } from './ManagerFollowUpsSection';
+import type { ManagerDeskItem } from '@/types/manager-desk';
 
 interface DeveloperTrackerDrawerProps {
   date: string;
@@ -92,6 +95,11 @@ export function DeveloperTrackerDrawer({
   const assignedTodayCount = (day?.currentItem ? 1 : 0) + (day?.plannedItems.length ?? 0);
   const loadLabel = day?.capacityUnits ? `${assignedTodayCount}/${day.capacityUnits}` : `${assignedTodayCount}`;
   const isOverCapacity = day?.capacityUnits !== undefined && assignedTodayCount > day.capacityUnits;
+  const managerDesk = useManagerDesk(date, open && Boolean(day) && !readOnly);
+  const updateManagerDeskItem = useUpdateManagerDeskItem(date);
+  const managerFollowUps = day
+    ? getDeveloperManagerFollowUps(managerDesk.data?.items ?? [], day.developer.accountId)
+    : [];
 
   // Sync local planned items from server data when not actively dragging
   useEffect(() => {
@@ -325,6 +333,9 @@ export function DeveloperTrackerDrawer({
               {!readOnly && (
                 <ManagerFollowUpRow
                   day={day}
+                  items={managerFollowUps}
+                  isLoading={managerDesk.isLoading}
+                  onComplete={(itemId) => updateManagerDeskItem.mutate({ itemId, status: 'done' })}
                   onCapture={() => setDeskCaptureOpen(true)}
                 />
               )}
@@ -489,4 +500,34 @@ export function DeveloperTrackerDrawer({
       )}
     </AnimatePresence>
   );
+}
+
+const managerFollowUpStatusRank: Record<ManagerDeskItem['status'], number> = {
+  in_progress: 0,
+  waiting: 1,
+  inbox: 2,
+  planned: 3,
+  done: 4,
+  cancelled: 5,
+};
+
+function getDeveloperManagerFollowUps(items: ManagerDeskItem[], developerAccountId: string) {
+  return items
+    .filter((item) => {
+      if (item.status === 'cancelled') {
+        return false;
+      }
+
+      return item.links.some(
+        (link) => link.linkType === 'developer' && link.developerAccountId === developerAccountId
+      );
+    })
+    .sort((left, right) => {
+      const statusDelta = managerFollowUpStatusRank[left.status] - managerFollowUpStatusRank[right.status];
+      if (statusDelta !== 0) {
+        return statusDelta;
+      }
+
+      return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+    });
 }

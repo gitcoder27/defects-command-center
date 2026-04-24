@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { TestWrapper } from '@/test/wrapper';
 import type { TeamTrackerBoardResponse, TrackerDeveloperDay, Issue, TrackerIssueAssignment, TrackerCarryForwardContextResponse, TrackerCarryForwardPreviewResponse } from '@/types';
+import type { ManagerDeskDayResponse } from '@/types/manager-desk';
 import { formatAbsoluteDateTime } from '@/lib/utils';
 
 const mockCarryForwardMutate = vi.fn();
@@ -11,6 +12,7 @@ const mockUpdateTrackerItemMutate = vi.fn();
 const mockSetCurrentMutate = vi.fn();
 const mockAddToast = vi.fn();
 const mockCreateManagerDeskItemMutate = vi.fn();
+const mockUpdateManagerDeskItemMutate = vi.fn();
 const mockAddTrackerItemMutate = vi.fn();
 const mockRefetchBoard = vi.fn();
 const mockRefetchCarryForwardPreview = vi.fn();
@@ -19,6 +21,7 @@ let mockCarryForwardPreviewValue: TrackerCarryForwardPreviewResponse | undefined
 let mockCarryForwardContextValue: TrackerCarryForwardContextResponse | undefined;
 let mockIssues: Issue[] = [];
 let mockTrackerIssueAssignments: TrackerIssueAssignment[] = [];
+let mockManagerDeskDay: ManagerDeskDayResponse;
 
 function buildSignals(overrides?: {
   freshness?: Partial<TrackerDeveloperDay['signals']['freshness']>;
@@ -341,7 +344,12 @@ vi.mock('@/hooks/useTeamTrackerMutations', () => ({
 }));
 
 vi.mock('@/hooks/useManagerDesk', () => ({
+  useManagerDesk: () => ({
+    data: mockManagerDeskDay,
+    isLoading: false,
+  }),
   useCreateManagerDeskItem: () => ({ mutate: mockCreateManagerDeskItemMutate, isPending: false }),
+  useUpdateManagerDeskItem: () => ({ mutate: mockUpdateManagerDeskItemMutate, isPending: false }),
 }));
 
 vi.mock('@/hooks/useIssues', () => ({
@@ -416,6 +424,7 @@ describe('TeamTrackerPage', () => {
     mockSetCurrentMutate.mockReset();
     mockAddToast.mockReset();
     mockCreateManagerDeskItemMutate.mockReset();
+    mockUpdateManagerDeskItemMutate.mockReset();
     mockAddTrackerItemMutate.mockReset();
     mockRefetchBoard.mockReset();
     mockRefetchCarryForwardPreview.mockReset();
@@ -424,6 +433,21 @@ describe('TeamTrackerPage', () => {
     mockCarryForwardContextValue = undefined;
     mockIssues = [];
     mockTrackerIssueAssignments = [];
+    mockManagerDeskDay = {
+      date: '2026-03-07',
+      viewMode: 'live',
+      items: [],
+      summary: {
+        totalOpen: 0,
+        inbox: 0,
+        planned: 0,
+        inProgress: 0,
+        waiting: 0,
+        overdueFollowUps: 0,
+        meetings: 0,
+        completed: 0,
+      },
+    };
     mockBoard.inactiveDevelopers = [];
     window.sessionStorage.clear();
   });
@@ -588,6 +612,49 @@ describe('TeamTrackerPage', () => {
     );
     clickDeveloperRow('Alice Smith');
     expect(screen.getAllByText('Alice Smith').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows developer-linked manager follow-ups in the drawer and completes the same desk item', () => {
+    mockManagerDeskDay.items = [
+      {
+        id: 901,
+        dayId: 33,
+        originDate: '2026-03-07',
+        title: 'Confirm rollout blocker',
+        kind: 'action',
+        category: 'follow_up',
+        status: 'planned',
+        priority: 'medium',
+        contextNote: 'Ask Bob for the deploy decision.',
+        createdAt: '2026-03-07T09:00:00Z',
+        updatedAt: '2026-03-07T09:00:00Z',
+        links: [
+          {
+            id: 902,
+            itemId: 901,
+            linkType: 'developer',
+            developerAccountId: 'dev-2',
+            displayLabel: 'Bob Jones',
+            createdAt: '2026-03-07T09:00:00Z',
+          },
+        ],
+      },
+    ];
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    clickDeveloperRow('Bob Jones');
+
+    expect(screen.getByText('Confirm rollout blocker')).toBeInTheDocument();
+    expect(screen.getByText('Ask Bob for the deploy decision.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /mark confirm rollout blocker complete/i }));
+
+    expect(mockUpdateManagerDeskItemMutate).toHaveBeenCalledWith({ itemId: 901, status: 'done' });
   });
 
   it('opens the shared task detail drawer when clicking a task on the board', () => {

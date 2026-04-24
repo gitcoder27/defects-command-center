@@ -1,8 +1,7 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
-import { Briefcase, ChevronDown, ChevronRight, UserMinus, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, UserMinus, X } from 'lucide-react';
 import type { TrackerDeveloperDay, TrackerDeveloperStatus } from '@/types';
 import type { TrackerWorkItem } from '@/types';
-import { JiraIssueLink } from '@/components/JiraIssueLink';
 import { formatAbsoluteDateTime, formatRelativeTime } from '@/lib/utils';
 import { TrackerItemRow } from './TrackerItemRow';
 import { TrackerSignalBadges } from './TrackerSignalBadges';
@@ -262,50 +261,6 @@ export function DrawerSection({ title, count, action, children }: DrawerSectionP
       </div>
       {children}
     </section>
-  );
-}
-
-interface ManagerFollowUpRowProps {
-  day: TrackerDeveloperDay;
-  onCapture: () => void;
-}
-
-export function ManagerFollowUpRow({ day, onCapture }: ManagerFollowUpRowProps) {
-  return (
-    <DrawerSection
-      title="Manager follow-up"
-      action={
-        <button
-          type="button"
-          onClick={onCapture}
-          className="rounded-lg px-2 py-1 text-[11px] font-medium"
-          style={{ color: 'var(--md-accent)', background: 'rgba(217,169,78,0.10)' }}
-        >
-          Capture
-        </button>
-      }
-    >
-      <div
-        className="flex items-center gap-2 rounded-xl px-3 py-2"
-        style={{
-          background: 'var(--bg-tertiary)',
-          border: '1px solid rgba(217,169,78,0.16)',
-        }}
-      >
-        <Briefcase size={14} className="shrink-0" style={{ color: 'var(--md-accent)' }} />
-        <div className="min-w-0 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
-          <span>Private follow-up linked to {day.developer.displayName}</span>
-          {day.currentItem?.jiraKey && (
-            <>
-              <span> · Current: </span>
-              <JiraIssueLink issueKey={day.currentItem.jiraKey} style={{ color: 'var(--text-primary)' }}>
-                {day.currentItem.jiraKey}
-              </JiraIssueLink>
-            </>
-          )}
-        </div>
-      </div>
-    </DrawerSection>
   );
 }
 

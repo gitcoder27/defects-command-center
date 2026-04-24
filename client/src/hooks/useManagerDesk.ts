@@ -17,10 +17,11 @@ import type {
 
 // ── Day query ───────────────────────────────────────────
 
-export function useManagerDesk(date: string) {
+export function useManagerDesk(date: string, enabled = true) {
   return useQuery<ManagerDeskDayResponse>({
     queryKey: ['manager-desk', date],
     queryFn: () => api.get<ManagerDeskDayResponse>(`/manager-desk?date=${date}`),
+    enabled,
     refetchInterval: 30_000,
   });
 }

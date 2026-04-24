@@ -322,7 +322,7 @@ function RosterSection({
         <span>Current work</span>
         <span>Next</span>
         <span>Load</span>
-        <span>Freshness</span>
+        <span>Check-in</span>
         <span>Risk</span>
         <span className="text-center">Action</span>
       </div>
