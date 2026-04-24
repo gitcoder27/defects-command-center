@@ -50,15 +50,15 @@ export function TrackerItemRowActions({
     <div
       className={
         hoverPrimaryOnly
-          ? 'pointer-events-none absolute right-1.5 top-1/2 z-[1] -translate-y-1/2 translate-x-2 opacity-0 transition-all group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-x-0 group-focus-within:opacity-100'
+          ? 'pointer-events-none absolute right-1.5 top-1/2 z-[1] flex -translate-y-1/2 translate-x-2 items-center gap-1.5 opacity-0 transition-all group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-x-0 group-focus-within:opacity-100'
           : 'flex items-center gap-1 shrink-0 opacity-0 transition-opacity group-hover:opacity-100'
       }
       style={
         hoverPrimaryOnly
           ? {
               background:
-                'linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--bg-secondary) 24%, transparent) 26%, var(--bg-secondary) 100%)',
-              paddingLeft: '1.6rem',
+                'linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--bg-secondary) 24%, transparent) 24%, var(--bg-secondary) 100%)',
+              padding: '0.25rem 0.25rem 0.25rem 1.25rem',
             }
           : undefined
       }
@@ -99,7 +99,7 @@ export function TrackerItemRowActions({
           }}
           className={
             hoverPrimaryOnly
-              ? 'flex h-7 w-7 items-center justify-center rounded-full border transition-all hover:scale-[1.04] active:scale-[0.97]'
+              ? 'flex h-8 w-8 items-center justify-center rounded-lg border transition-all hover:scale-[1.04] active:scale-[0.97]'
               : 'h-6 w-6 rounded-md flex items-center justify-center transition-colors'
           }
           style={
@@ -114,7 +114,7 @@ export function TrackerItemRowActions({
           title={`Edit title: ${itemTitle}`}
           aria-label={`Edit title: ${itemTitle}`}
         >
-          <PencilLine size={10} style={{ color: hoverPrimaryOnly ? 'var(--text-primary)' : 'var(--text-secondary)' }} />
+          <PencilLine size={12} style={{ color: hoverPrimaryOnly ? 'var(--text-primary)' : 'var(--text-secondary)' }} />
         </button>
       )}
       {itemState !== 'in_progress' && onSetCurrent && !hoverDone && (
@@ -125,7 +125,7 @@ export function TrackerItemRowActions({
           }}
           className={
             hoverStart
-              ? 'flex h-7 w-7 items-center justify-center rounded-full border transition-all hover:scale-[1.04] active:scale-[0.97]'
+              ? 'flex h-8 w-8 items-center justify-center rounded-lg border transition-all hover:scale-[1.04] active:scale-[0.97]'
               : 'h-6 w-6 rounded-md flex items-center justify-center transition-colors'
           }
           style={
@@ -140,7 +140,7 @@ export function TrackerItemRowActions({
           title={hoverStart ? `Start ${itemTitle}` : 'Set as current'}
           aria-label={hoverStart ? `Start ${itemTitle}` : undefined}
         >
-          <Play size={10} style={{ color: 'var(--accent)' }} />
+          <Play size={12} style={{ color: 'var(--accent)' }} />
         </button>
       )}
       {hoverDone && onMarkDone && (
@@ -149,7 +149,7 @@ export function TrackerItemRowActions({
             event.stopPropagation();
             onMarkDone(itemId);
           }}
-          className="flex h-7 w-7 items-center justify-center rounded-full border transition-all hover:scale-[1.04] active:scale-[0.97]"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border transition-all hover:scale-[1.04] active:scale-[0.97]"
           style={{
             background: 'color-mix(in srgb, rgba(16,185,129,0.2) 82%, var(--bg-secondary) 18%)',
             borderColor: 'rgba(16, 185, 129, 0.28)',
@@ -158,7 +158,7 @@ export function TrackerItemRowActions({
           title={`Mark ${itemTitle} done`}
           aria-label={`Mark ${itemTitle} done`}
         >
-          <CheckCircle2 size={11} style={{ color: 'var(--success)' }} />
+          <CheckCircle2 size={13} style={{ color: 'var(--success)' }} />
         </button>
       )}
       {!hoverPrimaryOnly && onToggleNoteEditor && (

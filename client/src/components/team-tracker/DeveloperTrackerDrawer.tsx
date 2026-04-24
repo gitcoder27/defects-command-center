@@ -238,10 +238,14 @@ export function DeveloperTrackerDrawer({
                   <button
                     type="button"
                     onClick={() => onMarkInactive(day)}
-                    className="h-8 w-8 rounded-lg flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
-                    style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                    className="h-8 w-8 rounded-lg flex items-center justify-center transition-colors hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+                    style={{
+                      background: 'color-mix(in srgb, var(--warning) 10%, transparent)',
+                      color: 'var(--warning)',
+                      border: '1px solid color-mix(in srgb, var(--warning) 28%, var(--border))',
+                    }}
                     aria-label={`Mark ${day.developer.displayName} inactive`}
-                    title="Mark inactive"
+                    title={`Mark ${day.developer.displayName} inactive`}
                   >
                     <UserMinus size={15} />
                   </button>

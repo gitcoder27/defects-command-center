@@ -260,33 +260,44 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
       <motion.div
         initial={{ opacity: 0, y: -4 }}
         animate={{ opacity: 1, y: 0 }}
-        className="shrink-0 border-b px-4 pb-3 pt-3"
+        className="shrink-0 border-b px-4 py-2"
         style={{ borderColor: 'var(--border)' }}
       >
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex min-w-0 items-center gap-2">
             <div
-              className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
+              className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
               style={{ background: 'var(--bg-tertiary)', color: 'var(--accent)', border: '1px solid var(--border)' }}
             >
-              <Calendar size={16} />
+              <Calendar size={14} />
             </div>
-            <div>
-              <div className="text-[16px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <div className="flex min-w-0 items-baseline gap-2">
+              <div className="shrink-0 text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Team Tracker
               </div>
-              <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+              <div className="hidden truncate text-[11px] md:block" style={{ color: 'var(--text-muted)' }}>
                 Attention first, full roster one click away.
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {board && (
+            <TeamTrackerViewSwitcher
+              activeLens={activeLens}
+              onLensChange={setActiveLens}
+              attentionCount={attentionItems.length}
+              teamCount={board.visibleSummary.total}
+              inactiveCount={board.inactiveDevelopers.length}
+              readOnly={readOnly}
+            />
+          )}
+
+          <div className="ml-auto flex items-center gap-1.5">
             <button
               type="button"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+              className="flex h-8 items-center gap-1 rounded-lg px-2.5 text-[11px] font-medium transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
               style={{
                 background: 'transparent',
                 color: 'var(--text-secondary)',
@@ -299,12 +310,12 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
               Refresh
             </button>
             <div
-              className="flex items-center gap-0.5 rounded-xl px-1 py-0.5"
+              className="flex h-8 items-center gap-0.5 rounded-lg px-1"
               style={{ background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)', border: '1px solid var(--border)' }}
             >
               <button
                 onClick={() => setDate(shiftLocalIsoDate(date, -1))}
-                className="h-7 w-7 rounded-lg flex items-center justify-center transition-colors hover:brightness-125"
+                className="h-6 w-6 rounded-md flex items-center justify-center transition-colors hover:brightness-125"
                 style={{ color: 'var(--text-secondary)' }}
                 aria-label="Previous day"
               >
@@ -316,14 +327,14 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="text-[12px] font-mono bg-transparent outline-none"
+                  className="w-[116px] bg-transparent text-[11px] font-mono outline-none"
                   style={{ color: 'var(--text-primary)' }}
                 />
               </div>
               <button
                 onClick={() => setDate(shiftLocalIsoDate(date, 1))}
                 disabled={isToday}
-                className="h-7 w-7 rounded-lg flex items-center justify-center transition-colors hover:brightness-125 disabled:opacity-30"
+                className="h-6 w-6 rounded-md flex items-center justify-center transition-colors hover:brightness-125 disabled:opacity-30"
                 style={{ color: 'var(--text-secondary)' }}
                 aria-label="Next day"
               >
@@ -333,7 +344,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
             {!isToday && (
               <button
                 onClick={() => setDate(getLocalIsoDate())}
-                className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium"
+                className="h-8 rounded-lg px-2.5 text-[11px] font-medium"
                 style={{
                   background: 'var(--bg-tertiary)',
                   color: 'var(--accent)',
@@ -347,45 +358,37 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
         </div>
 
         {board && (
-          <div className="mt-3 space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <TeamTrackerViewSwitcher
-                activeLens={activeLens}
-                onLensChange={setActiveLens}
-                attentionCount={board.attentionQueue.length}
-                teamCount={board.visibleSummary.total}
-                inactiveCount={board.inactiveDevelopers.length}
-                readOnly={readOnly}
-              />
-              <TeamTrackerModeBanner date={date} viewMode={viewMode} />
-            </div>
-
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <TrackerSummaryStrip
               summary={board.summary}
               activeFilter={resolvedSummaryFilter}
               onFilterChange={qs.handleSummaryFilterChange}
             />
 
-            <TrackerBoardToolbar
-              searchQuery={resolvedSearch}
-              onSearchChange={qs.handleSearchChange}
-              sortBy={resolvedSortBy}
-              onSortChange={qs.handleSortChange}
-              groupBy={resolvedGroupBy}
-              onGroupChange={qs.handleGroupChange}
-              visibleCount={board.visibleSummary.total}
-              totalCount={board.summary.total}
-              views={qs.savedViews}
-              activeViewId={qs.activeViewId}
-              isDirty={qs.isDirtyFrom(resolvedQuery)}
-              isViewsLoading={qs.isViewsLoading}
-              onApplyView={qs.handleApplyView}
-              onClearView={qs.handleClearView}
-              onSaveNew={qs.handleSaveNewView}
-              onUpdateView={qs.handleUpdateView}
-              onDeleteView={qs.handleDeleteView}
-              isSaving={qs.isSaving}
-            />
+            <div className="min-w-[280px] flex-1">
+              <TrackerBoardToolbar
+                searchQuery={resolvedSearch}
+                onSearchChange={qs.handleSearchChange}
+                sortBy={resolvedSortBy}
+                onSortChange={qs.handleSortChange}
+                groupBy={resolvedGroupBy}
+                onGroupChange={qs.handleGroupChange}
+                visibleCount={board.visibleSummary.total}
+                totalCount={board.summary.total}
+                views={qs.savedViews}
+                activeViewId={qs.activeViewId}
+                isDirty={qs.isDirtyFrom(resolvedQuery)}
+                isViewsLoading={qs.isViewsLoading}
+                onApplyView={qs.handleApplyView}
+                onClearView={qs.handleClearView}
+                onSaveNew={qs.handleSaveNewView}
+                onUpdateView={qs.handleUpdateView}
+                onDeleteView={qs.handleDeleteView}
+                isSaving={qs.isSaving}
+              />
+            </div>
+
+            <TeamTrackerModeBanner date={date} viewMode={viewMode} />
           </div>
         )}
       </motion.div>

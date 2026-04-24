@@ -71,7 +71,7 @@ export function TrackerBoardToolbar({
   const isGroupActive = groupBy !== 'none';
 
   return (
-    <div className="flex items-center gap-2 flex-wrap py-1.5">
+    <div className="flex items-center gap-1.5 flex-wrap">
       <SearchInput
         ref={inputRef}
         value={localSearch}
@@ -82,7 +82,7 @@ export function TrackerBoardToolbar({
       <div className="flex items-center gap-1.5 ml-auto">
         {isFiltered && (
           <span
-            className="text-[11px] font-mono font-medium px-2 py-1 rounded-lg"
+            className="h-8 rounded-lg px-2 text-[11px] font-mono font-medium inline-flex items-center"
             style={{ color: 'var(--text-secondary)', background: 'transparent', border: '1px solid var(--border)' }}
           >
             {visibleCount}/{totalCount}
@@ -114,7 +114,7 @@ const SearchInput = forwardRef<HTMLInputElement, {
   onClear: () => void;
 }>(({ value, onChange, onClear }, ref) => (
   <div
-    className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 flex-1 min-w-[220px] max-w-[440px]"
+    className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 flex-1 min-w-[220px] max-w-[420px]"
     style={{
       background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)',
       border: `1px solid ${value ? 'var(--accent)' : 'var(--border)'}`,
@@ -182,7 +182,7 @@ function ViewOptionsMenu({
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition-all shrink-0 focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+        className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition-all focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
         style={{
           background: isActive ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'transparent',
           border: `1px solid ${isActive ? 'color-mix(in srgb, var(--accent) 30%, transparent)' : 'var(--border)'}`,

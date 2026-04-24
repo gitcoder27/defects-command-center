@@ -39,7 +39,7 @@ export function TeamTrackerViewSwitcher({
 
   return (
     <div
-      className="inline-flex min-w-0 items-center gap-1 rounded-xl border p-1"
+      className="inline-flex min-w-0 items-center gap-0.5 rounded-lg border p-0.5"
       style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)' }}
       aria-label="Team tracker view"
       role="tablist"
@@ -55,7 +55,7 @@ export function TeamTrackerViewSwitcher({
             role="tab"
             aria-selected={isActive}
             onClick={() => onLensChange(lens.key)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-[var(--border-active)] sm:px-3"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[12px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-[var(--border-active)] sm:px-2.5"
             style={{
               color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
               background: isActive ? 'var(--bg-elevated)' : 'transparent',
