@@ -1,14 +1,11 @@
 import { useEffect, useId, useState } from 'react';
-import { useDevelopers } from '@/hooks/useDevelopers';
 import type { ManagerDeskItem, ManagerDeskUpdateItemPayload } from '@/types/manager-desk';
 import { KIND_LABELS, STATUS_LABELS, CATEGORY_LABELS, PRIORITY_LABELS } from '@/types/manager-desk';
 
 interface DrawerPropertiesProps {
   item: ManagerDeskItem;
-  date: string;
   readOnly?: boolean;
   onFieldChange: (field: keyof ManagerDeskUpdateItemPayload, value: string) => void;
-  onAssigneeChange: (accountId: string | null) => void;
 }
 
 const kindOpts = (['action', 'meeting', 'decision', 'waiting'] as const).map((v) => ({ value: v, label: KIND_LABELS[v] }));
@@ -16,10 +13,7 @@ const statusOpts = (['inbox', 'planned', 'in_progress', 'waiting', 'done', 'canc
 const categoryOpts = (['analysis', 'design', 'team_management', 'cross_team', 'follow_up', 'escalation', 'admin', 'planning', 'other'] as const).map((v) => ({ value: v, label: CATEGORY_LABELS[v] }));
 const priorityOpts = (['low', 'medium', 'high', 'critical'] as const).map((v) => ({ value: v, label: PRIORITY_LABELS[v] }));
 
-export function DrawerProperties({ item, date, readOnly = false, onFieldChange, onAssigneeChange }: DrawerPropertiesProps) {
-  const { data: developers } = useDevelopers(date);
-  const assigneeId = item.assignee?.accountId ?? '';
-  const selectedDev = developers?.find((d) => d.accountId === assigneeId);
+export function DrawerProperties({ item, readOnly = false, onFieldChange }: DrawerPropertiesProps) {
   const hasLinkedWork = !!item.delegatedExecution;
 
   const filteredStatusOpts = hasLinkedWork
@@ -27,44 +21,22 @@ export function DrawerProperties({ item, date, readOnly = false, onFieldChange, 
     : statusOpts;
 
   return (
-    <div className="space-y-3 px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
-      <div className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
-        Properties
-      </div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+    <details className="px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+      <summary className="cursor-pointer select-none text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
+        Details
+      </summary>
+      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
         <InlineSelect label="Kind" value={item.kind} options={kindOpts} onChange={(v) => onFieldChange('kind', v)} disabled={readOnly} />
         <InlineSelect label="Status" value={item.status} options={filteredStatusOpts} onChange={(v) => onFieldChange('status', v)} disabled={readOnly} />
         <InlineSelect label="Category" value={item.category} options={categoryOpts} onChange={(v) => onFieldChange('category', v)} disabled={readOnly} />
         <InlineSelect label="Priority" value={item.priority} options={priorityOpts} onChange={(v) => onFieldChange('priority', v)} disabled={readOnly} />
-        <div className="col-span-2">
-          <InlineSelect
-            label="Assignee"
-            value={assigneeId}
-            options={(developers ?? []).map((d) => ({
-              value: d.accountId,
-              label: d.availability?.state === 'inactive' ? `${d.displayName} (inactive)` : d.displayName,
-            }))}
-            onChange={(v) => onAssigneeChange(v || null)}
-            disabled={readOnly || hasLinkedWork}
-            emptyLabel={hasLinkedWork ? undefined : 'Unassigned'}
-          />
-          {hasLinkedWork && assigneeId && (
-            <p className="mt-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-              Assignee is locked while delegated work is active. Use the actions menu to remove from desk or cancel the task.
-            </p>
-          )}
-          {selectedDev?.availability?.state === 'inactive' && (
-            <p className="mt-1 text-[10px]" style={{ color: 'var(--warning)' }}>
-              {selectedDev.availability.note || `${selectedDev.displayName} is inactive for ${date}.`}
-            </p>
-          )}
-        </div>
         <InlineText label="Participants" value={item.participants ?? ''} placeholder="e.g. Design Team, Rahul" onChange={(v) => onFieldChange('participants', v)} className="col-span-2" disabled={readOnly} />
         <InlineDatetime label="Start" value={item.plannedStartAt ?? ''} onChange={(v) => onFieldChange('plannedStartAt', v)} disabled={readOnly} />
         <InlineDatetime label="End" value={item.plannedEndAt ?? ''} onChange={(v) => onFieldChange('plannedEndAt', v)} disabled={readOnly} />
         <InlineDatetime label="Follow-Up" value={item.followUpAt ?? ''} onChange={(v) => onFieldChange('followUpAt', v)} className="col-span-2" disabled={readOnly} />
+        <InlineText label="Outcome" value={item.outcome ?? ''} placeholder="What was the result or decision?" onChange={(v) => onFieldChange('outcome', v)} className="col-span-2" disabled={readOnly} />
       </div>
-    </div>
+    </details>
   );
 }
 

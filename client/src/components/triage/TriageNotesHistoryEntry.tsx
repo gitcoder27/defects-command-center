@@ -9,6 +9,7 @@ interface TriageNotesHistoryEntryProps {
   onToggle: () => void;
   onChange: (value: string) => void;
   onBlur: () => void;
+  readOnly?: boolean;
 }
 
 export function TriageNotesHistoryEntry({
@@ -19,6 +20,7 @@ export function TriageNotesHistoryEntry({
   onToggle,
   onChange,
   onBlur,
+  readOnly = false,
 }: TriageNotesHistoryEntryProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Local draft so trailing newlines survive the serialize→trim cycle while editing.
@@ -86,14 +88,16 @@ export function TriageNotesHistoryEntry({
             defaultValue={value}
             aria-label={ariaLabel}
             onChange={(e) => {
+              if (readOnly) return;
               localValueRef.current = e.target.value;
               onChange(e.target.value);
               autoResize();
             }}
             onFocus={() => { isFocusedRef.current = true; }}
             onBlur={() => { isFocusedRef.current = false; onBlur(); }}
+            readOnly={readOnly}
             placeholder="Notes for this day…"
-            className="w-full resize-none bg-transparent px-0 py-0 text-[12px] leading-[1.65] focus:outline-none"
+            className="w-full resize-none bg-transparent px-0 py-0 text-[12px] leading-[1.65] focus:outline-none read-only:cursor-default"
             style={{ color: 'var(--text-primary)', minHeight: 48, maxHeight: 180, fontFamily: "'Geist Variable', sans-serif" }}
           />
         </div>

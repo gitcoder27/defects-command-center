@@ -6,6 +6,7 @@ import {
 } from '@/hooks/useManagerDesk';
 import type { ManagerDeskItem, ManagerDeskUpdateItemPayload } from '@/types/manager-desk';
 import { DrawerHeader } from './DrawerHeader';
+import { DrawerPrimaryFields } from './DrawerPrimaryFields';
 import { DrawerProperties } from './DrawerProperties';
 import { DrawerNotes } from './DrawerNotes';
 import { DrawerLinks } from './DrawerLinks';
@@ -160,14 +161,19 @@ function DrawerContent({
       />
       <div className="min-h-0 flex-1 overflow-y-auto">
         {topSlot}
-        <DrawerProperties
+        <DrawerPrimaryFields
           item={item}
           date={date}
           readOnly={readOnly}
           onFieldChange={handleFieldChange}
           onAssigneeChange={(accountId) => onUpdate(item.id, { assigneeDeveloperAccountId: accountId })}
         />
-        <DrawerNotes key={item.id} item={item} readOnly={readOnly} onFieldChange={handleFieldChange} />
+        <DrawerNotes key={`notes-${item.id}`} item={item} readOnly={readOnly} onFieldChange={handleFieldChange} />
+        <DrawerProperties
+          item={item}
+          readOnly={readOnly}
+          onFieldChange={handleFieldChange}
+        />
         <DrawerLinks
           key={`links-${item.id}`}
           item={item}

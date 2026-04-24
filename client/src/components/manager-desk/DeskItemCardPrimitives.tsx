@@ -38,12 +38,12 @@ export const priorityColors: Record<ManagerDeskItem['priority'], string> = {
 };
 
 export const statusTone: Record<ManagerDeskStatus, CSSProperties> = {
-  inbox: { background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border)' },
-  planned: { background: 'rgba(217,169,78,0.12)', color: 'var(--md-accent)', border: '1px solid rgba(217,169,78,0.24)' },
+  inbox: { background: 'transparent', color: 'var(--text-secondary)', border: '1px solid transparent' },
+  planned: { background: 'transparent', color: 'var(--md-accent)', border: '1px solid transparent' },
   in_progress: { background: 'rgba(6,182,212,0.10)', color: 'var(--accent)', border: '1px solid rgba(6,182,212,0.22)' },
   waiting: { background: 'rgba(245,158,11,0.10)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.22)' },
   done: { background: 'rgba(16,185,129,0.10)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.20)' },
-  cancelled: { background: 'rgba(148,163,184,0.10)', color: 'var(--text-muted)', border: '1px solid var(--border)' },
+  cancelled: { background: 'transparent', color: 'var(--text-muted)', border: '1px solid transparent' },
 };
 
 export function SignalChip({
@@ -60,7 +60,7 @@ export function SignalChip({
   title?: string;
 }) {
   const toneStyle: Record<SignalTone, CSSProperties> = {
-    neutral: { background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border)' },
+    neutral: { background: 'transparent', color: 'var(--text-secondary)', border: '1px solid transparent' },
     accent: { background: 'rgba(6,182,212,0.10)', color: 'var(--accent)', border: '1px solid rgba(6,182,212,0.20)' },
     warning: { background: 'rgba(245,158,11,0.10)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.20)' },
     danger: { background: 'rgba(239,68,68,0.10)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.22)' },
@@ -69,7 +69,7 @@ export function SignalChip({
 
   return (
     <span
-      className="inline-flex max-w-[180px] items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.06em]"
+      className="inline-flex max-w-[180px] items-center gap-1 rounded-md px-1 py-0.5 text-[9px] font-semibold uppercase tracking-[0.06em]"
       style={style ?? toneStyle[tone]}
       title={title ?? label}
     >
@@ -79,9 +79,7 @@ export function SignalChip({
   );
 }
 
-export function getQuickActions(item: ManagerDeskItem): RowQuickAction[] {
-  if (item.status === 'done' || item.status === 'cancelled') return [];
-
+function createQuickActions(item: ManagerDeskItem) {
   const start = {
     label: item.status === 'inbox' ? 'Plan' : 'Start',
     status: item.status === 'inbox' ? 'planned' as const : 'in_progress' as const,
@@ -108,12 +106,26 @@ export function getQuickActions(item: ManagerDeskItem): RowQuickAction[] {
     secondary: true,
     style: { background: 'var(--bg-secondary)', color: 'var(--text-muted)', borderColor: 'var(--border)' },
   };
+  return { start, waiting, done, drop };
+}
 
+export function getPrimaryQuickAction(item: ManagerDeskItem): RowQuickAction | null {
+  if (item.status === 'done' || item.status === 'cancelled') return null;
+
+  const { start, done } = createQuickActions(item);
+  if (item.status === 'in_progress') return done;
+  return start;
+}
+
+export function getSecondaryQuickActions(item: ManagerDeskItem): RowQuickAction[] {
+  if (item.status === 'done' || item.status === 'cancelled') return [];
+
+  const { waiting, done, drop } = createQuickActions(item);
   const terminalActions = item.delegatedExecution ? [done] : [done, drop];
 
-  if (item.status === 'in_progress') return [waiting, ...terminalActions];
-  if (item.status === 'waiting') return [{ ...start, label: 'Start' }, ...terminalActions];
-  return [start, waiting, ...terminalActions];
+  if (item.status === 'in_progress') return [waiting, ...(!item.delegatedExecution ? [drop] : [])];
+  if (item.status === 'waiting') return terminalActions;
+  return [waiting, ...terminalActions];
 }
 
 export function getKindBackground(variant: DeskItemVariant) {

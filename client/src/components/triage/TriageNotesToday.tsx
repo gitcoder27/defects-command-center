@@ -5,9 +5,10 @@ interface TriageNotesTodayProps {
   dateLabel: string;
   onChange: (value: string) => void;
   onBlur: () => void;
+  readOnly?: boolean;
 }
 
-export function TriageNotesToday({ value, dateLabel, onChange, onBlur }: TriageNotesTodayProps) {
+export function TriageNotesToday({ value, dateLabel, onChange, onBlur, readOnly = false }: TriageNotesTodayProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   // Local draft prevents the serialize→trim→re-render cycle from stripping
@@ -62,13 +63,15 @@ export function TriageNotesToday({ value, dateLabel, onChange, onBlur }: TriageN
         value={localValue}
         aria-label="Notes for today"
         onChange={(e) => {
+          if (readOnly) return;
           setLocalValue(e.target.value);
           onChange(e.target.value);
         }}
         onFocus={() => { isFocusedRef.current = true; setIsFocused(true); }}
         onBlur={() => { isFocusedRef.current = false; setIsFocused(false); onBlur(); }}
+        readOnly={readOnly}
         placeholder="Add today's analysis, findings, or handoff…"
-        className="w-full resize-none bg-transparent px-0 py-0 text-[12.5px] leading-[1.7] focus:outline-none"
+        className="w-full resize-none bg-transparent px-0 py-0 text-[12.5px] leading-[1.7] focus:outline-none read-only:cursor-default"
         style={{ color: 'var(--text-primary)', minHeight: 56, maxHeight: 200, fontFamily: "'Geist Variable', sans-serif" }}
       />
     </div>

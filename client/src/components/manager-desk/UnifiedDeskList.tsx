@@ -1,18 +1,15 @@
-import { CheckCircle2, Clock3, ListChecks, Sparkles } from 'lucide-react';
+import { Clock3, ListChecks, Sparkles } from 'lucide-react';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
 import { DeskItemCard } from './DeskItemCard';
 import {
   getCardVariant,
   lensCopy,
-  SignalChip,
   UnifiedEmptyState,
 } from './UnifiedDeskListPrimitives';
 import type { ManagerDeskQuickFilter } from './workbench-utils';
 
 interface Props {
   items: ManagerDeskItem[];
-  totalOpenCount: number;
-  completedCount: number;
   continuedOpenCount: number;
   quickFilter: ManagerDeskQuickFilter;
   selectedItemId: number | null;
@@ -24,8 +21,6 @@ interface Props {
 
 export function UnifiedDeskList({
   items,
-  totalOpenCount,
-  completedCount,
   continuedOpenCount,
   quickFilter,
   selectedItemId,
@@ -42,18 +37,21 @@ export function UnifiedDeskList({
 
   return (
     <section className="md-glass-panel flex min-h-full flex-col rounded-xl">
-      <div className="border-b px-3 py-3" style={{ borderColor: 'var(--border)' }}>
+      <div className="border-b px-3 py-3.5" style={{ borderColor: 'var(--border)' }}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span
-                className="flex h-7 w-7 items-center justify-center rounded-lg"
-                style={{ background: 'var(--md-accent-glow)', color: 'var(--md-accent)' }}
+                className="flex h-8 w-8 items-center justify-center rounded-lg"
+                style={{
+                  background: 'color-mix(in srgb, var(--md-accent-glow) 72%, transparent)',
+                  color: 'var(--md-accent)',
+                }}
               >
                 {quickFilter === 'attention' ? <Sparkles size={14} /> : <ListChecks size={14} />}
               </span>
               <div>
-                <h2 className="text-[14px] font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>
+                <h2 className="text-[15px] font-semibold leading-tight tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>
                   {visibleTitle}
                 </h2>
                 <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
@@ -62,22 +60,14 @@ export function UnifiedDeskList({
               </div>
             </div>
           </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            <SignalChip icon={<ListChecks size={10} />} label="Open" value={totalOpenCount} tone="accent" />
-            {continuedOpenCount > 0 && quickFilter !== 'done' && (
-              <SignalChip icon={<Clock3 size={10} />} label="Continued" value={continuedOpenCount} tone="muted" />
-            )}
-            <SignalChip icon={<CheckCircle2 size={10} />} label="Done" value={completedCount} tone="success" />
-          </div>
         </div>
 
         {continuedOpenCount > 0 && quickFilter !== 'done' && (
           <div
             className="mt-2 rounded-lg border px-3 py-2 text-[11px]"
             style={{
-              borderColor: 'rgba(217,169,78,0.18)',
-              background: 'color-mix(in srgb, var(--md-accent-glow) 62%, transparent)',
+              borderColor: 'rgba(217,169,78,0.14)',
+              background: 'color-mix(in srgb, var(--md-accent-glow) 42%, transparent)',
               color: 'var(--text-secondary)',
             }}
           >

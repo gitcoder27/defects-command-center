@@ -10,6 +10,7 @@ interface TriageNotesHistoryProps {
   onSectionChange: (index: number, body: string) => void;
   onLegacyChange: (body: string) => void;
   onBlur: () => void;
+  readOnly?: boolean;
 }
 
 export function TriageNotesHistory({
@@ -19,6 +20,7 @@ export function TriageNotesHistory({
   onSectionChange,
   onLegacyChange,
   onBlur,
+  readOnly = false,
 }: TriageNotesHistoryProps) {
   const pastSections = sections.filter((s) => s.date !== todayIsoDate);
   const hasHistory = pastSections.length > 0 || !!legacyBody;
@@ -54,6 +56,7 @@ export function TriageNotesHistory({
             onToggle={() => toggle(key)}
             onChange={(body) => onSectionChange(realIndex, body)}
             onBlur={onBlur}
+            readOnly={readOnly}
           />
         );
       })}
@@ -67,6 +70,7 @@ export function TriageNotesHistory({
           onToggle={() => toggle('legacy')}
           onChange={onLegacyChange}
           onBlur={onBlur}
+          readOnly={readOnly}
         />
       )}
     </div>

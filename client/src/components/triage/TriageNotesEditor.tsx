@@ -10,9 +10,10 @@ interface TriageNotesEditorProps {
   onChange: (value: string) => void;
   onBlurSave: () => void;
   isSaved: boolean;
+  readOnly?: boolean;
 }
 
-export function TriageNotesEditor({ value, onChange, onBlurSave, isSaved }: TriageNotesEditorProps) {
+export function TriageNotesEditor({ value, onChange, onBlurSave, isSaved, readOnly = false }: TriageNotesEditorProps) {
   const [todayIsoDate, setTodayIsoDate] = useState(() => getLocalIsoDate());
   const parsedNotes = useMemo(() => parseTriageNotes(value), [value]);
   const todaySectionIndex = parsedNotes.datedSections.findIndex((s) => s.date === todayIsoDate);
@@ -86,6 +87,7 @@ export function TriageNotesEditor({ value, onChange, onBlurSave, isSaved }: Tria
         dateLabel={todayLabel}
         onChange={handleTodayChange}
         onBlur={onBlurSave}
+        readOnly={readOnly}
       />
 
       <TriageNotesHistory
@@ -95,6 +97,7 @@ export function TriageNotesEditor({ value, onChange, onBlurSave, isSaved }: Tria
         onSectionChange={handleSectionChange}
         onLegacyChange={handleLegacyChange}
         onBlur={onBlurSave}
+        readOnly={readOnly}
       />
     </div>
   );

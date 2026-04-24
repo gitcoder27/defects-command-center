@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { AlertTriangle, CheckCircle2, Clock3, FileText, Link2, Users, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, FileText, Link2, MoreHorizontal, Users, XCircle } from 'lucide-react';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
 import {
   CATEGORY_LABELS,
@@ -13,11 +13,13 @@ import {
   getDateSignal,
   getKindBackground,
   getKindColor,
-  getQuickActions,
+  getPrimaryQuickAction,
+  getSecondaryQuickActions,
   kindIcons,
   priorityColors,
   SignalChip,
   statusTone,
+  type RowQuickAction,
   type DeskItemVariant,
 } from './DeskItemCardPrimitives';
 
@@ -36,14 +38,19 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
   const sourceSignal = useMemo(() => getSourceSignal(item), [item]);
   const statusLabel = item.status === 'in_progress' ? 'Started' : STATUS_LABELS[item.status];
   const execChip = useExecutionChip(item);
-  const actions = getQuickActions(item);
+  const primaryAction = getPrimaryQuickAction(item);
+  const secondaryActions = getSecondaryQuickActions(item);
+  const showKind = item.kind !== 'action';
+  const showCategory = item.category !== 'other';
+  const showSource = sourceSignal.type !== 'manual';
+  const showPriority = !isDone && (item.priority === 'high' || item.priority === 'critical');
 
   return (
     <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
       <div className="min-w-0">
-        <div className="flex min-w-0 items-start gap-2">
+        <div className="flex min-w-0 items-start gap-2.5">
           <span
-            className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md"
+            className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md"
             style={{ background: getKindBackground(variant), color: getKindColor(variant, item.status) }}
             title={KIND_LABELS[item.kind]}
           >
@@ -53,7 +60,7 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <span
-                className="min-w-0 max-w-full truncate text-[12px] font-semibold leading-5"
+                className="min-w-0 max-w-full truncate text-[13px] font-semibold leading-5 tracking-[-0.01em]"
                 style={{
                   color: isDone ? 'var(--text-muted)' : 'var(--text-primary)',
                   textDecoration: item.status === 'cancelled' ? 'line-through' : undefined,
@@ -61,13 +68,13 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
               >
                 {item.title}
               </span>
-              {item.priority !== 'low' && !isDone && <PriorityPill item={item} />}
+              {showPriority && <PriorityPill item={item} />}
             </div>
 
-            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
               <SignalChip label={statusLabel} style={statusTone[item.status]} />
-              <SignalChip icon={<KindIcon size={8} />} label={KIND_LABELS[item.kind]} />
-              <SignalChip label={CATEGORY_LABELS[item.category]} />
+              {showKind && <SignalChip icon={<KindIcon size={8} />} label={KIND_LABELS[item.kind]} />}
+              {showCategory && <SignalChip label={CATEGORY_LABELS[item.category]} />}
               {dateSignal && (
                 <SignalChip
                   icon={dateSignal.tone === 'danger' ? <AlertTriangle size={8} /> : <Clock3 size={8} />}
@@ -75,11 +82,13 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
                   tone={dateSignal.tone}
                 />
               )}
-              <SignalChip
-                icon={sourceSignal.type === 'jira' ? <Link2 size={8} /> : <FileText size={8} />}
-                label={sourceSignal.label}
-                title={sourceSignal.title}
-              />
+              {showSource && (
+                <SignalChip
+                  icon={sourceSignal.type === 'jira' ? <Link2 size={8} /> : <FileText size={8} />}
+                  label={sourceSignal.label}
+                  title={sourceSignal.title}
+                />
+              )}
               {execChip && <SignalChip icon={<Users size={8} />} label={execChip.label} style={execChip.style} title={`Developer execution: ${execChip.label}`} />}
             </div>
 
@@ -88,25 +97,45 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
         </div>
       </div>
 
-      {actions.length > 0 && onStatusChange && !readOnly && (
-        <div className="flex flex-wrap items-center gap-1 md:justify-end">
-          {actions.map((action) => (
-            <button
-              key={action.status}
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onStatusChange(action.status);
-              }}
-              className="inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[9px] font-semibold uppercase tracking-[0.08em] transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]"
-              style={action.style}
-              aria-label={`${action.label} ${item.title}`}
-              title={action.label}
+      {primaryAction && onStatusChange && !readOnly && (
+        <div className="flex items-center gap-1 md:justify-end md:opacity-0 md:transition-opacity md:duration-150 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+          <RowActionButton action={primaryAction} itemTitle={item.title} onStatusChange={onStatusChange} />
+          {secondaryActions.length > 0 && (
+            <details
+              className="relative"
+              onClick={(event) => event.stopPropagation()}
             >
-              {action.icon}
-              <span className={action.secondary ? 'hidden xl:inline' : ''}>{action.label}</span>
-            </button>
-          ))}
+              <summary
+                className="flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-md border transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] [&::-webkit-details-marker]:hidden"
+                style={{
+                  background: 'var(--bg-secondary)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text-secondary)',
+                }}
+                aria-label={`More actions for ${item.title}`}
+                title="More actions"
+              >
+                <MoreHorizontal size={13} />
+              </summary>
+              <div
+                className="absolute right-0 top-8 z-20 min-w-[132px] rounded-lg border p-1 shadow-lg"
+                style={{
+                  background: 'var(--bg-primary)',
+                  borderColor: 'var(--border)',
+                  boxShadow: '0 16px 38px rgba(2,6,23,0.22)',
+                }}
+              >
+                {secondaryActions.map((action) => (
+                  <RowMenuAction
+                    key={action.status}
+                    action={action}
+                    itemTitle={item.title}
+                    onStatusChange={onStatusChange}
+                  />
+                ))}
+              </div>
+            </details>
+          )}
         </div>
       )}
 
@@ -116,6 +145,60 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
         </div>
       )}
     </div>
+  );
+}
+
+function RowActionButton({
+  action,
+  itemTitle,
+  onStatusChange,
+}: {
+  action: RowQuickAction;
+  itemTitle: string;
+  onStatusChange: (status: ManagerDeskStatus) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onStatusChange(action.status);
+      }}
+      className="inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[9px] font-semibold uppercase tracking-[0.08em] transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]"
+      style={action.style}
+      aria-label={`${action.label} ${itemTitle}`}
+      title={action.label}
+    >
+      {action.icon}
+      <span>{action.label}</span>
+    </button>
+  );
+}
+
+function RowMenuAction({
+  action,
+  itemTitle,
+  onStatusChange,
+}: {
+  action: RowQuickAction;
+  itemTitle: string;
+  onStatusChange: (status: ManagerDeskStatus) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onStatusChange(action.status);
+      }}
+      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors hover:bg-white/5"
+      style={{ color: action.status === 'cancelled' ? 'var(--text-muted)' : 'var(--text-secondary)' }}
+      aria-label={`${action.label} ${itemTitle}`}
+      title={action.label}
+    >
+      {action.icon}
+      <span>{action.label}</span>
+    </button>
   );
 }
 

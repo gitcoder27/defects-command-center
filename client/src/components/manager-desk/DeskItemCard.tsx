@@ -41,24 +41,29 @@ export function DeskItemCard({
           onSelect();
         }
       }}
-      className="group relative cursor-pointer rounded-lg border px-3 py-2 transition-[background-color,border-color,box-shadow,opacity,transform] duration-150 active:scale-[0.995]"
+      className="group relative cursor-pointer overflow-hidden rounded-lg border px-3 py-2.5 outline-none transition-[background-color,box-shadow,opacity,transform] duration-150 hover:-translate-y-[1px] focus-visible:ring-1 focus-visible:ring-[color-mix(in_srgb,var(--md-accent)_48%,transparent)] active:scale-[0.995]"
       role="button"
       tabIndex={0}
       aria-label={`Open ${item.title}`}
       style={{
         background: cardSurface.background,
-        borderTopColor: selected ? 'var(--md-accent)' : cardSurface.border,
-        borderRightColor: selected ? 'var(--md-accent)' : cardSurface.border,
-        borderBottomColor: selected ? 'var(--md-accent)' : cardSurface.border,
+        borderColor: cardSurface.border,
         borderLeftColor: borderAccent,
         borderLeftStyle: 'solid',
-        borderLeftWidth: 3,
+        borderLeftWidth: 2,
         opacity: isDone ? 0.68 : 1,
-        boxShadow: selected
-          ? 'inset 0 0 0 1px color-mix(in srgb, var(--md-accent) 72%, transparent), 0 10px 24px rgba(15,23,42,0.10)'
-          : undefined,
       }}
     >
+      {selected && (
+        <span
+          aria-hidden="true"
+          data-testid={`selected-manager-desk-item-${item.id}`}
+          className="pointer-events-none absolute inset-0 rounded-lg"
+          style={{
+            boxShadow: 'inset 0 0 0 1px var(--md-accent), inset 2px 0 0 var(--md-accent), 0 10px 24px rgba(15,23,42,0.10)',
+          }}
+        />
+      )}
       <DeskItemCardContent
         item={item}
         variant={variant}
@@ -75,8 +80,8 @@ function getCardSurface(item: ManagerDeskItem, isOverdue: boolean) {
   if (item.status === 'in_progress') {
     return {
       background:
-        'linear-gradient(135deg, color-mix(in srgb, var(--md-accent-glow) 52%, var(--bg-tertiary) 48%) 0%, var(--bg-tertiary) 80%)',
-      border: 'color-mix(in srgb, var(--md-accent) 24%, var(--border))',
+        'linear-gradient(135deg, color-mix(in srgb, var(--accent-glow) 28%, var(--bg-tertiary) 72%) 0%, var(--bg-tertiary) 82%)',
+      border: 'color-mix(in srgb, var(--border) 82%, transparent)',
     };
   }
   if (isOverdue) {
@@ -86,8 +91,8 @@ function getCardSurface(item: ManagerDeskItem, isOverdue: boolean) {
     };
   }
   return {
-    background: 'var(--bg-tertiary)',
-    border: 'var(--border)',
+    background: 'color-mix(in srgb, var(--bg-tertiary) 82%, transparent)',
+    border: 'color-mix(in srgb, var(--border) 78%, transparent)',
   };
 }
 
@@ -96,6 +101,6 @@ function getBorderAccent(item: ManagerDeskItem, variant: DeskItemVariant) {
   if (variant === 'waiting') return 'var(--warning)';
   if (variant === 'completed') return 'var(--success)';
   if (item.status === 'in_progress') return 'var(--accent)';
-  if (item.status === 'planned') return 'var(--md-accent)';
-  return 'var(--border)';
+  if (item.status === 'planned') return 'color-mix(in srgb, var(--border) 80%, transparent)';
+  return 'color-mix(in srgb, var(--border) 64%, transparent)';
 }

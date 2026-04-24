@@ -16,14 +16,11 @@ import { ItemDetailDrawer } from './ItemDetailDrawer';
 import { ManagerDeskCommandBar } from './ManagerDeskCommandBar';
 import { ManagerDeskHeader } from './ManagerDeskHeader';
 import { ManagerDeskWorkspace } from './ManagerDeskWorkspace';
-import { SummaryStrip } from './SummaryStrip';
 import { UnifiedDeskList } from './UnifiedDeskList';
 import { MANAGER_DESK_CARD_LAYOUT_TRANSITION } from './motion';
 import {
   filterItems,
-  getCompletedItems,
   getContinuedOpenItems,
-  getOpenItems,
   sortForWorkbench,
   type ManagerDeskFilterState,
   type ManagerDeskQuickFilter,
@@ -73,8 +70,6 @@ export function ManagerDeskPage() {
     [sourceItems, searchQuery, quickFilter, filters],
   );
   const listItems = useMemo(() => sortForWorkbench(filteredItems), [filteredItems]);
-  const openItems = useMemo(() => getOpenItems(sourceItems), [sourceItems]);
-  const completedItems = useMemo(() => getCompletedItems(sourceItems), [sourceItems]);
   const continuedOpenItems = useMemo(() => getContinuedOpenItems(sourceItems, date), [date, sourceItems]);
   const selectedItem = useMemo(
     () => sourceItems.find((item) => item.id === selectedItemId) ?? null,
@@ -99,6 +94,13 @@ export function ManagerDeskPage() {
 
   const handleSelectItem = useCallback((item: ManagerDeskItem) => {
     setSelectedItemId(item.id);
+  }, []);
+
+  const handleCloseDetail = useCallback(() => {
+    setSelectedItemId(null);
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
   }, []);
 
   const handleQuickCapture = useCallback(
@@ -215,19 +217,17 @@ export function ManagerDeskPage() {
         onRefresh={() => void refetch()}
       />
 
-      <ManagerDeskWorkspace className="pt-2">
-        <SummaryStrip summary={day?.summary ?? null} />
-      </ManagerDeskWorkspace>
-
-      <ManagerDeskWorkspace className="pt-2">
-        <ViewModeBanner
-          date={date}
-          viewMode={viewMode}
-          historySubview={historySubview}
-          createdThatDayCount={day?.createdThatDayItems?.length ?? 0}
-          onChangeHistorySubview={setHistorySubview}
-        />
-      </ManagerDeskWorkspace>
+      {viewMode !== 'live' && (
+        <ManagerDeskWorkspace className="pt-2">
+          <ViewModeBanner
+            date={date}
+            viewMode={viewMode}
+            historySubview={historySubview}
+            createdThatDayCount={day?.createdThatDayItems?.length ?? 0}
+            onChangeHistorySubview={setHistorySubview}
+          />
+        </ManagerDeskWorkspace>
+      )}
 
       <ManagerDeskWorkspace className="sticky top-[52px] z-10">
         <ManagerDeskCommandBar
@@ -273,8 +273,6 @@ export function ManagerDeskPage() {
                 >
                   <UnifiedDeskList
                     items={listItems}
-                    totalOpenCount={openItems.length}
-                    completedCount={completedItems.length}
                     continuedOpenCount={continuedOpenItems.length}
                     quickFilter={quickFilter}
                     selectedItemId={selectedItemId}
@@ -295,7 +293,7 @@ export function ManagerDeskPage() {
         open={selectedItem !== null}
         date={date}
         readOnly={readOnly}
-        onClose={() => setSelectedItemId(null)}
+        onClose={handleCloseDetail}
         onUpdate={handleUpdateItem}
         onDelete={handleDeleteItem}
         onCancelDelegatedTask={handleCancelDelegatedTask}

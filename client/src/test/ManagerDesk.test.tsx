@@ -556,7 +556,7 @@ describe('ManagerDeskPage', () => {
     expect(screen.getByText('Live')).toBeInTheDocument();
   });
 
-  it('opens the item detail drawer with all note fields visible', () => {
+  it('opens the item detail drawer with primary manager fields visible', () => {
     render(
       <TestWrapper>
         <ManagerDeskPage />
@@ -565,10 +565,50 @@ describe('ManagerDeskPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
 
-    expect(screen.getByLabelText('Context / Notes')).toBeInTheDocument();
+    expect(screen.getByLabelText('Notes for today')).toBeInTheDocument();
     expect(screen.getByLabelText('Next Action')).toBeInTheDocument();
-    expect(screen.getByLabelText('Outcome')).toBeInTheDocument();
     expect(screen.getByLabelText('Assignee')).toHaveValue('alice-1');
+  });
+
+  it('clears the row highlight and focus when the detail drawer closes', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    const firstCard = screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i });
+    fireEvent.click(firstCard);
+
+    expect(screen.getByLabelText('Manager Desk item detail')).toBeInTheDocument();
+    expect(screen.getByTestId('selected-manager-desk-item-1')).toBeInTheDocument();
+
+    const backdrop = document.querySelector('.workspace-shell-backdrop');
+    expect(backdrop).toBeInTheDocument();
+    fireEvent.click(backdrop as Element);
+
+    expect(screen.queryByLabelText('Manager Desk item detail')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('selected-manager-desk-item-1')).not.toBeInTheDocument();
+    expect(firstCard).not.toHaveFocus();
+  });
+
+  it('keeps only the currently opened row highlighted when switching tasks', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    const firstCard = screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i });
+    const secondCard = screen.getByRole('button', { name: /^Open Quick inbox thought$/i });
+
+    fireEvent.click(firstCard);
+    expect(screen.getByTestId('selected-manager-desk-item-1')).toBeInTheDocument();
+
+    fireEvent.click(secondCard);
+
+    expect(screen.queryByTestId('selected-manager-desk-item-1')).not.toBeInTheDocument();
+    expect(screen.getByTestId('selected-manager-desk-item-4')).toBeInTheDocument();
   });
 
   it('updates the assigned team member from the drawer', () => {
@@ -644,7 +684,7 @@ describe('ManagerDeskPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
 
-    const notesField = screen.getByLabelText('Context / Notes');
+    const notesField = screen.getByLabelText('Notes for today');
     fireEvent.change(notesField, { target: { value: 'Capture manager context in the detail drawer' } });
 
     expect(mockUpdateMutate).not.toHaveBeenCalled();
@@ -656,10 +696,36 @@ describe('ManagerDeskPage', () => {
     expect(mockUpdateMutate).toHaveBeenCalledWith(
       {
         itemId: 1,
-        contextNote: 'Capture manager context in the detail drawer',
+        contextNote: 'Mar 8, 2026:\nCapture manager context in the detail drawer',
       },
       expect.anything(),
     );
+  });
+
+  it('shows manager context as today plus past note entries', () => {
+    currentMockDay = {
+      ...mockDayResponse,
+      items: mockDayResponse.items.map((item) =>
+        item.id === 1
+          ? {
+              ...item,
+              contextNote: 'Mar 7, 2026:\nReviewed blocker with QA and captured the dependency.',
+            }
+          : item,
+      ),
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
+
+    expect(screen.getByLabelText('Notes for today')).toBeInTheDocument();
+    expect(screen.getByText('Past entries')).toBeInTheDocument();
+    expect(screen.getByText('Reviewed blocker with QA and captured the dependency.')).toBeInTheDocument();
   });
 
   it('commits next action changes on blur when the debounce has not fired yet', () => {
@@ -684,7 +750,7 @@ describe('ManagerDeskPage', () => {
     );
   });
 
-  it('shows both next action and outcome fields simultaneously in the drawer', () => {
+  it('keeps next action primary and outcome in the secondary details section', () => {
     render(
       <TestWrapper>
         <ManagerDeskPage />
@@ -694,6 +760,7 @@ describe('ManagerDeskPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
 
     expect(screen.getByLabelText('Next Action')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Details'));
     expect(screen.getByLabelText('Outcome')).toBeInTheDocument();
   });
 
@@ -706,23 +773,25 @@ describe('ManagerDeskPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
 
-    expect(screen.getByLabelText('Context / Notes')).toBeInTheDocument();
+    expect(screen.getByLabelText('Notes for today')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Details'));
     expect(screen.getByLabelText('Kind')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
     expect(screen.getByLabelText('Category')).toBeInTheDocument();
     expect(screen.getByLabelText('Priority')).toBeInTheDocument();
   });
 
-  it('shows the summary strip for the live desk', () => {
+  it('uses the lens row as the live desk status control', () => {
     render(
       <TestWrapper>
         <ManagerDeskPage />
       </TestWrapper>,
     );
 
-    expect(screen.getAllByText('Open').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Needs Attention').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Done').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /all 4/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /needs attention/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /done 1/i })).toBeInTheDocument();
+    expect(screen.queryByText(/A new day changes the lens/i)).not.toBeInTheDocument();
   });
 
   it('shows filter button and toggles filter bar', () => {
