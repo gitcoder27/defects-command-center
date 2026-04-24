@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
-import { AlertTriangle, ArrowRight, CheckCircle2, CircleOff, Clock, Play, Zap } from 'lucide-react';
-import type { Issue, TrackerDeveloperDay, TrackerDeveloperGroup, TrackerWorkItem } from '@/types';
+import { AlertTriangle, CheckCircle2, CircleOff, Clock, MessageSquarePlus, Zap } from 'lucide-react';
+import type { Issue, TrackerAttentionItem, TrackerDeveloperDay, TrackerDeveloperGroup, TrackerWorkItem } from '@/types';
 import { formatAbsoluteDateTime, formatRelativeTime } from '@/lib/utils';
 import { TrackerStatusPill } from './TrackerStatusPill';
 
@@ -12,8 +12,10 @@ interface TrackerRosterBoardProps {
   searchActive: boolean;
   onOpenDrawer: (accountId: string) => void;
   onOpenTaskDetail?: (itemId: number, managerDeskItemId?: number) => void;
-  onSetCurrent: (itemId: number) => void;
+  onCaptureFollowUp: (day: TrackerDeveloperDay) => void;
   issues?: Issue[];
+  attentionItems?: TrackerAttentionItem[];
+  attentionSorted?: boolean;
   readOnly?: boolean;
 }
 
@@ -74,6 +76,55 @@ const getRiskTone = (day: TrackerDeveloperDay) => {
   return 'var(--text-muted)';
 };
 
+type AttentionMeta = {
+  rank: number;
+  reason: string;
+  tone: 'danger' | 'warning' | 'neutral';
+};
+
+const attentionReasonTone = (item: TrackerAttentionItem): AttentionMeta['tone'] => {
+  const firstCode = item.reasons[0]?.code;
+  if (firstCode === 'blocked' || firstCode === 'overdue_linked_work' || firstCode === 'over_capacity') {
+    return 'danger';
+  }
+  if (firstCode) {
+    return 'warning';
+  }
+  return 'neutral';
+};
+
+const attentionToneColor: Record<AttentionMeta['tone'], string> = {
+  danger: 'var(--danger)',
+  warning: 'var(--warning)',
+  neutral: 'var(--text-muted)',
+};
+
+const getReasonLine = (item: TrackerAttentionItem) => {
+  const reasons = item.reasons.map((reason) => reason.label);
+  if (reasons.length <= 2) return reasons.join(' · ');
+  return `${reasons.slice(0, 2).join(' · ')} · +${reasons.length - 2} more`;
+};
+
+const buildAttentionMeta = (items: TrackerAttentionItem[] = []) =>
+  new Map(
+    items.map((item, index) => [
+      item.developer.accountId,
+      {
+        rank: index + 1,
+        reason: getReasonLine(item),
+        tone: attentionReasonTone(item),
+      },
+    ])
+  );
+
+const sortByAttention = (developers: TrackerDeveloperDay[], attentionMeta: Map<string, AttentionMeta>) =>
+  [...developers].sort((left, right) => {
+    const leftRank = attentionMeta.get(left.developer.accountId)?.rank ?? Number.MAX_SAFE_INTEGER;
+    const rightRank = attentionMeta.get(right.developer.accountId)?.rank ?? Number.MAX_SAFE_INTEGER;
+    if (leftRank !== rightRank) return leftRank - rightRank;
+    return left.developer.displayName.localeCompare(right.developer.displayName);
+  });
+
 function WorkSummary({
   item,
   fallback,
@@ -128,24 +179,26 @@ function RosterRow({
   index,
   onOpenDrawer,
   onOpenTaskDetail,
-  onSetCurrent,
+  onCaptureFollowUp,
   readOnly,
+  attentionMeta,
 }: {
   day: TrackerDeveloperDay;
   index: number;
   onOpenDrawer: (accountId: string) => void;
   onOpenTaskDetail?: (itemId: number, managerDeskItemId?: number) => void;
-  onSetCurrent: (itemId: number) => void;
+  onCaptureFollowUp: (day: TrackerDeveloperDay) => void;
   readOnly?: boolean;
+  attentionMeta?: AttentionMeta;
 }) {
   const assignedCount = getAssignedCount(day);
   const loadIsHigh = Boolean(day.capacityUnits && assignedCount > day.capacityUnits);
   const firstPlanned = day.plannedItems[0];
-  const canSetCurrent = !readOnly && !day.currentItem && Boolean(firstPlanned);
   const freshnessTitle = day.lastCheckInAt ? formatAbsoluteDateTime(day.lastCheckInAt) : undefined;
   const freshnessIsStale = day.signals.freshness.staleByTime || !day.lastCheckInAt;
   const riskLabel = getRiskLabel(day);
   const riskTone = getRiskTone(day);
+  const attentionColor = attentionMeta ? attentionToneColor[attentionMeta.tone] : 'transparent';
 
   return (
     <motion.div
@@ -161,9 +214,16 @@ function RosterRow({
           onOpenDrawer(day.developer.accountId);
         }
       }}
-      className="grid cursor-pointer gap-3 border-b px-3 py-3 text-left transition-colors hover:bg-[var(--bg-tertiary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--border-active)] md:grid-cols-[minmax(190px,1.15fr)_minmax(220px,1.45fr)_minmax(130px,0.8fr)_80px_minmax(110px,0.72fr)_minmax(105px,0.72fr)_96px] md:items-center"
+      className="relative grid cursor-pointer gap-3 border-b px-3 py-3 text-left transition-colors hover:bg-[var(--bg-tertiary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--border-active)] md:grid-cols-[minmax(190px,1.05fr)_minmax(220px,1.35fr)_minmax(150px,0.9fr)_64px_minmax(110px,0.72fr)_minmax(210px,1.08fr)_52px] md:items-center"
       style={{ borderColor: 'var(--border)' }}
     >
+      {attentionMeta && (
+        <span
+          className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-sm"
+          style={{ background: attentionColor }}
+          title={attentionMeta.reason}
+        />
+      )}
       <div className="flex min-w-0 items-center gap-3">
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold"
@@ -206,26 +266,27 @@ function RosterRow({
 
       <div className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: riskTone }}>
         {riskLabel === 'Clear' ? <CheckCircle2 size={13} /> : riskLabel === 'Needs current' ? <CircleOff size={13} /> : <AlertTriangle size={13} />}
-        <span className="truncate">{riskLabel}</span>
+        <span className="truncate" title={attentionMeta?.reason}>{attentionMeta?.reason ?? riskLabel}</span>
       </div>
 
       <div className="flex justify-start md:justify-end">
-        {canSetCurrent ? (
+        {!readOnly ? (
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              onSetCurrent(firstPlanned!.id);
+              onCaptureFollowUp(day);
             }}
-            className="inline-flex h-8 items-center justify-center rounded-lg px-3 text-[12px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
-            style={{ background: 'var(--accent)', color: 'var(--bg-primary)' }}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+            style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+            aria-label={`Capture follow-up for ${day.developer.displayName}`}
+            title={`Capture follow-up for ${day.developer.displayName}`}
           >
-            Set current
+            <MessageSquarePlus size={13} />
           </button>
         ) : (
-          <span className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold" style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}>
-            Open
-            <ArrowRight size={13} />
+          <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+            -
           </span>
         )}
       </div>
@@ -238,36 +299,43 @@ function RosterSection({
   indexOffset,
   onOpenDrawer,
   onOpenTaskDetail,
-  onSetCurrent,
+  onCaptureFollowUp,
   readOnly,
+  attentionMeta,
+  attentionSorted,
 }: {
   developers: TrackerDeveloperDay[];
   indexOffset: number;
   onOpenDrawer: (accountId: string) => void;
   onOpenTaskDetail?: (itemId: number, managerDeskItemId?: number) => void;
-  onSetCurrent: (itemId: number) => void;
+  onCaptureFollowUp: (day: TrackerDeveloperDay) => void;
   readOnly?: boolean;
+  attentionMeta: Map<string, AttentionMeta>;
+  attentionSorted: boolean;
 }) {
+  const visibleDevelopers = attentionSorted ? sortByAttention(developers, attentionMeta) : developers;
+
   return (
     <div className="overflow-hidden rounded-xl border" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)' }}>
-      <div className="hidden border-b px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] md:grid md:grid-cols-[minmax(190px,1.15fr)_minmax(220px,1.45fr)_minmax(130px,0.8fr)_80px_minmax(110px,0.72fr)_minmax(105px,0.72fr)_96px]" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+      <div className="hidden border-b px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] md:grid md:grid-cols-[minmax(190px,1.05fr)_minmax(220px,1.35fr)_minmax(150px,0.9fr)_64px_minmax(110px,0.72fr)_minmax(210px,1.08fr)_52px]" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
         <span>Developer</span>
         <span>Current work</span>
         <span>Next</span>
         <span>Load</span>
         <span>Freshness</span>
         <span>Risk</span>
-        <span className="text-right">Action</span>
+        <span className="text-center">Action</span>
       </div>
-      {developers.map((day, index) => (
+      {visibleDevelopers.map((day, index) => (
         <RosterRow
           key={day.developer.accountId}
           day={day}
           index={indexOffset + index}
           onOpenDrawer={onOpenDrawer}
           onOpenTaskDetail={onOpenTaskDetail}
-          onSetCurrent={onSetCurrent}
+          onCaptureFollowUp={onCaptureFollowUp}
           readOnly={readOnly}
+          attentionMeta={attentionMeta.get(day.developer.accountId)}
         />
       ))}
     </div>
@@ -281,9 +349,12 @@ export function TrackerRosterBoard({
   searchActive,
   onOpenDrawer,
   onOpenTaskDetail,
-  onSetCurrent,
+  onCaptureFollowUp,
+  attentionItems = [],
+  attentionSorted = false,
   readOnly = false,
 }: TrackerRosterBoardProps) {
+  const attentionMeta = buildAttentionMeta(attentionItems);
   const visibleCount = isGrouped
     ? groups.reduce((sum, group) => sum + group.developers.length, 0)
     : developers.length;
@@ -310,8 +381,10 @@ export function TrackerRosterBoard({
         indexOffset={0}
         onOpenDrawer={onOpenDrawer}
         onOpenTaskDetail={onOpenTaskDetail}
-        onSetCurrent={onSetCurrent}
+        onCaptureFollowUp={onCaptureFollowUp}
         readOnly={readOnly}
+        attentionMeta={attentionMeta}
+        attentionSorted={attentionSorted}
       />
     );
   }
@@ -341,8 +414,10 @@ export function TrackerRosterBoard({
               indexOffset={currentOffset}
               onOpenDrawer={onOpenDrawer}
               onOpenTaskDetail={onOpenTaskDetail}
-              onSetCurrent={onSetCurrent}
+              onCaptureFollowUp={onCaptureFollowUp}
               readOnly={readOnly}
+              attentionMeta={attentionMeta}
+              attentionSorted={attentionSorted}
             />
           </section>
         );

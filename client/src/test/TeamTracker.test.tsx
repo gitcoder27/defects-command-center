@@ -474,11 +474,12 @@ describe('TeamTrackerPage', () => {
     expect(screen.getByRole('button', { name: /1 needs follow-up/i })).toBeInTheDocument();
   });
 
-  it('renders the attention queue in ranked order with concise reason lines', () => {
+  it('renders the team roster with attention ranking and concise reason lines', () => {
     mockBoard.attentionQueue[0] = {
       ...mockBoard.attentionQueue[0]!,
       currentItem: undefined,
     };
+    mockBoard.query.sortBy = 'attention';
 
     render(
       <TestWrapper>
@@ -486,17 +487,17 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    const queue = screen.getByText('Needs attention').closest('section');
-    expect(queue).not.toBeNull();
+    const roster = screen.getByText('Developer').closest('.overflow-hidden');
+    expect(roster).not.toBeNull();
 
-    const queueView = within(queue!);
-    const bob = queueView.getByText('Bob Jones');
-    const alice = queueView.getByText('Alice Smith');
+    const rosterView = within(roster! as HTMLElement);
+    const bob = rosterView.getByText('Bob Jones');
+    const alice = rosterView.getByText('Alice Smith');
     expect(bob.compareDocumentPosition(alice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(queueView.getByText(/blocked · stale with risk/i)).toBeInTheDocument();
-    expect(queueView.getByText('Fix login bug')).toBeInTheDocument();
-    expect(queueView.getByText('No current item')).toBeInTheDocument();
-    expect(queueView.queryByText('Active work is set')).not.toBeInTheDocument();
+    expect(rosterView.getByText(/blocked · stale with risk/i)).toBeInTheDocument();
+    expect(rosterView.getByText('Fix login bug')).toBeInTheDocument();
+    expect(rosterView.getByText('No current item')).toBeInTheDocument();
+    expect(rosterView.queryByText('Active work is set')).not.toBeInTheDocument();
   });
 
   it('renders the inactive restore tray and reactivates developers from it', () => {
@@ -655,7 +656,7 @@ describe('TeamTrackerPage', () => {
     fireEvent.click(screen.getByText('Investigate API latency'));
 
     expect(screen.getByText("AM-456 is already on Alice Smith's board today.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /open/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /open/i }).at(-1)!);
 
     expect(screen.queryByText("AM-456 is already on Alice Smith's board today.")).not.toBeInTheDocument();
     expect(screen.getByText('Shared task detail for item 77')).toBeInTheDocument();
@@ -668,7 +669,8 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByRole('tab', { name: /attention/i })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /attention/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /team/i })).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByText(/open team work stays on the tracker until it is done or dropped/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /carry forward/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /review & carry/i })).not.toBeInTheDocument();
@@ -803,7 +805,7 @@ describe('TeamTrackerPage', () => {
     clickDeveloperRow('Bob Jones');
 
     expect(screen.getByText('Manager')).toBeInTheDocument();
-    expect(screen.getByText('Developer')).toBeInTheDocument();
+    expect(screen.getAllByText('Developer').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(formatAbsoluteDateTime('2026-03-07T09:30:00Z'))).toBeInTheDocument();
     expect(screen.getByText(formatAbsoluteDateTime('2026-03-07T10:45:00Z'))).toBeInTheDocument();
     expect(screen.getAllByTitle(formatAbsoluteDateTime('2026-03-07T10:45:00Z')).length).toBeGreaterThanOrEqual(3);

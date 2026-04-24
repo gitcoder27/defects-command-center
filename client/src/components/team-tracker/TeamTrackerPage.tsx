@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Calendar, ChevronLeft, ChevronRight, History, RefreshCw } from 'lucide-react';
 import { useTeamTracker } from '@/hooks/useTeamTracker';
 import {
@@ -16,7 +16,6 @@ import { useToast } from '@/context/ToastContext';
 import { getLocalIsoDate, shiftLocalIsoDate } from '@/lib/utils';
 import { TrackerSummaryStrip } from './TrackerSummaryStrip';
 import { TrackerBoardToolbar } from './TrackerBoardToolbar';
-import { AttentionQueue } from './AttentionQueue';
 import { InactiveDeveloperTray } from './InactiveDeveloperTray';
 import { TrackerRosterBoard } from './TrackerRosterBoard';
 import { TeamTrackerViewSwitcher, type TeamTrackerLens } from './TeamTrackerViewSwitcher';
@@ -25,7 +24,7 @@ import { AvailabilityDialog } from './AvailabilityDialog';
 import { TrackerTaskDetailDrawer } from './TrackerTaskDetailDrawer';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
 import type { AppView } from '@/App';
-import type { TrackerAttentionActionItem, TrackerAttentionItem, TrackerDeveloperDay, TrackerWorkItem } from '@/types';
+import type { TrackerAttentionActionItem, TrackerDeveloperDay, TrackerAttentionReason, TrackerWorkItem } from '@/types';
 
 interface TeamTrackerPageProps {
   onViewChange?: (view: AppView) => void;
@@ -37,8 +36,8 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   const [drawerAccountId, setDrawerAccountId] = useState<string | undefined>();
   const [selectedTask, setSelectedTask] = useState<{ trackerItemId: number; managerDeskItemId?: number } | null>(null);
   const [availabilityTarget, setAvailabilityTarget] = useState<TrackerDeveloperDay | undefined>();
-  const [captureFollowUpTarget, setCaptureFollowUpTarget] = useState<TrackerAttentionItem | null>(null);
-  const [activeLens, setActiveLens] = useState<TeamTrackerLens>('attention');
+  const [followUpTarget, setFollowUpTarget] = useState<{ day: TrackerDeveloperDay; reasons: TrackerAttentionReason[] } | null>(null);
+  const [activeLens, setActiveLens] = useState<TeamTrackerLens>('team');
 
   // Board query + saved views (extracted hook)
   const qs = useBoardQueryState(addToast);
@@ -206,12 +205,6 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
     setSelectedTask(null);
   }, [date]);
 
-  useEffect(() => {
-    if (readOnly && activeLens === 'attention') {
-      setActiveLens('team');
-    }
-  }, [activeLens, readOnly]);
-
   const isRefreshing = isBoardFetching;
 
   const handleMarkInactive = useCallback((day: TrackerDeveloperDay) => {
@@ -244,16 +237,10 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
     updateAvailability.mutate({ accountId, state: 'active' });
   }, [updateAvailability]);
 
-  const handleAttentionMarkInactive = useCallback((accountId: string) => {
-    const day = board?.developers.find((d) => d.developer.accountId === accountId);
-    if (day) {
-      setAvailabilityTarget(day);
-    }
-  }, [board?.developers]);
-
-  const handleAttentionCaptureFollowUp = useCallback((item: TrackerAttentionItem) => {
-    setCaptureFollowUpTarget(item);
-  }, []);
+  const handleCaptureFollowUp = useCallback((day: TrackerDeveloperDay) => {
+    const attentionItem = attentionItems.find((item) => item.developer.accountId === day.developer.accountId);
+    setFollowUpTarget({ day, reasons: attentionItem?.reasons ?? [] });
+  }, [attentionItems]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -276,7 +263,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
                 Team Tracker
               </div>
               <div className="hidden truncate text-[11px] md:block" style={{ color: 'var(--text-muted)' }}>
-                Attention first, full roster one click away.
+                Full roster, attention-aware.
               </div>
             </div>
           </div>
@@ -285,10 +272,8 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
             <TeamTrackerViewSwitcher
               activeLens={activeLens}
               onLensChange={setActiveLens}
-              attentionCount={attentionItems.length}
               teamCount={board.visibleSummary.total}
               inactiveCount={board.inactiveDevelopers.length}
-              readOnly={readOnly}
             />
           )}
 
@@ -398,16 +383,6 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
           <TeamTrackerSkeleton />
         ) : board ? (
           <div className="mx-auto max-w-[1600px]">
-            {activeLens === 'attention' && !readOnly && (
-              <AttentionQueue
-                items={attentionItems}
-                date={date}
-                onOpenDrawer={setDrawerAccountId}
-                onMarkInactive={handleAttentionMarkInactive}
-                onCaptureFollowUp={handleAttentionCaptureFollowUp}
-                onSetCurrent={handleSetCurrent}
-              />
-            )}
             {activeLens === 'team' && (
               <TrackerRosterBoard
                 date={date}
@@ -417,8 +392,10 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
                 searchActive={!!resolvedSearch}
                 onOpenDrawer={setDrawerAccountId}
                 onOpenTaskDetail={readOnly ? undefined : handleOpenTaskDetail}
-                onSetCurrent={handleSetCurrent}
+                onCaptureFollowUp={handleCaptureFollowUp}
                 issues={issues}
+                attentionItems={attentionItems}
+                attentionSorted={resolvedSortBy === 'attention'}
                 readOnly={readOnly}
               />
             )}
@@ -480,25 +457,28 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
         onClose={() => setAvailabilityTarget(undefined)}
         onConfirm={handleConfirmInactive}
       />
-      <AnimatePresence>
-        {captureFollowUpTarget && (
-          <ManagerDeskCaptureDialog
-            onClose={() => setCaptureFollowUpTarget(null)}
-            onOpenManagerDesk={onViewChange ? () => onViewChange('manager-desk') : undefined}
-            heading={`Follow up with ${captureFollowUpTarget.developer.displayName}`}
-            description="Capture a follow-up item on your Manager Desk linked to this developer."
-            initialTitle={`Follow up with ${captureFollowUpTarget.developer.displayName}`}
-            initialKind="action"
-            initialCategory="follow_up"
-            initialLinks={[{ linkType: 'developer', developerAccountId: captureFollowUpTarget.developer.accountId }]}
-            contextChips={[
-              { label: 'Developer', value: captureFollowUpTarget.developer.displayName, tone: 'developer' },
-              ...captureFollowUpTarget.reasons.map((r) => ({ label: 'Reason', value: r.label, tone: 'generic' as const })),
-            ]}
-            date={date}
-          />
-        )}
-      </AnimatePresence>
+      {followUpTarget && (
+        <ManagerDeskCaptureDialog
+          onClose={() => setFollowUpTarget(null)}
+          onOpenManagerDesk={onViewChange ? () => onViewChange('manager-desk') : undefined}
+          heading={`Follow up with ${followUpTarget.day.developer.displayName}`}
+          description="Capture a manager follow-up linked to this developer."
+          initialTitle={`Follow up with ${followUpTarget.day.developer.displayName}`}
+          initialKind="action"
+          initialCategory="follow_up"
+          initialContextNote={
+            followUpTarget.day.currentItem?.jiraKey
+              ? `Current tracker context: ${followUpTarget.day.currentItem.jiraKey} - ${followUpTarget.day.currentItem.title}`
+              : ''
+          }
+          initialLinks={[{ linkType: 'developer', developerAccountId: followUpTarget.day.developer.accountId }]}
+          contextChips={[
+            { label: 'Developer', value: followUpTarget.day.developer.displayName, tone: 'developer' },
+            ...followUpTarget.reasons.map((reason) => ({ label: 'Reason', value: reason.label, tone: 'generic' as const })),
+          ]}
+          date={date}
+        />
+      )}
     </div>
   );
 }
@@ -537,7 +517,7 @@ function TeamTrackerSkeleton() {
   return (
     <div className="mx-auto max-w-[1600px] overflow-hidden rounded-xl border" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)' }}>
       {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="grid gap-3 border-b px-3 py-3 md:grid-cols-[minmax(190px,1.15fr)_minmax(220px,1.45fr)_minmax(130px,0.8fr)_80px_minmax(110px,0.72fr)_minmax(105px,0.72fr)_96px]" style={{ borderColor: 'var(--border)' }}>
+        <div key={index} className="grid gap-3 border-b px-3 py-3 md:grid-cols-[minmax(190px,1.05fr)_minmax(220px,1.35fr)_minmax(150px,0.9fr)_64px_minmax(110px,0.72fr)_minmax(210px,1.08fr)_52px]" style={{ borderColor: 'var(--border)' }}>
           {Array.from({ length: 7 }).map((__, cellIndex) => (
             <div
               key={cellIndex}

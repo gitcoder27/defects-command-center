@@ -1,22 +1,19 @@
-import { AlertCircle, Users, UserMinus } from 'lucide-react';
+import { Users, UserMinus } from 'lucide-react';
 
-export type TeamTrackerLens = 'attention' | 'team' | 'inactive';
+export type TeamTrackerLens = 'team' | 'inactive';
 
 interface TeamTrackerViewSwitcherProps {
   activeLens: TeamTrackerLens;
   onLensChange: (lens: TeamTrackerLens) => void;
-  attentionCount: number;
   teamCount: number;
   inactiveCount: number;
-  readOnly?: boolean;
 }
 
 const lensConfig: Array<{
   key: TeamTrackerLens;
   label: string;
-  icon: typeof AlertCircle;
+  icon: typeof Users;
 }> = [
-  { key: 'attention', label: 'Attention', icon: AlertCircle },
   { key: 'team', label: 'Team', icon: Users },
   { key: 'inactive', label: 'Inactive', icon: UserMinus },
 ];
@@ -24,18 +21,13 @@ const lensConfig: Array<{
 export function TeamTrackerViewSwitcher({
   activeLens,
   onLensChange,
-  attentionCount,
   teamCount,
   inactiveCount,
-  readOnly = false,
 }: TeamTrackerViewSwitcherProps) {
   const counts: Record<TeamTrackerLens, number> = {
-    attention: attentionCount,
     team: teamCount,
     inactive: inactiveCount,
   };
-
-  const visibleLenses = lensConfig.filter((lens) => lens.key !== 'attention' || !readOnly);
 
   return (
     <div
@@ -44,7 +36,7 @@ export function TeamTrackerViewSwitcher({
       aria-label="Team tracker view"
       role="tablist"
     >
-      {visibleLenses.map((lens) => {
+      {lensConfig.map((lens) => {
         const isActive = activeLens === lens.key;
         const Icon = lens.icon;
 

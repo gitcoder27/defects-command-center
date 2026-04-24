@@ -38,7 +38,7 @@ type AddToastFn = (...args: any[]) => void;
 export function useBoardQueryState(
   addToast: AddToastFn,
 ): BoardQueryState {
-  const [boardQuery, setBoardQuery] = useState<TeamTrackerBoardQuery>({});
+  const [boardQuery, setBoardQuery] = useState<TeamTrackerBoardQuery>({ sortBy: 'attention' });
   const activeViewSnapshot = useRef<TeamTrackerSavedView | undefined>();
 
   const { data: savedViews, isLoading: isViewsLoading } = useTeamTrackerViews();
@@ -92,7 +92,7 @@ export function useBoardQueryState(
 
   const handleClearView = useCallback(() => {
     activeViewSnapshot.current = undefined;
-    setBoardQuery({});
+    setBoardQuery({ sortBy: 'attention' });
   }, []);
 
   const handleSaveNewView = useCallback((name: string) => {
