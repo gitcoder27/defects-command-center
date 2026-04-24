@@ -1,15 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { X, MessageSquare, Save, Briefcase, UserMinus } from 'lucide-react';
+import { MessageSquare, Save } from 'lucide-react';
 import type { TrackerDeveloperDay, TrackerDeveloperStatus, Issue } from '@/types';
 import type { TrackerWorkItem } from '@/types';
-import { TrackerStatusPill } from './TrackerStatusPill';
 import { TrackerItemRow } from './TrackerItemRow';
 import { AddTrackerItemForm } from './AddTrackerItemForm';
-import { TrackerSignalBadges } from './TrackerSignalBadges';
 import { formatAbsoluteDateTime, formatRelativeTime } from '@/lib/utils';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
-import { JiraIssueLink } from '@/components/JiraIssueLink';
+import { DrawerHeader, DrawerSection, HistorySection, ManagerFollowUpRow, StatusSummary } from './DeveloperDrawerSections';
 
 interface DeveloperTrackerDrawerProps {
   date: string;
@@ -32,8 +30,6 @@ interface DeveloperTrackerDrawerProps {
   isAddItemPending?: boolean;
   readOnly?: boolean;
 }
-
-const statusOptions: TrackerDeveloperStatus[] = ['on_track', 'at_risk', 'blocked', 'waiting', 'done_for_today'];
 
 function getCheckInAuthorBadge(authorType?: TrackerDeveloperDay['checkIns'][number]['authorType']) {
   if (authorType === 'developer') {
@@ -89,6 +85,8 @@ export function DeveloperTrackerDrawer({
   const [notesEditing, setNotesEditing] = useState(false);
   const [localPlannedItems, setLocalPlannedItems] = useState<TrackerWorkItem[]>([]);
   const [deskCaptureOpen, setDeskCaptureOpen] = useState(false);
+  const [completedOpen, setCompletedOpen] = useState(false);
+  const [droppedOpen, setDroppedOpen] = useState(false);
   const localPlannedItemsRef = useRef<TrackerWorkItem[]>([]);
   const isDraggingRef = useRef(false);
   const assignedTodayCount = (day?.currentItem ? 1 : 0) + (day?.plannedItems.length ?? 0);
@@ -106,6 +104,8 @@ export function DeveloperTrackerDrawer({
   useEffect(() => {
     if (day) {
       setCapacityText(day.capacityUnits ? String(day.capacityUnits) : '');
+      setCompletedOpen(false);
+      setDroppedOpen(false);
     }
   }, [day?.id, day?.capacityUnits]);
 
@@ -199,182 +199,69 @@ export function DeveloperTrackerDrawer({
               boxShadow: '-20px 0 60px rgba(0, 0, 0, 0.3)',
             }}
           >
-            {/* Drawer header */}
-            <div
-              className="shrink-0 px-4 py-3 flex items-center justify-between"
-              style={{ borderBottom: '1px solid var(--border)' }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="h-10 w-10 rounded-xl flex items-center justify-center text-[13px] font-bold"
-                  style={{
-                    background: 'linear-gradient(135deg, var(--accent-glow), var(--bg-tertiary))',
-                    color: 'var(--accent)',
-                    border: '1px solid var(--border)',
-                  }}
-                >
-                  {day.developer.displayName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <div className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                    {day.developer.displayName}
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <TrackerStatusPill status={day.status} size="md" />
-                    {day.lastCheckInAt && (
-                      <span
-                        className="text-[11px]"
-                        style={{ color: day.signals.freshness.staleByTime ? 'var(--warning)' : 'var(--text-muted)' }}
-                        title={formatAbsoluteDateTime(day.lastCheckInAt)}
-                      >
-                        Last check-in {formatRelativeTime(day.lastCheckInAt)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {!readOnly && onMarkInactive && (
-                  <button
-                    type="button"
-                    onClick={() => onMarkInactive(day)}
-                    className="h-8 w-8 rounded-lg flex items-center justify-center transition-colors hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
-                    style={{
-                      background: 'color-mix(in srgb, var(--warning) 10%, transparent)',
-                      color: 'var(--warning)',
-                      border: '1px solid color-mix(in srgb, var(--warning) 28%, var(--border))',
-                    }}
-                    aria-label={`Mark ${day.developer.displayName} inactive`}
-                    title={`Mark ${day.developer.displayName} inactive`}
-                  >
-                    <UserMinus size={15} />
-                  </button>
-                )}
-                <button
-                  onClick={onClose}
-                  className="h-8 w-8 rounded-lg flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
-                  style={{ background: 'var(--bg-tertiary)' }}
-                  aria-label="Close developer details"
-                >
-                  <X size={16} style={{ color: 'var(--text-secondary)' }} />
-                </button>
-              </div>
-            </div>
+            <DrawerHeader
+              day={day}
+              loadLabel={loadLabel}
+              isOverCapacity={isOverCapacity}
+              readOnly={readOnly}
+              onClose={onClose}
+              onUpdateDay={onUpdateDay}
+              onMarkInactive={onMarkInactive}
+            />
 
-            {/* Compact summary strip (pinned above scroll) */}
-            <div className="shrink-0 px-4 py-2 space-y-2" style={{ borderBottom: '1px solid var(--border)' }}>
-              {/* Status pills — tight inline row */}
-              <div className="flex flex-wrap gap-1">
-                {statusOptions.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => !readOnly && onUpdateDay({ accountId: day.developer.accountId, status: s })}
-                    disabled={readOnly}
-                    className={`transition-all ${day.status === s ? '' : 'opacity-40 hover:opacity-75'}`}
-                  >
-                    <TrackerStatusPill status={s} size="sm" />
-                  </button>
-                ))}
-              </div>
+            <StatusSummary
+              day={day}
+              readOnly={readOnly}
+              capacityText={capacityText}
+              setCapacityText={setCapacityText}
+              onUpdateDay={onUpdateDay}
+              onSaveCapacity={handleSaveCapacity}
+            />
 
-              {/* Stats + Capacity — single row */}
-              <div className="flex items-center gap-3 text-[12px]">
-                <div className="flex items-center gap-2.5">
-                  <span style={{ color: 'var(--text-muted)' }}>
-                    Load{' '}
-                    <span className="font-mono font-semibold" style={{ color: isOverCapacity ? 'var(--danger)' : 'var(--text-primary)' }}>
-                      {loadLabel}
-                    </span>
-                  </span>
-                  <span style={{ color: 'var(--border-strong)' }}>·</span>
-                  <span style={{ color: 'var(--text-muted)' }}>
-                    Done{' '}
-                    <span className="font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      {day.completedItems.length}
-                    </span>
-                  </span>
-                  <span style={{ color: 'var(--border-strong)' }}>·</span>
-                  <span style={{ color: 'var(--text-muted)' }}>
-                    Dropped{' '}
-                    <span className="font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      {day.droppedItems.length}
-                    </span>
-                  </span>
-                </div>
-                <div className="ml-auto flex items-center gap-1.5">
-                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Cap</span>
-                  <input
-                    type="number"
-                    min={1}
-                    inputMode="numeric"
-                    value={capacityText}
-                    onChange={(e) => setCapacityText(e.target.value)}
-                    disabled={readOnly}
-                    placeholder="–"
-                    className="w-10 rounded-md px-1.5 py-0.5 text-[12px] text-center outline-none font-mono"
-                    style={{
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      border: '1px solid var(--border)',
-                    }}
-                  />
-                  <button
-                    onClick={handleSaveCapacity}
-                    disabled={readOnly}
-                    className="rounded-md px-1.5 py-0.5 text-[11px] font-medium"
-                    style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
-                  >
-                    Save
-                  </button>
-                  {!readOnly && day.capacityUnits !== undefined && (
-                    <button
-                      onClick={() => {
-                        setCapacityText('');
-                        onUpdateDay({ accountId: day.developer.accountId, capacityUnits: null });
-                      }}
-                      className="text-[11px]"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Signal badges — only shown when there are active signals */}
-              <TrackerSignalBadges day={day} />
-            </div>
-
-            {/* Scrollable body */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-              {/* Current item */}
-              <div>
-                <div className="text-[11px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-                  Current Work
-                </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              <DrawerSection title="Current work">
                 {day.currentItem ? (
-                  <TrackerItemRow
-                    item={day.currentItem}
-                    actionPreset="hover-done"
-                    onOpen={readOnly ? undefined : onOpenTaskDetail}
-                    onUpdateNote={readOnly ? undefined : (itemId, note) => onUpdateItemNote({ itemId, note })}
-                    onUpdateTitle={readOnly ? undefined : (itemId, title) => onUpdateItemTitle({ itemId, title })}
-                    onSetCurrent={readOnly ? undefined : onSetCurrent}
-                    onMarkDone={readOnly ? undefined : onMarkDone}
-                    onDrop={readOnly ? undefined : onDropItem}
-                  />
+                  <div
+                    className="rounded-xl p-1"
+                    style={{
+                      background: 'color-mix(in srgb, var(--accent-glow) 48%, transparent)',
+                      border: '1px solid color-mix(in srgb, var(--accent) 22%, var(--border))',
+                    }}
+                  >
+                    <TrackerItemRow
+                      item={day.currentItem}
+                      actionPreset="hover-done"
+                      onOpen={readOnly ? undefined : onOpenTaskDetail}
+                      onUpdateNote={readOnly ? undefined : (itemId, note) => onUpdateItemNote({ itemId, note })}
+                      onUpdateTitle={readOnly ? undefined : (itemId, title) => onUpdateItemTitle({ itemId, title })}
+                      onSetCurrent={readOnly ? undefined : onSetCurrent}
+                      onMarkDone={readOnly ? undefined : onMarkDone}
+                      onDrop={readOnly ? undefined : onDropItem}
+                    />
+                  </div>
                 ) : (
-                  <div className="text-[13px] py-2" style={{ color: 'var(--text-muted)' }}>
+                  <div className="rounded-xl px-3 py-2 text-[13px]" style={{ color: 'var(--text-muted)', background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
                     {readOnly ? 'No active item in this historical snapshot.' : 'No active item. Set one from the planned list.'}
                   </div>
                 )}
-              </div>
+              </DrawerSection>
 
-              {/* Planned items */}
-              <div>
-                <div className="text-[11px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-                  Planned ({day.plannedItems.length})
-                </div>
+              <DrawerSection
+                title="Planned"
+                count={day.plannedItems.length}
+              >
+                {!readOnly && (
+                  <div className="mb-2">
+                    <AddTrackerItemForm
+                      onAdd={(params) => onAddItem({ accountId: day.developer.accountId, ...params })}
+                      date={date}
+                      targetAccountId={day.developer.accountId}
+                      onOpenExistingAssignment={(itemId) => onOpenTaskDetail(itemId)}
+                      issues={issueList}
+                      isPending={isAddItemPending}
+                    />
+                  </div>
+                )}
                 {localPlannedItems.length > 0 ? (
                   readOnly ? (
                     <div className="space-y-0.5">
@@ -429,104 +316,23 @@ export function DeveloperTrackerDrawer({
                   </Reorder.Group>
                   )
                 ) : (
-                  <div className="space-y-0.5" />
+                  <div className="rounded-xl px-3 py-2 text-[13px]" style={{ color: 'var(--text-muted)', background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+                    Nothing planned.
+                  </div>
                 )}
-                {!readOnly && (
-                  <AddTrackerItemForm
-                    onAdd={(params) => onAddItem({ accountId: day.developer.accountId, ...params })}
-                    date={date}
-                    targetAccountId={day.developer.accountId}
-                    onOpenExistingAssignment={(itemId) => onOpenTaskDetail(itemId)}
-                    issues={issueList}
-                    isPending={isAddItemPending}
-                  />
-                )}
-              </div>
-
-              {/* Completed items */}
-              {day.completedItems.length > 0 && (
-                <div>
-                  <div className="text-[11px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-                    Completed ({day.completedItems.length})
-                  </div>
-                  <div className="space-y-0.5">
-                    {day.completedItems.map((item) => (
-                      <TrackerItemRow key={item.id} item={item} compact hideActions onOpen={undefined} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Dropped items */}
-              {day.droppedItems.length > 0 && (
-                <div>
-                  <div className="text-[11px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-                    Dropped ({day.droppedItems.length})
-                  </div>
-                  <div className="space-y-0.5">
-                    {day.droppedItems.map((item) => (
-                      <TrackerItemRow key={item.id} item={item} compact hideActions onOpen={undefined} />
-                    ))}
-                  </div>
-                </div>
-              )}
+              </DrawerSection>
 
               {!readOnly && (
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-                    Manager Desk
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setDeskCaptureOpen(true)}
-                    className="text-[11px] font-medium"
-                    style={{ color: 'var(--md-accent)' }}>
-                    Capture Follow-Up
-                  </button>
-                </div>
-                <div
-                  className="rounded-xl px-3 py-3"
-                  style={{
-                    background: 'linear-gradient(135deg, color-mix(in srgb, var(--md-accent-glow) 72%, var(--bg-tertiary) 28%), var(--bg-tertiary))',
-                    border: '1px solid rgba(217,169,78,0.16)',
-                  }}
-                >
-                  <div className="flex items-start gap-2.5">
-                    <div
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
-                      style={{ background: 'rgba(217,169,78,0.14)', color: 'var(--md-accent)' }}
-                    >
-                      <Briefcase size={14} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                        Keep your own follow-ups separate from the team queue
-                      </div>
-                      <div className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
-                        This capture links {day.developer.displayName} automatically and drops the task into today&apos;s Manager Desk inbox.
-                      </div>
-                      {day.currentItem?.jiraKey && (
-                        <div className="mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                          Current tracker context:{' '}
-                          <JiraIssueLink issueKey={day.currentItem.jiraKey} style={{ color: 'var(--text-primary)' }}>
-                            {day.currentItem.jiraKey}
-                          </JiraIssueLink>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                <ManagerFollowUpRow
+                  day={day}
+                  onCapture={() => setDeskCaptureOpen(true)}
+                />
               )}
 
-              {/* Manager notes */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-                    Manager Notes
-                  </div>
-                  {!readOnly && !notesEditing && (
+              <DrawerSection
+                title="Notes"
+                action={
+                  !readOnly && !notesEditing ? (
                     <button
                       onClick={() => { setNotesText(day.managerNotes ?? ''); setNotesEditing(true); }}
                       className="text-[11px]"
@@ -534,8 +340,9 @@ export function DeveloperTrackerDrawer({
                     >
                       Edit
                     </button>
-                  )}
-                </div>
+                  ) : undefined
+                }
+              >
                 {notesEditing && !readOnly ? (
                   <div className="space-y-1">
                     <textarea
@@ -571,13 +378,23 @@ export function DeveloperTrackerDrawer({
                     {day.managerNotes || 'No notes yet.'}
                   </div>
                 )}
-              </div>
+              </DrawerSection>
+
+              <HistorySection
+                title="Completed"
+                items={day.completedItems}
+                open={completedOpen}
+                onToggle={() => setCompletedOpen((current) => !current)}
+              />
+              <HistorySection
+                title="Dropped"
+                items={day.droppedItems}
+                open={droppedOpen}
+                onToggle={() => setDroppedOpen((current) => !current)}
+              />
 
               {/* Check-in history */}
-              <div>
-                <div className="text-[11px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-                  Check-ins ({day.checkIns.length})
-                </div>
+              <DrawerSection title="Check-ins" count={day.checkIns.length}>
                 <div className="space-y-1.5 mb-2">
                   {day.checkIns.length === 0 && (
                     <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
@@ -643,7 +460,7 @@ export function DeveloperTrackerDrawer({
                     </button>
                   </div>
                 )}
-              </div>
+              </DrawerSection>
             </div>
           </motion.div>
         </>

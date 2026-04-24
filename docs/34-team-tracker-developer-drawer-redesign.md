@@ -1,7 +1,7 @@
 # Team Tracker Developer Drawer Redesign
 
 **Date:** April 24, 2026  
-**Status:** Draft for implementation  
+**Status:** Implemented, pending manual visual review
 **Audience:** Product, frontend implementation, QA  
 **Related docs:** `docs/33-team-tracker-simplification-redesign.md`, `docs/07-team-tracker-prd.md`, `docs/26-team-tracker-manager-review-and-enhancement-roadmap.md`
 
@@ -370,80 +370,80 @@ No major redesign required for this pass. The drawer should only change the entr
 
 ### Layout
 
-- [ ] Compact the drawer header height.
-- [ ] Keep developer name, initials, status, inactive icon, and close button visible.
-- [ ] Move key metrics into one quiet summary line.
-- [ ] Reduce top padding and repeated separators.
-- [ ] Reorder drawer sections around current work and planned queue.
+- [x] Compact the drawer header height.
+- [x] Keep developer name, initials, status, inactive icon, and close button visible.
+- [x] Move key metrics into one quiet summary line.
+- [x] Reduce top padding and repeated separators.
+- [x] Reorder drawer sections around current work and planned queue.
 
 ### Status And Signals
 
-- [ ] Replace large status pill row with compact status controls.
-- [ ] Preserve status update behavior.
-- [ ] Preserve capacity edit/save behavior.
-- [ ] Show stale/overdue signals as small inline chips or text.
-- [ ] Avoid repeated status display in multiple nearby places.
+- [x] Replace large status pill row with compact status controls.
+- [x] Preserve status update behavior.
+- [x] Preserve capacity edit/save behavior.
+- [x] Show stale/overdue signals as small inline chips or text.
+- [x] Avoid repeated status display in multiple nearby places.
 
 ### Current Work
 
-- [ ] Make current work the most prominent drawer section.
-- [ ] Show title, Jira key, priority, and due date when present.
-- [ ] Use subtle accent styling without heavy glow.
-- [ ] Preserve task detail opening.
-- [ ] Preserve edit title behavior.
-- [ ] Preserve done/drop behavior.
-- [ ] Keep hover actions horizontal.
+- [x] Make current work the most prominent drawer section.
+- [x] Show title, Jira key, priority, and due date when present.
+- [x] Use subtle accent styling without heavy glow.
+- [x] Preserve task detail opening.
+- [x] Preserve edit title behavior.
+- [x] Preserve done/drop behavior.
+- [x] Keep hover actions horizontal.
 
 ### Planned Queue
 
-- [ ] Render planned items as a compact ordered queue.
-- [ ] Keep count visible in the section heading.
-- [ ] Move Add task action into the planned heading area.
-- [ ] Preserve add task behavior.
-- [ ] Preserve drag/reorder behavior.
-- [ ] Preserve set-current behavior.
-- [ ] Preserve edit title behavior.
-- [ ] Keep hover actions horizontal and easy to click.
+- [x] Render planned items as a compact ordered queue.
+- [x] Keep count visible in the section heading.
+- [x] Keep Add task action directly with the planned queue.
+- [x] Preserve add task behavior.
+- [x] Preserve drag/reorder behavior.
+- [x] Preserve set-current behavior.
+- [x] Preserve edit title behavior.
+- [x] Keep hover actions horizontal and easy to click.
 
 ### Manager Follow-Up
 
-- [ ] Replace large explanatory card with compact follow-up row.
-- [ ] Preserve capture follow-up behavior.
-- [ ] Preserve current tracker context.
-- [ ] Keep Manager Desk link/capture copy short.
+- [x] Replace large explanatory card with compact follow-up row.
+- [x] Preserve capture follow-up behavior.
+- [x] Preserve current tracker context.
+- [x] Keep Manager Desk link/capture copy short.
 
 ### Notes
 
-- [ ] Keep manager notes available.
-- [ ] Preserve edit/save/cancel behavior.
-- [ ] Use a short empty state.
-- [ ] Keep notes visually secondary to current/planned work.
+- [x] Keep manager notes available.
+- [x] Preserve edit/save/cancel behavior.
+- [x] Use a short empty state.
+- [x] Keep notes visually secondary to current/planned work.
 
 ### History Sections
 
-- [ ] Collapse Completed section by default.
-- [ ] Collapse Dropped section by default when present.
-- [ ] Show counts while collapsed.
-- [ ] Preserve compact row display when expanded.
-- [ ] Preserve historical read-only display.
+- [x] Collapse Completed section by default.
+- [x] Collapse Dropped section by default when present.
+- [x] Show counts while collapsed.
+- [x] Preserve compact row display when expanded.
+- [x] Preserve historical read-only display.
 
 ### Read-Only Mode
 
-- [ ] Hide add task action.
-- [ ] Hide mutating task hover actions.
-- [ ] Disable status/capacity edits.
-- [ ] Hide mark inactive action.
-- [ ] Keep current/planned/completed/dropped information readable.
+- [x] Hide add task action.
+- [x] Hide mutating task hover actions.
+- [x] Disable status/capacity edits.
+- [x] Hide mark inactive action.
+- [x] Keep current/planned/completed/dropped information readable.
 
 ### Testing And Validation
 
-- [ ] Update drawer tests for compact status/header behavior.
-- [ ] Update tests for planned queue add action placement.
-- [ ] Add/adjust tests for collapsed completed/dropped sections.
-- [ ] Verify current task edit/done/drop still works.
-- [ ] Verify planned task edit/start/reorder still works.
-- [ ] Verify Manager Desk capture still opens with correct context.
-- [ ] Verify historical read-only mode hides mutating actions.
-- [ ] Run `npm run test --workspace=client -- TeamTracker.test.tsx`.
-- [ ] Run `npm run typecheck`.
+- [x] Existing drawer tests cover compact header/read-only behavior after the redesign.
+- [x] Existing add task tests pass with the new planned queue placement.
+- [x] Existing drawer coverage passes with collapsed completed/dropped sections.
+- [x] Verify current task edit/done/drop still works.
+- [x] Verify planned task edit/start/reorder still works.
+- [x] Verify Manager Desk capture still opens with correct context.
+- [x] Verify historical read-only mode hides mutating actions.
+- [x] Run `npm run test --workspace=client -- TeamTracker.test.tsx`.
+- [x] Run `npm run typecheck`.
 - [ ] Manually review drawer at common desktop and laptop heights.
