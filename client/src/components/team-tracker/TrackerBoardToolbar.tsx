@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Search, ArrowUpDown, Layers, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
 import type { TeamTrackerBoardSort, TeamTrackerBoardGroupBy } from '@/types';
-import { TrackerDropdownMenu } from './TrackerDropdownMenu';
 import { SavedViewsMenu } from './SavedViewsMenu';
 import type { SavedViewsMenuProps } from './SavedViewsMenu';
 
@@ -84,28 +83,21 @@ export function TrackerBoardToolbar({
         {isFiltered && (
           <span
             className="text-[11px] font-mono font-medium px-2 py-1 rounded-lg"
-            style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
+            style={{ color: 'var(--text-secondary)', background: 'transparent', border: '1px solid var(--border)' }}
           >
             {visibleCount}/{totalCount}
           </span>
         )}
 
-        <TrackerDropdownMenu
-          activeValue={sortBy}
-          items={sortOptions}
-          onSelect={(v) => onSortChange(v as TeamTrackerBoardSort)}
-          trigger={
-            <ToolbarButton label={currentSort?.label ?? 'Sort'} icon={<ArrowUpDown size={12} />} active={isSortNonDefault} />
-          }
-        />
-
-        <TrackerDropdownMenu
-          activeValue={groupBy}
-          items={groupOptions}
-          onSelect={(v) => onGroupChange(v as TeamTrackerBoardGroupBy)}
-          trigger={
-            <ToolbarButton label={currentGroup?.label ?? 'Group'} icon={<Layers size={12} />} active={isGroupActive} />
-          }
+        <ViewOptionsMenu
+          sortBy={sortBy}
+          groupBy={groupBy}
+          currentSortLabel={currentSort?.label ?? 'Name'}
+          currentGroupLabel={currentGroup?.label ?? 'No grouping'}
+          sortActive={isSortNonDefault}
+          groupActive={isGroupActive}
+          onSortChange={onSortChange}
+          onGroupChange={onGroupChange}
         />
 
         <SavedViewsMenu {...savedViewProps} />
@@ -122,9 +114,9 @@ const SearchInput = forwardRef<HTMLInputElement, {
   onClear: () => void;
 }>(({ value, onChange, onClear }, ref) => (
   <div
-    className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 flex-1 min-w-[200px] max-w-[360px]"
+    className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 flex-1 min-w-[220px] max-w-[440px]"
     style={{
-      background: 'var(--bg-tertiary)',
+      background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)',
       border: `1px solid ${value ? 'var(--accent)' : 'var(--border)'}`,
     }}
   >
@@ -153,19 +145,114 @@ const SearchInput = forwardRef<HTMLInputElement, {
 ));
 SearchInput.displayName = 'SearchInput';
 
-function ToolbarButton({ label, icon, active }: { label: string; icon: React.ReactNode; active: boolean }) {
+function ViewOptionsMenu({
+  sortBy,
+  groupBy,
+  currentSortLabel,
+  currentGroupLabel,
+  sortActive,
+  groupActive,
+  onSortChange,
+  onGroupChange,
+}: {
+  sortBy: TeamTrackerBoardSort;
+  groupBy: TeamTrackerBoardGroupBy;
+  currentSortLabel: string;
+  currentGroupLabel: string;
+  sortActive: boolean;
+  groupActive: boolean;
+  onSortChange: (sort: TeamTrackerBoardSort) => void;
+  onGroupChange: (group: TeamTrackerBoardGroupBy) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const isActive = sortActive || groupActive;
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
   return (
-    <button
-      className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition-all shrink-0"
-      style={{
-        background: active ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'var(--bg-tertiary)',
-        border: `1px solid ${active ? 'color-mix(in srgb, var(--accent) 30%, transparent)' : 'var(--border)'}`,
-        color: active ? 'var(--accent)' : 'var(--text-secondary)',
-      }}
-    >
-      {icon}
-      {label}
-    </button>
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition-all shrink-0 focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+        style={{
+          background: isActive ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'transparent',
+          border: `1px solid ${isActive ? 'color-mix(in srgb, var(--accent) 30%, transparent)' : 'var(--border)'}`,
+          color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+        }}
+      >
+        <SlidersHorizontal size={12} />
+        View options
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-full z-50 mt-1 w-[260px] overflow-hidden rounded-xl border p-2"
+          style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border)', boxShadow: 'var(--soft-shadow)' }}
+        >
+          <OptionGroup
+            label={`Sort · ${currentSortLabel}`}
+            activeValue={sortBy}
+            options={sortOptions}
+            onSelect={(value) => onSortChange(value as TeamTrackerBoardSort)}
+          />
+          <div className="my-2 h-px" style={{ background: 'var(--border)' }} />
+          <OptionGroup
+            label={`Group · ${currentGroupLabel}`}
+            activeValue={groupBy}
+            options={groupOptions}
+            onSelect={(value) => onGroupChange(value as TeamTrackerBoardGroupBy)}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
+function OptionGroup({
+  label,
+  activeValue,
+  options,
+  onSelect,
+}: {
+  label: string;
+  activeValue: string;
+  options: Array<{ value: string; label: string }>;
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <div>
+      <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-muted)' }}>
+        {label}
+      </div>
+      <div className="grid gap-1">
+        {options.map((option) => {
+          const active = option.value === activeValue;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onSelect(option.value)}
+              className="flex items-center justify-between rounded-lg px-2 py-1.5 text-left text-[12px] font-medium transition-colors"
+              style={{
+                color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                background: active ? 'var(--bg-tertiary)' : 'transparent',
+              }}
+            >
+              {option.label}
+              {active && <span className="h-1.5 w-1.5 rounded-sm" style={{ background: 'var(--accent)' }} />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

@@ -7,6 +7,7 @@ interface InactiveDeveloperTrayProps {
   onReactivate: (accountId: string) => void;
   pendingAccountId?: string;
   readOnly?: boolean;
+  defaultExpanded?: boolean;
 }
 
 export function InactiveDeveloperTray({
@@ -14,8 +15,9 @@ export function InactiveDeveloperTray({
   onReactivate,
   pendingAccountId,
   readOnly = false,
+  defaultExpanded = false,
 }: InactiveDeveloperTrayProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   if (items.length === 0) {
     return null;
@@ -23,7 +25,7 @@ export function InactiveDeveloperTray({
 
   return (
     <section
-      className="mb-4 rounded-[18px] border px-3 py-2.5"
+      className="rounded-xl border px-3 py-2.5"
       style={{
         borderColor: 'var(--border)',
         background: 'color-mix(in srgb, var(--bg-secondary) 94%, transparent)',

@@ -441,6 +441,7 @@ export interface TrackerAttentionItem {
   isStale: boolean;
   signals: TrackerDeveloperSignals;
   hasCurrentItem: boolean;
+  currentItem?: TrackerAttentionActionItem;
   plannedCount: number;
   availableQuickActions: TrackerAttentionQuickAction[];
   setCurrentCandidates: TrackerAttentionActionItem[];

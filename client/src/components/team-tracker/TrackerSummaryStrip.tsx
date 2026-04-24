@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { AlertTriangle, Clock, ShieldAlert, Pause, CircleOff, CheckCircle2, Users, CalendarClock, Scale, MessageCircleWarning } from 'lucide-react';
+import { AlertTriangle, CalendarClock, CheckCircle2, CircleOff, Clock, MessageCircleWarning, Pause, Scale, ShieldAlert } from 'lucide-react';
 import type { TrackerBoardSummary, TrackerBoardSummaryFilter } from '@/types';
 
 interface TrackerSummaryStripProps {
@@ -15,7 +15,6 @@ const chips: Array<{
   countKey: keyof TrackerBoardSummary;
   color: string;
 }> = [
-  { key: 'all', label: 'All', icon: Users, countKey: 'total', color: 'var(--accent)' },
   { key: 'stale', label: 'Stale', icon: Clock, countKey: 'stale', color: 'var(--warning)' },
   { key: 'blocked', label: 'Blocked', icon: ShieldAlert, countKey: 'blocked', color: 'var(--danger)' },
   { key: 'at_risk', label: 'At Risk', icon: AlertTriangle, countKey: 'atRisk', color: 'var(--warning)' },
@@ -28,14 +27,35 @@ const chips: Array<{
 ];
 
 export function TrackerSummaryStrip({ summary, activeFilter, onFilterChange }: TrackerSummaryStripProps) {
+  const visibleChips = chips.filter((chip) => summary[chip.countKey] > 0 || activeFilter === chip.key);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1"
+      className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1.5"
     >
-      {chips.map((chip) => {
+      <button
+        type="button"
+        onClick={() => onFilterChange('all')}
+        className="shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+        style={{
+          background: activeFilter === 'all' ? 'var(--bg-elevated)' : 'transparent',
+          border: `1px solid ${activeFilter === 'all' ? 'var(--border)' : 'transparent'}`,
+          color: activeFilter === 'all' ? 'var(--text-primary)' : 'var(--text-muted)',
+        }}
+      >
+        {summary.total} total
+      </button>
+
+      {visibleChips.length === 0 && (
+        <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          No active risk signals
+        </span>
+      )}
+
+      {visibleChips.map((chip) => {
         const count = summary[chip.countKey];
         const isActive = activeFilter === chip.key;
         const Icon = chip.icon;
@@ -44,24 +64,15 @@ export function TrackerSummaryStrip({ summary, activeFilter, onFilterChange }: T
           <button
             key={chip.key}
             onClick={() => onFilterChange(chip.key === activeFilter ? 'all' : chip.key)}
-            className="shrink-0 flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition-all"
+            className="shrink-0 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
             style={{
-              background: isActive ? `color-mix(in srgb, ${chip.color} 18%, transparent)` : 'var(--bg-tertiary)',
-              border: `1px solid ${isActive ? `color-mix(in srgb, ${chip.color} 40%, transparent)` : 'var(--border)'}`,
+              background: isActive ? `color-mix(in srgb, ${chip.color} 12%, var(--bg-elevated))` : 'transparent',
+              border: `1px solid ${isActive ? `color-mix(in srgb, ${chip.color} 34%, var(--border))` : 'var(--border)'}`,
               color: isActive ? chip.color : 'var(--text-secondary)',
             }}
-          >
-            <Icon size={12} />
-            <span>{chip.label}</span>
-            <span
-              className="font-mono text-[10px] font-semibold rounded-full px-1.5 py-0.5"
-              style={{
-                background: isActive ? `color-mix(in srgb, ${chip.color} 12%, transparent)` : 'var(--bg-secondary)',
-                color: isActive ? chip.color : 'var(--text-muted)',
-              }}
             >
-              {count}
-            </span>
+              <Icon size={12} />
+              <span>{count} {chip.label.toLowerCase()}</span>
           </button>
         );
       })}

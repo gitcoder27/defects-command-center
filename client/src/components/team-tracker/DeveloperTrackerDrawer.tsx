@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { X, MessageSquare, Save, Briefcase } from 'lucide-react';
+import { X, MessageSquare, Save, Briefcase, UserMinus } from 'lucide-react';
 import type { TrackerDeveloperDay, TrackerDeveloperStatus, Issue } from '@/types';
 import type { TrackerWorkItem } from '@/types';
 import { TrackerStatusPill } from './TrackerStatusPill';
@@ -26,6 +26,7 @@ interface DeveloperTrackerDrawerProps {
   onMarkDone: (itemId: number) => void;
   onDropItem: (itemId: number) => void;
   onAddCheckIn: (params: { accountId: string; summary: string; status?: TrackerDeveloperStatus }) => void;
+  onMarkInactive?: (day: TrackerDeveloperDay) => void;
   onOpenManagerDesk?: () => void;
   issues?: Issue[];
   isAddItemPending?: boolean;
@@ -76,6 +77,7 @@ export function DeveloperTrackerDrawer({
   onMarkDone,
   onDropItem,
   onAddCheckIn,
+  onMarkInactive,
   onOpenManagerDesk,
   issues,
   isAddItemPending,
@@ -231,13 +233,28 @@ export function DeveloperTrackerDrawer({
                   </div>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="h-8 w-8 rounded-xl flex items-center justify-center transition-colors"
-                style={{ background: 'var(--bg-tertiary)' }}
-              >
-                <X size={16} style={{ color: 'var(--text-secondary)' }} />
-              </button>
+              <div className="flex items-center gap-1.5">
+                {!readOnly && onMarkInactive && (
+                  <button
+                    type="button"
+                    onClick={() => onMarkInactive(day)}
+                    className="h-8 w-8 rounded-lg flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+                    style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                    aria-label={`Mark ${day.developer.displayName} inactive`}
+                    title="Mark inactive"
+                  >
+                    <UserMinus size={15} />
+                  </button>
+                )}
+                <button
+                  onClick={onClose}
+                  className="h-8 w-8 rounded-lg flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+                  style={{ background: 'var(--bg-tertiary)' }}
+                  aria-label="Close developer details"
+                >
+                  <X size={16} style={{ color: 'var(--text-secondary)' }} />
+                </button>
+              </div>
             </div>
 
             {/* Compact summary strip (pinned above scroll) */}

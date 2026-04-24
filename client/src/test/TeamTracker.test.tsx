@@ -272,6 +272,12 @@ function buildMockBoard(): TeamTrackerBoardResponse {
           },
         }),
         hasCurrentItem: true,
+        currentItem: {
+          id: 10,
+          title: 'Fix login bug',
+          jiraKey: 'AM-123',
+          lifecycle: 'manager_desk_linked',
+        },
         plannedCount: 2,
         lastCheckInAt: '2026-03-07T07:00:00Z',
         availableQuickActions: ['update_status', 'mark_inactive', 'capture_follow_up'],
@@ -384,12 +390,18 @@ vi.mock('framer-motion', async () => {
 
 import { TeamTrackerPage } from '@/components/team-tracker/TeamTrackerPage';
 
-function clickDeveloperCard(name: string) {
-  const target = screen.getAllByText(name).find((element) => element.closest('[class*="dashboard-panel"]'));
+function clickDeveloperRow(name: string) {
+  const target = screen
+    .getAllByRole('button')
+    .find((element) => element.textContent?.includes(name) && element.getAttribute('role') === 'button');
   if (!target) {
-    throw new Error(`Could not find developer card for ${name}`);
+    throw new Error(`Could not find developer row for ${name}`);
   }
   fireEvent.click(target);
+}
+
+function switchTrackerLens(name: RegExp) {
+  fireEvent.click(screen.getByRole('tab', { name }));
 }
 
 describe('TeamTrackerPage', () => {
@@ -439,7 +451,7 @@ describe('TeamTrackerPage', () => {
     expect(screen.getByDisplayValue('2026-03-07')).toHaveProperty('style.colorScheme', '');
   });
 
-  it('renders developer cards', () => {
+  it('renders developer rows', () => {
     render(
       <TestWrapper>
         <TeamTrackerPage />
@@ -455,31 +467,36 @@ describe('TeamTrackerPage', () => {
         <TeamTrackerPage />
       </TestWrapper>
     );
-    // Multiple "Blocked" elements exist (summary strip + card pill), use getAllByText
-    expect(screen.getAllByText('Blocked').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Stale').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Overdue Jira')).toBeInTheDocument();
-    expect(screen.getByText('Over Cap')).toBeInTheDocument();
-    expect(screen.getByText('Needs Follow-up')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /1 blocked/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /1 stale/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /1 overdue jira/i }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('button', { name: /1 over cap/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /1 needs follow-up/i })).toBeInTheDocument();
   });
 
-  it('renders the attention queue in ranked order with reason chips', () => {
+  it('renders the attention queue in ranked order with concise reason lines', () => {
+    mockBoard.attentionQueue[0] = {
+      ...mockBoard.attentionQueue[0]!,
+      currentItem: undefined,
+    };
+
     render(
       <TestWrapper>
         <TeamTrackerPage />
       </TestWrapper>
     );
 
-    const queue = screen.getByText('Needs Attention Now').closest('section');
+    const queue = screen.getByText('Needs attention').closest('section');
     expect(queue).not.toBeNull();
 
     const queueView = within(queue!);
     const bob = queueView.getByText('Bob Jones');
     const alice = queueView.getByText('Alice Smith');
     expect(bob.compareDocumentPosition(alice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(queueView.getByText('Stale with risk')).toBeInTheDocument();
-    expect(queueView.getByText('Overdue linked work')).toBeInTheDocument();
+    expect(queueView.getByText(/blocked · stale with risk/i)).toBeInTheDocument();
+    expect(queueView.getByText('Fix login bug')).toBeInTheDocument();
     expect(queueView.getByText('No current item')).toBeInTheDocument();
+    expect(queueView.queryByText('Active work is set')).not.toBeInTheDocument();
   });
 
   it('renders the inactive restore tray and reactivates developers from it', () => {
@@ -496,7 +513,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /show inactive developers/i }));
+    switchTrackerLens(/inactive/i);
 
     expect(screen.getByText('Cara Diaz')).toBeInTheDocument();
     expect(screen.getByText('PTO today')).toBeInTheDocument();
@@ -523,6 +540,7 @@ describe('TeamTrackerPage', () => {
         <TeamTrackerPage />
       </TestWrapper>
     );
+    switchTrackerLens(/team/i);
     expect(screen.getByText('AM-123')).toBeInTheDocument();
     expect(screen.getByText('Fix login bug')).toBeInTheDocument();
   });
@@ -557,23 +575,17 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
     // Click "Blocked" filter
-    const blockedButtons = screen.getAllByText('Blocked');
-    const filterButton = blockedButtons.find((el) => el.closest('button')?.textContent?.includes('1'));
-    if (filterButton) {
-      fireEvent.click(filterButton);
-      // After filter, Alice should not be visible since she is on_track
-      // But Bob should be visible since he is blocked
-      expect(screen.getAllByText('Bob Jones').length).toBeGreaterThanOrEqual(1);
-    }
+    fireEvent.click(screen.getByRole('button', { name: /1 blocked/i }));
+    expect(screen.getByRole('button', { name: /2 total/i })).toBeInTheDocument();
   });
 
-  it('opens drawer when clicking a developer card', () => {
+  it('opens drawer when clicking a developer row', () => {
     render(
       <TestWrapper>
         <TeamTrackerPage />
       </TestWrapper>
     );
-    clickDeveloperCard('Alice Smith');
+    clickDeveloperRow('Alice Smith');
     expect(screen.getAllByText('Alice Smith').length).toBeGreaterThanOrEqual(1);
   });
 
@@ -584,6 +596,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
+    switchTrackerLens(/team/i);
     fireEvent.click(screen.getByText('Fix login bug'));
 
     expect(screen.getByRole('dialog', { name: /team tracker task detail/i })).toBeInTheDocument();
@@ -630,12 +643,13 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getAllByRole('button', { name: /add task/i })[0]!);
-    fireEvent.change(screen.getByPlaceholderText('Describe the work in one line…'), {
+    clickDeveloperRow('Alice Smith');
+    fireEvent.click(screen.getAllByRole('button', { name: /add task/i }).at(-1)!);
+    fireEvent.change(screen.getByPlaceholderText('Describe the work in one line'), {
       target: { value: 'Investigate API latency spike' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /\+ attach jira/i }));
-    fireEvent.change(screen.getByPlaceholderText('Search by key or summary…'), {
+    fireEvent.click(screen.getByRole('button', { name: /attach jira/i }));
+    fireEvent.change(screen.getByPlaceholderText('Search Jira issues'), {
       target: { value: 'AM-456' },
     });
     fireEvent.click(screen.getByText('Investigate API latency'));
@@ -647,16 +661,15 @@ describe('TeamTrackerPage', () => {
     expect(screen.getByText('Shared task detail for item 77')).toBeInTheDocument();
   });
 
-  it('shows the live continuity banner and removes carry-forward controls', () => {
+  it('shows the simplified live tracker controls and removes carry-forward controls', () => {
     render(
       <TestWrapper>
         <TeamTrackerPage />
       </TestWrapper>
     );
 
-    expect(
-      screen.getByText(/open team work stays on the tracker until it is done or dropped/i)
-    ).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /attention/i })).toBeInTheDocument();
+    expect(screen.queryByText(/open team work stays on the tracker until it is done or dropped/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /carry forward/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /review & carry/i })).not.toBeInTheDocument();
   });
@@ -675,9 +688,9 @@ describe('TeamTrackerPage', () => {
     });
 
     expect(
-      screen.getByText(/2026-03-05 is shown as a historical snapshot/i)
+      screen.getByText(/2026-03-05 is a read-only historical snapshot/i)
     ).toBeInTheDocument();
-    expect(screen.queryByText('Needs Attention Now')).not.toBeInTheDocument();
+    expect(screen.queryByText('Needs attention')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /carry forward/i })).not.toBeInTheDocument();
   });
 
@@ -696,7 +709,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /show inactive developers/i }));
+    switchTrackerLens(/inactive/i);
 
     expect(screen.getByText('Historical inactive state for the selected date.')).toBeInTheDocument();
     expect(screen.getByText('Cara Diaz')).toBeInTheDocument();
@@ -728,7 +741,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    clickDeveloperCard('Alice Smith');
+    clickDeveloperRow('Alice Smith');
 
     expect(screen.getByText('No active item in this historical snapshot.')).toBeInTheDocument();
     expect(screen.getAllByText('Historical planned task').length).toBeGreaterThanOrEqual(1);
@@ -746,6 +759,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
+    switchTrackerLens(/team/i);
     fireEvent.click(screen.getByText('Fix login bug'));
 
     expect(screen.queryByRole('dialog', { name: /team tracker task detail/i })).not.toBeInTheDocument();
@@ -786,7 +800,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    clickDeveloperCard('Bob Jones');
+    clickDeveloperRow('Bob Jones');
 
     expect(screen.getByText('Manager')).toBeInTheDocument();
     expect(screen.getByText('Developer')).toBeInTheDocument();
@@ -825,7 +839,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    clickDeveloperCard('Bob Jones');
+    clickDeveloperRow('Bob Jones');
     fireEvent.click(screen.getAllByRole('button', { name: /add task/i }).at(-1)!);
     fireEvent.change(screen.getByPlaceholderText('Describe the work in one line'), {
       target: { value: 'Investigate API latency spike' },
@@ -891,7 +905,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    clickDeveloperCard('Bob Jones');
+    clickDeveloperRow('Bob Jones');
     const dragHandles = screen.getAllByTitle('Drag to reorder');
     // Bob has 3 planned items, each should have a drag handle
     expect(dragHandles.length).toBe(3);
@@ -904,7 +918,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    clickDeveloperCard('Bob Jones');
+    clickDeveloperRow('Bob Jones');
     const taskRow = screen.getAllByText('Code review').at(-1)?.closest('[role="button"]');
     expect(taskRow).not.toBeNull();
     fireEvent.click(taskRow!);
@@ -920,7 +934,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    clickDeveloperCard('Bob Jones');
+    clickDeveloperRow('Bob Jones');
     fireEvent.click(screen.getByRole('button', { name: /edit title: refactor utils/i }));
 
     const titleInput = screen.getByLabelText('Edit title');
@@ -940,7 +954,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    clickDeveloperCard('Bob Jones');
+    clickDeveloperRow('Bob Jones');
     expect(screen.queryByRole('button', { name: /edit title: code review/i })).not.toBeInTheDocument();
   });
 
@@ -951,7 +965,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    clickDeveloperCard('Bob Jones');
+    clickDeveloperRow('Bob Jones');
     fireEvent.click(screen.getByRole('button', { name: /start code review/i }));
 
     expect(mockSetCurrentMutate).toHaveBeenCalledWith(
@@ -972,7 +986,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    clickDeveloperCard('Bob Jones');
+    clickDeveloperRow('Bob Jones');
     fireEvent.click(screen.getByRole('button', { name: /mark fix login bug done/i }));
 
     expect(mockUpdateTrackerItemMutate).toHaveBeenNthCalledWith(
@@ -1007,7 +1021,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
-    clickDeveloperCard('Bob Jones');
+    clickDeveloperRow('Bob Jones');
     fireEvent.change(screen.getByDisplayValue('2'), {
       target: { value: '5' },
     });
@@ -1026,6 +1040,7 @@ describe('TeamTrackerPage', () => {
       </TestWrapper>
     );
 
+    switchTrackerLens(/team/i);
     fireEvent.click(screen.getByText('Fix login bug'));
     fireEvent.click(screen.getByRole('button', { name: /close shared task detail/i }));
 

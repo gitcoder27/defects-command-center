@@ -470,6 +470,12 @@ describe("team tracker routes", () => {
       "mark_inactive",
       "capture_follow_up",
     ]);
+    expect(res.body?.attentionQueue[0]?.currentItem).toEqual({
+      id: overdueItem.id,
+      title: "Linked Jira task",
+      jiraKey: "AM-123",
+      lifecycle: "tracker_only",
+    });
     expect(res.body?.attentionQueue[0]?.setCurrentCandidates).toEqual([]);
     expect(res.body?.attentionQueue[4]?.availableQuickActions).toEqual([
       "update_status",

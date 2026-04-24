@@ -554,6 +554,7 @@ function getDeveloperAttentionSortTuple(
     isStale: day.isStale,
     signals: day.signals,
     hasCurrentItem: Boolean(day.currentItem),
+    currentItem: day.currentItem ? mapAttentionActionItem(day.currentItem) : undefined,
     plannedCount: day.plannedItems.length,
     availableQuickActions: getAttentionQuickActions(day),
     setCurrentCandidates: !day.currentItem
@@ -1757,6 +1758,7 @@ export class TeamTrackerService {
         isStale: day.isStale,
         signals: day.signals,
         hasCurrentItem: Boolean(day.currentItem),
+        currentItem: day.currentItem ? mapAttentionActionItem(day.currentItem) : undefined,
         plannedCount: day.plannedItems.length,
         availableQuickActions: getAttentionQuickActions(day),
         setCurrentCandidates: !day.currentItem

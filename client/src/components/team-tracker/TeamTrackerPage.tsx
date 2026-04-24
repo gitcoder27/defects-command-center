@@ -18,13 +18,14 @@ import { TrackerSummaryStrip } from './TrackerSummaryStrip';
 import { TrackerBoardToolbar } from './TrackerBoardToolbar';
 import { AttentionQueue } from './AttentionQueue';
 import { InactiveDeveloperTray } from './InactiveDeveloperTray';
-import { TrackerBoard } from './TrackerBoard';
+import { TrackerRosterBoard } from './TrackerRosterBoard';
+import { TeamTrackerViewSwitcher, type TeamTrackerLens } from './TeamTrackerViewSwitcher';
 import { DeveloperTrackerDrawer } from './DeveloperTrackerDrawer';
 import { AvailabilityDialog } from './AvailabilityDialog';
 import { TrackerTaskDetailDrawer } from './TrackerTaskDetailDrawer';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
 import type { AppView } from '@/App';
-import type { TrackerAttentionItem, TrackerDeveloperDay, TrackerWorkItem } from '@/types';
+import type { TrackerAttentionActionItem, TrackerAttentionItem, TrackerDeveloperDay, TrackerWorkItem } from '@/types';
 
 interface TeamTrackerPageProps {
   onViewChange?: (view: AppView) => void;
@@ -37,6 +38,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   const [selectedTask, setSelectedTask] = useState<{ trackerItemId: number; managerDeskItemId?: number } | null>(null);
   const [availabilityTarget, setAvailabilityTarget] = useState<TrackerDeveloperDay | undefined>();
   const [captureFollowUpTarget, setCaptureFollowUpTarget] = useState<TrackerAttentionItem | null>(null);
+  const [activeLens, setActiveLens] = useState<TeamTrackerLens>('attention');
 
   // Board query + saved views (extracted hook)
   const qs = useBoardQueryState(addToast);
@@ -75,6 +77,31 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
     () => board?.developers.find((d) => d.developer.accountId === drawerAccountId),
     [board, drawerAccountId]
   );
+
+  const attentionItems = useMemo(() => {
+    if (!board) {
+      return [];
+    }
+
+    const currentItemsByDeveloper = new Map(
+      board.developers
+        .filter((day) => Boolean(day.currentItem))
+        .map((day) => [day.developer.accountId, mapAttentionCurrentItem(day.currentItem!)]),
+    );
+
+    return board.attentionQueue.map((item) => {
+      const currentItem = item.currentItem ?? currentItemsByDeveloper.get(item.developer.accountId);
+      if (!currentItem) {
+        return item;
+      }
+
+      return {
+        ...item,
+        hasCurrentItem: true,
+        currentItem,
+      };
+    });
+  }, [board]);
 
   const findTrackerItem = useCallback(
     (itemId: number): TrackerWorkItem | undefined => {
@@ -178,6 +205,13 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   useEffect(() => {
     setSelectedTask(null);
   }, [date]);
+
+  useEffect(() => {
+    if (readOnly && activeLens === 'attention') {
+      setActiveLens('team');
+    }
+  }, [activeLens, readOnly]);
+
   const isRefreshing = isBoardFetching;
 
   const handleMarkInactive = useCallback((day: TrackerDeveloperDay) => {
@@ -223,26 +257,26 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Page header strip */}
       <motion.div
         initial={{ opacity: 0, y: -4 }}
         animate={{ opacity: 1, y: 0 }}
-        className="shrink-0 px-4 pt-3 pb-1"
+        className="shrink-0 border-b px-4 pb-3 pt-3"
+        style={{ borderColor: 'var(--border)' }}
       >
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <div
-              className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
+              className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: 'var(--bg-tertiary)', color: 'var(--accent)', border: '1px solid var(--border)' }}
             >
               <Calendar size={16} />
             </div>
             <div>
-              <div className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+              <div className="text-[16px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Team Tracker
               </div>
-              <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                Daily work tracking &amp; follow-ups
+              <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                Attention first, full roster one click away.
               </div>
             </div>
           </div>
@@ -252,9 +286,9 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
               type="button"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
               style={{
-                background: 'var(--bg-tertiary)',
+                background: 'transparent',
                 color: 'var(--text-secondary)',
                 border: '1px solid var(--border)',
               }}
@@ -266,7 +300,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
             </button>
             <div
               className="flex items-center gap-0.5 rounded-xl px-1 py-0.5"
-              style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
+              style={{ background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)', border: '1px solid var(--border)' }}
             >
               <button
                 onClick={() => setDate(shiftLocalIsoDate(date, -1))}
@@ -313,86 +347,92 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
         </div>
 
         {board && (
-          <TrackerSummaryStrip
-            summary={board.summary}
-            activeFilter={resolvedSummaryFilter}
-            onFilterChange={qs.handleSummaryFilterChange}
-          />
-        )}
+          <div className="mt-3 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <TeamTrackerViewSwitcher
+                activeLens={activeLens}
+                onLensChange={setActiveLens}
+                attentionCount={board.attentionQueue.length}
+                teamCount={board.visibleSummary.total}
+                inactiveCount={board.inactiveDevelopers.length}
+                readOnly={readOnly}
+              />
+              <TeamTrackerModeBanner date={date} viewMode={viewMode} />
+            </div>
 
-        {board && (
-          <TrackerBoardToolbar
-            searchQuery={resolvedSearch}
-            onSearchChange={qs.handleSearchChange}
-            sortBy={resolvedSortBy}
-            onSortChange={qs.handleSortChange}
-            groupBy={resolvedGroupBy}
-            onGroupChange={qs.handleGroupChange}
-            visibleCount={board.visibleSummary.total}
-            totalCount={board.summary.total}
-            views={qs.savedViews}
-            activeViewId={qs.activeViewId}
-            isDirty={qs.isDirtyFrom(resolvedQuery)}
-            isViewsLoading={qs.isViewsLoading}
-            onApplyView={qs.handleApplyView}
-            onClearView={qs.handleClearView}
-            onSaveNew={qs.handleSaveNewView}
-            onUpdateView={qs.handleUpdateView}
-            onDeleteView={qs.handleDeleteView}
-            isSaving={qs.isSaving}
-          />
+            <TrackerSummaryStrip
+              summary={board.summary}
+              activeFilter={resolvedSummaryFilter}
+              onFilterChange={qs.handleSummaryFilterChange}
+            />
+
+            <TrackerBoardToolbar
+              searchQuery={resolvedSearch}
+              onSearchChange={qs.handleSearchChange}
+              sortBy={resolvedSortBy}
+              onSortChange={qs.handleSortChange}
+              groupBy={resolvedGroupBy}
+              onGroupChange={qs.handleGroupChange}
+              visibleCount={board.visibleSummary.total}
+              totalCount={board.summary.total}
+              views={qs.savedViews}
+              activeViewId={qs.activeViewId}
+              isDirty={qs.isDirtyFrom(resolvedQuery)}
+              isViewsLoading={qs.isViewsLoading}
+              onApplyView={qs.handleApplyView}
+              onClearView={qs.handleClearView}
+              onSaveNew={qs.handleSaveNewView}
+              onUpdateView={qs.handleUpdateView}
+              onDeleteView={qs.handleDeleteView}
+              isSaving={qs.isSaving}
+            />
+          </div>
         )}
-        <TeamTrackerModeBanner date={date} viewMode={viewMode} />
       </motion.div>
 
-      {/* Board area */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 pt-1">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 pt-4">
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="flex flex-col items-center gap-3">
-              <div
-                className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
-                style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }}
-              />
-              <span className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-                Loading tracker…
-              </span>
-            </div>
-          </div>
+          <TeamTrackerSkeleton />
         ) : board ? (
-          <>
-            {!readOnly && (
+          <div className="mx-auto max-w-[1600px]">
+            {activeLens === 'attention' && !readOnly && (
               <AttentionQueue
-                items={board.attentionQueue}
+                items={attentionItems}
                 date={date}
                 onOpenDrawer={setDrawerAccountId}
                 onMarkInactive={handleAttentionMarkInactive}
                 onCaptureFollowUp={handleAttentionCaptureFollowUp}
+                onSetCurrent={handleSetCurrent}
               />
             )}
-            <InactiveDeveloperTray
-              items={board.inactiveDevelopers}
-              onReactivate={handleReactivate}
-              pendingAccountId={updateAvailability.isPending ? updateAvailability.variables?.accountId : undefined}
-              readOnly={readOnly}
-            />
-            <TrackerBoard
-              date={date}
-              developers={board.developers}
-              groups={groups}
-              isGrouped={isGrouped}
-              searchActive={!!resolvedSearch}
-              onOpenDrawer={setDrawerAccountId}
-              onOpenTaskDetail={readOnly ? undefined : handleOpenTaskDetail}
-              onMarkInactive={handleMarkInactive}
-              onSetCurrent={handleSetCurrent}
-              onMarkDone={handleMarkDone}
-              onQuickAdd={handleCreateTask}
-              issues={issues}
-              isQuickAddPending={addTrackerItem.isPending}
-              readOnly={readOnly}
-            />
-          </>
+            {activeLens === 'team' && (
+              <TrackerRosterBoard
+                date={date}
+                developers={board.developers}
+                groups={groups}
+                isGrouped={isGrouped}
+                searchActive={!!resolvedSearch}
+                onOpenDrawer={setDrawerAccountId}
+                onOpenTaskDetail={readOnly ? undefined : handleOpenTaskDetail}
+                onSetCurrent={handleSetCurrent}
+                issues={issues}
+                readOnly={readOnly}
+              />
+            )}
+            {activeLens === 'inactive' && (
+              board.inactiveDevelopers.length > 0 ? (
+                <InactiveDeveloperTray
+                  items={board.inactiveDevelopers}
+                  onReactivate={handleReactivate}
+                  pendingAccountId={updateAvailability.isPending ? updateAvailability.variables?.accountId : undefined}
+                  readOnly={readOnly}
+                  defaultExpanded
+                />
+              ) : (
+                <EmptyLensState title="No inactive developers." message="Everyone is available in the selected team view." />
+              )
+            )}
+          </div>
         ) : (
           <div className="flex items-center justify-center py-20">
             <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
@@ -418,6 +458,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
         onMarkDone={handleMarkDone}
         onDropItem={handleDropItem}
         onAddCheckIn={(params) => addCheckIn.mutate(params)}
+        onMarkInactive={handleMarkInactive}
         onOpenManagerDesk={onViewChange ? () => onViewChange('manager-desk') : undefined}
         issues={issues}
         isAddItemPending={addTrackerItem.isPending}
@@ -459,6 +500,15 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
   );
 }
 
+function mapAttentionCurrentItem(item: TrackerWorkItem): TrackerAttentionActionItem {
+  return {
+    id: item.id,
+    title: item.title,
+    jiraKey: item.jiraKey,
+    lifecycle: item.lifecycle ?? (item.managerDeskItemId ? 'manager_desk_linked' : 'tracker_only'),
+  };
+}
+
 function TeamTrackerModeBanner({
   date,
   viewMode,
@@ -467,18 +517,47 @@ function TeamTrackerModeBanner({
   viewMode: 'live' | 'history';
 }) {
   if (viewMode === 'live') {
-    return (
-      <div className="mt-2 rounded-[16px] border px-3 py-2 text-[12px]" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-        Open team work stays on the tracker until it is done or dropped. A new day changes the lens, not the task’s continuity.
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="mt-2 rounded-[16px] border px-3 py-2" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg-secondary) 94%, transparent)' }}>
-      <div className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+    <div className="rounded-lg border px-2.5 py-1.5" style={{ borderColor: 'var(--border)', background: 'transparent' }}>
+      <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
         <History size={13} style={{ color: 'var(--accent)' }} />
-        {date} is shown as a historical snapshot. This view is read-only so you can review who was working on what without changing the past.
+        {date} is a read-only historical snapshot.
+      </div>
+    </div>
+  );
+}
+
+function TeamTrackerSkeleton() {
+  return (
+    <div className="mx-auto max-w-[1600px] overflow-hidden rounded-xl border" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)' }}>
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index} className="grid gap-3 border-b px-3 py-3 md:grid-cols-[minmax(190px,1.15fr)_minmax(220px,1.45fr)_minmax(130px,0.8fr)_80px_minmax(110px,0.72fr)_minmax(105px,0.72fr)_96px]" style={{ borderColor: 'var(--border)' }}>
+          {Array.from({ length: 7 }).map((__, cellIndex) => (
+            <div
+              key={cellIndex}
+              className="h-8 animate-pulse rounded-lg"
+              style={{ background: 'color-mix(in srgb, var(--bg-tertiary) 74%, transparent)' }}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyLensState({ title, message }: { title: string; message: string }) {
+  return (
+    <div className="flex min-h-[220px] items-center justify-center rounded-xl border px-4 py-10 text-center" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)' }}>
+      <div>
+        <div className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+          {title}
+        </div>
+        <div className="mt-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          {message}
+        </div>
       </div>
     </div>
   );

@@ -1,9 +1,7 @@
-import type { CSSProperties } from 'react';
-import { Clock, ArrowRight, Zap, ClipboardList, AlertTriangle, Scale } from 'lucide-react';
+import { ArrowRight, CalendarClock, Clock, CircleOff, MessageSquarePlus, Play, TriangleAlert } from 'lucide-react';
 import type { TrackerAttentionItem, TrackerAttentionReasonCode } from '@/types';
 import { formatAbsoluteDateTime, formatRelativeTime } from '@/lib/utils';
 import { TrackerStatusPill } from './TrackerStatusPill';
-import { AttentionCardQuickActions } from './AttentionCardQuickActions';
 
 interface AttentionCardProps {
   item: TrackerAttentionItem;
@@ -12,9 +10,10 @@ interface AttentionCardProps {
   onOpen: () => void;
   onMarkInactive: () => void;
   onCaptureFollowUp: () => void;
+  onSetCurrent?: (itemId: number) => void;
 }
 
-type SeverityTone = 'danger' | 'warning' | 'info' | 'accent';
+type SeverityTone = 'danger' | 'warning' | 'neutral';
 
 const reasonToTone: Record<TrackerAttentionReasonCode, SeverityTone> = {
   blocked: 'danger',
@@ -24,60 +23,42 @@ const reasonToTone: Record<TrackerAttentionReasonCode, SeverityTone> = {
   stale_with_open_risk: 'warning',
   stale_without_current_work: 'warning',
   stale_by_time: 'warning',
-  status_change_without_follow_up: 'info',
-  waiting: 'info',
-  no_current: 'accent',
+  status_change_without_follow_up: 'warning',
+  waiting: 'neutral',
+  no_current: 'warning',
 };
 
 const toneColor: Record<SeverityTone, string> = {
   danger: 'var(--danger)',
   warning: 'var(--warning)',
-  info: 'var(--info)',
-  accent: 'var(--accent)',
-};
-
-const cardTint: Record<SeverityTone, string> = {
-  danger: 'rgba(239, 68, 68, 0.04)',
-  warning: 'rgba(245, 158, 11, 0.03)',
-  info: 'rgba(59, 130, 246, 0.03)',
-  accent: 'var(--bg-tertiary)',
-};
-
-const badgeStyle: Record<TrackerAttentionReasonCode, CSSProperties> = {
-  blocked: { color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.22)' },
-  at_risk: { color: 'var(--warning)', background: 'rgba(245, 158, 11, 0.14)', borderColor: 'rgba(245, 158, 11, 0.24)' },
-  stale_by_time: { color: 'var(--warning)', background: 'rgba(250, 204, 21, 0.12)', borderColor: 'rgba(250, 204, 21, 0.22)' },
-  stale_with_open_risk: { color: 'var(--warning)', background: 'rgba(245, 158, 11, 0.14)', borderColor: 'rgba(245, 158, 11, 0.24)' },
-  stale_without_current_work: { color: 'var(--warning)', background: 'rgba(245, 158, 11, 0.1)', borderColor: 'rgba(245, 158, 11, 0.2)' },
-  overdue_linked_work: { color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.22)' },
-  over_capacity: { color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.18)' },
-  status_change_without_follow_up: { color: 'var(--info)', background: 'rgba(59, 130, 246, 0.12)', borderColor: 'rgba(59, 130, 246, 0.22)' },
-  no_current: { color: 'var(--accent)', background: 'var(--accent-glow)', borderColor: 'color-mix(in srgb, var(--accent) 22%, transparent)' },
-  waiting: { color: 'var(--info)', background: 'rgba(59, 130, 246, 0.12)', borderColor: 'rgba(59, 130, 246, 0.22)' },
+  neutral: 'var(--text-muted)',
 };
 
 function leadTone(item: TrackerAttentionItem): SeverityTone {
   const first = item.reasons[0];
-  return first ? reasonToTone[first.code] : 'accent';
+  return first ? reasonToTone[first.code] : 'neutral';
 }
 
-function Metric({ icon: Icon, label, color, title }: { icon: typeof Clock; label: string; color: string; title?: string }) {
-  return (
-    <span className="flex items-center gap-1.5 text-[12px] font-medium whitespace-nowrap" style={{ color }} title={title}>
-      <Icon size={13} style={{ opacity: 0.8 }} />
-      {label}
-    </span>
-  );
+function reasonLine(item: TrackerAttentionItem) {
+  const reasons = item.reasons.map((reason) => reason.label);
+  if (reasons.length <= 2) return reasons.join(' · ');
+  return `${reasons.slice(0, 2).join(' · ')} · +${reasons.length - 2} more`;
 }
 
-export function AttentionCard({ item, index, date, onOpen, onMarkInactive, onCaptureFollowUp }: AttentionCardProps) {
+function getRecommendedAction(item: TrackerAttentionItem) {
+  if (!item.hasCurrentItem && item.setCurrentCandidates.length === 1) return 'set_current';
+  if (item.signals.freshness.statusChangeWithoutFollowUp || item.isStale || !item.lastCheckInAt) return 'follow_up';
+  return 'open';
+}
+
+export function AttentionCard({ item, index, onOpen, onCaptureFollowUp, onSetCurrent }: AttentionCardProps) {
   const tone = leadTone(item);
   const accent = toneColor[tone];
-  const isStale = item.signals.freshness.staleByTime;
-  const isDanger = tone === 'danger';
   const checkIn = item.lastCheckInAt ? formatRelativeTime(item.lastCheckInAt) : 'No check-in';
   const absoluteCheckIn = item.lastCheckInAt ? formatAbsoluteDateTime(item.lastCheckInAt) : undefined;
-  const hasQuickActions = item.availableQuickActions.length > 0;
+  const action = getRecommendedAction(item);
+  const setCurrentCandidate = item.setCurrentCandidates[0];
+  const currentWork = item.currentItem;
 
   return (
     <div
@@ -85,98 +66,105 @@ export function AttentionCard({ item, index, date, onOpen, onMarkInactive, onCap
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
-      className="group relative w-full overflow-hidden rounded-2xl border text-left transition-all duration-200 hover:brightness-[1.08] cursor-pointer"
+      className="group relative grid w-full cursor-pointer gap-3 border-b px-3 py-3 text-left transition-colors hover:bg-[var(--bg-tertiary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--border-active)] md:grid-cols-[minmax(220px,1.2fr)_minmax(260px,1.6fr)_minmax(220px,1fr)_128px] md:items-center"
       style={{
-        borderColor: `color-mix(in srgb, ${accent} 20%, var(--border))`,
-        background: cardTint[tone],
-        boxShadow: isDanger ? `0 0 18px color-mix(in srgb, ${accent} 12%, transparent)` : undefined,
+        borderColor: 'var(--border)',
       }}
     >
-      <div className="flex items-center gap-4 py-3 pl-5 pr-3">
-        {/* Severity accent bar */}
-        <div
-          className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
-          style={{ background: accent, boxShadow: isDanger ? `0 0 6px ${accent}` : undefined }}
-        />
+      <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-sm" style={{ background: accent }} />
 
-        {/* Rank */}
-        <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[12px] font-bold"
-          style={{
-            color: accent,
-            background: `color-mix(in srgb, ${accent} 12%, transparent)`,
-            border: `1px solid color-mix(in srgb, ${accent} 22%, transparent)`,
-          }}
-        >
-          {index + 1}
-        </div>
-
-        {/* Identity + reason badges */}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-              {item.developer.displayName}
-            </span>
+      <div className="flex min-w-0 items-center gap-3 pl-2">
+        <span className="tabular-nums text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+          {String(index + 1).padStart(2, '0')}
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {item.developer.displayName}
+          </div>
+          <div className="mt-1">
             <TrackerStatusPill status={item.status} />
           </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            {item.reasons.map((reason) => (
-              <span
-                key={reason.code}
-                className="rounded-full border px-2.5 py-0.5 text-[11px] font-medium"
-                style={badgeStyle[reason.code]}
-              >
-                {reason.label}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="my-1 w-px shrink-0 self-stretch opacity-40" style={{ background: 'var(--border)' }} />
-
-        {/* Signal metrics */}
-        <div className="shrink-0 grid grid-cols-2 gap-x-5 gap-y-1.5" style={{ minWidth: 220 }}>
-          <Metric
-            icon={Clock}
-            label={checkIn}
-            color={isStale ? 'var(--warning)' : 'var(--text-secondary)'}
-            title={absoluteCheckIn}
-          />
-          <Metric
-            icon={Zap}
-            label={item.hasCurrentItem ? 'Active work' : 'No active work'}
-            color={item.hasCurrentItem ? 'var(--success)' : 'var(--warning)'}
-          />
-          <Metric icon={ClipboardList} label={`${item.plannedCount} planned`} color="var(--text-secondary)" />
-          {item.signals.risk.overdueLinkedWork && (
-            <Metric icon={AlertTriangle} label={`${item.signals.risk.overdueLinkedCount} overdue`} color="var(--danger)" />
-          )}
-          {item.signals.risk.overCapacity && (
-            <Metric icon={Scale} label={`+${item.signals.risk.capacityDelta} over cap`} color="var(--danger)" />
-          )}
-        </div>
-
-        {/* Open arrow */}
-        <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:translate-x-0.5"
-          style={{ color: 'var(--accent)', background: 'var(--accent-glow)' }}
-        >
-          <ArrowRight size={14} />
         </div>
       </div>
 
-      {/* Quick actions strip */}
-      {hasQuickActions && (
-        <div className="px-5 pb-2.5">
-          <AttentionCardQuickActions
-            item={item}
-            date={date}
-            onMarkInactive={onMarkInactive}
-            onCaptureFollowUp={onCaptureFollowUp}
-          />
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: accent }}>
+          {tone === 'danger' ? <TriangleAlert size={14} /> : <CircleOff size={14} />}
+          <span className="truncate">{reasonLine(item)}</span>
         </div>
-      )}
+        <div className="mt-1 flex min-w-0 items-center gap-3 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          <span className="inline-flex items-center gap-1.5" title={absoluteCheckIn}>
+            <Clock size={12} />
+            {checkIn}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <CalendarClock size={12} />
+            {item.plannedCount} planned
+          </span>
+        </div>
+      </div>
+
+      <div className="min-w-0 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+        {currentWork ? (
+          <div className="min-w-0">
+            <div className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+              Current
+            </div>
+            <div className="truncate text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }} title={currentWork.title}>
+              {currentWork.title}
+            </div>
+            {currentWork.jiraKey && (
+              <div className="truncate font-mono text-[11px]" style={{ color: 'var(--accent)' }}>
+                {currentWork.jiraKey}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="font-medium" style={{ color: item.hasCurrentItem ? 'var(--text-secondary)' : 'var(--warning)' }}>
+            {item.hasCurrentItem ? 'Current work set' : 'No current work'}
+          </div>
+        )}
+        {item.signals.risk.overdueLinkedWork && (
+          <div className="mt-0.5" style={{ color: 'var(--danger)' }}>
+            {item.signals.risk.overdueLinkedCount} overdue Jira
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-start md:justify-end">
+        {action === 'set_current' && setCurrentCandidate && onSetCurrent ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSetCurrent(setCurrentCandidate.id);
+            }}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+            style={{ background: 'var(--accent)', color: 'var(--bg-primary)' }}
+          >
+            <Play size={13} />
+            Set current
+          </button>
+        ) : action === 'follow_up' ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onCaptureFollowUp();
+            }}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+            style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+          >
+            <MessageSquarePlus size={13} />
+            Follow up
+          </button>
+        ) : (
+          <span className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold" style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}>
+            Open
+            <ArrowRight size={13} />
+          </span>
+        )}
+      </div>
     </div>
   );
 }

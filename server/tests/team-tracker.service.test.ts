@@ -229,6 +229,12 @@ describe("TeamTrackerService", () => {
         "mark_inactive",
         "capture_follow_up",
       ]);
+      expect(board.attentionQueue[0]?.currentItem).toEqual({
+        id: jiraItem.id,
+        title: "Linked Jira task",
+        jiraKey: "AM-123",
+        lifecycle: "tracker_only",
+      });
       expect(board.attentionQueue[0]?.setCurrentCandidates).toEqual([]);
     });
 
