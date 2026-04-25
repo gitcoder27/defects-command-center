@@ -1,12 +1,13 @@
 import { useState, useCallback, useEffect, useRef, type CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Trash2, CheckCircle2, XCircle, ArrowRight, Pause, RotateCcw, Users,
+  X, Trash2, Users,
   MoreVertical, FolderMinus, Ban, AlertTriangle, ChevronRight,
 } from 'lucide-react';
 import type { ManagerDeskItem } from '@/types/manager-desk';
 import { KIND_LABELS, STATUS_LABELS, CATEGORY_LABELS, PRIORITY_LABELS, EXECUTION_STATE_LABELS } from '@/types/manager-desk';
 import { AssigneePill } from './AssigneePill';
+import { DrawerWorkflowActions } from './DrawerWorkflowActions';
 
 interface DrawerHeaderProps {
   item: ManagerDeskItem;
@@ -70,11 +71,9 @@ export function DrawerHeader({
     if (trimmed && trimmed !== item.title) onUpdate(item.id, { title: trimmed });
   }, [editTitle, item.id, item.title, onUpdate]);
 
-  const isDone = item.status === 'done' || item.status === 'cancelled';
   const exec = item.delegatedExecution;
   const hasLinkedWork = !!exec;
   const chipClass = 'rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]';
-  const actionClass = 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-semibold transition-all hover:brightness-110';
 
   return (
     <div
@@ -188,55 +187,13 @@ export function DrawerHeader({
       )}
 
       {!readOnly && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-        {!isDone ? (
-          <>
-            {item.status !== 'in_progress' && (
-              <button
-                onClick={() => onUpdate(item.id, { status: item.status === 'inbox' ? 'planned' : 'in_progress' })}
-                className={actionClass}
-                style={{ background: 'rgba(217,169,78,0.14)', color: 'var(--md-accent)', border: '1px solid rgba(217,169,78,0.28)' }}
-              >
-                <ArrowRight size={11} /> {item.status === 'inbox' ? 'Plan' : 'Start'}
-              </button>
-            )}
-            {item.status !== 'waiting' && (
-              <button
-                onClick={() => onUpdate(item.id, { status: 'waiting' })}
-                className={actionClass}
-                style={{ background: 'rgba(245,158,11,0.10)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.22)' }}
-              >
-                <Pause size={11} /> Waiting
-              </button>
-            )}
-            <button onClick={() => onUpdate(item.id, { status: 'done' })} className={actionClass} style={{ background: 'rgba(16,185,129,0.12)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.24)' }}>
-              <CheckCircle2 size={11} /> Done
-            </button>
-            {onCarryForward && (
-              <button onClick={onCarryForward} disabled={isCarryForwardPending} className={`${actionClass} disabled:opacity-40`} style={{ background: 'rgba(217,169,78,0.14)', color: 'var(--md-accent)', border: '1px solid rgba(217,169,78,0.28)' }} aria-label={`Carry forward ${item.title}`}>
-                <ArrowRight size={11} /> {isCarryForwardPending ? 'Carrying...' : 'Carry Forward'}
-              </button>
-            )}
-            {hasLinkedWork ? (
-              <button
-                onClick={() => setActionMenu('confirm-cancel')}
-                className={actionClass}
-                style={{ background: 'rgba(239,68,68,0.08)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.16)' }}
-              >
-                <Ban size={11} /> Cancel Delegated Task
-              </button>
-            ) : (
-              <button onClick={() => onUpdate(item.id, { status: 'cancelled' })} className={actionClass} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
-                <XCircle size={11} /> Drop
-              </button>
-            )}
-          </>
-        ) : (
-          <button onClick={() => onUpdate(item.id, { status: 'planned' })} className={actionClass} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-            <RotateCcw size={11} /> Reopen
-          </button>
-        )}
-        </div>
+        <DrawerWorkflowActions
+          item={item}
+          hasLinkedWork={hasLinkedWork}
+          onUpdate={onUpdate}
+          onCarryForward={onCarryForward}
+          isCarryForwardPending={isCarryForwardPending}
+        />
       )}
     </div>
   );

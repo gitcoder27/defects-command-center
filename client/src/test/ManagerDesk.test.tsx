@@ -566,6 +566,56 @@ describe('ManagerDeskPage', () => {
     expect(screen.getByLabelText('Assignee')).toHaveValue('alice-1');
   });
 
+  it('lets a manager move a planned task back to inbox from the detail panel', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /move to inbox/i }));
+
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      {
+        itemId: 1,
+        status: 'inbox',
+      },
+      expect.anything(),
+    );
+  });
+
+  it('lets a manager move a started task back to planned from the detail panel', () => {
+    currentMockDay = {
+      ...mockDayResponse,
+      items: mockDayResponse.items.map((item) =>
+        item.id === 1
+          ? {
+              ...item,
+              status: 'in_progress',
+            }
+          : item,
+      ),
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /back to planned/i }));
+
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      {
+        itemId: 1,
+        status: 'planned',
+      },
+      expect.anything(),
+    );
+  });
+
   it('clears the row highlight and focus when the detail drawer closes', () => {
     render(
       <TestWrapper>
