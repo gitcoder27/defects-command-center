@@ -592,6 +592,7 @@ export type ManagerDeskStatus =
   | "planned"
   | "in_progress"
   | "waiting"
+  | "backlog"
   | "done"
   | "cancelled";
 

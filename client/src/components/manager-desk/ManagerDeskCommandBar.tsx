@@ -9,6 +9,7 @@ const quickFilters: Array<{ key: ManagerDeskQuickFilter; label: string }> = [
   { key: 'waiting', label: 'Waiting' },
   { key: 'meetings', label: 'Meetings' },
   { key: 'inbox', label: 'Inbox' },
+  { key: 'backlog', label: 'Later' },
   { key: 'done', label: 'Done' },
 ];
 
@@ -173,7 +174,7 @@ function StructuredFilters({
         label="Status"
         value={filters.status ?? ''}
         onChange={(value) => onChange({ ...filters, status: (value || null) as ManagerDeskFilterState['status'] })}
-        options={['inbox', 'planned', 'in_progress', 'waiting', 'done', 'cancelled']}
+        options={['inbox', 'planned', 'in_progress', 'waiting', 'backlog', 'done', 'cancelled']}
       />
       <button
         type="button"

@@ -507,14 +507,15 @@ const managerFollowUpStatusRank: Record<ManagerDeskItem['status'], number> = {
   waiting: 1,
   inbox: 2,
   planned: 3,
-  done: 4,
-  cancelled: 5,
+  backlog: 4,
+  done: 5,
+  cancelled: 6,
 };
 
 function getDeveloperManagerFollowUps(items: ManagerDeskItem[], developerAccountId: string) {
   return items
     .filter((item) => {
-      if (item.status === 'cancelled') {
+      if (item.status === 'cancelled' || item.status === 'backlog') {
         return false;
       }
 

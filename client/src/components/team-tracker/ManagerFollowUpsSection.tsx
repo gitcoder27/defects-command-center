@@ -17,6 +17,7 @@ const managerDeskStatusLabels: Record<ManagerDeskItem['status'], string> = {
   planned: 'Planned',
   in_progress: 'In progress',
   waiting: 'Waiting',
+  backlog: 'Later',
   done: 'Done',
   cancelled: 'Cancelled',
 };
@@ -26,6 +27,7 @@ const managerDeskStatusStyles: Record<ManagerDeskItem['status'], { color: string
   planned: { color: 'var(--md-accent)', background: 'rgba(217,169,78,0.10)', border: 'rgba(217,169,78,0.18)' },
   in_progress: { color: 'var(--accent)', background: 'var(--accent-glow)', border: 'color-mix(in srgb, var(--accent) 20%, transparent)' },
   waiting: { color: 'var(--info)', background: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.20)' },
+  backlog: { color: 'var(--text-secondary)', background: 'var(--bg-tertiary)', border: 'var(--border)' },
   done: { color: 'var(--success)', background: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.20)' },
   cancelled: { color: 'var(--text-muted)', background: 'var(--bg-tertiary)', border: 'var(--border)' },
 };

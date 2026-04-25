@@ -21,7 +21,7 @@ const managerDeskEnums = {
     "planning",
     "other",
   ]),
-  status: z.enum(["inbox", "planned", "in_progress", "waiting", "done", "cancelled"]),
+  status: z.enum(["inbox", "planned", "in_progress", "waiting", "backlog", "done", "cancelled"]),
   priority: z.enum(["low", "medium", "high", "critical"]),
   linkType: z.enum(["issue", "developer", "external_group"]),
 };

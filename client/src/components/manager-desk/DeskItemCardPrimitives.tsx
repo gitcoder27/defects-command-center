@@ -12,7 +12,7 @@ import {
 import { differenceInCalendarDays, format, isPast, isToday, isTomorrow, parseISO } from 'date-fns';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
 
-export type DeskItemVariant = 'default' | 'meeting' | 'waiting' | 'inbox' | 'completed';
+export type DeskItemVariant = 'default' | 'meeting' | 'waiting' | 'inbox' | 'backlog' | 'completed';
 export type SignalTone = 'neutral' | 'accent' | 'warning' | 'danger' | 'success';
 
 export type RowQuickAction = {
@@ -42,6 +42,7 @@ export const statusTone: Record<ManagerDeskStatus, CSSProperties> = {
   planned: { background: 'transparent', color: 'var(--md-accent)', border: '1px solid transparent' },
   in_progress: { background: 'rgba(6,182,212,0.10)', color: 'var(--accent)', border: '1px solid rgba(6,182,212,0.22)' },
   waiting: { background: 'rgba(245,158,11,0.10)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.22)' },
+  backlog: { background: 'color-mix(in srgb, var(--bg-secondary) 70%, transparent)', color: 'var(--text-secondary)', border: '1px solid color-mix(in srgb, var(--border) 70%, transparent)' },
   done: { background: 'rgba(16,185,129,0.10)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.20)' },
   cancelled: { background: 'transparent', color: 'var(--text-muted)', border: '1px solid transparent' },
 };
@@ -81,8 +82,8 @@ export function SignalChip({
 
 function createQuickActions(item: ManagerDeskItem) {
   const start = {
-    label: item.status === 'inbox' ? 'Plan' : 'Start',
-    status: item.status === 'inbox' ? 'planned' as const : 'in_progress' as const,
+    label: item.status === 'backlog' ? 'Bring back' : item.status === 'inbox' ? 'Plan' : 'Start',
+    status: item.status === 'backlog' ? 'inbox' as const : item.status === 'inbox' ? 'planned' as const : 'in_progress' as const,
     icon: <ArrowRight size={10} />,
     style: { background: 'var(--md-accent-glow)', color: 'var(--md-accent)', borderColor: 'color-mix(in srgb, var(--md-accent) 32%, transparent)' },
   };
@@ -123,6 +124,7 @@ export function getSecondaryQuickActions(item: ManagerDeskItem): RowQuickAction[
   const { waiting, done, drop } = createQuickActions(item);
   const terminalActions = item.delegatedExecution ? [done] : [done, drop];
 
+  if (item.status === 'backlog') return item.delegatedExecution ? [] : [drop];
   if (item.status === 'in_progress') return [waiting, ...(!item.delegatedExecution ? [drop] : [])];
   if (item.status === 'waiting') return terminalActions;
   return [waiting, ...terminalActions];
@@ -131,6 +133,7 @@ export function getSecondaryQuickActions(item: ManagerDeskItem): RowQuickAction[
 export function getKindBackground(variant: DeskItemVariant) {
   if (variant === 'meeting') return 'rgba(139,92,246,0.12)';
   if (variant === 'waiting') return 'rgba(245,158,11,0.12)';
+  if (variant === 'backlog') return 'color-mix(in srgb, var(--bg-secondary) 78%, transparent)';
   if (variant === 'completed') return 'rgba(16,185,129,0.10)';
   return 'var(--bg-secondary)';
 }
@@ -138,13 +141,14 @@ export function getKindBackground(variant: DeskItemVariant) {
 export function getKindColor(variant: DeskItemVariant, status: ManagerDeskStatus) {
   if (variant === 'meeting') return 'var(--info)';
   if (variant === 'waiting') return 'var(--warning)';
+  if (variant === 'backlog') return 'var(--text-secondary)';
   if (variant === 'completed') return 'var(--success)';
   if (status === 'in_progress') return 'var(--accent)';
   return 'var(--text-secondary)';
 }
 
 export function getIsOverdue(item: ManagerDeskItem) {
-  if (!item.followUpAt || item.status === 'done' || item.status === 'cancelled') return false;
+  if (!item.followUpAt || item.status === 'backlog' || item.status === 'done' || item.status === 'cancelled') return false;
   try {
     return isPast(parseISO(item.followUpAt));
   } catch {

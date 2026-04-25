@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { CalendarCheck, CheckCircle2, Clock3, Inbox, ListChecks } from 'lucide-react';
+import { Archive, CalendarCheck, CheckCircle2, Clock3, Inbox, ListChecks } from 'lucide-react';
 import type { ManagerDeskItem } from '@/types/manager-desk';
 import type { ManagerDeskQuickFilter } from './workbench-utils';
 
@@ -24,6 +24,11 @@ export const lensCopy: Record<ManagerDeskQuickFilter, { title: string; subtitle:
     subtitle: 'Fresh captures that still need a little structure.',
     empty: 'Inbox is clear.',
   },
+  backlog: {
+    title: 'Later',
+    subtitle: 'Saved work that is intentionally off your current plate.',
+    empty: 'No work has been moved to Later.',
+  },
   done: {
     title: 'Done',
     subtitle: 'Resolved work for the current lens.',
@@ -31,8 +36,9 @@ export const lensCopy: Record<ManagerDeskQuickFilter, { title: string; subtitle:
   },
 };
 
-export function getCardVariant(item: ManagerDeskItem): 'default' | 'meeting' | 'waiting' | 'inbox' | 'completed' {
+export function getCardVariant(item: ManagerDeskItem): 'default' | 'meeting' | 'waiting' | 'inbox' | 'backlog' | 'completed' {
   if (item.status === 'done' || item.status === 'cancelled') return 'completed';
+  if (item.status === 'backlog') return 'backlog';
   if (item.status === 'inbox') return 'inbox';
   if (item.kind === 'meeting') return 'meeting';
   if (item.status === 'waiting' || item.kind === 'waiting') return 'waiting';
@@ -80,6 +86,8 @@ export function UnifiedEmptyState({
     ? Clock3
     : quickFilter === 'inbox'
     ? Inbox
+    : quickFilter === 'backlog'
+    ? Archive
     : ListChecks;
 
   return (

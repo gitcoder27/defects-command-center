@@ -26,6 +26,7 @@ export type ManagerDeskStatus =
   | 'planned'
   | 'in_progress'
   | 'waiting'
+  | 'backlog'
   | 'done'
   | 'cancelled';
 
@@ -253,6 +254,7 @@ export const STATUS_LABELS: Record<ManagerDeskStatus, string> = {
   planned: 'Planned',
   in_progress: 'In Progress',
   waiting: 'Waiting',
+  backlog: 'Later',
   done: 'Completed',
   cancelled: 'Dropped',
 };

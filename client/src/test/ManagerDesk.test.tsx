@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { TestWrapper } from '@/test/wrapper';
 import type {
   ManagerDeskDayResponse,
@@ -611,6 +611,62 @@ describe('ManagerDeskPage', () => {
       {
         itemId: 1,
         status: 'planned',
+      },
+      expect.anything(),
+    );
+  });
+
+  it('keeps later work off the open desk until it is brought back', () => {
+    currentMockDay = {
+      ...mockDayResponse,
+      items: [
+        ...mockDayResponse.items,
+        mockItem({ id: 88, title: 'Review next quarter planning idea', status: 'backlog' }),
+      ],
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    expect(screen.getByRole('heading', { name: "Today's Desk" })).toBeInTheDocument();
+    expect(screen.queryByText('Review next quarter planning idea')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /later 1/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /later 1/i }));
+    expect(screen.getByRole('heading', { name: 'Later' })).toBeInTheDocument();
+    expect(screen.getByText('Review next quarter planning idea')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Open Review next quarter planning idea$/i }));
+    const dialog = screen.getByRole('dialog', { name: /manager desk item detail/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^bring back$/i }));
+
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      {
+        itemId: 88,
+        status: 'inbox',
+      },
+      expect.anything(),
+    );
+  });
+
+  it('moves open work to later from the detail panel more menu', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
+    const dialog = screen.getByRole('dialog', { name: /manager desk item detail/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: /move to later/i }));
+
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      {
+        itemId: 1,
+        status: 'backlog',
       },
       expect.anything(),
     );

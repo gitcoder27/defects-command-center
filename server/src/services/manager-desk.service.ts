@@ -274,7 +274,7 @@ function buildLinkIdentity(link: NormalizedManagerDeskLink): string {
 }
 
 function isOpenStatus(status: ManagerDeskStatus): boolean {
-  return status !== "done" && status !== "cancelled";
+  return status !== "backlog" && status !== "done" && status !== "cancelled";
 }
 
 function endOfIsoDate(date: string): string {
@@ -450,6 +450,12 @@ export class ManagerDeskService {
     const linkedTrackerContext =
       await this.trackerService.getItemDetailContextForManagerDeskItem(itemId);
 
+    if (linkedTrackerContext && updates.status === "backlog") {
+      throw new HttpError(
+        409,
+        "Linked delegated tasks must be removed from your desk or cancelled before moving to Later"
+      );
+    }
     if (linkedTrackerContext && updates.status === "cancelled") {
       throw new HttpError(
         409,
@@ -1087,6 +1093,9 @@ export class ManagerDeskService {
   ): Promise<ManagerDeskDayResponse> {
     const items = await this.getCurrentItemsForManager(managerAccountId, date);
     const visible = items.filter((item) => {
+      if (item.status === "backlog") {
+        return true;
+      }
       if (isOpenStatus(item.status)) {
         return true;
       }

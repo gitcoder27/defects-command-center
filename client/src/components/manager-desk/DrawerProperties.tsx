@@ -9,7 +9,7 @@ interface DrawerPropertiesProps {
 }
 
 const kindOpts = (['action', 'meeting', 'decision', 'waiting'] as const).map((v) => ({ value: v, label: KIND_LABELS[v] }));
-const statusOpts = (['inbox', 'planned', 'in_progress', 'waiting', 'done', 'cancelled'] as const).map((v) => ({ value: v, label: STATUS_LABELS[v] }));
+const statusOpts = (['inbox', 'planned', 'in_progress', 'waiting', 'backlog', 'done', 'cancelled'] as const).map((v) => ({ value: v, label: STATUS_LABELS[v] }));
 const categoryOpts = (['analysis', 'design', 'team_management', 'cross_team', 'follow_up', 'escalation', 'admin', 'planning', 'other'] as const).map((v) => ({ value: v, label: CATEGORY_LABELS[v] }));
 const priorityOpts = (['low', 'medium', 'high', 'critical'] as const).map((v) => ({ value: v, label: PRIORITY_LABELS[v] }));
 
@@ -17,7 +17,7 @@ export function DrawerProperties({ item, readOnly = false, onFieldChange }: Draw
   const hasLinkedWork = !!item.delegatedExecution;
 
   const filteredStatusOpts = hasLinkedWork
-    ? statusOpts.filter((o) => o.value !== 'cancelled')
+    ? statusOpts.filter((o) => o.value !== 'cancelled' && o.value !== 'backlog')
     : statusOpts;
 
   return (

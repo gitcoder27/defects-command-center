@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, MoreHorizontal, Pause, RotateCcw, XCircle } from 'lucide-react';
+import { Archive, ArrowRight, CheckCircle2, MoreHorizontal, Pause, RotateCcw, XCircle } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
 import { STATUS_LABELS } from '@/types/manager-desk';
@@ -58,7 +58,7 @@ export function DrawerWorkflowActions({
   const isClosed = item.status === 'done' || item.status === 'cancelled';
   const primaryAction = getPrimaryAction(item, onUpdate);
   const correctionAction = getCorrectionAction(item, onUpdate);
-  const waitingAction = !isClosed && item.status !== 'waiting'
+  const waitingAction = !isClosed && item.status !== 'backlog' && item.status !== 'waiting'
     ? statusAction(item, 'waiting', 'Waiting', <Pause size={11} />, 'warning', onUpdate)
     : null;
   const moreActions = getMoreActions(item, hasLinkedWork, onUpdate, onCarryForward, isCarryForwardPending);
@@ -138,6 +138,10 @@ function getPrimaryAction(
     return statusAction(item, 'planned', 'Reopen', <RotateCcw size={11} />, 'neutral', onUpdate);
   }
 
+  if (item.status === 'backlog') {
+    return statusAction(item, 'inbox', 'Bring back', <ArrowRight size={11} />, 'primary', onUpdate);
+  }
+
   if (item.status === 'in_progress') {
     return statusAction(item, 'done', 'Done', <CheckCircle2 size={11} />, 'success', onUpdate);
   }
@@ -175,8 +179,12 @@ function getMoreActions(
 
   const actions: WorkflowAction[] = [];
 
-  if (item.status !== 'in_progress') {
+  if (item.status !== 'backlog' && item.status !== 'in_progress') {
     actions.push(statusAction(item, 'done', 'Mark done', <CheckCircle2 size={11} />, 'success', onUpdate));
+  }
+
+  if (item.status !== 'backlog' && !hasLinkedWork) {
+    actions.push(statusAction(item, 'backlog', 'Move to later', <Archive size={11} />, 'neutral', onUpdate));
   }
 
   if (onCarryForward) {

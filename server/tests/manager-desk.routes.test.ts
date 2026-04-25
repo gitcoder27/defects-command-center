@@ -600,6 +600,75 @@ describe("manager desk routes", () => {
     expect("contextNote" in reopened.body).toBe(false);
   });
 
+  it("PATCH /api/manager-desk/items/:itemId moves manager work to later and brings it back", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Review next quarter planning idea",
+        status: "planned",
+      },
+    });
+
+    const movedLater = await invoke(app, {
+      method: "PATCH",
+      url: `/api/manager-desk/items/${created.body.id}`,
+      headers: { cookie },
+      body: {
+        status: "backlog",
+      },
+    });
+
+    expect(movedLater.status).toBe(200);
+    expect(movedLater.body).toMatchObject({
+      id: created.body.id,
+      title: "Review next quarter planning idea",
+      status: "backlog",
+    });
+    expect("completedAt" in movedLater.body).toBe(false);
+
+    const dayWithLater = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk?date=2026-03-08",
+      headers: { cookie },
+    });
+
+    expect(dayWithLater.status).toBe(200);
+    expect(dayWithLater.body?.summary.totalOpen).toBe(0);
+    expect(dayWithLater.body?.items).toEqual([
+      expect.objectContaining({
+        id: created.body.id,
+        status: "backlog",
+      }),
+    ]);
+
+    const broughtBack = await invoke(app, {
+      method: "PATCH",
+      url: `/api/manager-desk/items/${created.body.id}`,
+      headers: { cookie },
+      body: {
+        status: "inbox",
+      },
+    });
+
+    expect(broughtBack.status).toBe(200);
+    expect(broughtBack.body?.status).toBe("inbox");
+
+    const dayAfterBringBack = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk?date=2026-03-08",
+      headers: { cookie },
+    });
+
+    expect(dayAfterBringBack.body?.summary.totalOpen).toBe(1);
+    expect(dayAfterBringBack.body?.summary.inbox).toBe(1);
+  });
+
   it("surfaces delegated execution state and note from linked tracker work", async () => {
     const app = createTestApp();
     const cookie = await loginCookie("manager", "secret123");
@@ -991,6 +1060,42 @@ describe("manager desk routes", () => {
     expect(res.body?.error).toBe(
       "Linked delegated tasks must be cancelled with the dedicated cancel action"
     );
+  });
+
+  it("rejects moving linked delegated work to later", async () => {
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        title: "Linked delegated item",
+        assigneeDeveloperAccountId: "dev-1",
+      },
+    });
+
+    const res = await invoke(app, {
+      method: "PATCH",
+      url: `/api/manager-desk/items/${created.body.id}`,
+      headers: { cookie },
+      body: {
+        status: "backlog",
+      },
+    });
+
+    expect(res.status).toBe(409);
+    expect(res.body?.error).toBe(
+      "Linked delegated tasks must be removed from your desk or cancelled before moving to Later"
+    );
+
+    const trackerRows = await db
+      .select()
+      .from(teamTrackerItems)
+      .where(eq(teamTrackerItems.managerDeskItemId, created.body.id));
+    expect(trackerRows).toHaveLength(1);
   });
 
   it("POST /api/manager-desk/items/:itemId/links adds issue, developer, and external links and rejects duplicates", async () => {

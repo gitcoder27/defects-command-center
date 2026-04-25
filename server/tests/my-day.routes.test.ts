@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { createMyDayRouter } from "../src/routes/my-day";
 import { notFoundHandler, errorHandler } from "../src/middleware/errorHandler";
@@ -86,6 +86,10 @@ describe("my day routes", () => {
       role: "developer",
       developerAccountId: "dev-2",
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("GET /api/my-day returns the authenticated developer day and omits manager notes", async () => {
@@ -347,6 +351,9 @@ describe("my day routes", () => {
   });
 
   it("PATCH /api/my-day/items/:itemId back-syncs delegated execution to Manager Desk detail", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-07T08:00:00.000Z"));
+
     const managerItem = await managerDeskService.createItem("manager-1", {
       date: "2026-03-07",
       title: "Shared delegated task",
