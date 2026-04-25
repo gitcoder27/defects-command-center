@@ -5,8 +5,8 @@ import type { ManagerDeskQuickFilter } from './workbench-utils';
 
 export const lensCopy: Record<ManagerDeskQuickFilter, { title: string; subtitle: string; empty: string }> = {
   all: {
-    title: "Today's Desk",
-    subtitle: 'Open work that still belongs on your plate.',
+    title: 'Open work',
+    subtitle: '',
     empty: 'No open work matches this view.',
   },
   waiting: {

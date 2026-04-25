@@ -1,4 +1,3 @@
-import { Clock3, ListChecks } from 'lucide-react';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
 import { DeskItemCard } from './DeskItemCard';
 import {
@@ -34,46 +33,46 @@ export function UnifiedDeskList({
   const visibleSubtitle = viewMode === 'planning' && quickFilter === 'all'
     ? 'Work intentionally planned for this date.'
     : copy.subtitle;
+  const showSubtitle = quickFilter !== 'all' || viewMode !== 'live';
 
   return (
     <section className="md-glass-panel flex min-h-full flex-col rounded-xl">
-      <div className="border-b px-3 py-3.5" style={{ borderColor: 'var(--border)' }}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
+      <div className="border-b px-3 py-2.5" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex min-h-7 flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h2 className="text-[13px] font-semibold leading-none tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>
+              {visibleTitle}
+            </h2>
+            <span
+              className="inline-flex h-5 items-center rounded-md border px-1.5 font-mono text-[10px] font-semibold tabular-nums"
+              style={{
+                borderColor: 'var(--border)',
+                background: 'color-mix(in srgb, var(--bg-secondary) 86%, transparent)',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              {items.length}
+            </span>
+            {continuedOpenCount > 0 && quickFilter !== 'done' && (
               <span
-                className="flex h-8 w-8 items-center justify-center rounded-lg"
+                className="inline-flex h-5 items-center rounded-md border px-1.5 text-[10px] font-medium"
+                title={`${continuedOpenCount} open ${continuedOpenCount === 1 ? 'item has' : 'items have'} continued from earlier days.`}
                 style={{
-                  background: 'color-mix(in srgb, var(--md-accent-glow) 72%, transparent)',
-                  color: 'var(--md-accent)',
+                  borderColor: 'rgba(217,169,78,0.18)',
+                  background: 'color-mix(in srgb, var(--md-accent-glow) 30%, transparent)',
+                  color: 'color-mix(in srgb, var(--md-accent) 82%, var(--text-secondary))',
                 }}
               >
-                <ListChecks size={14} />
+                {continuedOpenCount} from earlier
               </span>
-              <div>
-                <h2 className="text-[15px] font-semibold leading-tight tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>
-                  {visibleTitle}
-                </h2>
-                <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                  {visibleSubtitle}
-                </p>
-              </div>
-            </div>
+            )}
+            {showSubtitle && (
+              <span className="hidden max-w-[48ch] truncate text-[11px] md:inline" style={{ color: 'var(--text-muted)' }}>
+                {visibleSubtitle}
+              </span>
+            )}
           </div>
         </div>
-
-        {continuedOpenCount > 0 && quickFilter !== 'done' && (
-          <div
-            className="mt-2 rounded-lg border px-3 py-2 text-[11px]"
-            style={{
-              borderColor: 'rgba(217,169,78,0.14)',
-              background: 'color-mix(in srgb, var(--md-accent-glow) 42%, transparent)',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            {continuedOpenCount} open {continuedOpenCount === 1 ? 'item has' : 'items have'} continued from earlier days.
-          </div>
-        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-2">

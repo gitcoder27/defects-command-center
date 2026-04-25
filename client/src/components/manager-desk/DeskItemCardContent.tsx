@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import * as Popover from '@radix-ui/react-popover';
 import { AlertTriangle, CheckCircle2, Clock3, FileText, Link2, MoreHorizontal, Users, XCircle } from 'lucide-react';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
 import {
@@ -101,40 +102,49 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
         <div className="flex items-center gap-1 md:justify-end md:opacity-0 md:transition-opacity md:duration-150 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
           <RowActionButton action={primaryAction} itemTitle={item.title} onStatusChange={onStatusChange} />
           {secondaryActions.length > 0 && (
-            <details
-              className="relative"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <summary
-                className="flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-md border transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] [&::-webkit-details-marker]:hidden"
-                style={{
-                  background: 'var(--bg-secondary)',
-                  borderColor: 'var(--border)',
-                  color: 'var(--text-secondary)',
-                }}
-                aria-label={`More actions for ${item.title}`}
-                title="More actions"
-              >
-                <MoreHorizontal size={13} />
-              </summary>
-              <div
-                className="absolute right-0 top-8 z-20 min-w-[132px] rounded-lg border p-1 shadow-lg"
-                style={{
-                  background: 'var(--bg-primary)',
-                  borderColor: 'var(--border)',
-                  boxShadow: '0 16px 38px rgba(2,6,23,0.22)',
-                }}
-              >
-                {secondaryActions.map((action) => (
-                  <RowMenuAction
-                    key={action.status}
-                    action={action}
-                    itemTitle={item.title}
-                    onStatusChange={onStatusChange}
-                  />
-                ))}
-              </div>
-            </details>
+            <Popover.Root>
+              <Popover.Trigger asChild>
+                <button
+                  type="button"
+                  onClick={(event) => event.stopPropagation()}
+                  className="flex h-7 w-7 items-center justify-center rounded-md border transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]"
+                  style={{
+                    background: 'var(--bg-secondary)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--text-secondary)',
+                  }}
+                  aria-label={`More actions for ${item.title}`}
+                  title="More actions"
+                >
+                  <MoreHorizontal size={13} />
+                </button>
+              </Popover.Trigger>
+              <Popover.Portal>
+                <Popover.Content
+                  align="end"
+                  side="bottom"
+                  sideOffset={6}
+                  collisionPadding={12}
+                  onClick={(event) => event.stopPropagation()}
+                  className="z-50 min-w-[132px] rounded-lg border p-1 shadow-lg"
+                  style={{
+                    background: 'var(--bg-primary)',
+                    borderColor: 'var(--border)',
+                    boxShadow: '0 16px 38px rgba(2,6,23,0.28)',
+                  }}
+                >
+                  {secondaryActions.map((action) => (
+                    <Popover.Close asChild key={action.status}>
+                      <RowMenuAction
+                        action={action}
+                        itemTitle={item.title}
+                        onStatusChange={onStatusChange}
+                      />
+                    </Popover.Close>
+                  ))}
+                </Popover.Content>
+              </Popover.Portal>
+            </Popover.Root>
           )}
         </div>
       )}

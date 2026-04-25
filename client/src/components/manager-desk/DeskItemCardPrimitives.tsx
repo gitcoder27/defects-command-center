@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import {
   ArrowRight,
+  Archive,
   Ban,
   CalendarCheck,
   CheckCircle2,
@@ -107,7 +108,14 @@ function createQuickActions(item: ManagerDeskItem) {
     secondary: true,
     style: { background: 'var(--bg-secondary)', color: 'var(--text-muted)', borderColor: 'var(--border)' },
   };
-  return { start, waiting, done, drop };
+  const moveLater = {
+    label: 'Move to later',
+    status: 'backlog' as const,
+    icon: <Archive size={10} />,
+    secondary: true,
+    style: { background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderColor: 'var(--border)' },
+  };
+  return { start, waiting, done, drop, moveLater };
 }
 
 export function getPrimaryQuickAction(item: ManagerDeskItem): RowQuickAction | null {
@@ -121,13 +129,14 @@ export function getPrimaryQuickAction(item: ManagerDeskItem): RowQuickAction | n
 export function getSecondaryQuickActions(item: ManagerDeskItem): RowQuickAction[] {
   if (item.status === 'done' || item.status === 'cancelled') return [];
 
-  const { waiting, done, drop } = createQuickActions(item);
+  const { waiting, done, drop, moveLater } = createQuickActions(item);
+  const laterActions = item.delegatedExecution ? [] : [moveLater];
   const terminalActions = item.delegatedExecution ? [done] : [done, drop];
 
   if (item.status === 'backlog') return item.delegatedExecution ? [] : [drop];
-  if (item.status === 'in_progress') return [waiting, ...(!item.delegatedExecution ? [drop] : [])];
-  if (item.status === 'waiting') return terminalActions;
-  return [waiting, ...terminalActions];
+  if (item.status === 'in_progress') return [waiting, ...laterActions, ...(!item.delegatedExecution ? [drop] : [])];
+  if (item.status === 'waiting') return [...laterActions, ...terminalActions];
+  return [...laterActions, waiting, ...terminalActions];
 }
 
 export function getKindBackground(variant: DeskItemVariant) {

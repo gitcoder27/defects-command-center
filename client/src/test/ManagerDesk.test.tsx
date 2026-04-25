@@ -313,7 +313,7 @@ describe('ManagerDeskPage', () => {
         <ManagerDeskPage />
       </TestWrapper>,
     );
-    expect(screen.getByRole('heading', { name: "Today's Desk" })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Open work' })).toBeInTheDocument();
     expect(screen.queryByText('Rail')).not.toBeInTheDocument();
     expect(screen.queryByText('Focus')).not.toBeInTheDocument();
     expect(screen.getAllByText('Waiting').length).toBeGreaterThanOrEqual(1);
@@ -631,7 +631,7 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
 
-    expect(screen.getByRole('heading', { name: "Today's Desk" })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Open work' })).toBeInTheDocument();
     expect(screen.queryByText('Review next quarter planning idea')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /later 1/i })).toBeInTheDocument();
 
@@ -662,6 +662,25 @@ describe('ManagerDeskPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
     const dialog = screen.getByRole('dialog', { name: /manager desk item detail/i });
     fireEvent.click(within(dialog).getByRole('button', { name: /move to later/i }));
+
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      {
+        itemId: 1,
+        status: 'backlog',
+      },
+      expect.anything(),
+    );
+  });
+
+  it('moves open work to later from the row actions menu', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^More actions for Analyze root cause for DEF-241$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Move to later Analyze root cause for DEF-241$/i }));
 
     expect(mockUpdateMutate).toHaveBeenCalledWith(
       {
@@ -915,7 +934,7 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
 
-    expect(screen.getByRole('heading', { name: "Today's Desk" })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Open work' })).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole('textbox', { name: /search manager desk tasks/i }), {
       target: { value: 'Design' },
@@ -923,7 +942,7 @@ describe('ManagerDeskPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^reset$/i }));
 
-    expect(screen.getByRole('heading', { name: "Today's Desk" })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Open work' })).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: /search manager desk tasks/i })).toHaveValue('');
     expect(screen.queryByRole('button', { name: /^reset$/i })).not.toBeInTheDocument();
   });
