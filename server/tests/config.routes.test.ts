@@ -19,6 +19,7 @@ vi.mock("../src/config", () => ({
 import { createConfigRouter } from "../src/routes/config";
 import {
   configTable,
+  appUsers,
   developers,
   issues,
   componentMap,
@@ -180,6 +181,25 @@ describe("config routes", () => {
     expect(res.body?.managerJiraAccountId).toBe("");
     expect(res.body?.jiraApiToken).toBe("****");
     expect(res.body?.backupMaxScheduledSnapshots).toBe(DEFAULT_BACKUP_MAX_SCHEDULED_SNAPSHOTS);
+  });
+
+  it("marks workspace configured with a manager account even before Jira is connected", async () => {
+    await db.insert(appUsers).values({
+      username: "manager",
+      displayName: "Manager One",
+      passwordHash: "hash",
+      role: "manager",
+      developerAccountId: null,
+      isActive: 1,
+      createdAt: "2026-04-28T00:00:00.000Z",
+      updatedAt: "2026-04-28T00:00:00.000Z",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, { method: "GET", url: "/api/config" });
+    expect(res.status).toBe(200);
+    expect(res.body?.isConfigured).toBe(true);
+    expect(res.body?.jiraApiToken).toBe("");
   });
 
   it("GET /api/config falls back to the legacy lead config key for manager Jira mapping", async () => {

@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, or } from "drizzle-orm";
 import type {
   FilterType,
   Issue as SharedIssue,
@@ -317,7 +317,11 @@ export class IssueService {
     }
 
     const rows = await db.select().from(developers).where(eq(developers.isActive, 1));
-    const activeTeamIds = new Set(rows.map((row) => row.accountId));
+    const activeTeamIds = new Set(
+      rows
+        .map((row) => row.jiraAccountId ?? (row.source === "manual" ? undefined : row.accountId))
+        .filter((accountId): accountId is string => Boolean(accountId?.trim()))
+    );
     return activeTeamIds.has(assigneeId) ? "in_team" : "out_of_team";
   }
 
@@ -326,7 +330,11 @@ export class IssueService {
       return null;
     }
 
-    const rows = await db.select().from(developers).where(eq(developers.accountId, assigneeId)).limit(1);
+    const rows = await db
+      .select()
+      .from(developers)
+      .where(or(eq(developers.accountId, assigneeId), eq(developers.jiraAccountId, assigneeId)))
+      .limit(1);
     return rows[0]?.displayName ?? null;
   }
 

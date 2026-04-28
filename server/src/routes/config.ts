@@ -2,7 +2,7 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/connection";
-import { configTable, developers as developersTable, issues, syncLog, componentMap, issueScopeHistory, issueTags, localTags } from "../db/schema";
+import { appUsers, configTable, developers as developersTable, issues, syncLog, componentMap, issueScopeHistory, issueTags, localTags } from "../db/schema";
 import { validate } from "../middleware/validate";
 import { JiraClient } from "../jira/client";
 import { stripManagedAssigneeClause } from "../jira/jql";
@@ -127,6 +127,13 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
       const jiraSyncJql = stripManagedAssigneeClause((await getConfigValue("jira_sync_jql")) ?? config.JIRA_SYNC_JQL ?? "");
       const jiraDevDueDateField = (await getConfigValue("jira_dev_due_date_field")) ?? config.JIRA_DEV_DUE_DATE_FIELD ?? "customfield_10128";
       const jiraAspenSeverityField = (await getConfigValue("jira_aspen_severity_field")) ?? config.JIRA_ASPEN_SEVERITY_FIELD ?? "";
+      const managerRows = await db
+        .select({ id: appUsers.id })
+        .from(appUsers)
+        .where(eq(appUsers.role, "manager"))
+        .limit(1);
+      const hasManagerWorkspace = Boolean(managerRows[0]);
+      const hasJiraConnection = Boolean(jiraBaseUrl && jiraEmail && jiraProjectKey && jiraApiToken);
 
       res.json({
         jiraBaseUrl,
@@ -147,7 +154,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
         jiraSyncJql,
         jiraDevDueDateField,
         jiraAspenSeverityField,
-        isConfigured: Boolean(jiraBaseUrl && jiraEmail && jiraProjectKey && jiraApiToken),
+        isConfigured: hasManagerWorkspace || hasJiraConnection,
       });
     } catch (error) {
       next(error);

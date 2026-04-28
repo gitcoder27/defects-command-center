@@ -119,7 +119,7 @@ export class AuthService {
         .limit(1);
 
       if (!developerRows[0]) {
-        throw new HttpError(400, "developerAccountId must match an active developer");
+        throw new HttpError(400, "developerAccountId must match an active team member");
       }
     }
 

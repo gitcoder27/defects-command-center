@@ -12,6 +12,9 @@ interface InlineEditAssigneeProps {
 export function InlineEditAssignee({ issueKey, currentId, onClose }: InlineEditAssigneeProps) {
   const ref = useRef<HTMLSelectElement>(null);
   const { data: developers } = useDevelopers();
+  const jiraLinkedDevelopers = developers?.filter(
+    (developer) => Boolean(developer.jiraAccountId) || developer.source !== 'manual'
+  ) ?? [];
   const updateIssue = useUpdateIssue();
   const { addToast } = useToast();
 
@@ -49,8 +52,8 @@ export function InlineEditAssignee({ issueKey, currentId, onClose }: InlineEditA
       }}
     >
       <option value="">Unassigned</option>
-      {developers?.map((d) => (
-        <option key={d.accountId} value={d.accountId}>{d.displayName}</option>
+      {jiraLinkedDevelopers.map((d) => (
+        <option key={d.accountId} value={d.jiraAccountId ?? d.accountId}>{d.displayName}</option>
       ))}
     </select>
   );

@@ -403,7 +403,11 @@ export class SyncEngine {
 
   private async getActiveTeamAccountIds(): Promise<Set<string>> {
     const rows = await db.select().from(developers).where(eq(developers.isActive, 1));
-    return new Set(rows.map((row) => row.accountId));
+    return new Set(
+      rows
+        .map((row) => row.jiraAccountId ?? (row.source === "manual" ? undefined : row.accountId))
+        .filter((accountId): accountId is string => Boolean(accountId?.trim()))
+    );
   }
 
   private async getScopedTeamAccountIds(): Promise<Set<string>> {

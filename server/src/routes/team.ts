@@ -1,4 +1,5 @@
 import { Router } from "express";
+import crypto from "node:crypto";
 import { z } from "zod";
 import { validate } from "../middleware/validate";
 import { WorkloadService } from "../services/workload.service";
@@ -31,12 +32,79 @@ const saveDevelopersSchema = z.object({
         displayName: z.string().min(1),
         email: z.string().optional(),
         avatarUrl: z.string().optional(),
+        source: z.enum(["jira", "manual"]).optional(),
+        jiraAccountId: z.string().trim().optional(),
       })
     ),
   }),
   params: z.any().optional(),
   query: z.any().optional(),
 });
+
+const manualDeveloperSchema = z.object({
+  body: z.object({
+    displayName: z.string().trim().min(1),
+    email: z.string().trim().email().optional().or(z.literal("")),
+    jiraAccountId: z.string().trim().optional().or(z.literal("")),
+  }),
+  params: z.any().optional(),
+  query: z.any().optional(),
+});
+
+const updateDeveloperSchema = z.object({
+  params: z.object({ accountId: z.string().regex(/^[A-Za-z0-9:-]+$/, "Invalid account id format") }),
+  body: z.object({
+    displayName: z.string().trim().min(1).optional(),
+    email: z.string().trim().email().optional().or(z.literal("")),
+    jiraAccountId: z.string().trim().optional().or(z.literal("")),
+    isActive: z.boolean().optional(),
+  }),
+  query: z.any().optional(),
+}).refine(
+  (value) => Object.keys(value.body).length > 0,
+  { message: "At least one team member field must be provided", path: ["body"] }
+);
+
+type DeveloperUpdateValues = Partial<typeof developersTable.$inferInsert>;
+
+function serializeDeveloper(row: typeof developersTable.$inferSelect) {
+  return {
+    accountId: row.accountId,
+    displayName: row.displayName,
+    email: row.email ?? undefined,
+    avatarUrl: row.avatarUrl ?? undefined,
+    source: row.source as "jira" | "manual",
+    jiraAccountId: row.jiraAccountId ?? undefined,
+    isActive: row.isActive === 1,
+  };
+}
+
+function createDeveloperUpdateValues(body: {
+  displayName?: string;
+  email?: string;
+  jiraAccountId?: string;
+  isActive?: boolean;
+}): DeveloperUpdateValues {
+  const updates: DeveloperUpdateValues = {};
+
+  if (body.displayName !== undefined) {
+    updates.displayName = body.displayName.trim();
+  }
+
+  if (body.email !== undefined) {
+    updates.email = body.email.trim() || null;
+  }
+
+  if (body.jiraAccountId !== undefined) {
+    updates.jiraAccountId = body.jiraAccountId.trim() || null;
+  }
+
+  if (body.isActive !== undefined) {
+    updates.isActive = body.isActive ? 1 : 0;
+  }
+
+  return updates;
+}
 
 const developersQuerySchema = z.object({
   query: z.object({
@@ -75,6 +143,16 @@ async function normalizeLegacyDevelopers(): Promise<void> {
   await db.delete(developersTable).where(eq(developersTable.accountId, "dev-1"));
   await db.delete(componentMap).where(eq(componentMap.accountId, "lead-1"));
   await db.delete(developersTable).where(eq(developersTable.accountId, "lead-1"));
+}
+
+function makeManualAccountId(displayName: string): string {
+  const slug = displayName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 32) || "member";
+  return `manual:${slug}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
 export function createTeamRouter(workloadService: WorkloadService): Router {
@@ -162,9 +240,15 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
         displayName: string;
         email?: string;
         avatarUrl?: string;
+        source?: "jira" | "manual";
+        jiraAccountId?: string;
       }>;
 
       for (const dev of devs) {
+        const source = dev.source ?? "jira";
+        const jiraAccountId = source === "jira"
+          ? (dev.jiraAccountId?.trim() || dev.accountId)
+          : (dev.jiraAccountId?.trim() || null);
         await db
           .insert(developersTable)
           .values({
@@ -172,6 +256,8 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
             displayName: dev.displayName,
             email: dev.email ?? null,
             avatarUrl: dev.avatarUrl ?? null,
+            source,
+            jiraAccountId,
             isActive: 1,
           })
           .onConflictDoUpdate({
@@ -180,12 +266,69 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
               displayName: dev.displayName,
               email: dev.email ?? null,
               avatarUrl: dev.avatarUrl ?? null,
+              source,
+              jiraAccountId,
               isActive: 1,
             },
           });
       }
 
       res.json({ success: true, count: devs.length });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/developers/manual", validate(manualDeveloperSchema), async (req, res, next) => {
+    try {
+      const displayName = req.body.displayName.trim();
+      const email = req.body.email?.trim() || null;
+      const jiraAccountId = req.body.jiraAccountId?.trim() || null;
+      const accountId = makeManualAccountId(displayName);
+
+      const rows = await db
+        .insert(developersTable)
+        .values({
+          accountId,
+          displayName,
+          email,
+          avatarUrl: null,
+          source: "manual",
+          jiraAccountId,
+          isActive: 1,
+        })
+        .returning();
+
+      const created = rows[0];
+      if (!created) {
+        throw new Error("Failed to create manual team member");
+      }
+      res.status(201).json({
+        developer: serializeDeveloper(created),
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.patch("/developers/:accountId", validate(updateDeveloperSchema), async (req, res, next) => {
+    try {
+      const accountId = req.params.accountId as string;
+      const updates = createDeveloperUpdateValues(req.body);
+
+      const rows = await db
+        .update(developersTable)
+        .set(updates)
+        .where(eq(developersTable.accountId, accountId))
+        .returning();
+
+      const updated = rows[0];
+      if (!updated) {
+        res.status(404).json({ error: "Team member not found", status: 404 });
+        return;
+      }
+
+      res.json({ developer: serializeDeveloper(updated) });
     } catch (error) {
       next(error);
     }

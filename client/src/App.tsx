@@ -234,6 +234,19 @@ function AppContent() {
     navigateToView(nextView);
   }, []);
 
+  const handleTodayWorkFilter = useCallback((filter: DashboardFilterState['activeFilter']) => {
+    setDashboardFilterState((prev) => ({
+      ...prev,
+      activeFilter: filter,
+      activeDeveloper: undefined,
+      selectedTagId: undefined,
+      noTagsFilter: false,
+    }));
+    preloadView('work');
+    setActiveView('work');
+    navigateToView('work');
+  }, []);
+
   const replaceView = useCallback((view: AppView) => {
     const nextView = canonicalizeView(view);
     preloadView(nextView);
@@ -384,7 +397,7 @@ function AppContent() {
   if (activeView === 'today') {
     return (
       <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
-        <TodayPage onViewChange={handleViewChange} />
+        <TodayPage onViewChange={handleViewChange} onSelectWorkFilter={handleTodayWorkFilter} />
       </WorkspaceShell>
     );
   }

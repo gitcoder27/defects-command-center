@@ -7,6 +7,7 @@ import type { TagUsageResponse } from '@/types';
 
 const mockGet = vi.fn();
 const mockPut = vi.fn();
+const mockPatch = vi.fn();
 const mockPost = vi.fn();
 const mockDelete = vi.fn();
 const mockMutateAsync = vi.fn();
@@ -16,6 +17,8 @@ const mockRefetch = vi.fn(async () => ({ data: {} }));
 const mockAddToast = vi.fn();
 const mockConfig = {
   jiraBaseUrl: 'https://acme.atlassian.net',
+  jiraEmail: 'manager@example.com',
+  jiraApiToken: '****',
   jiraProjectKey: 'AM',
   jiraSyncJql: 'project = AM AND issuetype = Bug',
   jiraDevDueDateField: 'customfield_10128',
@@ -117,6 +120,7 @@ vi.mock('@/lib/api', () => ({
   api: {
     get: (...args: unknown[]) => mockGet(...args),
     put: (...args: unknown[]) => mockPut(...args),
+    patch: (...args: unknown[]) => mockPatch(...args),
     post: (...args: unknown[]) => mockPost(...args),
     delete: (...args: unknown[]) => mockDelete(...args),
   },
@@ -208,6 +212,7 @@ describe('SettingsPage', () => {
       return {};
     });
 
+    mockPatch.mockResolvedValue({});
     mockDelete.mockResolvedValue({ ok: true });
     mockDeleteTagMutate.mockImplementation(
       (_variables: { id: number; force?: boolean }, options?: { onSuccess?: (result: { success: true; removedIssueCount: number }) => void }) => {
@@ -325,6 +330,70 @@ describe('SettingsPage', () => {
         type: 'success',
         title: 'Team updated and synced',
         message: 'Added 1 team member and synced issues.',
+      }));
+    });
+  });
+
+  it('adds a manual team member without triggering Jira sync', async () => {
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /team members/i }));
+    await screen.findByText('Add Manually');
+    fireEvent.change(screen.getByRole('textbox', { name: /manual team member name/i }), {
+      target: { value: 'Priya Manual' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: /manual team member email/i }), {
+      target: { value: 'priya@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /add manual member/i }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith('/team/developers/manual', {
+        displayName: 'Priya Manual',
+        email: 'priya@example.com',
+      });
+      expect(mockMutateAsync).not.toHaveBeenCalled();
+      expect(mockAddToast).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'success',
+        title: 'Team member added',
+      }));
+    });
+  });
+
+  it('updates team member details and optional Jira link inline', async () => {
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /team members/i }));
+    await screen.findByText('Tracked Team');
+    fireEvent.click(screen.getByRole('button', { name: /edit taylor dev/i }));
+    fireEvent.change(screen.getByRole('textbox', { name: /edit team member name/i }), {
+      target: { value: 'Taylor Updated' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: /edit team member email/i }), {
+      target: { value: 'taylor.updated@example.com' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: /edit team member jira account id/i }), {
+      target: { value: 'jira-dev-1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save team member changes/i }));
+
+    await waitFor(() => {
+      expect(mockPatch).toHaveBeenCalledWith('/team/developers/dev-1', {
+        displayName: 'Taylor Updated',
+        email: 'taylor.updated@example.com',
+        jiraAccountId: 'jira-dev-1',
+      });
+      expect(mockAddToast).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'success',
+        title: 'Team member updated',
       }));
     });
   });

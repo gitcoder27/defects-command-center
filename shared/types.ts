@@ -83,6 +83,8 @@ export interface Developer {
   displayName: string;
   email?: string;
   avatarUrl?: string;
+  source?: "jira" | "manual";
+  jiraAccountId?: string;
   isActive: boolean;
   availability?: DeveloperAvailability;
 }

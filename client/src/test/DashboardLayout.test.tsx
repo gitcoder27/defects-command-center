@@ -109,6 +109,10 @@ vi.mock('@/components/workload/WorkloadBar', () => ({
   ),
 }));
 
+vi.mock('@/components/work/WorkFocusStrip', () => ({
+  WorkFocusStrip: () => <div>Work Focus</div>,
+}));
+
 vi.mock('@/components/settings/SettingsPanel', () => ({
   SettingsPanel: () => null,
 }));

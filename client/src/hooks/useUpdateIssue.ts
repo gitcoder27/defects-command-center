@@ -17,7 +17,9 @@ function getOptimisticAssigneeName(
   }
 
   for (const [, developers] of developerQueries) {
-    const matchedDeveloper = developers?.find((developer) => developer.accountId === assigneeId);
+    const matchedDeveloper = developers?.find(
+      (developer) => developer.accountId === assigneeId || developer.jiraAccountId === assigneeId
+    );
     if (matchedDeveloper) {
       return matchedDeveloper.displayName;
     }

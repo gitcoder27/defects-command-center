@@ -6,6 +6,7 @@ import { FilterSidebar } from '@/components/filters/FilterSidebar';
 import { DefectTable, useTableIssueKeys } from '@/components/table/DefectTable';
 import { TriagePanel } from '@/components/triage/TriagePanel';
 import { WorkloadBar } from '@/components/workload/WorkloadBar';
+import { WorkFocusStrip } from '@/components/work/WorkFocusStrip';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { FilterType, Alert } from '@/types';
@@ -398,6 +399,12 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
       <div className="flex-1 min-h-0 px-1 pb-0.5 md:px-1.5 md:pb-1">
         <div className="h-full min-h-0 min-w-0 rounded-[16px] border overflow-hidden flex flex-col" style={{ borderColor: 'var(--border-strong)', background: 'color-mix(in srgb, var(--bg-primary) 84%, transparent)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)' }}>
           <OverviewCards activeFilter={activeFilter} onFilterChange={handleFilterChange} />
+
+          <WorkFocusStrip
+            onFilterChange={handleFilterChange}
+            onOpenDesk={onViewChange ? () => onViewChange('desk') : undefined}
+            onOpenTeam={onViewChange ? () => onViewChange('team') : undefined}
+          />
 
           <ErrorBanner />
 

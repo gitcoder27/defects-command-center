@@ -22,11 +22,12 @@ function buildBoardUrl(date: string, query?: TeamTrackerBoardQuery): string {
   return `/team-tracker?${params.toString()}`;
 }
 
-export function useTeamTracker(date: string, query?: TeamTrackerBoardQuery) {
+export function useTeamTracker(date: string, query?: TeamTrackerBoardQuery, enabled = true) {
   return useQuery<TeamTrackerBoardResponse>({
     queryKey: ['team-tracker', date, query ?? {}],
     queryFn: () => api.get<TeamTrackerBoardResponse>(buildBoardUrl(date, query)),
-    refetchInterval: 30_000,
+    refetchInterval: enabled ? 30_000 : false,
+    enabled,
   });
 }
 

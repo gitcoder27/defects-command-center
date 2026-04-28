@@ -70,6 +70,8 @@ export class WorkloadService {
       displayName: row.displayName,
       email: row.email ?? undefined,
       avatarUrl: row.avatarUrl ?? undefined,
+      source: row.source as Developer["source"],
+      jiraAccountId: row.jiraAccountId ?? undefined,
       isActive: row.isActive === 1,
     }));
 
@@ -118,8 +120,9 @@ export class WorkloadService {
     }
 
     return devs.map((dev) => {
+      const jiraAccountId = dev.jiraAccountId ?? (dev.source === "manual" ? undefined : dev.accountId);
       const mine = issueRows.filter(
-        (issue) => issue.assigneeId === dev.accountId && isActiveTeamIssue(issue)
+        (issue) => jiraAccountId !== undefined && issue.assigneeId === jiraAccountId && isActiveTeamIssue(issue)
       );
       const score = this.calculateScore(mine.map((item) => item.priorityName));
       const trackerDay = trackerDayByDeveloper.get(dev.accountId);
@@ -184,6 +187,7 @@ export class WorkloadService {
   async suggestAssignee(): Promise<AssignmentSuggestion[]> {
     const team = await this.getTeamWorkload();
     return [...team]
+      .filter((entry) => Boolean(entry.developer.jiraAccountId ?? (entry.developer.source === "manual" ? undefined : entry.developer.accountId)))
       .sort((a, b) => {
         const trackerAvailabilityDelta =
           getTrackerAvailabilityRank(a.trackerStatus) - getTrackerAvailabilityRank(b.trackerStatus);

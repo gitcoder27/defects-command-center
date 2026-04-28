@@ -22,6 +22,7 @@ import {
   RefreshCcw,
   Tag,
   Globe,
+  Pencil,
   X,
 } from 'lucide-react';
 import { useConfig } from '@/hooks/useConfig';
@@ -33,7 +34,7 @@ import { DEVELOPER_LOGIN_URL } from '@/lib/constants';
 import { useDevelopers } from '@/hooks/useDevelopers';
 import { TagManagementSection } from '@/components/settings/TagManagementSection';
 import { SettingsMaintenanceSection } from '@/components/settings/SettingsMaintenanceSection';
-import type { AuthUser, UserRole } from '@/types';
+import type { AuthUser, Developer, UserRole } from '@/types';
 
 interface JiraField {
   id: string;
@@ -82,6 +83,15 @@ export function SettingsPage() {
   const { data: developers = [], isLoading: loadingDevelopers } = useDevelopers();
 
   const [teamSearch, setTeamSearch] = useState('');
+  const [manualMemberName, setManualMemberName] = useState('');
+  const [manualMemberEmail, setManualMemberEmail] = useState('');
+  const [manualMemberJiraAccountId, setManualMemberJiraAccountId] = useState('');
+  const [savingManualMember, setSavingManualMember] = useState(false);
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [editingMemberName, setEditingMemberName] = useState('');
+  const [editingMemberEmail, setEditingMemberEmail] = useState('');
+  const [editingMemberJiraAccountId, setEditingMemberJiraAccountId] = useState('');
+  const [savingMemberId, setSavingMemberId] = useState<string | null>(null);
   const [discoveredUsers, setDiscoveredUsers] = useState<DiscoveredUser[]>([]);
   const [discoveredSearch, setDiscoveredSearch] = useState('');
   const [discoveringTeam, setDiscoveringTeam] = useState(false);
@@ -120,6 +130,7 @@ export function SettingsPage() {
   const [pwSymbols, setPwSymbols] = useState(true);
 
   const activeMemberIds = useMemo(() => new Set(developers.map((developer) => developer.accountId)), [developers]);
+  const canUseJiraDirectory = Boolean(config?.jiraBaseUrl && config?.jiraEmail && config?.jiraProjectKey && config?.jiraApiToken);
 
   const filteredDevelopers = useMemo(
     () =>
@@ -131,7 +142,7 @@ export function SettingsPage() {
     [developers, teamSearch]
   );
 
-  const teamActionLoading = savingTeam || Boolean(removingAccountId) || loadingMoreTeam || triggerSync.isPending;
+  const teamActionLoading = savingTeam || savingManualMember || Boolean(removingAccountId) || Boolean(savingMemberId) || loadingMoreTeam || triggerSync.isPending;
   const addableSelectionCount = useMemo(
     () => Array.from(selectedAddUsers).filter((accountId) => !activeMemberIds.has(accountId)).length,
     [selectedAddUsers, activeMemberIds]
@@ -167,7 +178,7 @@ export function SettingsPage() {
   const handleCreateUser = async () => {
     if (!newUsername.trim() || !newDisplayName.trim() || !newPassword.trim()) return;
     if (newRole === 'developer' && !newDevAccountId) {
-      addToast({ type: 'error', title: 'Missing Jira identity', message: 'Developer accounts must be linked to a Jira profile.' });
+      addToast({ type: 'error', title: 'Missing team member', message: 'Developer accounts must be linked to an active team member.' });
       return;
     }
     setCreatingUser(true);
@@ -391,6 +402,13 @@ export function SettingsPage() {
       const append = options?.append ?? false;
       const requestId = ++discoverRequestRef.current;
 
+      if (!canUseJiraDirectory) {
+        setDiscoveredUsers([]);
+        setDiscoverHasMore(false);
+        setDiscoverTeamError('');
+        return;
+      }
+
       if (append) {
         setLoadingMoreTeam(true);
       } else {
@@ -449,7 +467,7 @@ export function SettingsPage() {
         }
       }
     },
-    [addToast]
+    [addToast, canUseJiraDirectory]
   );
 
   useEffect(() => {
@@ -514,6 +532,75 @@ export function SettingsPage() {
     }
   }, [activeMemberIds, discoveredUsers, selectedAddUsers, addToast, syncTeamMembershipChange]);
 
+  const handleAddManualMember = useCallback(async () => {
+    if (!manualMemberName.trim()) {
+      return;
+    }
+
+    setSavingManualMember(true);
+    try {
+      await api.post('/team/developers/manual', {
+        displayName: manualMemberName.trim(),
+        email: manualMemberEmail.trim(),
+        ...(manualMemberJiraAccountId.trim() ? { jiraAccountId: manualMemberJiraAccountId.trim() } : {}),
+      });
+      setManualMemberName('');
+      setManualMemberEmail('');
+      setManualMemberJiraAccountId('');
+      await invalidateTeamScopeData();
+      addToast({
+        type: 'success',
+        title: 'Team member added',
+        message: 'Manual team member is ready for Team, Desk, and My Day workflows.',
+      });
+    } catch (err) {
+      addToast({ type: 'error', title: 'Failed to add team member', message: err instanceof Error ? err.message : 'Request failed' });
+    } finally {
+      setSavingManualMember(false);
+    }
+  }, [addToast, invalidateTeamScopeData, manualMemberEmail, manualMemberJiraAccountId, manualMemberName]);
+
+  const startEditingMember = useCallback((member: Developer) => {
+    setConfirmRemoveAccountId(null);
+    setEditingMemberId(member.accountId);
+    setEditingMemberName(member.displayName);
+    setEditingMemberEmail(member.email ?? '');
+    setEditingMemberJiraAccountId(member.jiraAccountId ?? (member.source === 'manual' ? '' : member.accountId));
+  }, []);
+
+  const cancelEditingMember = useCallback(() => {
+    setEditingMemberId(null);
+    setEditingMemberName('');
+    setEditingMemberEmail('');
+    setEditingMemberJiraAccountId('');
+  }, []);
+
+  const handleSaveEditedMember = useCallback(async () => {
+    if (!editingMemberId || !editingMemberName.trim()) {
+      return;
+    }
+
+    setSavingMemberId(editingMemberId);
+    try {
+      await api.patch('/team/developers/' + encodeURIComponent(editingMemberId), {
+        displayName: editingMemberName.trim(),
+        email: editingMemberEmail.trim(),
+        jiraAccountId: editingMemberJiraAccountId.trim(),
+      });
+      cancelEditingMember();
+      await invalidateTeamScopeData();
+      addToast({
+        type: 'success',
+        title: 'Team member updated',
+        message: 'Team member details are up to date.',
+      });
+    } catch (err) {
+      addToast({ type: 'error', title: 'Failed to update team member', message: err instanceof Error ? err.message : 'Request failed' });
+    } finally {
+      setSavingMemberId(null);
+    }
+  }, [addToast, cancelEditingMember, editingMemberEmail, editingMemberId, editingMemberJiraAccountId, editingMemberName, invalidateTeamScopeData]);
+
   const handleRemoveMember = useCallback(async (accountId: string) => {
     setRemovingAccountId(accountId);
     try {
@@ -533,8 +620,12 @@ export function SettingsPage() {
     const merged = new Map<string, DiscoveredUser>();
 
     for (const developer of developers) {
-      merged.set(developer.accountId, {
-        accountId: developer.accountId,
+      const jiraAccountId = developer.jiraAccountId ?? (developer.source === 'manual' ? undefined : developer.accountId);
+      if (!jiraAccountId) {
+        continue;
+      }
+      merged.set(jiraAccountId, {
+        accountId: jiraAccountId,
         displayName: developer.displayName,
         email: developer.email,
         avatarUrl: developer.avatarUrl,
@@ -1053,30 +1144,156 @@ export function SettingsPage() {
                       ) : (
                         filteredDevelopers.map((member, idx) => {
                           const isRemoving = removingAccountId === member.accountId;
+                          const isEditing = editingMemberId === member.accountId;
+                          const isSavingEdit = savingMemberId === member.accountId;
                           return (
                             <div
                               key={member.accountId}
-                              className="flex items-center gap-2 px-3 py-1.5"
+                              className="flex items-start gap-2 px-3 py-1.5"
                               style={{ background: idx % 2 === 0 ? 'var(--settings-row-even-bg)' : 'var(--settings-row-odd-bg)', borderTop: idx > 0 ? 'var(--settings-row-divider)' : 'none' }}
                             >
                               <IdentityAvatar user={member} accent="var(--accent)" />
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{member.displayName}</p>
-                                <p className="truncate text-[10px]" style={{ color: 'var(--text-muted)' }}>{member.email ?? member.accountId}</p>
-                              </div>
-                              <TeamMemberRemoveAction
-                                member={member}
-                                confirming={confirmRemoveAccountId === member.accountId}
-                                removing={isRemoving}
-                                disabled={teamActionLoading && !isRemoving}
-                                onStartConfirm={() => setConfirmRemoveAccountId(member.accountId)}
-                                onCancel={() => setConfirmRemoveAccountId((current) => (current === member.accountId ? null : current))}
-                                onConfirm={() => void handleRemoveMember(member.accountId)}
-                              />
+                              {isEditing ? (
+                                <div className="min-w-0 flex-1">
+                                  <div className="grid gap-1.5">
+                                    <input
+                                      type="text"
+                                      value={editingMemberName}
+                                      onChange={(e) => setEditingMemberName(e.target.value)}
+                                      aria-label="Edit team member name"
+                                      className="w-full rounded-md px-2 py-1.5 text-[11px] outline-none"
+                                      style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                                    />
+                                    <input
+                                      type="email"
+                                      value={editingMemberEmail}
+                                      onChange={(e) => setEditingMemberEmail(e.target.value)}
+                                      placeholder="Email optional"
+                                      aria-label="Edit team member email"
+                                      className="w-full rounded-md px-2 py-1.5 text-[11px] outline-none"
+                                      style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                                    />
+                                    <input
+                                      type="text"
+                                      value={editingMemberJiraAccountId}
+                                      onChange={(e) => setEditingMemberJiraAccountId(e.target.value)}
+                                      placeholder="Jira account ID optional"
+                                      aria-label="Edit team member Jira account ID"
+                                      className="w-full rounded-md px-2 py-1.5 text-[11px] outline-none"
+                                      style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                                    />
+                                  </div>
+                                  <div className="mt-1.5 flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleSaveEditedMember()}
+                                      disabled={!editingMemberName.trim() || isSavingEdit}
+                                      aria-label="Save team member changes"
+                                      className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[10.5px] font-semibold disabled:opacity-50"
+                                      style={{ background: 'var(--settings-success-soft-bg)', color: 'var(--success)', border: 'var(--settings-success-soft-border)' }}
+                                    >
+                                      {isSavingEdit ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />} Save
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={cancelEditingMember}
+                                      disabled={isSavingEdit}
+                                      className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[10.5px] font-semibold disabled:opacity-50"
+                                      style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-muted)', border: '1px solid var(--border-strong)' }}
+                                    >
+                                      <X size={11} /> Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{member.displayName}</p>
+                                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                      <p className="truncate text-[10px]" style={{ color: 'var(--text-muted)' }}>{member.email ?? member.accountId}</p>
+                                      <span
+                                        className="rounded-full px-1.5 py-0.5 text-[9.5px] font-semibold"
+                                        style={{
+                                          background: member.source === 'manual' ? 'var(--settings-neutral-chip-bg)' : 'var(--settings-accent-soft-bg)',
+                                          color: member.source === 'manual' ? 'var(--text-muted)' : 'var(--accent)',
+                                          border: member.source === 'manual' ? '1px solid var(--border-strong)' : 'var(--settings-accent-soft-border)',
+                                        }}
+                                      >
+                                        {member.jiraAccountId || member.source !== 'manual' ? 'Jira linked' : 'Manual'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => startEditingMember(member)}
+                                    disabled={teamActionLoading}
+                                    title="Edit team member"
+                                    aria-label={`Edit ${member.displayName}`}
+                                    className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors disabled:opacity-40"
+                                    style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-muted)', border: '1px solid var(--border-strong)' }}
+                                  >
+                                    <Pencil size={12} />
+                                  </button>
+                                  <TeamMemberRemoveAction
+                                    member={member}
+                                    confirming={confirmRemoveAccountId === member.accountId}
+                                    removing={isRemoving}
+                                    disabled={teamActionLoading && !isRemoving}
+                                    onStartConfirm={() => setConfirmRemoveAccountId(member.accountId)}
+                                    onCancel={() => setConfirmRemoveAccountId((current) => (current === member.accountId ? null : current))}
+                                    onConfirm={() => void handleRemoveMember(member.accountId)}
+                                  />
+                                </>
+                              )}
                             </div>
                           );
                         })
                       )}
+                    </div>
+
+                    <div className="mt-3 rounded-xl p-3" style={{ border: 'var(--settings-inset-border)', background: 'var(--settings-inset-bg)' }}>
+                      <SettingsGroupLabel>Add Manually</SettingsGroupLabel>
+                      <p className="mt-1 text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                        Add a person before linking Jira. They can be used in Team, Desk, and developer access immediately.
+                      </p>
+                      <div className="mt-3 grid gap-2">
+                        <input
+                          type="text"
+                          value={manualMemberName}
+                          onChange={(e) => setManualMemberName(e.target.value)}
+                          placeholder="Display name"
+                          aria-label="Manual team member name"
+                          className="w-full rounded-lg px-3 py-2 text-[12px] outline-none"
+                          style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                        />
+                        <input
+                          type="email"
+                          value={manualMemberEmail}
+                          onChange={(e) => setManualMemberEmail(e.target.value)}
+                          placeholder="Email optional"
+                          aria-label="Manual team member email"
+                          className="w-full rounded-lg px-3 py-2 text-[12px] outline-none"
+                          style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                        />
+                        <input
+                          type="text"
+                          value={manualMemberJiraAccountId}
+                          onChange={(e) => setManualMemberJiraAccountId(e.target.value)}
+                          placeholder="Jira account ID optional"
+                          aria-label="Manual team member Jira account ID"
+                          className="w-full rounded-lg px-3 py-2 text-[12px] outline-none"
+                          style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddManualMember}
+                          disabled={!manualMemberName.trim() || savingManualMember}
+                          className="flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-[12px] font-semibold transition-colors disabled:opacity-50"
+                          style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-strong)' }}
+                        >
+                          {savingManualMember ? <><Loader2 size={13} className="animate-spin" /> Adding…</> : <><UserPlus size={13} /> Add manual member</>}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -1087,11 +1304,11 @@ export function SettingsPage() {
                       <button
                         type="button"
                         onClick={() => handleDiscoverTeamMembers({ query: discoveredSearch.trim(), startAt: 0, append: false, silentEmpty: false })}
-                        disabled={teamActionLoading || discoveringTeam}
+                        disabled={!canUseJiraDirectory || teamActionLoading || discoveringTeam}
                         className="rounded-full px-2.5 py-1 text-[10.5px] font-semibold transition-colors disabled:opacity-50"
                         style={{ background: 'var(--settings-accent-soft-bg)', color: 'var(--accent)', border: 'var(--settings-accent-soft-border)' }}
                       >
-                        {discoveringTeam ? 'Refreshing…' : 'Refresh'}
+                        {discoveringTeam ? 'Refreshing…' : 'Refresh Jira'}
                       </button>
                     </div>
                     <div className="mb-2 flex gap-2">
@@ -1128,7 +1345,7 @@ export function SettingsPage() {
                       </div>
                     ) : discoveredUsers.length === 0 ? (
                       <div className="rounded-xl border border-dashed px-4 py-5 text-[12px]" style={{ borderColor: 'color-mix(in srgb, var(--border-strong) 90%, transparent)', color: 'var(--text-muted)' }}>
-                        Discover users from Jira to build your tracked team.
+                        Connect Jira to discover users, or add people manually from the tracked team panel.
                       </div>
                     ) : (
                       <>
@@ -1286,7 +1503,7 @@ export function SettingsPage() {
                                   </span>
                                   {u.developerAccountId ? (
                                     <span className="rounded-full px-1.5 py-0.5 text-[9.5px] font-medium" style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-muted)', border: '1px solid var(--border-strong)' }}>
-                                      Jira linked
+                                      Team linked
                                     </span>
                                   ) : null}
                                 </div>
@@ -1464,7 +1681,7 @@ export function SettingsPage() {
                               </div>
                             </SettingsLabeledInput>
                             {newRole === 'developer' ? (
-                              <SettingsLabeledInput label="Jira profile" id="new-jira-profile">
+                              <SettingsLabeledInput label="Team member" id="new-jira-profile">
                                 <div className="relative">
                                   <select
                                     id="new-jira-profile"
@@ -1476,7 +1693,7 @@ export function SettingsPage() {
                                     <option value="">Select…</option>
                                     {developers.map((dev) => (
                                       <option key={dev.accountId} value={dev.accountId}>
-                                        {dev.displayName}{dev.email ? ` (${dev.email})` : ''}
+                                        {dev.displayName}{dev.email ? ` (${dev.email})` : ''}{dev.source === 'manual' && !dev.jiraAccountId ? ' · manual' : ''}
                                       </option>
                                     ))}
                                   </select>
@@ -1485,7 +1702,7 @@ export function SettingsPage() {
                               </SettingsLabeledInput>
                             ) : (
                               <div className="flex items-center rounded-lg px-3 py-2 text-[11px]" style={{ background: 'var(--settings-inset-bg)', color: 'var(--text-muted)', border: 'var(--settings-inset-border)' }}>
-                                Managers don't need a Jira link.
+                                Managers do not need a team member link.
                               </div>
                             )}
                           </div>

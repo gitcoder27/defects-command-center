@@ -34,6 +34,8 @@ export const developers = sqliteTable("developers", {
   displayName: text("display_name").notNull(),
   email: text("email"),
   avatarUrl: text("avatar_url"),
+  source: text("source").notNull().default("jira"),
+  jiraAccountId: text("jira_account_id"),
   isActive: integer("is_active").notNull().default(1),
 });
 

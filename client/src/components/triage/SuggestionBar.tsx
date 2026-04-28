@@ -78,7 +78,8 @@ export function SuggestionBar({ issue }: SuggestionBarProps) {
     const updates: Record<string, string> = {};
     if (prioritySuggestion.data?.suggested) updates.priorityName = prioritySuggestion.data.suggested;
     if (dueDateSuggestion.data?.suggested) updates.dueDate = dueDateSuggestion.data.suggested;
-    if (topAssignee?.developer.accountId) updates.assigneeId = topAssignee.developer.accountId;
+    const jiraAccountId = topAssignee?.developer.jiraAccountId ?? topAssignee?.developer.accountId;
+    if (jiraAccountId) updates.assigneeId = jiraAccountId;
 
     if (Object.keys(updates).length > 0) {
       updateIssue.mutate({ key: issue.jiraKey, update: updates });

@@ -64,7 +64,7 @@ const STEP_COPY: Record<Exclude<WizardStep, 'syncing'>, { label: string; title: 
   'jira-connection': {
     label: '2',
     title: 'Connect Jira',
-    description: 'Use any Jira account with enough access to sync the project.',
+    description: 'Optional connector. You can start with manual team planning and add Jira later.',
     icon: PlugZap,
   },
   'manager-mapping': {
@@ -264,7 +264,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       addToast({
         type: 'success',
         title: 'Manager account created',
-        message: 'You are signed in and can continue with Jira setup.',
+        message: 'You are signed in. Connect Jira now or start with a manual workspace.',
       });
       goToStep('jira-connection');
     } catch (error) {
@@ -421,6 +421,11 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       setStep('developer-access');
       setErrorMessage(error instanceof Error ? error.message : 'Initial Jira sync failed');
     }
+  };
+
+  const handleSkipJira = async () => {
+    setErrorMessage('');
+    await onComplete();
   };
 
   const activeStepKey: Exclude<WizardStep, 'syncing'> = step === 'syncing' ? 'developer-access' : step;
@@ -700,6 +705,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
             managerPassword={managerPassword}
             savingConnection={savingConnection}
             handleSaveConnection={handleSaveConnection}
+            handleSkipJira={handleSkipJira}
             jiraBaseUrl={jiraBaseUrl}
             jiraEmail={jiraEmail}
             jiraProjectKey={jiraProjectKey}
@@ -1139,6 +1145,8 @@ function StepFooter(props: any) {
       primaryLoading = props.savingConnection;
       primaryDisabled = !props.jiraBaseUrl || !props.jiraEmail || !props.jiraProjectKey || (!props.jiraApiToken && !props.configQuery.data?.jiraApiToken) || props.savingConnection;
       primaryAction = props.handleSaveConnection;
+      tertiaryLabel = 'Skip Jira for now';
+      tertiaryAction = props.handleSkipJira;
       break;
     case 'manager-mapping':
       backLabel = 'Back';

@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS developers (
   display_name TEXT NOT NULL,
   email        TEXT,
   avatar_url   TEXT,
+  source       TEXT NOT NULL DEFAULT 'jira',
+  jira_account_id TEXT,
   is_active    INTEGER DEFAULT 1
 );
 
@@ -282,6 +284,10 @@ const alterStatements = [
   "CREATE UNIQUE INDEX IF NOT EXISTS idx_alert_dismissals_manager_alert ON alert_dismissals(manager_account_id, alert_id)",
   "CREATE INDEX IF NOT EXISTS idx_alert_dismissals_manager ON alert_dismissals(manager_account_id)",
   "ALTER TABLE issues ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE developers ADD COLUMN source TEXT NOT NULL DEFAULT 'jira'",
+  "ALTER TABLE developers ADD COLUMN jira_account_id TEXT",
+  "UPDATE developers SET jira_account_id = account_id WHERE (source IS NULL OR source = 'jira') AND (jira_account_id IS NULL OR jira_account_id = '')",
+  "CREATE INDEX IF NOT EXISTS idx_developers_jira_account_id ON developers(jira_account_id)",
   "ALTER TABLE team_tracker_days ADD COLUMN capacity_units INTEGER",
   "ALTER TABLE team_tracker_days ADD COLUMN next_follow_up_at TEXT",
   "ALTER TABLE team_tracker_days ADD COLUMN status_updated_at TEXT",
