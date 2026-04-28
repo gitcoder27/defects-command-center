@@ -1,6 +1,8 @@
-# Defect Management Command Dashboard
+# Engineering Manager Command Center
 
-Full-stack implementation for the Defect Management Command Dashboard. The backend provides Jira-synced defect data, workload scoring, alerting, and automation suggestions via REST APIs. The frontend provides the tactical command dashboard UI.
+Full-stack implementation for an engineering manager command center. The app helps software engineering managers track people, work, risks, daily planning, and Jira defect operations from one workspace.
+
+Jira defects remain a first-class workflow, but the product direction is broader than a defect dashboard: Jira is treated as a connected work source inside the manager workspace.
 
 ## Implemented Scope
 
@@ -15,6 +17,7 @@ Full-stack implementation for the Defect Management Command Dashboard. The backe
 - Zod validation on write endpoints
 - Global JSON error handling (`{ error, status }`)
 - Service-layer unit tests for workload/alerts/automation/issues
+- Phase 1 product reframe toward Engineering Manager Command Center navigation and naming
 
 ## Repository Layout
 

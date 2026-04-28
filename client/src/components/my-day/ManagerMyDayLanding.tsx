@@ -45,13 +45,13 @@ export function ManagerMyDayLanding({ onGoToDashboard }: Props) {
               className="text-[20px] font-semibold"
               style={{ color: 'var(--text-primary)' }}
             >
-              Use the Manager Desk
+              Use Today
             </h1>
             <p
               className="text-[13px]"
               style={{ color: 'var(--text-secondary)' }}
             >
-              My Day is only for developers. As a manager, use the Manager Desk from the main defect dashboard.
+              My Day is only for developers. As a manager, use Today from the command center.
             </p>
           </div>
 
@@ -60,7 +60,7 @@ export function ManagerMyDayLanding({ onGoToDashboard }: Props) {
             style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
           >
             <LoaderCircle size={14} className="animate-spin" />
-            Redirecting to the dashboard...
+            Redirecting to Today...
           </div>
 
           <button

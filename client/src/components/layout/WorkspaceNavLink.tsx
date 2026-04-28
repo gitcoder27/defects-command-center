@@ -39,7 +39,7 @@ export function WorkspaceNavLink({
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg px-9 py-1.5 text-[11px] font-medium transition-colors"
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg px-7 py-1.5 text-[11px] font-medium transition-colors"
         style={buttonStyle}
       >
         <Icon size={12} className="shrink-0" />

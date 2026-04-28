@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useBootstrapState } from '@/hooks/useBootstrapState';
 import { useConfig } from '@/hooks/useConfig';
 import { useSyncRefreshCoordinator } from '@/hooks/useSyncRefreshCoordinator';
+import { TodayPage } from '@/components/today/TodayPage';
 import {
   DashboardLayout,
   DEFAULT_DASHBOARD_FILTER_STATE,
@@ -13,7 +14,9 @@ import {
 } from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
 
-export type AppView = 'dashboard' | 'team-tracker' | 'my-day' | 'manager-desk' | 'settings';
+export type CanonicalAppView = 'today' | 'work' | 'team' | 'desk' | 'my-day' | 'settings';
+export type LegacyAppView = 'dashboard' | 'team-tracker' | 'manager-desk';
+export type AppView = CanonicalAppView | LegacyAppView;
 
 const loadTeamTrackerPage = () => import('@/components/team-tracker/TeamTrackerPage');
 const loadSetupWizard = () => import('@/components/setup/SetupWizard');
@@ -52,19 +55,31 @@ const SettingsPage = lazy(async () => {
   return { default: module.SettingsPage };
 });
 
-function pathToView(pathname: string): AppView {
+function canonicalizeView(view: AppView): CanonicalAppView {
+  if (view === 'dashboard') return 'work';
+  if (view === 'team-tracker') return 'team';
+  if (view === 'manager-desk') return 'desk';
+  return view;
+}
+
+function pathToView(pathname: string): CanonicalAppView {
   if (pathname === '/my-day' || pathname === '/my-day/') return 'my-day';
-  if (pathname === '/team-tracker' || pathname === '/team-tracker/') return 'team-tracker';
-  if (pathname === '/manager-desk' || pathname === '/manager-desk/') return 'manager-desk';
+  if (pathname === '/team' || pathname === '/team/' || pathname === '/team-tracker' || pathname === '/team-tracker/') return 'team';
+  if (pathname === '/desk' || pathname === '/desk/' || pathname === '/manager-desk' || pathname === '/manager-desk/') return 'desk';
+  if (pathname === '/work' || pathname === '/work/' || pathname === '/dashboard' || pathname === '/dashboard/') return 'work';
+  if (pathname === '/today' || pathname === '/today/' || pathname === '/' || pathname === '') return 'today';
   if (pathname === '/settings' || pathname === '/settings/') return 'settings';
-  return 'dashboard';
+  return 'today';
 }
 
 function viewToPath(view: AppView): string {
-  if (view === 'my-day') return '/my-day';
-  if (view === 'team-tracker') return '/team-tracker';
-  if (view === 'manager-desk') return '/manager-desk';
-  if (view === 'settings') return '/settings';
+  const canonicalView = canonicalizeView(view);
+
+  if (canonicalView === 'my-day') return '/my-day';
+  if (canonicalView === 'team') return '/team';
+  if (canonicalView === 'desk') return '/desk';
+  if (canonicalView === 'work') return '/work';
+  if (canonicalView === 'settings') return '/settings';
   return '/';
 }
 
@@ -79,14 +94,14 @@ const queryClient = new QueryClient({
 });
 
 function preloadView(view: AppView) {
-  switch (view) {
-    case 'team-tracker':
+  switch (canonicalizeView(view)) {
+    case 'team':
       void loadTeamTrackerPage();
       break;
     case 'my-day':
       void loadMyDayPage();
       break;
-    case 'manager-desk':
+    case 'desk':
       void loadManagerDeskPage();
       break;
     case 'settings':
@@ -201,7 +216,7 @@ function AppContent() {
 
   useSyncRefreshCoordinator({ enabled: shouldCoordinateSyncRefresh });
 
-  const [activeView, setActiveView] = useState<AppView>(() => pathToView(window.location.pathname));
+  const [activeView, setActiveView] = useState<CanonicalAppView>(() => pathToView(window.location.pathname));
   const [dashboardFilterState, setDashboardFilterState] = useState<DashboardFilterState>(DEFAULT_DASHBOARD_FILTER_STATE);
 
   const shouldLoadManagerConfig = Boolean(
@@ -213,15 +228,17 @@ function AppContent() {
   const configQuery = useConfig({ enabled: shouldLoadManagerConfig });
 
   const handleViewChange = useCallback((view: AppView) => {
-    preloadView(view);
-    setActiveView(view);
-    navigateToView(view);
+    const nextView = canonicalizeView(view);
+    preloadView(nextView);
+    setActiveView(nextView);
+    navigateToView(nextView);
   }, []);
 
   const replaceView = useCallback((view: AppView) => {
-    preloadView(view);
-    setActiveView(view);
-    navigateToView(view, true);
+    const nextView = canonicalizeView(view);
+    preloadView(nextView);
+    setActiveView(nextView);
+    navigateToView(nextView, true);
   }, []);
 
   useEffect(() => {
@@ -238,15 +255,15 @@ function AppContent() {
     }
 
     if (bootstrapState.bootstrapOpen) {
-      if (activeView !== 'dashboard') {
-        replaceView('dashboard');
+      if (activeView !== 'work') {
+        replaceView('work');
       }
       return;
     }
 
     if (activeView === 'my-day') {
       if (isAuthenticated && user?.role === 'manager') {
-        replaceView('dashboard');
+        replaceView('today');
       }
       return;
     }
@@ -334,7 +351,7 @@ function AppContent() {
     );
   }
 
-  if (activeView === 'manager-desk') {
+  if (activeView === 'desk') {
     return (
       <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
         <Suspense fallback={<PanelLoading />}>
@@ -344,7 +361,7 @@ function AppContent() {
     );
   }
 
-  if (activeView === 'team-tracker') {
+  if (activeView === 'team') {
     return (
       <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
         <Suspense fallback={<PanelLoading />}>
@@ -360,6 +377,14 @@ function AppContent() {
         <Suspense fallback={<PanelLoading />}>
           <SettingsPage />
         </Suspense>
+      </WorkspaceShell>
+    );
+  }
+
+  if (activeView === 'today') {
+    return (
+      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
+        <TodayPage onViewChange={handleViewChange} />
       </WorkspaceShell>
     );
   }

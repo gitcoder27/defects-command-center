@@ -91,8 +91,8 @@ describe('GlobalCaptureDialog', () => {
     renderDialog();
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('My Desk')).toBeInTheDocument();
-    expect(screen.getByText('Team Tracker')).toBeInTheDocument();
+    expect(screen.getByText('Desk')).toBeInTheDocument();
+    expect(screen.getByText('Team')).toBeInTheDocument();
   });
 
   it('defaults to Manager Desk target on first open', () => {
@@ -102,10 +102,10 @@ describe('GlobalCaptureDialog', () => {
     expect(screen.getByPlaceholderText('What needs to land on your desk?')).toBeInTheDocument();
   });
 
-  it('switches to Team Tracker target when clicked', async () => {
+  it('switches to Team target when clicked', async () => {
     renderDialog();
 
-    fireEvent.click(screen.getByText('Team Tracker'));
+    fireEvent.click(screen.getByText('Team'));
 
     // Should show the developer picker label
     await waitFor(() => {
@@ -117,10 +117,10 @@ describe('GlobalCaptureDialog', () => {
   it('persists last-used target in localStorage', async () => {
     renderDialog();
 
-    fireEvent.click(screen.getByText('Team Tracker'));
+    fireEvent.click(screen.getByText('Team'));
     expect(localStorage.getItem('dcc-capture-target')).toBe('team-tracker');
 
-    fireEvent.click(screen.getByText('My Desk'));
+    fireEvent.click(screen.getByText('Desk'));
     expect(localStorage.getItem('dcc-capture-target')).toBe('manager-desk');
   });
 
@@ -133,9 +133,9 @@ describe('GlobalCaptureDialog', () => {
     });
   });
 
-  it('shows developer roster immediately in Team Tracker mode', async () => {
+  it('shows developer roster immediately in Team mode', async () => {
     renderDialog();
-    fireEvent.click(screen.getByText('Team Tracker'));
+    fireEvent.click(screen.getByText('Team'));
 
     await waitFor(() => {
       expect(screen.getByText('Alice Smith')).toBeInTheDocument();
@@ -146,7 +146,7 @@ describe('GlobalCaptureDialog', () => {
 
   it('marks unavailable developers with availability note', async () => {
     renderDialog();
-    fireEvent.click(screen.getByText('Team Tracker'));
+    fireEvent.click(screen.getByText('Team'));
 
     await waitFor(() => {
       expect(screen.getByText('PTO')).toBeInTheDocument();
@@ -155,7 +155,7 @@ describe('GlobalCaptureDialog', () => {
 
   it('selects a developer and shows the task input', async () => {
     renderDialog();
-    fireEvent.click(screen.getByText('Team Tracker'));
+    fireEvent.click(screen.getByText('Team'));
 
     await waitFor(() => {
       expect(screen.getByText('Alice Smith')).toBeInTheDocument();
@@ -172,7 +172,7 @@ describe('GlobalCaptureDialog', () => {
 
   it('calls add tracker item mutation on team tracker submit', async () => {
     renderDialog();
-    fireEvent.click(screen.getByText('Team Tracker'));
+    fireEvent.click(screen.getByText('Team'));
 
     await waitFor(() => {
       expect(screen.getByText('Alice Smith')).toBeInTheDocument();
@@ -217,7 +217,7 @@ describe('GlobalCaptureDialog', () => {
 
   it('disables tracker submit when no developer is selected', async () => {
     renderDialog();
-    fireEvent.click(screen.getByText('Team Tracker'));
+    fireEvent.click(screen.getByText('Team'));
 
     await waitFor(() => {
       expect(screen.getByText('Add Task')).toBeInTheDocument();
@@ -229,7 +229,7 @@ describe('GlobalCaptureDialog', () => {
 
   it('disables tracker submit when title is empty', async () => {
     renderDialog();
-    fireEvent.click(screen.getByText('Team Tracker'));
+    fireEvent.click(screen.getByText('Team'));
 
     await waitFor(() => {
       expect(screen.getByText('Alice Smith')).toBeInTheDocument();
@@ -250,7 +250,7 @@ describe('GlobalCaptureDialog', () => {
 
   it('filters developer roster by search text', async () => {
     renderDialog();
-    fireEvent.click(screen.getByText('Team Tracker'));
+    fireEvent.click(screen.getByText('Team'));
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Search developer…')).toBeInTheDocument();
@@ -266,7 +266,7 @@ describe('GlobalCaptureDialog', () => {
 
   it('shows optional add-ons for team tracker capture', async () => {
     renderDialog();
-    fireEvent.click(screen.getByText('Team Tracker'));
+    fireEvent.click(screen.getByText('Team'));
 
     await waitFor(() => {
       expect(screen.getByText('Alice Smith')).toBeInTheDocument();
@@ -279,7 +279,7 @@ describe('GlobalCaptureDialog', () => {
 
   it('expands note field when add note is clicked', async () => {
     renderDialog();
-    fireEvent.click(screen.getByText('Team Tracker'));
+    fireEvent.click(screen.getByText('Team'));
 
     await waitFor(() => {
       expect(screen.getByText('Alice Smith')).toBeInTheDocument();

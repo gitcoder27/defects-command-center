@@ -469,7 +469,7 @@ describe('TeamTrackerPage', () => {
         <TeamTrackerPage />
       </TestWrapper>
     );
-    expect(screen.getByText('Team Tracker')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Team' })).toBeInTheDocument();
   });
 
   it('does not hardcode a dark native color scheme on the board date input', () => {

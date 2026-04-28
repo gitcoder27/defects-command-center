@@ -12,8 +12,8 @@ export type CaptureTarget = 'manager-desk' | 'team-tracker';
 const STORAGE_KEY = 'dcc-capture-target';
 
 const TARGETS: { id: CaptureTarget; label: string; Icon: typeof Briefcase }[] = [
-  { id: 'manager-desk', label: 'My Desk', Icon: Briefcase },
-  { id: 'team-tracker', label: 'Team Tracker', Icon: Users },
+  { id: 'manager-desk', label: 'Desk', Icon: Briefcase },
+  { id: 'team-tracker', label: 'Team', Icon: Users },
 ];
 
 function loadTarget(): CaptureTarget {

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { RefreshCw, Moon, Sun, PanelLeftOpen, Radar, Settings, Plus } from 'lucide-react';
+import { RefreshCw, Moon, Sun, PanelLeftOpen, LayoutDashboard, Settings, Plus } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
@@ -30,7 +30,8 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
   const isSyncing = sync?.status === 'syncing' || triggerSync.isPending;
   const hasError = sync?.status === 'error';
   const canQuickCapture = user?.role === 'manager';
-  const showDashboardAlerts = user?.role === 'manager' && (activeView ?? 'dashboard') === 'dashboard' && Boolean(onDashboardAlertClick);
+  const currentView = activeView ?? 'today';
+  const showDashboardAlerts = user?.role === 'manager' && (currentView === 'work' || currentView === 'dashboard') && Boolean(onDashboardAlertClick);
 
   useLayoutEffect(() => {
     const headerElement = headerRef.current;
@@ -92,17 +93,17 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
               </button>
             )}
             <div className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
-              <Radar size={16} />
+              <LayoutDashboard size={16} />
             </div>
             <div className="min-w-0">
               <h1
                 className="font-sans text-[16px] md:text-[17px] font-semibold truncate"
                 style={{ color: 'var(--text-primary)' }}
               >
-                Defect Command Center
+                Engineering Manager Command Center
               </h1>
               <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                Defect triage workspace
+                People, work, risks, and daily planning
               </div>
             </div>
             {onViewChange && (
@@ -221,8 +222,8 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
       {captureOpen && (
         <GlobalCaptureDialog
           onClose={() => setCaptureOpen(false)}
-          onOpenManagerDesk={onViewChange ? () => onViewChange('manager-desk') : undefined}
-          onOpenTeamTracker={onViewChange ? () => onViewChange('team-tracker') : undefined}
+          onOpenManagerDesk={onViewChange ? () => onViewChange('desk') : undefined}
+          onOpenTeamTracker={onViewChange ? () => onViewChange('team') : undefined}
         />
       )}
     </>

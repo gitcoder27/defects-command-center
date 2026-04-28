@@ -259,11 +259,11 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
               <Calendar size={14} />
             </div>
             <div className="flex min-w-0 items-baseline gap-2">
-              <div className="shrink-0 text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                Team Tracker
-              </div>
+              <h1 className="shrink-0 text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Team
+              </h1>
               <div className="hidden truncate text-[11px] md:block" style={{ color: 'var(--text-muted)' }}>
-                Full roster, attention-aware.
+                Full roster, current work, and blockers.
               </div>
             </div>
           </div>
@@ -439,7 +439,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
         onDropItem={handleDropItem}
         onAddCheckIn={(params) => addCheckIn.mutate(params)}
         onMarkInactive={handleMarkInactive}
-        onOpenManagerDesk={onViewChange ? () => onViewChange('manager-desk') : undefined}
+        onOpenManagerDesk={onViewChange ? () => onViewChange('desk') : undefined}
         issues={issues}
         isAddItemPending={addTrackerItem.isPending}
         readOnly={readOnly}
@@ -460,7 +460,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
       {followUpTarget && (
         <ManagerDeskCaptureDialog
           onClose={() => setFollowUpTarget(null)}
-          onOpenManagerDesk={onViewChange ? () => onViewChange('manager-desk') : undefined}
+          onOpenManagerDesk={onViewChange ? () => onViewChange('desk') : undefined}
           heading={`Follow up with ${followUpTarget.day.developer.displayName}`}
           description="Capture a manager follow-up linked to this developer."
           initialTitle={`Follow up with ${followUpTarget.day.developer.displayName}`}

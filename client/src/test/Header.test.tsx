@@ -65,43 +65,44 @@ describe('Header', () => {
   });
 
   it('keeps settings out of the main navigation while exposing the top-right gear for managers', () => {
-    render(<Header activeView="dashboard" onViewChange={vi.fn()} />);
+    render(<Header activeView="today" onViewChange={vi.fn()} />);
 
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.getByText('Team Tracker')).toBeInTheDocument();
-    expect(screen.getByText('Manager Desk')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /open dashboard in new tab/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /open team tracker in new tab/i })).toHaveAttribute('href', '/team-tracker');
-    expect(screen.getByRole('link', { name: /open team tracker in new tab/i })).toHaveAttribute('target', '_blank');
-    expect(screen.getByRole('link', { name: /open manager desk in new tab/i })).toHaveAttribute('href', '/manager-desk');
-    expect(screen.getByRole('link', { name: /open manager desk in new tab/i })).toHaveAttribute('target', '_blank');
+    expect(screen.getByText('Today')).toBeInTheDocument();
+    expect(screen.getByText('Work')).toBeInTheDocument();
+    expect(screen.getByText('Team')).toBeInTheDocument();
+    expect(screen.getByText('Desk')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /open today in new tab/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /open work in new tab/i })).toHaveAttribute('href', '/work');
+    expect(screen.getByRole('link', { name: /open work in new tab/i })).toHaveAttribute('target', '_blank');
+    expect(screen.getByRole('link', { name: /open team in new tab/i })).toHaveAttribute('href', '/team');
+    expect(screen.getByRole('link', { name: /open desk in new tab/i })).toHaveAttribute('href', '/desk');
     expect(screen.queryByText('My Day')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /open settings/i })).toBeInTheDocument();
     expect(screen.queryByText('Settings')).not.toBeInTheDocument();
   });
 
-  it('shows the dashboard new-tab action only when dashboard is inactive', () => {
-    render(<Header activeView="team-tracker" onViewChange={vi.fn()} />);
+  it('shows the Today new-tab action only when Today is inactive', () => {
+    render(<Header activeView="team" onViewChange={vi.fn()} />);
 
-    expect(screen.getByRole('link', { name: /open dashboard in new tab/i })).toHaveAttribute('href', '/');
-    expect(screen.queryByRole('link', { name: /open team tracker in new tab/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /open manager desk in new tab/i })).toHaveAttribute('href', '/manager-desk');
+    expect(screen.getByRole('link', { name: /open today in new tab/i })).toHaveAttribute('href', '/');
+    expect(screen.queryByRole('link', { name: /open team in new tab/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /open desk in new tab/i })).toHaveAttribute('href', '/desk');
   });
 
-  it('shows the alert inbox only on the dashboard when a dashboard alert handler is provided', () => {
+  it('shows the alert inbox only on Work when a dashboard alert handler is provided', () => {
     const { rerender } = render(
-      <Header activeView="dashboard" onViewChange={vi.fn()} onDashboardAlertClick={vi.fn()} />
+      <Header activeView="work" onViewChange={vi.fn()} onDashboardAlertClick={vi.fn()} />
     );
 
     expect(screen.getByTestId('alert-inbox')).toBeInTheDocument();
 
-    rerender(<Header activeView="team-tracker" onViewChange={vi.fn()} onDashboardAlertClick={vi.fn()} />);
+    rerender(<Header activeView="team" onViewChange={vi.fn()} onDashboardAlertClick={vi.fn()} />);
 
     expect(screen.queryByTestId('alert-inbox')).not.toBeInTheDocument();
   });
 
-  it('shows the capture button on all manager views including manager-desk', () => {
-    const views = ['dashboard', 'team-tracker', 'manager-desk'] as const;
+  it('shows the capture button on all manager views including desk', () => {
+    const views = ['today', 'work', 'team', 'desk'] as const;
 
     for (const view of views) {
       const { unmount } = render(<Header activeView={view} onViewChange={vi.fn()} />);
@@ -111,7 +112,7 @@ describe('Header', () => {
   });
 
   it('opens the global capture dialog when clicking capture', () => {
-    render(<Header activeView="dashboard" onViewChange={vi.fn()} />);
+    render(<Header activeView="today" onViewChange={vi.fn()} />);
 
     expect(screen.queryByTestId('global-capture-dialog')).not.toBeInTheDocument();
     fireEvent.click(screen.getByText('Capture'));
@@ -120,13 +121,13 @@ describe('Header', () => {
 
   it('hides the capture button for non-manager users', () => {
     useAuthMock.mockReturnValue({ user: { role: 'developer' } });
-    render(<Header activeView="dashboard" onViewChange={vi.fn()} />);
+    render(<Header activeView="today" onViewChange={vi.fn()} />);
 
     expect(screen.queryByText('Capture')).not.toBeInTheDocument();
   });
 
   it('publishes the measured header height for shell-aligned drawers and clears it on unmount', () => {
-    const { unmount } = render(<Header activeView="team-tracker" onViewChange={vi.fn()} />);
+    const { unmount } = render(<Header activeView="team" onViewChange={vi.fn()} />);
 
     expect(document.documentElement.style.getPropertyValue('--app-header-height')).toBe('0px');
     expect(resizeObserverObserve).toHaveBeenCalledTimes(1);

@@ -270,7 +270,7 @@ describe('ManagerDeskPage', () => {
         <ManagerDeskPage />
       </TestWrapper>,
     );
-    expect(screen.getByText('Manager Desk')).toBeInTheDocument();
+    expect(screen.getByText('Desk')).toBeInTheDocument();
     expect(screen.getByText(/March 8, 2026/)).toBeInTheDocument();
   });
 

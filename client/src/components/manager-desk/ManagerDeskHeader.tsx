@@ -40,7 +40,7 @@ export function ManagerDeskHeader({
           </div>
 
           <h1 className="hidden truncate text-[14px] font-semibold tracking-[-0.02em] sm:block" style={{ color: 'var(--text-primary)' }}>
-            Manager Desk
+            Desk
           </h1>
 
           <div className="h-4 w-px flex-shrink-0 hidden sm:block" style={{ background: 'var(--border)' }} />

@@ -28,7 +28,7 @@ vi.mock('@/components/layout/DashboardLayout', () => ({
     noTagsFilter: false,
   },
   DashboardLayout: (props: {
-    onViewChange?: (view: 'team-tracker') => void;
+    onViewChange?: (view: 'team') => void;
     filterState?: { activeFilter: string };
     onFilterStateChange?: (state: {
       activeFilter: string;
@@ -41,8 +41,8 @@ vi.mock('@/components/layout/DashboardLayout', () => ({
 
     return (
       <div>
-        <div>Dashboard loaded</div>
-        <div>Dashboard filter: {props.filterState?.activeFilter ?? 'missing'}</div>
+        <div>Work loaded</div>
+        <div>Work filter: {props.filterState?.activeFilter ?? 'missing'}</div>
         <button
           onClick={() => props.onFilterStateChange?.({
             activeFilter: 'blocked',
@@ -53,23 +53,32 @@ vi.mock('@/components/layout/DashboardLayout', () => ({
         >
           Apply dashboard filter
         </button>
-        <button onClick={() => props.onViewChange?.('team-tracker')}>Open Team Tracker</button>
+        <button onClick={() => props.onViewChange?.('team')}>Open Team</button>
       </div>
     );
   },
 }));
 
 vi.mock('@/components/layout/Header', () => ({
-  Header: ({ onViewChange }: { onViewChange?: (view: 'dashboard') => void }) => (
+  Header: ({ onViewChange }: { onViewChange?: (view: 'work') => void }) => (
     <div>
       <div>Shared header</div>
-      {onViewChange && <button onClick={() => onViewChange('dashboard')}>Open Dashboard</button>}
+      {onViewChange && <button onClick={() => onViewChange('work')}>Open Work</button>}
+    </div>
+  ),
+}));
+
+vi.mock('@/components/today/TodayPage', () => ({
+  TodayPage: ({ onViewChange }: { onViewChange: (view: 'work') => void }) => (
+    <div>
+      <div>Today loaded</div>
+      <button onClick={() => onViewChange('work')}>Open Work from Today</button>
     </div>
   ),
 }));
 
 vi.mock('@/components/team-tracker/TeamTrackerPage', () => ({
-  TeamTrackerPage: () => <div>Team tracker loaded</div>,
+  TeamTrackerPage: () => <div>Team loaded</div>,
 }));
 
 vi.mock('@/components/setup/SetupWizard', () => ({
@@ -85,7 +94,7 @@ vi.mock('@/components/my-day/LoginPage', () => ({
 }));
 
 vi.mock('@/components/manager-desk', () => ({
-  ManagerDeskPage: () => <div>Manager desk loaded</div>,
+  ManagerDeskPage: () => <div>Desk loaded</div>,
 }));
 
 vi.mock('@/components/settings/SettingsPanel', () => ({
@@ -183,7 +192,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByText('Dashboard loaded')).toBeInTheDocument();
+    expect(await screen.findByText('Today loaded')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
   });
 
@@ -224,7 +233,8 @@ describe('App', () => {
     expect(screen.getByText('Settings loaded')).toBeInTheDocument();
   });
 
-  it('preserves dashboard filters when switching away and back without refreshing', async () => {
+  it('renders the Work page for authenticated managers on /work', async () => {
+    window.history.pushState(null, '', '/work');
     useAuthMock.mockReturnValue({
       user: { role: 'manager' },
       isLoading: false,
@@ -236,17 +246,53 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByText('Dashboard filter: all')).toBeInTheDocument();
+    expect(await screen.findByText('Work loaded')).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByText('Apply dashboard filter'));
-    expect(screen.getByText('Dashboard filter: blocked')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Open Team Tracker'));
-    await waitFor(() => {
-      expect(window.location.pathname).toBe('/team-tracker');
+  it('keeps legacy team and desk URLs working for authenticated managers', async () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'manager' },
+      isLoading: false,
+      isAuthenticated: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshSession: vi.fn(),
     });
 
-    fireEvent.click(screen.getByText('Open Dashboard'));
-    expect(await screen.findByText('Dashboard filter: blocked')).toBeInTheDocument();
+    window.history.pushState(null, '', '/team-tracker');
+    const { unmount } = render(<App />);
+    expect(await screen.findByText('Team loaded')).toBeInTheDocument();
+    unmount();
+
+    window.history.pushState(null, '', '/manager-desk');
+    render(<App />);
+    expect(await screen.findByText('Desk loaded')).toBeInTheDocument();
+  });
+
+  it('preserves work filters when switching away and back without refreshing', async () => {
+    window.history.pushState(null, '', '/work');
+    useAuthMock.mockReturnValue({
+      user: { role: 'manager' },
+      isLoading: false,
+      isAuthenticated: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshSession: vi.fn(),
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('Work filter: all')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Apply dashboard filter'));
+    expect(screen.getByText('Work filter: blocked')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Open Team'));
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/team');
+    });
+
+    fireEvent.click(screen.getByText('Open Work'));
+    expect(await screen.findByText('Work filter: blocked')).toBeInTheDocument();
   });
 });

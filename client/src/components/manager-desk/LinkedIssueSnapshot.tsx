@@ -40,7 +40,7 @@ export function LinkedIssueSnapshot({ issueKeys, showDescription = true }: Linke
             Triage snapshot
           </div>
           <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
-            Keep the connected defect context visible without leaving Manager Desk.
+            Keep the connected defect context visible without leaving Desk.
           </p>
         </div>
         {issue && config?.jiraBaseUrl ? (

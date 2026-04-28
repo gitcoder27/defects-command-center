@@ -513,7 +513,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                 Workspace Setup
               </div>
               <div className="text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
-                Defect Command Center
+                Engineering Manager Command Center
               </div>
             </div>
           </div>

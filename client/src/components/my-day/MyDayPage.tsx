@@ -71,7 +71,7 @@ export function MyDayPage() {
             </button>
             <div className="flex gap-3">
               <button onClick={() => { window.history.pushState(null, '', '/'); window.location.reload(); }} className="flex-1 rounded-xl px-4 py-2.5 text-[13px] font-bold bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border)]">
-                Dashboard
+                Today
               </button>
               <button onClick={async () => { await logout(); window.location.reload(); }} className="flex-1 rounded-xl px-4 py-2.5 text-[13px] font-bold flex justify-center items-center gap-1.5 bg-[rgba(239,68,68,0.08)] text-[var(--danger)] border border-[rgba(239,68,68,0.2)]">
                 <LogOut size={14} /> Logout

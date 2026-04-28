@@ -85,7 +85,7 @@ function chipAccent(tone: ContextChip['tone']) {
 export function ManagerDeskCaptureDialog({
   onClose,
   onOpenManagerDesk,
-  heading = 'Capture For Manager Desk',
+  heading = 'Capture For Desk',
   description = 'Save a follow-up for today without losing the screen context you are already in.',
   initialTitle = '',
   initialKind = 'action',
@@ -144,7 +144,7 @@ export function ManagerDeskCaptureDialog({
         onSuccess: () => {
           addToast({
             type: 'success',
-            title: 'Saved to Manager Desk',
+            title: 'Saved to Desk',
             message: `Scheduled for ${formattedDate}.`,
             action: onOpenManagerDesk
               ? {
@@ -158,7 +158,7 @@ export function ManagerDeskCaptureDialog({
         onError: (error) => {
           addToast({
             type: 'error',
-            title: 'Could not save to Manager Desk',
+            title: 'Could not save to Desk',
             message: error.message,
           });
         },
