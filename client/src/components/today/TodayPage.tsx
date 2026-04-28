@@ -26,6 +26,7 @@ import {
   type ManagerAttentionSeverity,
   type ManagerAttentionTarget,
   type ManagerTeamPulseItem,
+  type ManualWorkSummary,
   type StandupPrompt,
 } from '@/lib/manager-attention';
 import type { FilterType, ManagerDeskItem } from '@/types';
@@ -137,7 +138,7 @@ export function TodayPage({ onViewChange, onSelectWorkFilter }: TodayPageProps) 
     onViewChange(target);
   };
 
-  const boardRows = buildBoardRows(snapshot.attentionItems, snapshot.manualWork.total);
+  const boardRows = buildBoardRows(snapshot.attentionItems, snapshot.manualWork);
   const groupedRows: Record<BoardGroup, BoardRow[]> = {
     now: boardRows.filter((row) => row.group === 'now').slice(0, 4),
     next: boardRows.filter((row) => row.group === 'next').slice(0, 4),
@@ -205,7 +206,7 @@ export function TodayPage({ onViewChange, onSelectWorkFilter }: TodayPageProps) 
   );
 }
 
-function buildBoardRows(attentionItems: ManagerAttentionItem[], manualWorkCount: number): BoardRow[] {
+function buildBoardRows(attentionItems: ManagerAttentionItem[], manualWork: ManualWorkSummary): BoardRow[] {
   const rows: BoardRow[] = attentionItems.map((item) => ({
     id: item.id,
     group: attentionGroup(item),
@@ -219,17 +220,31 @@ function buildBoardRows(attentionItems: ManagerAttentionItem[], manualWorkCount:
     filter: item.filter,
   }));
 
-  if (manualWorkCount > 0) {
+  if (manualWork.deskOpen > 0) {
     rows.push({
-      id: 'manual-work',
+      id: 'desk-manual-work',
       group: 'next',
       icon: Rows3,
-      title: `${manualWorkCount} manual work item${manualWorkCount === 1 ? '' : 's'}`,
-      context: 'Across Team and Desk',
-      chip: 'Manual work',
-      count: manualWorkCount,
+      title: `${manualWork.deskOpen} Desk item${manualWork.deskOpen === 1 ? '' : 's'}`,
+      context: 'Manager Desk non-Jira work',
+      chip: 'Desk',
+      count: manualWork.deskOpen,
       severity: 'info',
       target: 'desk',
+    });
+  }
+
+  if (manualWork.trackerOpen > 0) {
+    rows.push({
+      id: 'team-manual-work',
+      group: 'next',
+      icon: Users,
+      title: `${manualWork.trackerOpen} Team manual item${manualWork.trackerOpen === 1 ? '' : 's'}`,
+      context: 'Team Tracker non-Jira work',
+      chip: 'Team',
+      count: manualWork.trackerOpen,
+      severity: 'info',
+      target: 'team',
     });
   }
 
