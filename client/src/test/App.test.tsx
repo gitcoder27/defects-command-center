@@ -266,11 +266,13 @@ describe('App', () => {
     window.history.pushState(null, '', '/team-tracker');
     const { unmount } = render(<App />);
     expect(await screen.findByText('Team loaded')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/team');
     unmount();
 
     window.history.pushState(null, '', '/manager-desk');
     render(<App />);
     expect(await screen.findByText('Desk loaded')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/desk');
   });
 
   it('renders follow-ups and meetings as manager memory routes', async () => {
@@ -286,11 +288,13 @@ describe('App', () => {
     window.history.pushState(null, '', '/follow-ups');
     const { unmount } = render(<App />);
     expect(await screen.findByText('Follow-ups loaded')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/follow-ups');
     unmount();
 
-    window.history.pushState(null, '', '/meetings');
+    window.history.pushState(null, '', '/meeting');
     render(<App />);
     expect(await screen.findByText('Meetings loaded')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/meetings');
   });
 
   it('preserves work filters when switching away and back without refreshing', async () => {

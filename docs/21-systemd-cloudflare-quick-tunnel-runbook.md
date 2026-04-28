@@ -82,7 +82,7 @@ Recommended content:
 
 ```ini
 [Unit]
-Description=Defects Command Center App
+Description=LeadOS App
 After=network.target
 
 [Service]
@@ -108,7 +108,7 @@ Recommended content:
 
 ```ini
 [Unit]
-Description=Cloudflare Quick Tunnel For Defects Command Center
+Description=Cloudflare Quick Tunnel For LeadOS
 After=network.target defects-dashboard.service
 Requires=defects-dashboard.service
 

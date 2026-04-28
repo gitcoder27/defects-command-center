@@ -10,7 +10,7 @@
 
 ## 1. Overview
 
-The Defects Command Center already covers two important operational layers:
+LeadOS already covers two important operational layers:
 
 - `Defects`: issue-level tracking and triage
 - `Team Tracker`: team-level daily execution tracking
@@ -66,7 +66,7 @@ Create a new manager-only workspace that lets the manager:
 - track waiting-on and follow-up items
 - review the day and carry work forward cleanly
 
-The desired result is that the manager can use the Defects Command Center as their primary operational home during the day, not only as a defect dashboard.
+The desired result is that the manager can use LeadOS as their primary operational home during the day, not only as a defect dashboard.
 
 ---
 

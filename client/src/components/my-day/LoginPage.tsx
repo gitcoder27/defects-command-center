@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, BriefcaseBusiness, Check, Eye, EyeOff, KeyRound, Moon, Radar, Sun, UserRound } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, Check, Eye, EyeOff, KeyRound, Moon, Sun, UserRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { api } from '@/lib/api';
+import { LeadOSMark } from '@/components/brand/LeadOSMark';
 import type { UserRole } from '@/types';
 
 interface LoginPageProps {
@@ -181,7 +182,7 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
                 boxShadow: `0 0 24px ${copy.glow}`,
               }}
             >
-              <Radar size={18} />
+              <LeadOSMark size={26} />
             </div>
             <div className="text-left">
               <div
@@ -191,7 +192,7 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
                 {copy.eyebrow}
               </div>
               <div className="text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
-                Engineering Manager Command Center
+                LeadOS
               </div>
             </div>
           </div>

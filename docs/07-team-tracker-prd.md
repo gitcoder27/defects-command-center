@@ -26,7 +26,7 @@ The lead currently has to track this through memory, chat threads, notes, or a s
 
 ### Desired Outcome
 
-A dedicated **Team Tracker** inside the Defect Command Center that lets the lead manage each team member's daily plan, current work, next-up queue, status, and follow-up notes from one place.
+A dedicated **Team Tracker** inside LeadOS that lets the lead manage each team member's daily plan, current work, next-up queue, status, and follow-up notes from one place.
 
 This tracker is a **personal manager workspace**. It is optimized for the lead to monitor the team during the day, not to replace Jira as the source of record.
 
@@ -323,4 +323,3 @@ The feature is successful if the lead can:
 7. The board visually distinguishes `blocked`, `at_risk`, and stale follow-up states.
 8. Tracker data persists across refreshes and app restarts.
 9. Existing dashboard functionality remains intact.
-

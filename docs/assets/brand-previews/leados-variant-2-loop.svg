@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" fill="none">
+  <rect width="960" height="360" rx="32" fill="#09090B"/>
+  <rect x="32" y="32" width="896" height="296" rx="24" fill="#0D1017" stroke="#1E2330"/>
+
+  <g transform="translate(96 72)">
+    <rect x="0" y="0" width="216" height="216" rx="48" fill="#11151E" stroke="#242A36"/>
+    <path d="M108 48C141.137 48 168 74.8629 168 108C168 141.137 141.137 168 108 168C74.8629 168 48 141.137 48 108C48 74.8629 74.8629 48 108 48Z" stroke="#06B6D4" stroke-width="12" stroke-linecap="round"/>
+    <path d="M108 76C125.673 76 140 90.3269 140 108C140 125.673 125.673 140 108 140C90.3269 140 76 125.673 76 108C76 90.3269 90.3269 76 108 76Z" stroke="#06B6D4" stroke-opacity=".38" stroke-width="8"/>
+    <path d="M108 48V28" stroke="#06B6D4" stroke-width="10" stroke-linecap="round"/>
+    <path d="M161.5 137.5L181.5 149.5" stroke="#06B6D4" stroke-width="10" stroke-linecap="round"/>
+    <path d="M54.5 137.5L34.5 149.5" stroke="#06B6D4" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="108" cy="28" r="14" fill="#06B6D4"/>
+    <circle cx="181.5" cy="149.5" r="14" fill="#F59E0B"/>
+    <circle cx="34.5" cy="149.5" r="14" fill="#06B6D4"/>
+    <circle cx="108" cy="108" r="12" fill="#F59E0B"/>
+  </g>
+
+  <g transform="translate(376 112)">
+    <text x="0" y="86" fill="#F4F1EA" font-family="Geist, Satoshi, Inter, Arial, sans-serif" font-size="82" font-weight="650" letter-spacing="-1">Lead</text>
+    <text x="202" y="86" fill="#06B6D4" font-family="Geist, Satoshi, Inter, Arial, sans-serif" font-size="82" font-weight="650" letter-spacing="-1">OS</text>
+    <text x="4" y="128" fill="#8B8FA3" font-family="Geist, Satoshi, Inter, Arial, sans-serif" font-size="18" font-weight="500">manager loop for people, work, promises, and meetings</text>
+  </g>
+
+  <g transform="translate(640 236)">
+    <path d="M36 12C49.255 12 60 22.7452 60 36C60 49.2548 49.255 60 36 60C22.7452 60 12 49.2548 12 36C12 22.7452 22.7452 12 36 12Z" stroke="#F4F1EA" stroke-width="5" stroke-linecap="round"/>
+    <path d="M36 12V4" stroke="#F4F1EA" stroke-width="5" stroke-linecap="round"/>
+    <path d="M57.4 47.8L65.4 52.6" stroke="#F4F1EA" stroke-width="5" stroke-linecap="round"/>
+    <path d="M14.6 47.8L6.6 52.6" stroke="#F4F1EA" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="36" cy="4" r="6" fill="#F4F1EA"/>
+    <circle cx="65.4" cy="52.6" r="6" fill="#F4F1EA"/>
+    <circle cx="6.6" cy="52.6" r="6" fill="#F4F1EA"/>
+  </g>
+  <text x="724" y="282" fill="#F4F1EA" font-family="Geist, Satoshi, Inter, Arial, sans-serif" font-size="32" font-weight="650">LeadOS</text>
+</svg>

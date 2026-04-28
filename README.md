@@ -1,6 +1,6 @@
-# Engineering Manager Command Center
+# LeadOS
 
-Full-stack implementation for an engineering manager command center. The app helps software engineering managers track people, work, risks, daily planning, and Jira defect operations from one workspace.
+LeadOS helps software engineering managers track people, work, risks, daily planning, follow-ups, meetings, and Jira defect operations from one workspace.
 
 Jira defects remain a first-class workflow, but the product direction is broader than a defect dashboard: Jira is treated as a connected work source inside the manager workspace.
 
@@ -17,7 +17,7 @@ Jira defects remain a first-class workflow, but the product direction is broader
 - Zod validation on write endpoints
 - Global JSON error handling (`{ error, status }`)
 - Service-layer unit tests for workload/alerts/automation/issues
-- Phase 1 product reframe toward Engineering Manager Command Center navigation and naming
+- Phase 1 product reframe toward LeadOS navigation and naming
 
 ## Repository Layout
 

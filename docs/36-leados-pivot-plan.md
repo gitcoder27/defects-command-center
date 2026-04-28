@@ -1,8 +1,8 @@
-# Engineering Manager Command Center Pivot Plan
+# LeadOS Pivot Plan
 
 Date: 2026-04-28
 
-This document is the implementation plan for repositioning the current Defects Command Center into a broader daily operating workspace for software engineering managers.
+This document is the implementation plan for repositioning the original defect dashboard into LeadOS, a broader daily operating workspace for software engineering managers.
 
 The goal is not to replace the existing application. The goal is to preserve the working defect, team tracking, developer workspace, and manager desk flows while expanding the product identity and architecture so Jira is one optional work source, not the required foundation for every workflow.
 
@@ -74,17 +74,9 @@ Recommended top-level navigation:
 | My Day | Developer daily workspace | Preserve current My Day |
 | Settings | Team, users, connectors, Jira, preferences, setup | Evolves Settings and Setup |
 
-Possible product names:
+Selected product name:
 
-- Engineering Manager Command Center
-- Manager Command Center
-- LeadDesk
-- TeamOps Desk
-- Engineering Lead OS
-
-Recommended working name for implementation:
-
-> Engineering Manager Command Center
+> LeadOS
 
 ## Core Domain Shift
 
@@ -258,11 +250,11 @@ The phases below are intentionally broad. Each phase contains enough work for an
 
 ## Phase 1: Product Reframe, Navigation, And Non-Breaking Shell
 
-Objective: Reposition the app as Engineering Manager Command Center while preserving existing behavior.
+Objective: Reposition the app as LeadOS while preserving existing behavior.
 
 Scope:
 
-- Rename visible product language from Defects Command Center to Engineering Manager Command Center where appropriate.
+- Rename visible product language to LeadOS where appropriate.
 - Update app header, page titles, setup copy, empty states, and README/product docs.
 - Introduce the new top-level navigation shape without removing existing pages.
 - Make Today the planned future home, but keep current dashboard accessible.
@@ -543,7 +535,7 @@ Use this checklist when implementing the pivot.
 
 ### Product And UX
 
-- [ ] Product name updated to Engineering Manager Command Center or chosen final name.
+- [ ] Product name updated to LeadOS or chosen final name.
 - [ ] Current defect functionality is preserved.
 - [ ] Jira is described as an optional connector, not the whole product.
 - [ ] Navigation reflects Today, Team, Work, Desk, Follow-ups, Meetings, My Day, and Settings.
@@ -615,4 +607,3 @@ The pivot is successful when:
 - My Day continues to work for developers.
 - Existing users do not lose current data or workflows.
 - The product feels simpler and more useful, not bigger and noisier.
-

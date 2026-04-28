@@ -11,7 +11,6 @@ import {
   Loader2,
   Moon,
   PlugZap,
-  Radar,
   Search,
   ShieldPlus,
   Sun,
@@ -26,6 +25,7 @@ import { api } from '@/lib/api';
 import { DEVELOPER_LOGIN_URL } from '@/lib/constants';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import type { AuthUser } from '@/types';
+import { LeadOSMark } from '@/components/brand/LeadOSMark';
 
 interface DiscoveredUser {
   accountId: string;
@@ -57,32 +57,32 @@ const STEP_ORDER: Exclude<WizardStep, 'syncing'>[] = [
 const STEP_COPY: Record<Exclude<WizardStep, 'syncing'>, { label: string; title: string; description: string; icon: typeof BriefcaseBusiness }> = {
   'manager-account': {
     label: '1',
-    title: 'Create Manager Account',
-    description: 'Bootstrap the app identity first. Jira mapping comes later.',
+    title: 'Create manager account',
+    description: 'Start the manager workspace first. Connectors and team setup can come after.',
     icon: BriefcaseBusiness,
   },
   'jira-connection': {
     label: '2',
     title: 'Connect Jira',
-    description: 'Optional connector. You can start with manual team planning and add Jira later.',
+    description: 'Jira is optional. Start with manual team planning now, or connect Jira for defect sync.',
     icon: PlugZap,
   },
   'manager-mapping': {
     label: '3',
-    title: 'Manager Sync Scope',
-    description: 'Map a Jira identity if the manager wants assignments tracked.',
+    title: 'Manager sync scope',
+    description: 'Map a Jira identity only if manager-owned assignments should appear in sync scope.',
     icon: UserCog,
   },
   'team-members': {
     label: '4',
-    title: 'Select Team Members',
-    description: 'Choose which Jira assignees belong in the team roster.',
+    title: 'Build team roster',
+    description: 'Choose synced Jira people now, or add team members manually from Settings later.',
     icon: Users,
   },
   'developer-access': {
     label: '5',
-    title: 'Developer Access',
-    description: 'Create app accounts for tracked developers, or skip for later.',
+    title: 'Developer access',
+    description: 'Create My Day access for developers who will update their own daily workspace.',
     icon: ShieldPlus,
   },
 };
@@ -511,14 +511,14 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                 boxShadow: '0 0 24px rgba(245, 158, 11, 0.14)',
               }}
             >
-              <Radar size={18} />
+              <LeadOSMark size={26} />
             </div>
             <div className="text-left">
               <div className="text-[10px] font-semibold uppercase tracking-[0.3em]" style={{ color: '#fbbf24' }}>
                 Workspace Setup
               </div>
               <div className="text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
-                Engineering Manager Command Center
+                LeadOS
               </div>
             </div>
           </div>
@@ -849,6 +849,9 @@ function StepContent(props: any) {
               placeholder={props.configQuery.data?.jiraApiToken ? 'Leave blank to keep saved token' : 'Paste API token'}
             />
           </Field>
+          <div className="rounded-[14px] border px-4 py-3 text-[12px] leading-5" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg-tertiary) 72%, transparent)', color: 'var(--text-secondary)' }}>
+            Skip this step if you want to start with Team, Desk, Follow-ups, and Meetings first. Jira can be connected later from Settings.
+          </div>
           <button
             type="button"
             onClick={props.handleTestConnection}
@@ -959,7 +962,7 @@ function StepContent(props: any) {
           >
             {props.filteredDiscoveredUsers.length === 0 ? (
               <div className="py-8 text-center text-[13px]" style={{ color: 'var(--text-muted)' }}>
-                {props.discoverQuery ? 'No matching users found.' : 'No Jira users discovered yet.'}
+                {props.discoverQuery ? 'No matching users found.' : 'No Jira users discovered. Save an empty roster and add people manually from Settings.'}
               </div>
             ) : (
               props.filteredDiscoveredUsers.map((candidate: DiscoveredUser) => {

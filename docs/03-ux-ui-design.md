@@ -111,13 +111,13 @@ The dashboard follows a **"tactical command"** aesthetic — inspired by mission
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│ 🔧 Defect Command Center     Last synced: 2m ago [⟳] [🌙]│
+│ 🔧 LeadOS     Last synced: 2m ago [⟳] [🌙]│
 └──────────────────────────────────────────────────────────┘
 ```
 
 | Element | Details |
 |---|---|
-| Title | "Defect Command Center" — fixed text |
+| Title | "LeadOS" — fixed text |
 | Sync indicator | Relative time since last sync (e.g., "2m ago"), green dot if < 5min, yellow if > 5min |
 | Refresh button | Manual sync trigger; shows spinner while syncing |
 | Theme toggle | Dark/Light mode switch |

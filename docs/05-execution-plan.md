@@ -149,9 +149,9 @@ This document breaks the entire Phase 1 build into **small, sequential, self-con
    - `client/tsconfig.json` extending `../tsconfig.base.json`.
    - `client/index.html` with root div. Include Geist font loading (via `@fontsource-variable/geist-sans` and `@fontsource-variable/geist-mono`, or Vercel CDN link).
 2. Create `client/src/main.tsx` rendering `<App />`.
-3. Create `client/src/App.tsx` with a placeholder: `<h1>Defect Command Center</h1>`.
+3. Create `client/src/App.tsx` with a placeholder: `<h1>LeadOS</h1>`.
 
-**Verify:** Run `npm run dev:client`. Visit `http://localhost:5173` → shows "Defect Command Center".
+**Verify:** Run `npm run dev:client`. Visit `http://localhost:5173` → shows "LeadOS".
 
 ---
 
@@ -583,7 +583,7 @@ export interface DueDateSuggestion {
    - Main content area (flex row: sidebar + center + optional right panel).
    - Workload bar (fixed bottom, 64px).
 2. Create `client/src/components/layout/Header.tsx`:
-   - App title: "Defect Command Center".
+   - App title: "LeadOS".
    - Sync status indicator (relative time, green/yellow dot).
    - Manual refresh button.
    - Theme toggle (dark/light).

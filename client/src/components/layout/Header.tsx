@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { RefreshCw, Moon, Sun, PanelLeftOpen, LayoutDashboard, Settings, Plus } from 'lucide-react';
+import { RefreshCw, Moon, Sun, PanelLeftOpen, Settings, Plus } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
@@ -11,6 +11,7 @@ import type { Alert } from '@/types';
 import { GlobalCaptureDialog } from '@/components/capture/GlobalCaptureDialog';
 import { HeaderNav } from '@/components/layout/HeaderNav';
 import { AlertInbox } from '@/components/alerts/AlertInbox';
+import { LeadOSMark } from '@/components/brand/LeadOSMark';
 
 interface HeaderProps {
   onOpenMobileSidebar?: () => void;
@@ -93,14 +94,14 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
               </button>
             )}
             <div className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
-              <LayoutDashboard size={16} />
+              <LeadOSMark size={22} />
             </div>
             <div className="min-w-0">
               <h1
                 className="font-sans text-[16px] md:text-[17px] font-semibold truncate"
                 style={{ color: 'var(--text-primary)' }}
               >
-                Engineering Manager Command Center
+                LeadOS
               </h1>
               <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
                 People, work, risks, and daily planning

@@ -72,8 +72,8 @@ function pathToView(pathname: string): CanonicalAppView {
   if (pathname === '/my-day' || pathname === '/my-day/') return 'my-day';
   if (pathname === '/team' || pathname === '/team/' || pathname === '/team-tracker' || pathname === '/team-tracker/') return 'team';
   if (pathname === '/desk' || pathname === '/desk/' || pathname === '/manager-desk' || pathname === '/manager-desk/') return 'desk';
-  if (pathname === '/follow-ups' || pathname === '/follow-ups/') return 'follow-ups';
-  if (pathname === '/meetings' || pathname === '/meetings/') return 'meetings';
+  if (pathname === '/follow-ups' || pathname === '/follow-ups/' || pathname === '/followups' || pathname === '/followups/') return 'follow-ups';
+  if (pathname === '/meetings' || pathname === '/meetings/' || pathname === '/meeting' || pathname === '/meeting/') return 'meetings';
   if (pathname === '/work' || pathname === '/work/' || pathname === '/dashboard' || pathname === '/dashboard/') return 'work';
   if (pathname === '/today' || pathname === '/today/' || pathname === '/' || pathname === '') return 'today';
   if (pathname === '/settings' || pathname === '/settings/') return 'settings';
@@ -139,6 +139,14 @@ function navigateToView(view: AppView, replace = false) {
   }
 }
 
+function replaceLegacyPathIfNeeded() {
+  const currentView = pathToView(window.location.pathname);
+  const canonicalPath = viewToPath(currentView);
+  if (window.location.pathname !== canonicalPath) {
+    window.history.replaceState(null, '', canonicalPath);
+  }
+}
+
 function FullPageLoading() {
   return (
     <div className="h-full flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
@@ -181,8 +189,8 @@ function ConfigErrorState({ onRetry }: { onRetry: () => void }) {
           Manager setup is currently unavailable
         </h1>
         <p className="mt-3 text-[14px] leading-7" style={{ color: 'var(--text-secondary)' }}>
-          The manager surface could not load its Jira configuration. Retry the request or sign out and re-enter the
-          workspace.
+          The manager surface could not load its workspace settings. Retry the request or sign out and re-enter the
+          command center.
         </p>
         <button
           onClick={onRetry}
@@ -269,8 +277,12 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
+    replaceLegacyPathIfNeeded();
+
     const onPopState = () => {
-      setActiveView(pathToView(window.location.pathname));
+      const nextView = pathToView(window.location.pathname);
+      setActiveView(nextView);
+      replaceLegacyPathIfNeeded();
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
