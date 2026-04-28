@@ -43,7 +43,7 @@ export function useMyDayHandlers(date: string) {
     updateItem.mutate({ itemId, position: newPosition }, { onError: (err) => addToast(err.message, 'error') });
   };
 
-  const handleUpdateItemNote = (itemId: number, note?: string) => {
+  const handleUpdateItemNote = (itemId: number, note: string | null) => {
     updateItem.mutate(
       { itemId, note },
       { onSuccess: () => addToast('Task note updated', 'success'), onError: (err) => addToast(err.message, 'error') }

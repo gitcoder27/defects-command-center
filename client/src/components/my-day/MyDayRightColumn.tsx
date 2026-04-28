@@ -14,7 +14,7 @@ interface MyDayRightColumnProps {
   handleMarkDone: (id: number) => void;
   handleDrop: (id: number) => void;
   handleReorder: (id: number, pos: number) => void;
-  handleUpdateItemNote: (id: number, note?: string) => void;
+  handleUpdateItemNote: (id: number, note: string | null) => void;
   handleUpdateItemTitle: (id: number, title: string) => void;
   handleAddItem: (params: any) => void;
   addItemPending: boolean;

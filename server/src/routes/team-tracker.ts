@@ -164,7 +164,7 @@ const updateItemSchema = z.object({
   body: z.object({
     title: z.string().min(1).max(500).optional(),
     state: z.enum(["planned", "in_progress", "done", "dropped"]).optional(),
-    note: z.string().max(2000).optional(),
+    note: z.string().max(2000).nullable().optional(),
     position: z.number().int().min(0).optional(),
   }),
   query: z.any().optional(),

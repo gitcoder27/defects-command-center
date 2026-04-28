@@ -3,7 +3,8 @@ import express from "express";
 import { createAuthRouter } from "../src/routes/auth";
 import { notFoundHandler, errorHandler } from "../src/middleware/errorHandler";
 import { AuthService, SESSION_COOKIE_NAME } from "../src/services/auth.service";
-import { resetDatabase } from "./helpers/db";
+import { developers } from "../src/db/schema";
+import { db, resetDatabase } from "./helpers/db";
 import { invoke } from "./helpers/http";
 
 const authService = new AuthService();
@@ -14,6 +15,16 @@ function createTestApp() {
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;
+}
+
+async function seedDeveloper(accountId = "dev-1", displayName = "Developer") {
+  await db.insert(developers).values({
+    accountId,
+    displayName,
+    email: `${accountId}@example.com`,
+    avatarUrl: null,
+    isActive: 1,
+  });
 }
 
 describe("auth routes", () => {
@@ -49,6 +60,7 @@ describe("auth routes", () => {
   });
 
   it("POST /api/auth/login creates a session and returns the authenticated user", async () => {
+    await seedDeveloper("dev-1", "Alice Smith");
     await authService.createUser({
       username: "alice",
       displayName: "Alice Smith",
@@ -117,6 +129,7 @@ describe("auth routes", () => {
   });
 
   it("POST /api/auth/register requires a manager session after bootstrap", async () => {
+    await seedDeveloper("dev-1");
     await authService.createUser({
       username: "manager",
       displayName: "Manager",
@@ -174,6 +187,7 @@ describe("auth routes", () => {
   });
 
   it("DELETE /api/auth/users/:username removes a developer account and invalidates its sessions", async () => {
+    await seedDeveloper("dev-1");
     await authService.createUser({
       username: "manager",
       displayName: "Manager",
@@ -284,6 +298,7 @@ describe("auth routes", () => {
   });
 
   it("POST /api/auth/logout invalidates the current session", async () => {
+    await seedDeveloper("dev-1", "Alice Smith");
     await authService.createUser({
       username: "alice",
       displayName: "Alice Smith",

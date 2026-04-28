@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app";
 import { serializeSessionCookie } from "../src/services/auth.service";
 import { AuthService } from "../src/services/auth.service";
-import { resetDatabase } from "./helpers/db";
+import { developers } from "../src/db/schema";
+import { db, resetDatabase } from "./helpers/db";
 import { invoke } from "./helpers/http";
 
 const managerOnlyCases = [
@@ -39,6 +40,16 @@ function createTestApp(authService: AuthService) {
   });
 }
 
+async function seedDeveloper(accountId = "dev-1") {
+  await db.insert(developers).values({
+    accountId,
+    displayName: "Developer",
+    email: `${accountId}@example.com`,
+    avatarUrl: null,
+    isActive: 1,
+  });
+}
+
 describe("app route authorization", () => {
   const authService = new AuthService();
 
@@ -55,6 +66,7 @@ describe("app route authorization", () => {
   });
 
   it.each(managerOnlyCases)("$method $url rejects developer access", async ({ method, url, body }) => {
+    await seedDeveloper("dev-1");
     const developer = await authService.createUser({
       username: "dev",
       displayName: "Developer",

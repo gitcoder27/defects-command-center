@@ -7,7 +7,7 @@ interface CurrentTaskProps {
   item?: TrackerWorkItem;
   onMarkDone?: (id: number) => void;
   onDrop?: (id: number) => void;
-  onUpdateNote?: (id: number, note?: string) => void;
+  onUpdateNote?: (id: number, note: string | null) => void;
   onUpdateTitle?: (id: number, title: string) => void;
   hasPlannedItems?: boolean;
 }

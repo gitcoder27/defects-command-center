@@ -51,7 +51,7 @@ export function useUpdateMyDayItem(date: string) {
     mutationFn: (params: {
       itemId: number;
       title?: string;
-      note?: string;
+      note?: string | null;
       state?: TrackerItemState;
       position?: number;
     }) => {

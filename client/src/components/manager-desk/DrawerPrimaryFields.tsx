@@ -8,7 +8,7 @@ interface DrawerPrimaryFieldsProps {
   item: ManagerDeskItem;
   date: string;
   readOnly?: boolean;
-  onFieldChange: (field: keyof ManagerDeskUpdateItemPayload, value: string) => void;
+  onFieldChange: (field: keyof ManagerDeskUpdateItemPayload, value: string | null) => void;
   onAssigneeChange: (accountId: string | null) => void;
 }
 
@@ -25,7 +25,7 @@ export function DrawerPrimaryFields({
   const hasLinkedWork = !!item.delegatedExecution;
   const nextAction = useDraftField({
     value: item.nextAction ?? '',
-    onChange: (value) => onFieldChange('nextAction', value),
+    onChange: (value) => onFieldChange('nextAction', value.trim() ? value : null),
   });
 
   return (

@@ -5,7 +5,7 @@ import { KIND_LABELS, STATUS_LABELS, CATEGORY_LABELS, PRIORITY_LABELS } from '@/
 interface DrawerPropertiesProps {
   item: ManagerDeskItem;
   readOnly?: boolean;
-  onFieldChange: (field: keyof ManagerDeskUpdateItemPayload, value: string) => void;
+  onFieldChange: (field: keyof ManagerDeskUpdateItemPayload, value: string | null) => void;
 }
 
 const kindOpts = (['action', 'meeting', 'decision', 'waiting'] as const).map((v) => ({ value: v, label: KIND_LABELS[v] }));
@@ -30,11 +30,11 @@ export function DrawerProperties({ item, readOnly = false, onFieldChange }: Draw
         <InlineSelect label="Status" value={item.status} options={filteredStatusOpts} onChange={(v) => onFieldChange('status', v)} disabled={readOnly} />
         <InlineSelect label="Category" value={item.category} options={categoryOpts} onChange={(v) => onFieldChange('category', v)} disabled={readOnly} />
         <InlineSelect label="Priority" value={item.priority} options={priorityOpts} onChange={(v) => onFieldChange('priority', v)} disabled={readOnly} />
-        <InlineText label="Participants" value={item.participants ?? ''} placeholder="e.g. Design Team, Rahul" onChange={(v) => onFieldChange('participants', v)} className="col-span-2" disabled={readOnly} />
+        <InlineText label="Participants" value={item.participants ?? ''} placeholder="e.g. Design Team, Rahul" onChange={(v) => onFieldChange('participants', v.trim() ? v : null)} className="col-span-2" disabled={readOnly} />
         <InlineDatetime label="Start" value={item.plannedStartAt ?? ''} onChange={(v) => onFieldChange('plannedStartAt', v)} disabled={readOnly} />
         <InlineDatetime label="End" value={item.plannedEndAt ?? ''} onChange={(v) => onFieldChange('plannedEndAt', v)} disabled={readOnly} />
         <InlineDatetime label="Follow-Up" value={item.followUpAt ?? ''} onChange={(v) => onFieldChange('followUpAt', v)} className="col-span-2" disabled={readOnly} />
-        <InlineText label="Outcome" value={item.outcome ?? ''} placeholder="What was the result or decision?" onChange={(v) => onFieldChange('outcome', v)} className="col-span-2" disabled={readOnly} />
+        <InlineText label="Outcome" value={item.outcome ?? ''} placeholder="What was the result or decision?" onChange={(v) => onFieldChange('outcome', v.trim() ? v : null)} className="col-span-2" disabled={readOnly} />
       </div>
     </details>
   );
@@ -69,15 +69,28 @@ function InlineText({ label, value, placeholder, onChange, className, disabled =
   );
 }
 
+function toLocalDateTimeInputValue(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+function fromLocalDateTimeInputValue(value: string): string | null {
+  return value ? new Date(value).toISOString() : null;
+}
+
 function InlineDatetime({ label, value, onChange, className, disabled = false }: {
-  label: string; value: string; onChange: (value: string) => void; className?: string; disabled?: boolean;
+  label: string; value: string; onChange: (value: string | null) => void; className?: string; disabled?: boolean;
 }) {
   const id = useId();
-  const localValue = value ? value.slice(0, 16) : '';
+  const localValue = value ? toLocalDateTimeInputValue(value) : '';
   return (
     <div className={className}>
       <label htmlFor={id} className="mb-0.5 block text-[9px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>{label}</label>
-      <input id={id} type="datetime-local" value={localValue} onChange={(e) => { const v = e.target.value; onChange(v ? new Date(v).toISOString() : ''); }} disabled={disabled} className="w-full rounded-lg px-2 py-1.5 text-[11px] outline-none disabled:cursor-not-allowed disabled:opacity-70" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+      <input id={id} type="datetime-local" value={localValue} onChange={(e) => onChange(fromLocalDateTimeInputValue(e.target.value))} disabled={disabled} className="w-full rounded-lg px-2 py-1.5 text-[11px] outline-none disabled:cursor-not-allowed disabled:opacity-70" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
     </div>
   );
 }

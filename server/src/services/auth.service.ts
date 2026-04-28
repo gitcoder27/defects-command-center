@@ -2,7 +2,7 @@ import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import type { AuthUser, UserRole } from "shared/types";
 import { db } from "../db/connection";
-import { appSessions, appUsers } from "../db/schema";
+import { appSessions, appUsers, developers } from "../db/schema";
 import { HttpError } from "../middleware/errorHandler";
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
@@ -110,6 +110,17 @@ export class AuthService {
 
     if (params.role === "developer" && !params.developerAccountId) {
       throw new HttpError(400, "developerAccountId is required for developer users");
+    }
+    if (params.role === "developer" && params.developerAccountId) {
+      const developerRows = await db
+        .select({ accountId: developers.accountId })
+        .from(developers)
+        .where(and(eq(developers.accountId, params.developerAccountId), eq(developers.isActive, 1)))
+        .limit(1);
+
+      if (!developerRows[0]) {
+        throw new HttpError(400, "developerAccountId must match an active developer");
+      }
     }
 
     const now = nowIso();

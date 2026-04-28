@@ -101,6 +101,7 @@ function buildMockBoard(): TeamTrackerBoardResponse {
           id: 10,
           dayId: 2,
           managerDeskItemId: 110,
+          lifecycle: 'manager_desk_linked',
           itemType: 'jira',
           jiraKey: 'AM-123',
           jiraPriorityName: 'High',
@@ -116,6 +117,7 @@ function buildMockBoard(): TeamTrackerBoardResponse {
             id: 11,
             dayId: 2,
             managerDeskItemId: 111,
+            lifecycle: 'manager_desk_linked',
             itemType: 'custom',
             title: 'Code review',
             state: 'planned',
@@ -127,6 +129,7 @@ function buildMockBoard(): TeamTrackerBoardResponse {
             id: 12,
             dayId: 2,
             managerDeskItemId: 112,
+            lifecycle: 'manager_desk_linked',
             itemType: 'custom',
             title: 'Follow up with QA',
             state: 'planned',
@@ -137,6 +140,7 @@ function buildMockBoard(): TeamTrackerBoardResponse {
           {
             id: 13,
             dayId: 2,
+            lifecycle: 'tracker_only',
             itemType: 'custom',
             title: 'Refactor utils',
             state: 'planned',
@@ -205,6 +209,7 @@ function buildMockBoard(): TeamTrackerBoardResponse {
             id: 10,
             dayId: 2,
             managerDeskItemId: 110,
+            lifecycle: 'manager_desk_linked',
             itemType: 'jira',
             jiraKey: 'AM-123',
             jiraPriorityName: 'High',
@@ -220,6 +225,7 @@ function buildMockBoard(): TeamTrackerBoardResponse {
               id: 11,
               dayId: 2,
               managerDeskItemId: 111,
+              lifecycle: 'manager_desk_linked',
               itemType: 'custom',
               title: 'Code review',
               state: 'planned',
@@ -231,6 +237,7 @@ function buildMockBoard(): TeamTrackerBoardResponse {
               id: 12,
               dayId: 2,
               managerDeskItemId: 112,
+              lifecycle: 'manager_desk_linked',
               itemType: 'custom',
               title: 'Follow up with QA',
               state: 'planned',
@@ -794,6 +801,7 @@ describe('TeamTrackerPage', () => {
         {
           id: 21,
           dayId: 1,
+          lifecycle: 'tracker_only',
           itemType: 'custom',
           title: 'Historical planned task',
           state: 'planned',
@@ -1141,6 +1149,7 @@ describe('TrackerItemRow', () => {
         item={{
           id: 1,
           dayId: 1,
+          lifecycle: 'tracker_only',
           itemType: 'jira',
           jiraKey: 'AM-456',
           jiraPriorityName: 'Highest',
@@ -1169,6 +1178,7 @@ describe('TrackerItemRow', () => {
         item={{
           id: 17,
           dayId: 1,
+          lifecycle: 'tracker_only',
           itemType: 'jira',
           jiraKey: 'AM-456',
           jiraSummary: 'Deploy fix to staging',
@@ -1208,6 +1218,7 @@ describe('TrackerItemRow', () => {
         item={{
           id: 2,
           dayId: 1,
+          lifecycle: 'tracker_only',
           itemType: 'custom',
           title: 'Team meeting',
           state: 'planned',
@@ -1229,6 +1240,7 @@ describe('TrackerItemRow', () => {
         item={{
           id: 3,
           dayId: 1,
+          lifecycle: 'tracker_only',
           itemType: 'custom',
           title: 'Finished task',
           state: 'done',
@@ -1252,6 +1264,7 @@ describe('TrackerItemRow', () => {
         item={{
           id: 4,
           dayId: 1,
+          lifecycle: 'tracker_only',
           itemType: 'custom',
           title: 'Investigate logs',
           note: 'Initial context',
@@ -1273,6 +1286,37 @@ describe('TrackerItemRow', () => {
     expect(onUpdateNote).toHaveBeenCalledWith(4, 'Updated context');
   });
 
+  it('sends null when an edited note is cleared', async () => {
+    const { TrackerItemRow } = await import('@/components/team-tracker/TrackerItemRow');
+    const onUpdateNote = vi.fn();
+
+    render(
+      <TrackerItemRow
+        item={{
+          id: 19,
+          dayId: 1,
+          lifecycle: 'tracker_only',
+          itemType: 'custom',
+          title: 'Clear stale note',
+          note: 'Remove this context',
+          state: 'planned',
+          position: 0,
+          createdAt: '2026-03-07T08:00:00Z',
+          updatedAt: '2026-03-07T08:00:00Z',
+        }}
+        onUpdateNote={onUpdateNote}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle('Edit note'));
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: '   ' },
+    });
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(onUpdateNote).toHaveBeenCalledWith(19, null);
+  });
+
   it('edits a title via click-to-edit and saves on Enter', async () => {
     const { TrackerItemRow } = await import('@/components/team-tracker/TrackerItemRow');
     const onUpdateTitle = vi.fn();
@@ -1282,6 +1326,7 @@ describe('TrackerItemRow', () => {
         item={{
           id: 5,
           dayId: 1,
+          lifecycle: 'tracker_only',
           itemType: 'custom',
           title: 'Original title',
           state: 'planned',
@@ -1310,6 +1355,7 @@ describe('TrackerItemRow', () => {
         item={{
           id: 6,
           dayId: 1,
+          lifecycle: 'tracker_only',
           itemType: 'custom',
           title: 'Keep this title',
           state: 'planned',
@@ -1340,6 +1386,7 @@ describe('TrackerItemRow', () => {
         item={{
           id: 16,
           dayId: 1,
+          lifecycle: 'tracker_only',
           itemType: 'custom',
           title: 'Shared task launch checklist',
           state: 'planned',
@@ -1370,6 +1417,7 @@ describe('TrackerItemRow', () => {
         item={{
           id: 18,
           dayId: 1,
+          lifecycle: 'tracker_only',
           itemType: 'custom',
           title: 'Shared task launch checklist',
           state: 'planned',
@@ -1400,6 +1448,7 @@ describe('TrackerItemRow', () => {
         item={{
           id: 7,
           dayId: 1,
+          lifecycle: 'tracker_only',
           itemType: 'custom',
           title: 'Investigate the regional export failure that only appears after the nightly sync',
           note: 'Capture the exact failure mode.\nConfirm whether the queued retry path is still intact.',
@@ -1432,6 +1481,7 @@ describe('TrackerItemRow', () => {
         item={{
           id: 8,
           dayId: 1,
+          lifecycle: 'tracker_only',
           itemType: 'custom',
           title: 'Follow up with infra on rollout sequencing',
           note: 'Details should stay closed when editing starts.',
@@ -1461,6 +1511,7 @@ describe('TrackerItemRow', () => {
         item={{
           id: 9,
           dayId: 1,
+          lifecycle: 'tracker_only',
           itemType: 'custom',
           title: 'Validate keyboard access for task details',
           note: 'This should open without a mouse.',

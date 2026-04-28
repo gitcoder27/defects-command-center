@@ -871,6 +871,55 @@ describe('ManagerDeskPage', () => {
     );
   });
 
+  it('sends null when optional drawer fields are cleared', () => {
+    currentMockDay = {
+      ...mockDayResponse,
+      items: mockDayResponse.items.map((item) =>
+        item.id === 1
+          ? {
+              ...item,
+              nextAction: 'Follow up with QA after design review',
+              plannedStartAt: '2026-03-08T10:00:00.000Z',
+            }
+          : item,
+      ),
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^Open Analyze root cause for DEF-241$/i }));
+
+    const nextActionField = screen.getByLabelText('Next Action');
+    fireEvent.change(nextActionField, { target: { value: '   ' } });
+    fireEvent.blur(nextActionField);
+
+    fireEvent.click(screen.getByText('Details'));
+    const startField = screen
+      .getAllByLabelText('Start')
+      .find((element) => element instanceof HTMLInputElement && element.type === 'datetime-local');
+    expect(startField).toBeDefined();
+    fireEvent.change(startField!, { target: { value: '' } });
+
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      {
+        itemId: 1,
+        nextAction: null,
+      },
+      expect.anything(),
+    );
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      {
+        itemId: 1,
+        plannedStartAt: null,
+      },
+      expect.anything(),
+    );
+  });
+
   it('keeps next action primary and outcome in the secondary details section', () => {
     render(
       <TestWrapper>

@@ -43,6 +43,7 @@ import { getEffectiveDueDate } from "./issue-rules";
 import { HttpError } from "../middleware/errorHandler";
 import { SettingsService } from "./settings.service";
 import { DeveloperAvailabilityService } from "./developer-availability.service";
+import { runInTransaction } from "../db/transaction";
 
 interface TrackerSignalConfig {
   staleThresholdHours: number;
@@ -161,6 +162,12 @@ function addDaysToIsoDate(value: string, days: number): string {
   const utcDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
   utcDate.setUTCDate(utcDate.getUTCDate() + days);
   return formatIsoDateUtc(utcDate);
+}
+
+function assertForwardDateRange(fromDate: string, toDate: string): void {
+  if (toDate <= fromDate) {
+    throw new HttpError(400, "toDate must be after fromDate");
+  }
 }
 
 function endOfIsoDate(date: string): Date {
@@ -1198,6 +1205,7 @@ export class TeamTrackerService {
     issueKeys: string[];
     note?: string | null;
   }): Promise<void> {
+    return runInTransaction(async () => {
     const existing = await this.getManagerDeskTrackerItem(params.managerDeskItemId);
 
     if (!params.assigneeDeveloperAccountId) {
@@ -1250,6 +1258,7 @@ export class TeamTrackerService {
       note: params.note ?? undefined,
       managerDeskItemId: params.managerDeskItemId,
     });
+    });
   }
 
   async unlinkManagerDeskItem(managerDeskItemId: number): Promise<void> {
@@ -1282,10 +1291,11 @@ export class TeamTrackerService {
     updates: {
       title?: string;
       state?: TrackerItemState;
-      note?: string;
+      note?: string | null;
       position?: number;
     }
   ): Promise<TrackerWorkItem> {
+    return runInTransaction(async () => {
     const existing = await this.getItemRow(itemId);
     if (existing.managerDeskItemId !== null && updates.title !== undefined) {
       throw new HttpError(409, "Linked delegated tasks must be renamed from Manager Desk");
@@ -1309,11 +1319,9 @@ export class TeamTrackerService {
           throw new Error(`Tracker day ${existing.dayId} was not found`);
         }
 
-        const activeWorkspaceDate =
-          currentDay.date < localTodayIso() ? localTodayIso() : currentDay.date;
-        for (const managerDeskItemId of await this.setSingleInProgressThroughDate(
+        for (const managerDeskItemId of await this.setSingleInProgressForDay(
           currentDay.developerAccountId,
-          activeWorkspaceDate,
+          currentDay.id,
           itemId,
           now
         )) {
@@ -1347,12 +1355,14 @@ export class TeamTrackerService {
     }
 
     return this.getItemById(itemId);
+    });
   }
 
   async deleteItem(
     itemId: number,
     options?: { allowLinkedManagerDeskDelete?: boolean }
   ): Promise<void> {
+    return runInTransaction(async () => {
     const existing = await this.getItemRow(itemId);
     if (existing.managerDeskItemId !== null && !options?.allowLinkedManagerDeskDelete) {
       throw new HttpError(
@@ -1364,9 +1374,11 @@ export class TeamTrackerService {
     await db
       .delete(teamTrackerItems)
       .where(eq(teamTrackerItems.id, itemId));
+    });
   }
 
   async setCurrentItem(itemId: number): Promise<TrackerWorkItem> {
+    return runInTransaction(async () => {
     const item = await this.getItemRow(itemId);
     const day = await this.getDayById(item.dayId);
     if (!day) {
@@ -1374,10 +1386,9 @@ export class TeamTrackerService {
     }
     const now = nowIso();
 
-    const activeWorkspaceDate = day.date < localTodayIso() ? localTodayIso() : day.date;
-    const linkedManagerDeskItemIds = await this.setSingleInProgressThroughDate(
+    const linkedManagerDeskItemIds = await this.setSingleInProgressForDay(
       day.developerAccountId,
-      activeWorkspaceDate,
+      day.id,
       itemId,
       now
     );
@@ -1393,6 +1404,7 @@ export class TeamTrackerService {
 
     if (!updated[0]) throw new Error("Item not found after update");
     return this.getItemById(updated[0].id);
+    });
   }
 
   async addCheckIn(
@@ -1690,6 +1702,8 @@ export class TeamTrackerService {
     toDate: string,
     options?: CarryForwardExecutionOptions
   ): Promise<number> {
+    assertForwardDateRange(fromDate, toDate);
+    return runInTransaction(async () => {
     const plan = await this.buildCarryForwardPlan(fromDate, toDate);
     const selectedEntries = await this.selectCarryForwardEntries(
       fromDate,
@@ -1723,6 +1737,7 @@ export class TeamTrackerService {
     }
 
     return carried;
+    });
   }
 
   private computeSummary(days: TrackerDeveloperDay[]): TrackerBoardSummary {
@@ -2085,7 +2100,7 @@ export class TeamTrackerService {
       .where(eq(teamTrackerItems.id, itemId))
       .limit(1);
 
-    if (!rows[0]) throw new Error("Item not found");
+    if (!rows[0]) throw new HttpError(404, "Item not found");
     return rows[0];
   }
 
@@ -2660,21 +2675,24 @@ export class TeamTrackerService {
       .where(inArray(managerDeskItems.id, uniqueItemIds));
   }
 
-  private async setSingleInProgressThroughDate(
+  private async setSingleInProgressForDay(
     developerAccountId: string,
-    throughDate: string,
+    dayId: number,
     itemId: number,
     now: string
   ): Promise<number[]> {
-    const scopedDays = await db
-      .select()
+    const dayRows = await db
+      .select({ id: teamTrackerDays.id })
       .from(teamTrackerDays)
-      .where(eq(teamTrackerDays.developerAccountId, developerAccountId));
-    const relevantDayIds = scopedDays
-      .filter((day) => day.date <= throughDate)
-      .map((day) => day.id);
+      .where(
+        and(
+          eq(teamTrackerDays.id, dayId),
+          eq(teamTrackerDays.developerAccountId, developerAccountId)
+        )
+      )
+      .limit(1);
 
-    if (relevantDayIds.length === 0) {
+    if (!dayRows[0]) {
       return [];
     }
 
@@ -2685,7 +2703,7 @@ export class TeamTrackerService {
       .from(teamTrackerItems)
       .where(
         and(
-          inArray(teamTrackerItems.dayId, relevantDayIds),
+          eq(teamTrackerItems.dayId, dayId),
           eq(teamTrackerItems.id, itemId)
         )
       );
@@ -2696,7 +2714,7 @@ export class TeamTrackerService {
       .from(teamTrackerItems)
       .where(
         and(
-          inArray(teamTrackerItems.dayId, relevantDayIds),
+          eq(teamTrackerItems.dayId, dayId),
           eq(teamTrackerItems.state, "in_progress")
         )
       );
@@ -2706,7 +2724,7 @@ export class TeamTrackerService {
       .set({ state: "planned", updatedAt: now })
       .where(
         and(
-          inArray(teamTrackerItems.dayId, relevantDayIds),
+          eq(teamTrackerItems.dayId, dayId),
           eq(teamTrackerItems.state, "in_progress")
         )
       );

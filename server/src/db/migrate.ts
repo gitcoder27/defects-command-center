@@ -313,13 +313,20 @@ const alterStatements = [
   "CREATE INDEX IF NOT EXISTS idx_manager_desk_item_history_manager_recorded ON manager_desk_item_history(manager_account_id, recorded_at)",
 ];
 
+function isExpectedMigrationError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /duplicate column name/i.test(message);
+}
+
 export function migrate(sqlite: BetterSqlite3.Database): void {
   sqlite.exec(ddl);
   for (const stmt of alterStatements) {
     try {
       sqlite.exec(stmt);
-    } catch (_) {
-      // Column already exists
+    } catch (error) {
+      if (!isExpectedMigrationError(error)) {
+        throw error;
+      }
     }
   }
 }

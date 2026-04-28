@@ -21,7 +21,7 @@ interface DeveloperTrackerDrawerProps {
   onAddItem: (params: { accountId: string; jiraKey?: string; title: string; note?: string }) => void;
   onOpenTaskDetail: (itemId: number, managerDeskItemId?: number) => void;
   onReorderPlannedItem: (params: { itemId: number; position: number }) => void;
-  onUpdateItemNote: (params: { itemId: number; note?: string }) => void;
+  onUpdateItemNote: (params: { itemId: number; note: string | null }) => void;
   onUpdateItemTitle: (params: { itemId: number; title: string }) => void;
   onSetCurrent: (itemId: number) => void;
   onMarkDone: (itemId: number) => void;
@@ -92,6 +92,7 @@ export function DeveloperTrackerDrawer({
   const [droppedOpen, setDroppedOpen] = useState(false);
   const localPlannedItemsRef = useRef<TrackerWorkItem[]>([]);
   const isDraggingRef = useRef(false);
+  const draggedItemIdRef = useRef<number | null>(null);
   const assignedTodayCount = (day?.currentItem ? 1 : 0) + (day?.plannedItems.length ?? 0);
   const loadLabel = day?.capacityUnits ? `${assignedTodayCount}/${day.capacityUnits}` : `${assignedTodayCount}`;
   const isOverCapacity = day?.capacityUnits !== undefined && assignedTodayCount > day.capacityUnits;
@@ -127,22 +128,26 @@ export function DeveloperTrackerDrawer({
 
   const handleDragEnd = useCallback(() => {
     isDraggingRef.current = false;
+    const movedItemId = draggedItemIdRef.current;
+    draggedItemIdRef.current = null;
     if (!day) return;
 
-    // Find the item that moved and compute its new target position
-    const oldIds = day.plannedItems.map((i) => i.id);
-    const newIds = localPlannedItemsRef.current.map((i) => i.id);
-
-    // Find the moved item: compare old vs new by index
-    for (let i = 0; i < newIds.length; i++) {
-      if (oldIds[i] !== newIds[i]) {
-        const movedItemId = newIds[i];
-        if (movedItemId === undefined) break;
-        const targetPosition = day.plannedItems[i]?.position ?? i;
-        onReorderPlannedItem({ itemId: movedItemId, position: targetPosition });
-        break;
-      }
+    if (movedItemId === null) {
+      return;
     }
+
+    const targetIndex = localPlannedItemsRef.current.findIndex((item) => item.id === movedItemId);
+    if (targetIndex === -1) {
+      return;
+    }
+
+    const originalIndex = day.plannedItems.findIndex((item) => item.id === movedItemId);
+    if (originalIndex === targetIndex) {
+      return;
+    }
+
+    const targetPosition = day.plannedItems[targetIndex]?.position ?? targetIndex;
+    onReorderPlannedItem({ itemId: movedItemId, position: targetPosition });
   }, [day, onReorderPlannedItem]);
 
   const handleSaveNotes = () => {
@@ -295,7 +300,10 @@ export function DeveloperTrackerDrawer({
                       <Reorder.Item
                         key={item.id}
                         value={item}
-                        onDragStart={() => { isDraggingRef.current = true; }}
+                        onDragStart={() => {
+                          isDraggingRef.current = true;
+                          draggedItemIdRef.current = item.id;
+                        }}
                         onDragEnd={handleDragEnd}
                         as="div"
                         whileDrag={{
@@ -478,6 +486,7 @@ export function DeveloperTrackerDrawer({
       )}
       {!readOnly && deskCaptureOpen && day && (
         <ManagerDeskCaptureDialog
+          date={date}
           onClose={() => setDeskCaptureOpen(false)}
           onOpenManagerDesk={onOpenManagerDesk}
           heading="Capture Developer Follow-Up"

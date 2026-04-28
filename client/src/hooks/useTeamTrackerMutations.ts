@@ -99,7 +99,7 @@ export function useUpdateTrackerItem(date: string) {
       itemId: number;
       title?: string;
       state?: TrackerItemState;
-      note?: string;
+      note?: string | null;
       position?: number;
     }) => {
       const { itemId, ...body } = params;

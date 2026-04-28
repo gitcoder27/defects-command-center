@@ -16,7 +16,7 @@ interface TrackerItemRowProps {
   onDrop?: (id: number) => void;
   onMoveUp?: (id: number) => void;
   onMoveDown?: (id: number) => void;
-  onUpdateNote?: (id: number, note?: string) => void;
+  onUpdateNote?: (id: number, note: string | null) => void;
   onUpdateTitle?: (id: number, title: string) => void;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
@@ -91,7 +91,7 @@ export function TrackerItemRow({
   };
 
   const commitNote = () => {
-    onUpdateNote?.(item.id, draftNote.trim() || undefined);
+    onUpdateNote?.(item.id, draftNote.trim() || null);
     setNoteEditing(false);
   };
 

@@ -35,6 +35,7 @@ import {
 import { HttpError } from "../middleware/errorHandler";
 import { TeamTrackerService } from "./team-tracker.service";
 import { DeveloperAvailabilityService } from "./developer-availability.service";
+import { runInTransaction } from "../db/transaction";
 
 interface ManagerDeskLinkInput {
   linkType: ManagerDeskLinkType;
@@ -371,6 +372,7 @@ export class ManagerDeskService {
     managerAccountId: string,
     params: CreateManagerDeskItemParams
   ): Promise<ManagerDeskItem> {
+    return runInTransaction(async () => {
     const day = await this.ensureDay(managerAccountId, params.date);
     const title = normalizeRequiredTitle(params.title);
     const plannedStartAt = params.plannedStartAt ?? null;
@@ -439,6 +441,7 @@ export class ManagerDeskService {
     );
     await this.recordHistorySnapshotForItem(managerAccountId, item.id);
     return this.getItemById(managerAccountId, item.id);
+    });
   }
 
   async updateItem(
@@ -446,6 +449,7 @@ export class ManagerDeskService {
     itemId: number,
     updates: UpdateManagerDeskItemParams
   ): Promise<ManagerDeskItem> {
+    return runInTransaction(async () => {
     const existing = await this.getOwnedItemRow(managerAccountId, itemId);
     const linkedTrackerContext =
       await this.trackerService.getItemDetailContextForManagerDeskItem(itemId);
@@ -553,21 +557,25 @@ export class ManagerDeskService {
     );
     await this.recordHistorySnapshotForItem(managerAccountId, itemId);
     return this.getItemById(managerAccountId, itemId);
+    });
   }
 
   async deleteItem(managerAccountId: string, itemId: number): Promise<void> {
+    return runInTransaction(async () => {
     const existing = await this.getOwnedItemRow(managerAccountId, itemId);
     const snapshot = await this.getItemById(managerAccountId, itemId);
     await this.insertHistoryRow(managerAccountId, existing.id, snapshot, "deleted");
     await this.trackerService.unlinkManagerDeskItem(itemId);
     await db.delete(managerDeskLinks).where(eq(managerDeskLinks.itemId, itemId));
     await db.delete(managerDeskItems).where(eq(managerDeskItems.id, itemId));
+    });
   }
 
   async cancelDelegatedTask(
     managerAccountId: string,
     itemId: number
   ): Promise<ManagerDeskItem> {
+    return runInTransaction(async () => {
     const existing = await this.getOwnedItemRow(managerAccountId, itemId);
     const cancelled = await this.trackerService.cancelManagerDeskItem(itemId);
 
@@ -587,6 +595,7 @@ export class ManagerDeskService {
 
     await this.recordHistorySnapshotForItem(managerAccountId, itemId);
     return this.getItemById(managerAccountId, itemId);
+    });
   }
 
   async addLink(
@@ -594,6 +603,7 @@ export class ManagerDeskService {
     itemId: number,
     payload: ManagerDeskLinkInput
   ): Promise<ManagerDeskLink> {
+    return runInTransaction(async () => {
     await this.getOwnedItemRow(managerAccountId, itemId);
     const normalizedLink = await this.normalizeLinkInput(payload);
     await this.assertItemDoesNotAlreadyHaveLink(itemId, normalizedLink);
@@ -639,6 +649,7 @@ export class ManagerDeskService {
 
     await this.recordHistorySnapshotForItem(managerAccountId, itemId);
     return createdLink;
+    });
   }
 
   async deleteLink(
@@ -646,6 +657,7 @@ export class ManagerDeskService {
     itemId: number,
     linkId: number
   ): Promise<void> {
+    return runInTransaction(async () => {
     await this.getOwnedItemRow(managerAccountId, itemId);
     const rows = await db
       .select()
@@ -673,6 +685,7 @@ export class ManagerDeskService {
     }
 
     await this.recordHistorySnapshotForItem(managerAccountId, itemId);
+    });
   }
 
   async previewCarryForward(
@@ -746,6 +759,7 @@ export class ManagerDeskService {
     managerAccountId: string,
     params: CarryForwardParams
   ): Promise<number> {
+    return runInTransaction(async () => {
     this.assertCarryForwardDateOrder(params.fromDate, params.toDate);
 
     const plan = await this.buildCarryForwardPlan(managerAccountId, params);
@@ -785,12 +799,14 @@ export class ManagerDeskService {
     }
 
     return updated;
+    });
   }
 
   async moveLinkedItemsToDate(
     managerAccountId: string,
     params: CarryForwardParams
   ): Promise<number> {
+    return runInTransaction(async () => {
     this.assertCarryForwardDateOrder(params.fromDate, params.toDate);
 
     const uniqueIds = [...new Set(params.itemIds ?? [])];
@@ -818,6 +834,7 @@ export class ManagerDeskService {
     }
 
     return moved;
+    });
   }
 
   async cleanupLegacyCarryForwardChains(options?: {
@@ -1031,6 +1048,7 @@ export class ManagerDeskService {
     managerAccountId: string,
     trackerItemId: number
   ): Promise<TrackerSharedTaskDetailResponse> {
+    return runInTransaction(async () => {
     const trackerContext = await this.trackerService.getItemDetailContext(trackerItemId);
 
     if (!trackerContext.trackerItem.managerDeskItemId) {
@@ -1039,6 +1057,7 @@ export class ManagerDeskService {
 
     const linkedTrackerContext = await this.trackerService.getItemDetailContext(trackerItemId);
     return this.buildTrackerTaskDetailResponse(managerAccountId, linkedTrackerContext);
+    });
   }
 
   async getTaskDetailByItemId(

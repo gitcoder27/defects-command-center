@@ -9,7 +9,7 @@ interface TrackerTaskExecutionPanelProps {
   item: TrackerWorkItem;
   onSetCurrent: (itemId: number) => void;
   onUpdateState: (itemId: number, state: TrackerWorkItem['state']) => void;
-  onUpdateNote: (itemId: number, note?: string) => Promise<void>;
+  onUpdateNote: (itemId: number, note: string | null) => Promise<void>;
   isPending?: boolean;
 }
 
@@ -55,7 +55,7 @@ export function TrackerTaskExecutionPanel({
   const handleSaveNote = async () => {
     setNoteSaveState('saving');
     try {
-      await onUpdateNote(item.id, trimmedNote || undefined);
+      await onUpdateNote(item.id, trimmedNote || null);
       setNoteSaveState('saved');
     } catch {
       setNoteSaveState('error');

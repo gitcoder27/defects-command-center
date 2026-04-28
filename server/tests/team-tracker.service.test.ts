@@ -501,6 +501,25 @@ describe("TeamTrackerService", () => {
       expect(devDay.currentItem?.id).toBe(item2.id);
       expect(devDay.plannedItems.some((i) => i.id === item1.id)).toBe(true);
     });
+
+    it("does not demote historical in-progress work when setting today's current item", async () => {
+      const yesterday = await service.addItem("dev-1", "2026-03-06", {
+        title: "Yesterday current task",
+      });
+      const today = await service.addItem("dev-1", "2026-03-07", {
+        title: "Today current task",
+      });
+
+      await service.setCurrentItem(yesterday.id);
+      await service.setCurrentItem(today.id);
+
+      const rows = await db
+        .select()
+        .from(teamTrackerItems)
+        .where(eq(teamTrackerItems.id, yesterday.id));
+
+      expect(rows[0]?.state).toBe("in_progress");
+    });
   });
 
   describe("updateItem", () => {
@@ -511,6 +530,22 @@ describe("TeamTrackerService", () => {
       const updated = await service.updateItem(item.id, { state: "done" });
       expect(updated.state).toBe("done");
       expect(updated.completedAt).toBeDefined();
+    });
+
+    it("persists note clearing as null instead of ignoring the update", async () => {
+      const item = await service.addItem("dev-1", "2026-03-07", {
+        title: "Document follow-up",
+        note: "Initial note",
+      });
+
+      const updated = await service.updateItem(item.id, { note: null });
+      const rows = await db
+        .select()
+        .from(teamTrackerItems)
+        .where(eq(teamTrackerItems.id, item.id));
+
+      expect(updated.note).toBeUndefined();
+      expect(rows[0]?.note).toBeNull();
     });
 
     it("enforces a single current item when state is updated directly to in_progress", async () => {
@@ -950,6 +985,15 @@ describe("TeamTrackerService", () => {
   });
 
   describe("carryForward", () => {
+    it("rejects same-day and backwards carry-forward requests", async () => {
+      await expect(
+        service.carryForward("2026-03-07", "2026-03-07")
+      ).rejects.toThrow("toDate must be after fromDate");
+      await expect(
+        service.carryForward("2026-03-08", "2026-03-07")
+      ).rejects.toThrow("toDate must be after fromDate");
+    });
+
     it("previews only items that still need to be carried into the target day", async () => {
       await service.addItem("dev-1", "2026-03-06", {
         title: "Unfinished task",

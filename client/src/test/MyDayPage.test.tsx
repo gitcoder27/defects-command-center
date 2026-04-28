@@ -26,6 +26,7 @@ function createItem(overrides: Partial<TrackerWorkItem>): TrackerWorkItem {
     createdAt: '2026-03-10T09:00:00.000Z',
     updatedAt: '2026-03-10T09:00:00.000Z',
     ...overrides,
+    lifecycle: overrides.lifecycle ?? 'tracker_only',
   };
 }
 

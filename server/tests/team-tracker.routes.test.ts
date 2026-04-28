@@ -646,6 +646,21 @@ describe("team tracker routes", () => {
     );
   });
 
+  it("PATCH /api/team-tracker/items/:itemId returns 404 when the item is missing", async () => {
+    const app = createTestApp();
+
+    const res = await invoke(app, {
+      method: "PATCH",
+      url: "/api/team-tracker/items/99999",
+      body: {
+        state: "done",
+      },
+    });
+
+    expect(res.status).toBe(404);
+    expect(res.body?.error).toBe("Item not found");
+  });
+
   it("POST /api/team-tracker/:accountId/items rejects Jira keys missing from synced issues", async () => {
     const app = createTestApp();
 
@@ -937,5 +952,22 @@ describe("team tracker routes", () => {
       "Write release notes",
       "Manager follow-up",
     ]);
+  });
+
+  it("POST /api/team-tracker/carry-forward rejects same-day carry-forward", async () => {
+    vi.useRealTimers();
+    const app = createTestApp();
+
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/team-tracker/carry-forward",
+      body: {
+        fromDate: "2026-03-07",
+        toDate: "2026-03-07",
+      },
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body?.error).toBe("toDate must be after fromDate");
   });
 });

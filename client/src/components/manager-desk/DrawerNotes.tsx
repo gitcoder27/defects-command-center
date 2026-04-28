@@ -5,13 +5,13 @@ import { useDraftField } from './useDraftField';
 interface DrawerNotesProps {
   item: ManagerDeskItem;
   readOnly?: boolean;
-  onFieldChange: (field: keyof ManagerDeskUpdateItemPayload, value: string) => void;
+  onFieldChange: (field: keyof ManagerDeskUpdateItemPayload, value: string | null) => void;
 }
 
 export function DrawerNotes({ item, readOnly = false, onFieldChange }: DrawerNotesProps) {
   const notes = useDraftField({
     value: item.contextNote ?? '',
-    onChange: (v) => onFieldChange('contextNote', v),
+    onChange: (v) => onFieldChange('contextNote', v.trim() ? v : null),
   });
   const isSaved = notes.saveState !== 'dirty' && notes.saveState !== 'saving';
 

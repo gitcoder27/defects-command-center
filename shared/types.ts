@@ -730,3 +730,52 @@ export interface ManagerDeskDeveloperLookupItem {
   avatarUrl?: string;
   availability?: DeveloperAvailability;
 }
+
+export interface ManagerDeskCreateItemPayload {
+  date: string;
+  title: string;
+  kind?: ManagerDeskItemKind;
+  category?: ManagerDeskCategory;
+  status?: ManagerDeskStatus;
+  priority?: ManagerDeskPriority;
+  assigneeDeveloperAccountId?: string | null;
+  participants?: string;
+  contextNote?: string;
+  nextAction?: string;
+  plannedStartAt?: string;
+  plannedEndAt?: string;
+  followUpAt?: string;
+  links?: Array<{
+    linkType: ManagerDeskLinkType;
+    issueKey?: string;
+    developerAccountId?: string;
+    externalLabel?: string;
+  }>;
+}
+
+export interface ManagerDeskUpdateItemPayload {
+  title?: string;
+  kind?: ManagerDeskItemKind;
+  category?: ManagerDeskCategory;
+  status?: ManagerDeskStatus;
+  priority?: ManagerDeskPriority;
+  assigneeDeveloperAccountId?: string | null;
+  participants?: string | null;
+  contextNote?: string | null;
+  nextAction?: string | null;
+  outcome?: string | null;
+  plannedStartAt?: string | null;
+  plannedEndAt?: string | null;
+  followUpAt?: string | null;
+}
+
+export type ManagerDeskAddLinkPayload =
+  | { linkType: "issue"; issueKey: string }
+  | { linkType: "developer"; developerAccountId: string }
+  | { linkType: "external_group"; externalLabel: string };
+
+export interface ManagerDeskCarryForwardPayload {
+  fromDate: string;
+  toDate: string;
+  itemIds?: number[];
+}

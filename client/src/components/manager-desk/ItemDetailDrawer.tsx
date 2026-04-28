@@ -133,8 +133,8 @@ function DrawerContent({
   const removeLink = useRemoveManagerDeskLink(date);
 
   const handleFieldChange = useCallback(
-    (field: keyof ManagerDeskUpdateItemPayload, value: string) => {
-      onUpdate(item.id, { [field]: value || undefined });
+    (field: keyof ManagerDeskUpdateItemPayload, value: string | null) => {
+      onUpdate(item.id, { [field]: value });
     },
     [item.id, onUpdate],
   );

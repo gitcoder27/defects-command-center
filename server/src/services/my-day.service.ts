@@ -16,7 +16,7 @@ interface AddMyDayItemParams {
 
 interface UpdateMyDayItemParams {
   title?: string;
-  note?: string;
+  note?: string | null;
   state?: "planned" | "in_progress" | "done" | "dropped";
   position?: number;
 }
