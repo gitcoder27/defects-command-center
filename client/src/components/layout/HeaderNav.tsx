@@ -1,4 +1,4 @@
-import { Briefcase, ClipboardList, Home, Users } from 'lucide-react';
+import { Bell, Briefcase, CalendarDays, ClipboardList, Home, Users } from 'lucide-react';
 import type { AppView } from '@/App';
 import { WorkspaceNavLink } from '@/components/layout/WorkspaceNavLink';
 
@@ -12,7 +12,7 @@ export function HeaderNav({ activeView, isManager, onViewChange }: HeaderNavProp
   return (
     <nav
       aria-label="Workspace navigation"
-      className="grid min-w-0 auto-cols-fr grid-flow-col items-center gap-0.5 rounded-xl p-0.5 lg:min-w-[540px]"
+      className="grid min-w-0 auto-cols-fr grid-flow-col items-center gap-0.5 rounded-xl p-0.5 lg:min-w-[760px]"
       style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
     >
       <WorkspaceNavLink
@@ -43,15 +43,35 @@ export function HeaderNav({ activeView, isManager, onViewChange }: HeaderNavProp
         newTabLabel="Open Team in new tab"
       />
       {isManager && (
-        <WorkspaceNavLink
-          label="Desk"
-          icon={Briefcase}
-          active={activeView === 'desk' || activeView === 'manager-desk'}
-          accentColor="var(--md-accent)"
-          onClick={() => onViewChange('desk')}
-          newTabHref="/desk"
-          newTabLabel="Open Desk in new tab"
-        />
+        <>
+          <WorkspaceNavLink
+            label="Desk"
+            icon={Briefcase}
+            active={activeView === 'desk' || activeView === 'manager-desk'}
+            accentColor="var(--md-accent)"
+            onClick={() => onViewChange('desk')}
+            newTabHref="/desk"
+            newTabLabel="Open Desk in new tab"
+          />
+          <WorkspaceNavLink
+            label="Follow-ups"
+            icon={Bell}
+            active={activeView === 'follow-ups'}
+            accentColor="var(--warning)"
+            onClick={() => onViewChange('follow-ups')}
+            newTabHref="/follow-ups"
+            newTabLabel="Open Follow-ups in new tab"
+          />
+          <WorkspaceNavLink
+            label="Meetings"
+            icon={CalendarDays}
+            active={activeView === 'meetings'}
+            accentColor="var(--accent)"
+            onClick={() => onViewChange('meetings')}
+            newTabHref="/meetings"
+            newTabLabel="Open Meetings in new tab"
+          />
+        </>
       )}
     </nav>
   );

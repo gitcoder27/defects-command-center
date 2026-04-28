@@ -1,0 +1,1 @@
+export { ManagerMemoryPage } from './ManagerMemoryPage';

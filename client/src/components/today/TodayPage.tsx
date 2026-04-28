@@ -85,6 +85,8 @@ const groupLabels: Record<BoardGroup, { title: string; hint: string }> = {
 };
 
 function actionLabel(target: ManagerAttentionTarget) {
+  if (target === 'follow-ups') return 'Open Follow-ups';
+  if (target === 'meetings') return 'Open Meetings';
   if (target === 'team') return 'Open Team';
   if (target === 'desk') return 'Open Desk';
   return 'Open Work';

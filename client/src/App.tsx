@@ -14,7 +14,7 @@ import {
 } from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
 
-export type CanonicalAppView = 'today' | 'work' | 'team' | 'desk' | 'my-day' | 'settings';
+export type CanonicalAppView = 'today' | 'work' | 'team' | 'desk' | 'follow-ups' | 'meetings' | 'my-day' | 'settings';
 export type LegacyAppView = 'dashboard' | 'team-tracker' | 'manager-desk';
 export type AppView = CanonicalAppView | LegacyAppView;
 
@@ -23,6 +23,7 @@ const loadSetupWizard = () => import('@/components/setup/SetupWizard');
 const loadMyDayPage = () => import('@/components/my-day/MyDayPage');
 const loadLoginPage = () => import('@/components/my-day/LoginPage');
 const loadManagerDeskPage = () => import('@/components/manager-desk');
+const loadManagerMemoryPage = () => import('@/components/manager-memory');
 const loadSettingsPage = () => import('@/components/settings/SettingsPanel');
 
 const TeamTrackerPage = lazy(async () => {
@@ -50,6 +51,11 @@ const ManagerDeskPage = lazy(async () => {
   return { default: module.ManagerDeskPage };
 });
 
+const ManagerMemoryPage = lazy(async () => {
+  const module = await loadManagerMemoryPage();
+  return { default: module.ManagerMemoryPage };
+});
+
 const SettingsPage = lazy(async () => {
   const module = await loadSettingsPage();
   return { default: module.SettingsPage };
@@ -66,6 +72,8 @@ function pathToView(pathname: string): CanonicalAppView {
   if (pathname === '/my-day' || pathname === '/my-day/') return 'my-day';
   if (pathname === '/team' || pathname === '/team/' || pathname === '/team-tracker' || pathname === '/team-tracker/') return 'team';
   if (pathname === '/desk' || pathname === '/desk/' || pathname === '/manager-desk' || pathname === '/manager-desk/') return 'desk';
+  if (pathname === '/follow-ups' || pathname === '/follow-ups/') return 'follow-ups';
+  if (pathname === '/meetings' || pathname === '/meetings/') return 'meetings';
   if (pathname === '/work' || pathname === '/work/' || pathname === '/dashboard' || pathname === '/dashboard/') return 'work';
   if (pathname === '/today' || pathname === '/today/' || pathname === '/' || pathname === '') return 'today';
   if (pathname === '/settings' || pathname === '/settings/') return 'settings';
@@ -78,6 +86,8 @@ function viewToPath(view: AppView): string {
   if (canonicalView === 'my-day') return '/my-day';
   if (canonicalView === 'team') return '/team';
   if (canonicalView === 'desk') return '/desk';
+  if (canonicalView === 'follow-ups') return '/follow-ups';
+  if (canonicalView === 'meetings') return '/meetings';
   if (canonicalView === 'work') return '/work';
   if (canonicalView === 'settings') return '/settings';
   return '/';
@@ -103,6 +113,10 @@ function preloadView(view: AppView) {
       break;
     case 'desk':
       void loadManagerDeskPage();
+      break;
+    case 'follow-ups':
+    case 'meetings':
+      void loadManagerMemoryPage();
       break;
     case 'settings':
       void loadSettingsPage();
@@ -379,6 +393,16 @@ function AppContent() {
       <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
         <Suspense fallback={<PanelLoading />}>
           <TeamTrackerPage onViewChange={handleViewChange} />
+        </Suspense>
+      </WorkspaceShell>
+    );
+  }
+
+  if (activeView === 'follow-ups' || activeView === 'meetings') {
+    return (
+      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
+        <Suspense fallback={<PanelLoading />}>
+          <ManagerMemoryPage mode={activeView} onViewChange={handleViewChange} />
         </Suspense>
       </WorkspaceShell>
     );

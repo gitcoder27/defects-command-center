@@ -172,6 +172,28 @@ body::after {
   pointer-events: auto;
 }
 
+.memory-input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--memory-line, var(--border));
+  background: color-mix(in srgb, var(--bg-tertiary) 62%, transparent);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  outline: none;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.memory-input:focus {
+  border-color: color-mix(in srgb, var(--memory-accent, var(--accent)) 52%, var(--border) 48%);
+  background: color-mix(in srgb, var(--bg-tertiary) 82%, transparent);
+}
+
+.memory-input::placeholder {
+  color: var(--text-muted);
+}
+
 @media (hover: none), (pointer: coarse) {
   .workspace-nav-new-tab {
     opacity: 1;

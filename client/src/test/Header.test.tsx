@@ -71,11 +71,15 @@ describe('Header', () => {
     expect(screen.getByText('Work')).toBeInTheDocument();
     expect(screen.getByText('Team')).toBeInTheDocument();
     expect(screen.getByText('Desk')).toBeInTheDocument();
+    expect(screen.getByText('Follow-ups')).toBeInTheDocument();
+    expect(screen.getByText('Meetings')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /open today in new tab/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /open work in new tab/i })).toHaveAttribute('href', '/work');
     expect(screen.getByRole('link', { name: /open work in new tab/i })).toHaveAttribute('target', '_blank');
     expect(screen.getByRole('link', { name: /open team in new tab/i })).toHaveAttribute('href', '/team');
     expect(screen.getByRole('link', { name: /open desk in new tab/i })).toHaveAttribute('href', '/desk');
+    expect(screen.getByRole('link', { name: /open follow-ups in new tab/i })).toHaveAttribute('href', '/follow-ups');
+    expect(screen.getByRole('link', { name: /open meetings in new tab/i })).toHaveAttribute('href', '/meetings');
     expect(screen.queryByText('My Day')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /open settings/i })).toBeInTheDocument();
     expect(screen.queryByText('Settings')).not.toBeInTheDocument();
@@ -102,7 +106,7 @@ describe('Header', () => {
   });
 
   it('shows the capture button on all manager views including desk', () => {
-    const views = ['today', 'work', 'team', 'desk'] as const;
+    const views = ['today', 'work', 'team', 'desk', 'follow-ups', 'meetings'] as const;
 
     for (const view of views) {
       const { unmount } = render(<Header activeView={view} onViewChange={vi.fn()} />);

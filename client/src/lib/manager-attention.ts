@@ -10,7 +10,7 @@ import type {
   TrackerWorkItem,
 } from '@/types';
 
-export type ManagerAttentionTarget = 'work' | 'team' | 'desk';
+export type ManagerAttentionTarget = 'work' | 'team' | 'desk' | 'follow-ups' | 'meetings';
 export type ManagerAttentionSeverity = 'critical' | 'warning' | 'info' | 'neutral';
 
 export interface ManagerAttentionItem {
@@ -183,7 +183,7 @@ function buildAttentionItems(params: BuildManagerAttentionSnapshotParams): Manag
       detail: 'Manager Desk follow-ups due today or overdue',
       count: followUps.length,
       severity: followUps.some((item) => isOverdue(item.followUpAt)) ? 'critical' : 'warning',
-      target: 'desk',
+      target: 'follow-ups',
       samples: followUps.slice(0, 3).map((item) => item.title),
     },
     {
@@ -379,7 +379,7 @@ function buildDeskMetrics(deskDay?: ManagerDeskDayResponse): ManagerPulseMetric[
       value: getDeskFollowUpsDue(openItems).length,
       detail: 'due or overdue',
       severity: 'warning',
-      target: 'desk',
+      target: 'follow-ups',
     },
     {
       id: 'meetings',
@@ -550,7 +550,7 @@ function buildStandupPrompts(params: BuildManagerAttentionSnapshotParams, manual
       id: 'manager-promises',
       title: 'Close the manager promises',
       detail: followUps.slice(0, 2).map((item) => item.title).join(', '),
-      target: 'desk',
+      target: 'follow-ups',
     });
   }
 

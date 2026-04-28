@@ -97,6 +97,10 @@ vi.mock('@/components/manager-desk', () => ({
   ManagerDeskPage: () => <div>Desk loaded</div>,
 }));
 
+vi.mock('@/components/manager-memory', () => ({
+  ManagerMemoryPage: ({ mode }: { mode: 'follow-ups' | 'meetings' }) => <div>{mode === 'follow-ups' ? 'Follow-ups loaded' : 'Meetings loaded'}</div>,
+}));
+
 vi.mock('@/components/settings/SettingsPanel', () => ({
   SettingsPage: () => <div>Settings loaded</div>,
 }));
@@ -267,6 +271,26 @@ describe('App', () => {
     window.history.pushState(null, '', '/manager-desk');
     render(<App />);
     expect(await screen.findByText('Desk loaded')).toBeInTheDocument();
+  });
+
+  it('renders follow-ups and meetings as manager memory routes', async () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'manager' },
+      isLoading: false,
+      isAuthenticated: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshSession: vi.fn(),
+    });
+
+    window.history.pushState(null, '', '/follow-ups');
+    const { unmount } = render(<App />);
+    expect(await screen.findByText('Follow-ups loaded')).toBeInTheDocument();
+    unmount();
+
+    window.history.pushState(null, '', '/meetings');
+    render(<App />);
+    expect(await screen.findByText('Meetings loaded')).toBeInTheDocument();
   });
 
   it('preserves work filters when switching away and back without refreshing', async () => {
