@@ -75,49 +75,52 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="relative z-[300] shrink-0 px-1 pt-0.5 md:px-1.5 md:pt-1"
+        className="relative z-[300] shrink-0 px-1 pt-0.5 md:px-1.5"
       >
         <div
-          className="dashboard-panel rounded-[14px] px-2.5 py-1.5 md:px-3 md:py-1.5 flex flex-col gap-1 lg:flex-row lg:items-center lg:justify-between"
+          className="dashboard-panel rounded-[14px] px-2 py-1.5 md:px-2.5 flex flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between"
           style={{ borderColor: 'var(--border-strong)' }}
         >
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
-            {onOpenMobileSidebar && (
-              <button
-                onClick={onOpenMobileSidebar}
-                className="h-8 w-8 rounded-xl transition-colors duration-150 flex items-center justify-center lg:hidden"
-                style={{ background: 'var(--bg-tertiary)' }}
-                title="Open sidebar"
-                aria-label="Open sidebar"
-              >
-                <PanelLeftOpen size={16} style={{ color: 'var(--text-secondary)' }} />
-              </button>
-            )}
-            <div className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
-              <LeadOSMark size={22} />
-            </div>
-            <div className="min-w-0">
-              <h1
-                className="font-sans text-[16px] md:text-[17px] font-semibold truncate"
-                style={{ color: 'var(--text-primary)' }}
-              >
-                LeadOS
-              </h1>
-              <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                People, work, risks, and daily planning
+          <div className="flex min-w-0 flex-col gap-1.5 lg:flex-row lg:items-center lg:gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+              {onOpenMobileSidebar && (
+                <button
+                  onClick={onOpenMobileSidebar}
+                  className="h-8 w-8 rounded-xl transition-colors duration-150 flex items-center justify-center lg:hidden"
+                  style={{ background: 'var(--bg-tertiary)' }}
+                  title="Open sidebar"
+                  aria-label="Open sidebar"
+                >
+                  <PanelLeftOpen size={16} style={{ color: 'var(--text-secondary)' }} />
+                </button>
+              )}
+              <div className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
+                <LeadOSMark size={22} />
+              </div>
+              <div className="min-w-[132px]">
+                <h1
+                  className="font-sans text-[16px] md:text-[17px] font-semibold leading-tight truncate"
+                  style={{ color: 'var(--text-primary)' }}
+                >
+                  LeadOS
+                </h1>
+                <div className="hidden text-[10.5px] sm:block" style={{ color: 'var(--text-secondary)' }}>
+                  People, work, risks, and planning
+                </div>
               </div>
             </div>
             {onViewChange && (
-              <div className="basis-full lg:basis-auto">
+              <div className="min-w-0 overflow-visible">
                 <HeaderNav activeView={activeView} isManager={user?.role === 'manager'} onViewChange={onViewChange} />
               </div>
             )}
           </div>
 
-          <div className="flex flex-col gap-1.5 lg:flex-row lg:items-center">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-1.5 xl:flex-nowrap xl:justify-end">
             <div
-              className="rounded-xl px-2.5 py-1.5 flex items-center gap-2"
+              className="h-9 rounded-xl px-2.5 flex items-center gap-2"
               style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
+              title={sync?.lastSyncedAt ? `Synced ${formatRelativeTime(sync.lastSyncedAt)}` : 'Not synced'}
             >
               <span
                 className="w-2.5 h-2.5 rounded-full"
@@ -135,16 +138,13 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
                 }}
               />
               <div className="min-w-0">
-                <div className="text-[10px] uppercase font-semibold" style={{ letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
-                  Sync Status
-                </div>
-                <div className="text-[12px] font-mono truncate" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-[11.5px] font-mono truncate" style={{ color: 'var(--text-secondary)' }}>
                   {sync?.lastSyncedAt ? `Synced ${formatRelativeTime(sync.lastSyncedAt)}` : 'Not synced'}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 self-start lg:self-auto">
+            <div className="flex items-center gap-1.5">
               {showDashboardAlerts && onDashboardAlertClick ? (
                 <AlertInbox onAlertClick={onDashboardAlertClick} />
               ) : null}

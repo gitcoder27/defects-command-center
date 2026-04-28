@@ -39,8 +39,8 @@ const ASPEN_SEVERITY_ORDER: Record<string, number> = {
 const INITIAL_ROW_ANIMATION_DELAY = 0.4;
 const INITIAL_ROW_ANIMATION_STAGGER = 0.03;
 const INITIAL_ROW_STAGGER_CAP = 12;
-const ROW_HOVER_BACKGROUND = 'color-mix(in srgb, var(--bg-tertiary) 92%, white 8%)';
-const ROW_DEFAULT_BACKGROUND = 'color-mix(in srgb, var(--bg-secondary) 92%, white 8%)';
+const ROW_HOVER_BACKGROUND = 'color-mix(in srgb, var(--bg-tertiary) 72%, transparent)';
+const ROW_DEFAULT_BACKGROUND = 'color-mix(in srgb, var(--bg-secondary) 42%, transparent)';
 const STATUS_FILTER_STORAGE_KEY = 'dcc:defect-table:excluded-statuses';
 
 const columnHelper = createColumnHelper<Issue>();
@@ -676,11 +676,11 @@ export function DefectTable({
   const toolbar = (
     <div
       ref={searchContainerRef}
-      className="px-2 py-1.5 border-b flex items-center justify-between gap-2"
+      className="px-3 py-1.5 border-b flex items-center justify-between gap-2"
       style={{ borderColor: 'var(--border)' }}
     >
       <div className="min-w-0 flex items-center gap-2">
-        <div className="text-[13px] font-medium whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
+        <div className="text-[13px] font-semibold whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
           Defects
         </div>
         <div className="h-4 w-px" style={{ background: 'var(--border)' }} />
@@ -689,12 +689,12 @@ export function DefectTable({
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-2 min-w-0 md:min-w-[280px]">
+      <div className="flex items-center justify-end gap-1.5 min-w-0 md:min-w-[260px]">
         <button
           type="button"
           onClick={handleClearFilters}
           disabled={!hasActiveFilters}
-          className="h-9 rounded-2xl px-3 flex items-center justify-center transition-colors gap-2 disabled:cursor-not-allowed"
+          className="h-8 rounded-lg px-2.5 flex items-center justify-center transition-colors gap-1.5 disabled:cursor-not-allowed"
           style={{
             color: hasActiveFilters ? 'var(--text-secondary)' : 'var(--text-muted)',
             background: 'var(--bg-tertiary)',
@@ -711,7 +711,7 @@ export function DefectTable({
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="h-9 rounded-2xl px-3 flex items-center justify-center transition-colors hover:bg-[var(--bg-tertiary)] gap-2"
+          className="h-8 rounded-lg px-2.5 flex items-center justify-center transition-colors hover:bg-[var(--bg-tertiary)] gap-1.5"
             style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}
             aria-label="Open defect search"
             title="Search defects"
@@ -721,7 +721,7 @@ export function DefectTable({
           </button>
         ) : (
           <div
-            className="h-9 w-[320px] max-w-full rounded-2xl border px-3 flex items-center gap-2"
+            className="h-8 w-[320px] max-w-full rounded-lg border px-2.5 flex items-center gap-2"
             style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)' }}
           >
             <Search size={14} style={{ color: 'var(--text-muted)' }} />
@@ -772,7 +772,7 @@ export function DefectTable({
           <p className="text-[15px]" style={{ color: 'var(--text-secondary)' }}>
           {filter !== 'all'
             ? 'No defects match this filter.'
-            : 'No open defects. Your project is clean. 🎉'}
+            : 'No open defects. Your project is clean.'}
           </p>
         </div>
       </div>
@@ -817,7 +817,7 @@ export function DefectTable({
               </div>
             </div>
           ) : (
-            <table className="min-w-full border-separate border-spacing-y-0.5">
+            <table className="min-w-full border-separate border-spacing-y-0">
               <thead>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
@@ -825,7 +825,7 @@ export function DefectTable({
                       <th
                         key={header.id}
                         onClick={header.column.getToggleSortingHandler()}
-                        className="text-left text-[11px] font-semibold uppercase px-2 py-1.5 cursor-pointer select-none sticky top-0 z-30"
+                        className="text-left text-[10.5px] font-semibold uppercase px-2 py-1.5 cursor-pointer select-none sticky top-0 z-30"
                         style={{
                           letterSpacing: '0.08em',
                           color: 'var(--text-muted)',
@@ -910,13 +910,12 @@ export function DefectTable({
                     data-selection-state={selectionState}
                     style={{
                       backgroundColor: rowBackgroundColor,
-                      borderTop: '1px solid var(--border)',
-                      borderBottom: '1px solid var(--border)',
+                      boxShadow: 'inset 0 -1px 0 color-mix(in srgb, var(--border) 70%, transparent)',
                     }}
                     whileHover={{ y: -1, backgroundColor: ROW_HOVER_BACKGROUND }}
                   >
                     {row.getVisibleCells().map((cell, cellIndex) => (
-                      <td key={cell.id} className="px-2 py-1.5 text-[13px] relative z-0 first:rounded-l-[12px] last:rounded-r-[12px]">
+                      <td key={cell.id} className="px-2 py-1.5 text-[13px] relative z-0 first:rounded-l-[10px] last:rounded-r-[10px]">
                         {cellIndex === 0 && indicatorReason ? (
                           <span
                             className="absolute left-0 top-0 bottom-0 w-3 flex items-center justify-start cursor-help"

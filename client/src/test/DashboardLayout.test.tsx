@@ -25,12 +25,6 @@ vi.mock('@/components/layout/Header', () => ({
   ),
 }));
 
-vi.mock('@/components/overview/OverviewCards', () => ({
-  OverviewCards: ({ onFilterChange }: { onFilterChange: (filter: 'new') => void }) => (
-    <button onClick={() => onFilterChange('new')}>New Card</button>
-  ),
-}));
-
 vi.mock('@/components/alerts/ErrorBanner', () => ({
   ErrorBanner: () => null,
 }));
@@ -110,7 +104,9 @@ vi.mock('@/components/workload/WorkloadBar', () => ({
 }));
 
 vi.mock('@/components/work/WorkFocusStrip', () => ({
-  WorkFocusStrip: () => <div>Work Focus</div>,
+  WorkFocusStrip: ({ onFilterChange }: { onFilterChange: (filter: 'new') => void }) => (
+    <button onClick={() => onFilterChange('new')}>Work Signal</button>
+  ),
 }));
 
 vi.mock('@/components/settings/SettingsPanel', () => ({
@@ -127,11 +123,11 @@ describe('DashboardLayout', () => {
     vi.useRealTimers();
   });
 
-  it('keeps the active developer when a top overview card is clicked', () => {
+  it('keeps the active developer when a top work signal is clicked', () => {
     render(<DashboardLayout />);
 
     fireEvent.click(screen.getByText('Select Developer'));
-    fireEvent.click(screen.getByText('New Card'));
+    fireEvent.click(screen.getByText('Work Signal'));
 
     const lastCall = defectTableSpy.mock.calls.at(-1)?.[0] as { filter: string; assigneeFilter?: string };
     expect(lastCall.filter).toBe('new');
@@ -162,7 +158,7 @@ describe('DashboardLayout', () => {
   it('keeps the active jira filter when a workload developer is selected', () => {
     render(<DashboardLayout />);
 
-    fireEvent.click(screen.getByText('New Card'));
+    fireEvent.click(screen.getByText('Work Signal'));
     fireEvent.click(screen.getByText('Select Developer'));
 
     const lastSidebarCall = filterSidebarSpy.mock.calls.at(-1)?.[0] as { activeFilter: string; activeDeveloper?: string };
@@ -264,7 +260,7 @@ describe('DashboardLayout', () => {
   it('clears active dashboard filters from the defect table toolbar action', () => {
     render(<DashboardLayout />);
 
-    fireEvent.click(screen.getByText('New Card'));
+    fireEvent.click(screen.getByText('Work Signal'));
     fireEvent.click(screen.getByText('Select Developer'));
     fireEvent.click(screen.getByText('Clear Table Filters'));
 
@@ -315,7 +311,7 @@ describe('DashboardLayout', () => {
   it('clears only the active developer from the sidebar header action', () => {
     render(<DashboardLayout />);
 
-    fireEvent.click(screen.getByText('New Card'));
+    fireEvent.click(screen.getByText('Work Signal'));
     fireEvent.click(screen.getByText('Sidebar Developer'));
     fireEvent.click(screen.getByText('Sidebar Tag'));
     fireEvent.click(screen.getByText('Sidebar Clear Developer'));

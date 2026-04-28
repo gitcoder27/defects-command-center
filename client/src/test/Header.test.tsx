@@ -71,13 +71,16 @@ describe('Header', () => {
     expect(screen.getByText('Work')).toBeInTheDocument();
     expect(screen.getByText('Team')).toBeInTheDocument();
     expect(screen.getByText('Desk')).toBeInTheDocument();
-    expect(screen.getByText('Follow-ups')).toBeInTheDocument();
-    expect(screen.getByText('Meetings')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /open today in new tab/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /open work in new tab/i })).toHaveAttribute('href', '/work');
     expect(screen.getByRole('link', { name: /open work in new tab/i })).toHaveAttribute('target', '_blank');
     expect(screen.getByRole('link', { name: /open team in new tab/i })).toHaveAttribute('href', '/team');
     expect(screen.getByRole('link', { name: /open desk in new tab/i })).toHaveAttribute('href', '/desk');
+
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+
+    expect(screen.getByText('Follow-ups')).toBeInTheDocument();
+    expect(screen.getByText('Meetings')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /open follow-ups in new tab/i })).toHaveAttribute('href', '/follow-ups');
     expect(screen.getByRole('link', { name: /open meetings in new tab/i })).toHaveAttribute('href', '/meetings');
     expect(screen.queryByText('My Day')).not.toBeInTheDocument();
@@ -91,6 +94,18 @@ describe('Header', () => {
     expect(screen.getByRole('link', { name: /open today in new tab/i })).toHaveAttribute('href', '/');
     expect(screen.queryByRole('link', { name: /open team in new tab/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /open desk in new tab/i })).toHaveAttribute('href', '/desk');
+
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    expect(screen.getByRole('link', { name: /open meetings in new tab/i })).toHaveAttribute('href', '/meetings');
+  });
+
+  it('opens the secondary workspace menu on hover', () => {
+    render(<Header activeView="work" onViewChange={vi.fn()} />);
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: /more/i }).parentElement as HTMLElement);
+
+    expect(screen.getByText('Follow-ups')).toBeInTheDocument();
+    expect(screen.getByText('Meetings')).toBeInTheDocument();
   });
 
   it('shows the alert inbox only on Work when a dashboard alert handler is provided', () => {

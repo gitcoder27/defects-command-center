@@ -196,7 +196,7 @@ describe('DefectTable', () => {
 
     const row = screen.getByText('PROJ-101').closest('tr');
     expect(row).toHaveAttribute('data-selection-state', 'active');
-    expect(row?.getAttribute('style')).toContain('background-color: color-mix(in srgb, var(--bg-tertiary) 92%, white 8%)');
+    expect(row?.getAttribute('style')).toContain('background-color: color-mix(in srgb, var(--bg-tertiary) 72%, transparent)');
     expect(screen.getByLabelText('Row indicator: Open in triage')).toBeInTheDocument();
   });
 
@@ -209,7 +209,7 @@ describe('DefectTable', () => {
 
     const row = screen.getByText('PROJ-102').closest('tr');
     expect(row).toHaveAttribute('data-selection-state', 'retained');
-    expect(row?.getAttribute('style')).toContain('background-color: color-mix(in srgb, var(--bg-tertiary) 92%, white 8%)');
+    expect(row?.getAttribute('style')).toContain('background-color: color-mix(in srgb, var(--bg-tertiary) 72%, transparent)');
     expect(screen.getByLabelText('Row indicator: Last opened defect')).toBeInTheDocument();
   });
 

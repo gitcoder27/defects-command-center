@@ -1,6 +1,6 @@
 import { useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronUp, ChevronDown, Users } from 'lucide-react';
+import { ChevronUp, ChevronDown, Users, Zap } from 'lucide-react';
 import { useWorkload } from '@/hooks/useWorkload';
 import { DeveloperCard } from './DeveloperCard';
 import { workloadAccent, workloadAssignedLabel } from '@/lib/utils';
@@ -134,7 +134,7 @@ export function WorkloadBar({ activeDeveloper, onDeveloperClick }: WorkloadBarPr
                         S{dev.score}
                       </span>
                       {hasMismatch && !isActive && (
-                        <span className="text-[9px] font-semibold" style={{ color: 'var(--warning)' }}>⚡</span>
+                        <Zap size={10} style={{ color: 'var(--warning)' }} />
                       )}
                     </button>
                   );
