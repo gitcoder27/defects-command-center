@@ -150,13 +150,20 @@ export function TodayPage({ onViewChange, onSelectWorkFilter }: TodayPageProps) 
       style={{
         background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-canvas) 96%, var(--accent) 4%), var(--bg-canvas))',
         ['--today-line' as string]: 'color-mix(in srgb, var(--border) 34%, transparent)',
-        ['--today-line-strong' as string]: 'color-mix(in srgb, var(--border-strong) 42%, transparent)',
+        ['--today-line-strong' as string]: 'color-mix(in srgb, var(--border-strong) 24%, transparent)',
         ['--today-hover' as string]: 'color-mix(in srgb, var(--bg-tertiary) 34%, transparent)',
-        ['--today-muted-panel' as string]: 'color-mix(in srgb, var(--bg-secondary) 28%, transparent)',
+        ['--today-muted-panel' as string]: 'color-mix(in srgb, var(--bg-secondary) 20%, transparent)',
+        ['--today-soft-panel' as string]: 'color-mix(in srgb, var(--bg-secondary) 38%, transparent)',
       }}
     >
-      <section className="shrink-0 border-b" style={{ borderColor: 'var(--today-line)' }}>
-        <div className="grid gap-0 lg:grid-cols-[190px_repeat(6,minmax(0,1fr))_160px]">
+      <section className="shrink-0 border-b px-2 py-1" style={{ borderColor: 'var(--today-line)' }}>
+        <div
+          className="grid gap-1 border-b border-t py-1 lg:grid-cols-[170px_repeat(6,minmax(0,1fr))_148px]"
+          style={{
+            background: 'linear-gradient(90deg, color-mix(in srgb, var(--bg-secondary) 20%, transparent), color-mix(in srgb, var(--bg-secondary) 8%, transparent))',
+            borderColor: 'color-mix(in srgb, var(--border) 24%, transparent)',
+          }}
+        >
           <SummaryDate date={formattedDate} weekday={weekday} isFetching={attention.isFetching} onRefresh={() => void attention.refetch()} />
           <SummaryMetric value={snapshot.totalAttentionCount} label="Attention" detail="needs your focus" tone="warning" />
           <SummaryMetric value={activeDefects} label="Active defects" detail="in Work" tone="neutral" />
@@ -164,16 +171,16 @@ export function TodayPage({ onViewChange, onSelectWorkFilter }: TodayPageProps) 
           <SummaryMetric value={staleCheckIns} label="Stale check-ins" detail="need update" tone="warning" />
           <SummaryMetric value={dueToday} label="Due today" detail="defects" tone="warning" />
           <SummaryMetric value={snapshot.followUpsDue.length} label="Follow-ups" detail="due today" tone="warning" />
-          <div className="hidden items-center border-l px-4 lg:flex" style={{ borderColor: 'var(--today-line)' }}>
+          <div className="hidden min-h-[52px] items-center rounded-lg px-3 lg:flex" style={{ background: 'color-mix(in srgb, var(--bg-secondary) 14%, transparent)' }}>
             <div>
               <p className="text-[12px] font-semibold" style={{ color: 'var(--accent)' }}>Standup kit</p>
-              <p className="mt-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>{snapshot.standupPrompts.length} prompts ready</p>
+              <p className="mt-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>{snapshot.standupPrompts.length} prompts ready</p>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(380px,0.95fr)]">
+      <section className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
         <OperationsBoard
           isLoading={attention.isLoading}
           rows={groupedRows}
@@ -254,22 +261,22 @@ function SummaryDate({
   onRefresh: () => void;
 }) {
   return (
-    <div className="flex min-h-[62px] items-center justify-between gap-3 border-b px-4 py-2.5 lg:border-b-0 lg:border-r" style={{ borderColor: 'var(--today-line)' }}>
+    <div className="flex min-h-[52px] items-center justify-between gap-3 rounded-lg px-3 py-2" style={{ background: 'color-mix(in srgb, var(--bg-secondary) 14%, transparent)' }}>
       <div className="flex items-center gap-3">
-        <CalendarClock size={16} style={{ color: 'var(--text-secondary)' }} />
+        <CalendarClock size={15} style={{ color: 'var(--text-secondary)' }} />
         <div>
           <p className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>Today</p>
-          <p className="mt-0.5 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>{date} · {weekday}</p>
+          <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-secondary)' }}>{date} · {weekday}</p>
         </div>
       </div>
       <button
         type="button"
         onClick={onRefresh}
-        className="flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-tertiary)] active:scale-[0.98]"
+        className="flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-tertiary)] active:scale-[0.98]"
         aria-label="Refresh today"
         title="Refresh today"
       >
-        {isFetching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+        {isFetching ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
       </button>
     </div>
   );
@@ -288,12 +295,12 @@ function SummaryMetric({
 }) {
   const style = toneStyles[value > 0 ? tone : 'neutral'];
   return (
-    <div className="min-h-[62px] border-b px-4 py-2.5 lg:border-b-0 lg:border-r" style={{ borderColor: 'var(--today-line)' }}>
-      <div className="flex items-baseline gap-2">
-        <span className="text-[22px] font-semibold leading-none tabular-nums" style={{ color: style.color }}>{value}</span>
+    <div className="min-h-[52px] rounded-lg px-3 py-2 transition-colors hover:bg-[var(--today-hover)]" style={{ background: 'transparent' }}>
+      <div className="flex items-baseline gap-1.5">
+        <span className="font-mono text-[20px] font-semibold leading-none tabular-nums" style={{ color: style.color }}>{value}</span>
         <span className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{label}</span>
       </div>
-      <p className="mt-1.5 truncate text-[11.5px]" style={{ color: 'var(--text-muted)' }}>{detail}</p>
+      <p className="mt-1 truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>{detail}</p>
     </div>
   );
 }
@@ -314,7 +321,7 @@ function OperationsBoard({
   return (
     <section className="min-h-0 overflow-auto border-b px-5 py-5 lg:border-b-0 lg:border-r xl:px-8" style={{ borderColor: 'var(--today-line-strong)' }}>
       <SectionHeading icon={Target} title="What needs attention" detail="Prioritized by impact and urgency" />
-      <div className="mt-6">
+      <div className="mt-5">
         {isLoading ? (
           <BoardSkeleton />
         ) : (
@@ -349,16 +356,16 @@ function BoardGroupBlock({
   }
 
   return (
-    <div className="mb-6 last:mb-0">
+    <div className="mb-5 last:mb-0">
       <div className="mb-2 flex items-baseline gap-2">
         <h2 className="text-[13px] font-semibold uppercase" style={{ color: group === 'now' ? 'var(--danger)' : group === 'next' ? 'var(--warning)' : 'var(--text-secondary)' }}>
           {groupLabels[group].title}
         </h2>
         <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>({groupLabels[group].hint})</span>
       </div>
-      <div style={{ borderTop: '1px solid var(--today-line)', borderBottom: '1px solid var(--today-line)' }}>
+      <div className="space-y-1">
         {rows.map((row, index) => (
-          <BoardAttentionRow key={row.id} row={row} hasTopBorder={index > 0} onOpenTarget={onOpenTarget} />
+          <BoardAttentionRow key={row.id} row={row} featured={group === 'now' && index === 0} onOpenTarget={onOpenTarget} />
         ))}
       </div>
     </div>
@@ -367,24 +374,29 @@ function BoardGroupBlock({
 
 function BoardAttentionRow({
   row,
-  hasTopBorder,
+  featured,
   onOpenTarget,
 }: {
   row: BoardRow;
-  hasTopBorder: boolean;
+  featured: boolean;
   onOpenTarget: (target: ManagerAttentionTarget, filter?: FilterType) => void;
 }) {
   const Icon = row.icon;
   const style = toneStyles[row.severity];
+  const featuredBackground = `linear-gradient(90deg, color-mix(in srgb, ${style.color} 4%, transparent), color-mix(in srgb, var(--bg-secondary) 8%, transparent))`;
+  const featuredBorder = `color-mix(in srgb, ${style.color} 12%, var(--today-line))`;
 
   return (
     <button
       type="button"
       onClick={() => onOpenTarget(row.target, row.filter)}
-      className="grid w-full grid-cols-[30px_minmax(0,1.2fr)] gap-4 px-1 py-3 text-left transition-colors hover:bg-[var(--today-hover)] active:scale-[0.998] md:grid-cols-[30px_minmax(0,1.25fr)_minmax(140px,0.75fr)_120px_116px]"
-      style={{ borderTop: hasTopBorder ? '1px solid var(--today-line)' : 'none' }}
+      className="grid w-full grid-cols-[30px_minmax(0,1.2fr)] gap-4 rounded-lg px-3 py-3 text-left transition-colors hover:bg-[var(--today-hover)] active:scale-[0.998] md:grid-cols-[30px_minmax(0,1.25fr)_minmax(130px,0.7fr)_110px_146px]"
+      style={{
+        background: featured ? featuredBackground : 'transparent',
+        boxShadow: featured ? `inset 0 0 0 1px ${featuredBorder}` : 'inset 0 -1px 0 var(--today-line)',
+      }}
     >
-      <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-md" style={{ color: style.color }}>
+      <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-md" style={{ color: style.color, background: featured ? `color-mix(in srgb, ${style.color} 5%, transparent)` : 'transparent' }}>
         <Icon size={16} />
       </span>
       <span className="min-w-0">
@@ -398,13 +410,13 @@ function BoardAttentionRow({
         </span>
         <span className="mt-1 block truncate text-[11px] md:hidden" style={{ color: 'var(--text-muted)' }}>{row.context}</span>
       </span>
-      <span className="hidden min-w-0 truncate text-[12px] md:block" style={{ color: 'var(--text-muted)' }}>{row.context}</span>
+      <span className="hidden min-w-0 truncate text-[12px] md:block" style={{ color: 'var(--text-secondary)' }}>{row.context}</span>
       <span className="hidden md:block">
         <span className="rounded-md border px-2 py-1 text-[10px] font-semibold" style={{ background: style.bg, borderColor: style.border, color: style.color }}>
           {row.chip}
         </span>
       </span>
-      <span className="hidden items-center justify-end gap-2 text-[12px] font-semibold md:flex" style={{ color: 'var(--accent)' }}>
+      <span className="hidden items-center justify-end gap-2 whitespace-nowrap text-[12px] font-semibold md:flex" style={{ color: 'var(--accent)' }}>
         {actionLabel(row.target)}
         <ArrowRight size={13} />
       </span>
@@ -426,8 +438,8 @@ function StandupBrief({
 
   return (
     <section
-      className="mt-8 grid gap-4 rounded-md px-4 py-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.8fr)]"
-      style={{ background: 'var(--today-muted-panel)', border: '1px solid var(--today-line)' }}
+      className="mt-7 grid gap-4 rounded-lg px-4 py-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.8fr)]"
+      style={{ background: 'var(--today-muted-panel)', boxShadow: 'inset 0 0 0 1px var(--today-line)' }}
     >
       <div className="min-w-0">
         <div className="flex items-center gap-2">
@@ -450,7 +462,7 @@ function StandupBrief({
         ) : null}
       </div>
       <div className="min-w-0 border-t pt-3 md:border-l md:border-t-0 md:pl-4 md:pt-0" style={{ borderColor: 'var(--today-line)' }}>
-        <p className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Manager promise</p>
+        <p className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>Manager promise</p>
         <p className="mt-2 truncate text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>
           {leadFollowUp?.title ?? 'No follow-up due'}
         </p>
@@ -475,10 +487,13 @@ function PeopleAndPromises({
   onOpenTarget: (target: ManagerAttentionTarget, filter?: FilterType) => void;
   onViewChange: (view: AppView) => void;
 }) {
+  const visibleTeamPulse = teamPulse.slice(0, 4);
+  const hiddenTeamPulseCount = Math.max(teamPulse.length - visibleTeamPulse.length, 0);
+
   return (
     <aside className="min-h-0 overflow-auto px-5 py-5 xl:px-8">
-      <SectionHeading icon={Users} title="People and promises" detail="Team pulse and manager follow-ups" />
-      <div className="mt-6">
+      <SectionHeading icon={Users} title="Team Pulse" detail="People signals and manager follow-ups" />
+      <div className="mt-5">
         <div className="flex items-center gap-6 border-b" style={{ borderColor: 'var(--today-line)' }}>
           <span className="border-b-2 pb-3 text-[12px] font-semibold" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>Team pulse</span>
           <button type="button" onClick={() => onViewChange('desk')} className="pb-3 text-[12px] font-semibold" style={{ color: 'var(--text-muted)' }}>
@@ -486,17 +501,33 @@ function PeopleAndPromises({
           </button>
         </div>
 
-        <div className="mt-4" style={{ borderTop: '1px solid var(--today-line)' }}>
+        <div className="mt-3 space-y-1">
           {teamPulse.length > 0 ? (
-            teamPulse.map((person, index) => (
-              <TeamPulseRow key={person.accountId} person={person} hasTopBorder={index > 0} onOpenTeam={() => onViewChange('team')} />
-            ))
+            <>
+              {visibleTeamPulse.map((person) => (
+                <TeamPulseRow key={person.accountId} person={person} onOpenTeam={() => onViewChange('team')} />
+              ))}
+              {hiddenTeamPulseCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => onViewChange('team')}
+                  className="mt-2 flex w-full items-center justify-between px-1 py-2 text-left text-[12px] font-semibold transition-colors hover:bg-[var(--today-hover)]"
+                  style={{ color: 'var(--accent)', borderBottom: '1px solid var(--today-line)' }}
+                >
+                  View all team pulse
+                  <span className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+                    +{hiddenTeamPulseCount}
+                    <ArrowRight size={12} />
+                  </span>
+                </button>
+              ) : null}
+            </>
           ) : (
             <CompactEmpty icon={CheckCircle2} title="Team is calm" detail="No people signals need attention right now." />
           )}
         </div>
 
-        <div className="mt-7 grid gap-5 xl:grid-cols-2">
+        <div className="mt-6 grid gap-5 xl:grid-cols-2">
           <MiniList
             title="Follow-ups due"
             empty="No follow-ups due"
@@ -511,7 +542,7 @@ function PeopleAndPromises({
           <MiniList
             title="Standup prompts"
             empty="Standup is clear"
-            items={prompts.slice(0, 3).map((prompt) => ({
+            items={prompts.slice(0, 2).map((prompt) => ({
               id: prompt.id,
               title: prompt.title,
               detail: prompt.detail,
@@ -525,15 +556,15 @@ function PeopleAndPromises({
   );
 }
 
-function TeamPulseRow({ person, hasTopBorder, onOpenTeam }: { person: ManagerTeamPulseItem; hasTopBorder: boolean; onOpenTeam: () => void }) {
+function TeamPulseRow({ person, onOpenTeam }: { person: ManagerTeamPulseItem; onOpenTeam: () => void }) {
   const style = toneStyles[person.tone];
 
   return (
     <button
       type="button"
       onClick={onOpenTeam}
-      className="grid w-full grid-cols-[32px_minmax(0,1fr)_90px] gap-3 py-2.5 text-left transition-colors hover:bg-[var(--today-hover)] md:grid-cols-[36px_minmax(130px,0.75fr)_88px_minmax(0,1fr)_74px_82px]"
-      style={{ borderTop: hasTopBorder ? '1px solid var(--today-line)' : 'none' }}
+      className="grid w-full grid-cols-[32px_minmax(0,1fr)_90px] gap-3 px-1 py-2.5 text-left transition-colors hover:bg-[var(--today-hover)] md:grid-cols-[36px_minmax(130px,0.75fr)_88px_minmax(0,1fr)_74px_82px]"
+      style={{ borderBottom: '1px solid var(--today-line)' }}
     >
       <span className="relative mt-0.5 flex h-7 w-7 items-center justify-center rounded-md text-[10.5px] font-semibold" style={{ background: style.bg, color: style.color, border: `1px solid ${style.border}` }}>
         {person.initials}
@@ -571,7 +602,7 @@ function MiniList({
   return (
     <section>
       <h3 className="mb-2 text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h3>
-      <div style={{ borderTop: '1px solid var(--today-line)', borderBottom: '1px solid var(--today-line)' }}>
+      <div className="space-y-1">
         {items.length > 0 ? items.map((item) => {
           const style = toneStyles[item.tone];
           return (
@@ -579,12 +610,13 @@ function MiniList({
               key={item.id}
               type="button"
               onClick={item.onClick}
-              className="flex w-full items-center gap-3 py-2.5 text-left transition-colors hover:bg-[var(--today-hover)]"
+              className="flex w-full items-center gap-3 px-1 py-2.5 text-left transition-colors hover:bg-[var(--today-hover)]"
+              style={{ borderBottom: '1px solid var(--today-line)' }}
             >
               <span className="h-2 w-2 rounded-full" style={{ background: style.color }} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{item.title}</span>
-                <span className="mt-0.5 block truncate text-[11px]" style={{ color: 'var(--text-muted)' }}>{item.detail}</span>
+                <span className="mt-0.5 block truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>{item.detail}</span>
               </span>
               <ArrowRight size={12} style={{ color: 'var(--text-muted)' }} />
             </button>
@@ -605,13 +637,13 @@ function CommandFooter({
   onSelectWorkFilter?: (filter: FilterType) => void;
 }) {
   return (
-    <footer className="shrink-0 border-t px-5 py-2 xl:px-8" style={{ borderColor: 'var(--today-line)', background: 'color-mix(in srgb, var(--bg-primary) 56%, transparent)' }}>
-      <div className="grid gap-2 md:grid-cols-[180px_repeat(4,minmax(0,1fr))_190px]">
-        <div className="hidden items-center gap-3 md:flex">
-          <Zap size={18} style={{ color: 'var(--accent)' }} />
+    <footer className="shrink-0 border-t px-5 py-1.5 xl:px-8" style={{ borderColor: 'var(--today-line)', background: 'color-mix(in srgb, var(--bg-primary) 48%, transparent)' }}>
+      <div className="grid gap-1.5 md:grid-cols-[150px_repeat(4,minmax(0,1fr))_170px]">
+        <div className="hidden items-center gap-2.5 md:flex">
+          <Zap size={16} style={{ color: 'var(--accent)' }} />
           <div>
             <p className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>Quick actions</p>
-            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Jump into what matters</p>
+            <p className="text-[10.5px]" style={{ color: 'var(--text-muted)' }}>Jump into what matters</p>
           </div>
         </div>
         <FooterAction icon={Plus} title="Capture" detail="Note, decision, follow-up" onClick={() => onViewChange('desk')} />
@@ -621,10 +653,10 @@ function CommandFooter({
         <button
           type="button"
           onClick={() => onSelectWorkFilter?.('blocked')}
-          className="hidden items-center justify-end gap-3 border-l pl-5 text-left transition-colors hover:bg-[var(--today-hover)] md:flex"
+          className="hidden items-center justify-end gap-2.5 border-l pl-4 text-left transition-colors hover:bg-[var(--today-hover)] md:flex"
           style={{ borderColor: 'var(--today-line)' }}
         >
-          <AlertCircle size={18} style={{ color: 'var(--accent)' }} />
+          <AlertCircle size={16} style={{ color: 'var(--accent)' }} />
           <span>
             <span className="block text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>Standup kit</span>
             <span className="block text-[11px]" style={{ color: 'var(--text-muted)' }}>Talking points ready</span>
@@ -640,14 +672,14 @@ function FooterAction({ icon: Icon, title, detail, onClick }: { icon: LucideIcon
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-[var(--today-hover)] active:scale-[0.98]"
+      className="flex items-center gap-2.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-[var(--today-hover)] active:scale-[0.98]"
     >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" style={{ background: 'color-mix(in srgb, var(--accent) 13%, transparent)', color: 'var(--accent)' }}>
-        <Icon size={15} />
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={{ background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)' }}>
+        <Icon size={14} />
       </span>
       <span className="min-w-0">
         <span className="block truncate text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</span>
-        <span className="block truncate text-[11px]" style={{ color: 'var(--text-muted)' }}>{detail}</span>
+        <span className="hidden truncate text-[10.5px] xl:block" style={{ color: 'var(--text-muted)' }}>{detail}</span>
       </span>
     </button>
   );
@@ -683,7 +715,7 @@ function BoardSkeleton() {
           <div className="mb-2 h-4 w-24 animate-pulse rounded-sm" style={{ background: 'var(--bg-tertiary)' }} />
           <div style={{ borderTop: '1px solid var(--today-line)', borderBottom: '1px solid var(--today-line)' }}>
             {[0, 1, 2].map((row) => (
-              <div key={row} className="grid grid-cols-[30px_minmax(0,1fr)] gap-4 px-1 py-3 md:grid-cols-[30px_minmax(0,1.25fr)_minmax(140px,0.75fr)_120px_116px]" style={{ borderTop: row > 0 ? '1px solid var(--today-line)' : 'none' }}>
+              <div key={row} className="grid grid-cols-[30px_minmax(0,1fr)] gap-4 px-1 py-3 md:grid-cols-[30px_minmax(0,1.25fr)_minmax(130px,0.7fr)_110px_146px]" style={{ borderTop: row > 0 ? '1px solid var(--today-line)' : 'none' }}>
                 <div className="h-6 w-6 animate-pulse rounded-md" style={{ background: 'var(--bg-tertiary)' }} />
                 <div className="h-4 animate-pulse rounded-sm" style={{ background: 'var(--bg-tertiary)' }} />
                 <div className="hidden h-4 animate-pulse rounded-sm md:block" style={{ background: 'var(--bg-tertiary)' }} />
