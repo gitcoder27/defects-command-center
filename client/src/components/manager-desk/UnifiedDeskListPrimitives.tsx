@@ -1,28 +1,33 @@
 import type { ReactNode } from 'react';
-import { Archive, CalendarCheck, CheckCircle2, Clock3, Inbox, ListChecks } from 'lucide-react';
+import { Archive, CheckCircle2, Clock3, Inbox, ListChecks } from 'lucide-react';
 import type { ManagerDeskItem } from '@/types/manager-desk';
 import type { ManagerDeskQuickFilter } from './workbench-utils';
 
 export const lensCopy: Record<ManagerDeskQuickFilter, { title: string; subtitle: string; empty: string }> = {
   all: {
-    title: 'Open work',
-    subtitle: '',
-    empty: 'No open work matches this view.',
+    title: 'Today',
+    subtitle: 'Your desk grouped by the manager rhythm.',
+    empty: 'No desk work matches this view.',
+  },
+  now: {
+    title: 'Now',
+    subtitle: 'Work already in motion.',
+    empty: 'Nothing is in motion right now.',
+  },
+  planned: {
+    title: 'Planned',
+    subtitle: 'Committed work that has not started yet.',
+    empty: 'Nothing is planned in this view.',
   },
   waiting: {
     title: 'Waiting',
     subtitle: 'Blocked work and follow-ups that depend on someone else.',
     empty: 'Nothing is currently waiting on someone else.',
   },
-  meetings: {
-    title: 'Meetings',
-    subtitle: 'Time-bound conversations and sync points.',
-    empty: 'No meetings match this view.',
-  },
   inbox: {
-    title: 'Inbox',
-    subtitle: 'Fresh captures that still need a little structure.',
-    empty: 'Inbox is clear.',
+    title: 'Needs triage',
+    subtitle: 'Fresh captures waiting for a decision.',
+    empty: 'Triage is clear.',
   },
   backlog: {
     title: 'Later',
@@ -80,8 +85,6 @@ export function UnifiedEmptyState({
 }) {
   const Icon = quickFilter === 'done'
     ? CheckCircle2
-    : quickFilter === 'meetings'
-    ? CalendarCheck
     : quickFilter === 'waiting'
     ? Clock3
     : quickFilter === 'inbox'

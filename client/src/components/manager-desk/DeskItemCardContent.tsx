@@ -37,7 +37,7 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
   const KindIcon = kindIcons[item.kind];
   const dateSignal = useMemo(() => getDateSignal(item, isOverdue), [item, isOverdue]);
   const sourceSignal = useMemo(() => getSourceSignal(item), [item]);
-  const statusLabel = item.status === 'in_progress' ? 'Started' : STATUS_LABELS[item.status];
+  const statusLabel = STATUS_LABELS[item.status];
   const execChip = useExecutionChip(item);
   const primaryAction = getPrimaryQuickAction(item);
   const secondaryActions = getSecondaryQuickActions(item);
@@ -99,7 +99,7 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
       </div>
 
       {primaryAction && onStatusChange && !readOnly && (
-        <div className="flex items-center gap-1 md:justify-end md:opacity-0 md:transition-opacity md:duration-150 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+        <div className="flex items-center gap-1 md:justify-end">
           <RowActionButton action={primaryAction} itemTitle={item.title} onStatusChange={onStatusChange} />
           {secondaryActions.length > 0 && (
             <Popover.Root>

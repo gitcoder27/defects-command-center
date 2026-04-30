@@ -5,10 +5,11 @@ import type { ManagerDeskFilterState, ManagerDeskQuickFilter } from './workbench
 import { getQuickFilterCount } from './workbench-utils';
 
 const quickFilters: Array<{ key: ManagerDeskQuickFilter; label: string }> = [
-  { key: 'all', label: 'Open' },
+  { key: 'all', label: 'Today' },
+  { key: 'now', label: 'Now' },
+  { key: 'inbox', label: 'Triage' },
+  { key: 'planned', label: 'Planned' },
   { key: 'waiting', label: 'Waiting' },
-  { key: 'meetings', label: 'Meetings' },
-  { key: 'inbox', label: 'Inbox' },
   { key: 'backlog', label: 'Later' },
   { key: 'done', label: 'Done' },
 ];
@@ -117,7 +118,7 @@ export function ManagerDeskCommandBar({
           )}
         </div>
 
-        <div className="mt-1.5 flex flex-wrap gap-1" aria-label="Manager Desk lenses">
+        <div className="mt-1.5 flex flex-wrap gap-1" aria-label="Manager Desk map">
           {quickFilters.map(({ key, label }) => (
             <button
               key={key}

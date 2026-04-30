@@ -14,9 +14,10 @@ export type ManagerDeskFilterState = {
 
 export type ManagerDeskQuickFilter =
   | 'all'
+  | 'now'
+  | 'planned'
   | 'waiting'
   | 'inbox'
-  | 'meetings'
   | 'backlog'
   | 'done';
 
@@ -94,18 +95,20 @@ export function filterItems(
     }
 
     switch (quickFilter) {
+      case 'now':
+        return item.status === 'in_progress';
+      case 'planned':
+        return item.status === 'planned';
       case 'waiting':
         return isOpenWork(item) && (item.status === 'waiting' || item.kind === 'waiting');
       case 'inbox':
         return item.status === 'inbox';
-      case 'meetings':
-        return isOpenWork(item) && item.kind === 'meeting';
       case 'backlog':
         return isLaterItem(item);
       case 'done':
         return isCompleted(item);
       default:
-        return isOpenWork(item);
+        return true;
     }
   });
 }
@@ -155,7 +158,7 @@ export function getInitialSelection(items: ManagerDeskItem[]) {
 
 export function getQuickFilterCount(items: ManagerDeskItem[], quickFilter: ManagerDeskQuickFilter) {
   if (quickFilter === 'all') {
-    return getOpenItems(items).length;
+    return items.length;
   }
 
   return filterItems(items, '', quickFilter, { kind: null, category: null, status: null }).length;

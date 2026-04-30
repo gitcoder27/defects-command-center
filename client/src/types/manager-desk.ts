@@ -53,12 +53,12 @@ export const CATEGORY_LABELS: Record<ManagerDeskCategory, string> = {
 };
 
 export const STATUS_LABELS: Record<ManagerDeskStatus, string> = {
-  inbox: 'Inbox',
+  inbox: 'Needs triage',
   planned: 'Planned',
-  in_progress: 'In Progress',
+  in_progress: 'Doing',
   waiting: 'Waiting',
   backlog: 'Later',
-  done: 'Completed',
+  done: 'Done',
   cancelled: 'Dropped',
 };
 

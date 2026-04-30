@@ -113,7 +113,7 @@ export function ManagerDeskPage() {
         { date, title, kind, category },
         {
           onSuccess: () => {
-            addToast(viewMode === 'planning' ? 'Planned item added' : 'Captured to Inbox', 'success');
+            addToast(viewMode === 'planning' ? 'Planned item added' : 'Captured to triage', 'success');
           },
           onError: (err) => addToast(err.message, 'error'),
         },
