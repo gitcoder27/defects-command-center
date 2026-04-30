@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useCallback, useRef } from 'react';
+import { useMemo, useEffect, useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import { motion } from 'framer-motion';
 import {
   useReactTable,
@@ -96,6 +96,53 @@ function getEffectiveDueDate(issue: Issue): string | undefined {
   return issue.developmentDueDate ?? issue.dueDate;
 }
 
+function useDefectTableModel({
+  baseIssues,
+  normalizedSearch,
+  excludedStatuses,
+  columns,
+  sorting,
+  setSorting,
+}: {
+  baseIssues: Issue[];
+  normalizedSearch: string;
+  excludedStatuses: string[];
+  columns: Parameters<typeof useReactTable<Issue>>[0]['columns'];
+  sorting: SortingState;
+  setSorting: Dispatch<SetStateAction<SortingState>>;
+}) {
+  const filteredIssues = useMemo(() => {
+    let filtered = baseIssues;
+    if (excludedStatuses.length) {
+      const excludedSet = new Set(excludedStatuses);
+      filtered = filtered.filter((issue) => !excludedSet.has(issue.statusName));
+    }
+    if (!normalizedSearch) {
+      return filtered;
+    }
+
+    return filtered.filter((issue) => {
+      return issue.jiraKey.toLowerCase().includes(normalizedSearch) || issue.summary.toLowerCase().includes(normalizedSearch);
+    });
+  }, [baseIssues, excludedStatuses, normalizedSearch]);
+
+  const table = useReactTable({
+    data: filteredIssues,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
+  const visibleIssueKeys = useMemo(
+    () => table.getRowModel().rows.map((row) => row.original.jiraKey),
+    [table, filteredIssues, sorting]
+  );
+
+  return { filteredIssues, table, visibleIssueKeys };
+}
+
 interface DefectTableProps {
   filter: FilterType;
   assigneeFilter?: string;
@@ -108,6 +155,7 @@ interface DefectTableProps {
   tagId?: number;
   noTags?: boolean;
   onClearFilters: () => void;
+  onVisibleIssueKeysChange?: (keys: string[]) => void;
 }
 
 export function DefectTable({
@@ -122,6 +170,7 @@ export function DefectTable({
   tagId,
   noTags,
   onClearFilters,
+  onVisibleIssueKeysChange,
 }: DefectTableProps) {
   const { theme } = useTheme();
   const { data: issues, isLoading } = useIssues(filter, assigneeFilter, tagId, noTags);
@@ -597,29 +646,19 @@ export function DefectTable({
     tagId !== undefined ||
     Boolean(noTags) ||
     Boolean(normalizedSearch);
-  const filteredIssues = useMemo(() => {
-    let filtered = baseIssues;
-    if (excludedStatuses.length) {
-      const excludedSet = new Set(excludedStatuses);
-      filtered = filtered.filter((issue) => !excludedSet.has(issue.statusName));
-    }
-    if (!normalizedSearch) {
-      return filtered;
-    }
 
-    return filtered.filter((issue) => {
-      return issue.jiraKey.toLowerCase().includes(normalizedSearch) || issue.summary.toLowerCase().includes(normalizedSearch);
-    });
-  }, [baseIssues, excludedStatuses, normalizedSearch]);
-
-  const table = useReactTable({
-    data: filteredIssues,
+  const { filteredIssues, table, visibleIssueKeys } = useDefectTableModel({
+    baseIssues,
+    normalizedSearch,
+    excludedStatuses,
     columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    sorting,
+    setSorting,
   });
+
+  useEffect(() => {
+    onVisibleIssueKeysChange?.(visibleIssueKeys);
+  }, [onVisibleIssueKeysChange, visibleIssueKeys]);
 
   const closeSearch = useCallback(() => {
     setSearchQuery('');
@@ -940,10 +979,4 @@ export function DefectTable({
         </div>
     </div>
   );
-}
-
-/** Returns the issue keys in the current table sort order */
-export function useTableIssueKeys(filter: FilterType, assigneeFilter?: string, tagId?: number, noTags?: boolean) {
-  const { data: issues } = useIssues(filter, assigneeFilter, tagId, noTags);
-  return issues ?? [];
 }

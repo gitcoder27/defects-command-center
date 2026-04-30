@@ -44,6 +44,11 @@ import { HttpError } from "../middleware/errorHandler";
 import { SettingsService } from "./settings.service";
 import { DeveloperAvailabilityService } from "./developer-availability.service";
 import { runInTransaction } from "../db/transaction";
+import {
+  normalizeBoardSearchQuery,
+  normalizeSavedViewQuery as normalizeSavedViewQueryInput,
+  resolveUnsavedBoardQuery,
+} from "./team-tracker-board-query";
 
 interface TrackerSignalConfig {
   staleThresholdHours: number;
@@ -121,13 +126,6 @@ const TRACKER_STATUS_LABELS: Record<TrackerDeveloperStatus, string> = {
   done_for_today: "Done for Today",
 };
 
-const DEFAULT_BOARD_QUERY: TeamTrackerBoardResolvedQuery = {
-  q: "",
-  summaryFilter: "all",
-  sortBy: "name",
-  groupBy: "none",
-};
-
 const BLOCKED_FIRST_STATUS_ORDER: Record<TrackerDeveloperStatus, number> = {
   blocked: 0,
   at_risk: 1,
@@ -192,10 +190,6 @@ function buildStatusUpdateSummary(params: {
     params.rationale ??
     `Status updated to ${TRACKER_STATUS_LABELS[params.status]}.`
   );
-}
-
-function normalizeBoardSearchQuery(value: string | null | undefined): string {
-  return value?.trim() ?? "";
 }
 
 function mapSavedView(
@@ -983,14 +977,7 @@ export class TeamTrackerService {
     const normalizedRawQuery = rawQuery ?? {};
 
     if (!normalizedRawQuery.viewId) {
-      return {
-        ...DEFAULT_BOARD_QUERY,
-        q: normalizeBoardSearchQuery(normalizedRawQuery.q),
-        summaryFilter:
-          normalizedRawQuery.summaryFilter ?? DEFAULT_BOARD_QUERY.summaryFilter,
-        sortBy: normalizedRawQuery.sortBy ?? DEFAULT_BOARD_QUERY.sortBy,
-        groupBy: normalizedRawQuery.groupBy ?? DEFAULT_BOARD_QUERY.groupBy,
-      };
+      return resolveUnsavedBoardQuery(normalizedRawQuery);
     }
 
     if (!managerAccountId) {
@@ -2038,12 +2025,7 @@ export class TeamTrackerService {
     sortBy?: TeamTrackerBoardSort;
     groupBy?: TeamTrackerBoardGroupBy;
   }): Omit<TeamTrackerBoardResolvedQuery, "viewId"> {
-    return {
-      q: normalizeBoardSearchQuery(input.q),
-      summaryFilter: input.summaryFilter ?? DEFAULT_BOARD_QUERY.summaryFilter,
-      sortBy: input.sortBy ?? DEFAULT_BOARD_QUERY.sortBy,
-      groupBy: input.groupBy ?? DEFAULT_BOARD_QUERY.groupBy,
-    };
+    return normalizeSavedViewQueryInput(input);
   }
 
   private async getOwnedSavedViewRow(

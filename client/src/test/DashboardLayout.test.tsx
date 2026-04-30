@@ -58,8 +58,13 @@ vi.mock('@/components/table/DefectTable', () => ({
     highlightedKey?: string;
     onSelectIssue?: (key: string) => void;
     onClearFilters?: () => void;
+    onVisibleIssueKeysChange?: (keys: string[]) => void;
   }) => {
     const [inlineEditorOpen, setInlineEditorOpen] = React.useState(false);
+
+    React.useEffect(() => {
+      props.onVisibleIssueKeysChange?.(['PROJ-102', 'PROJ-101']);
+    }, [props]);
 
     defectTableSpy(props);
     return (
@@ -88,7 +93,6 @@ vi.mock('@/components/table/DefectTable', () => ({
       </div>
     );
   },
-  useTableIssueKeys: () => [],
 }));
 
 vi.mock('@/components/triage/TriagePanel', () => ({
@@ -337,5 +341,14 @@ describe('DashboardLayout', () => {
     expect(lastTableCall.assigneeFilter).toBeUndefined();
     expect(lastTableCall.tagId).toBe(1);
     expect(lastTableCall.noTags).toBe(false);
+  });
+
+  it('opens the focused visible table row from keyboard navigation', () => {
+    render(<DashboardLayout />);
+
+    fireEvent.keyDown(window, { key: 'ArrowDown' });
+    fireEvent.keyDown(window, { key: 'Enter' });
+
+    expect(screen.getByTestId('selected-key')).toHaveTextContent('PROJ-102');
   });
 });

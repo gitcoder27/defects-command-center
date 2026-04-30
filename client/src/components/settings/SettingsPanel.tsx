@@ -29,33 +29,26 @@ import { useConfig } from '@/hooks/useConfig';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
-import { api } from '@/lib/api';
 import { DEVELOPER_LOGIN_URL } from '@/lib/constants';
 import { useDevelopers } from '@/hooks/useDevelopers';
+import {
+  useAddManualDeveloper,
+  useAddTeamDevelopers,
+  useAppUsers,
+  useCreateAppUser,
+  useDeleteAppUser,
+  useDiscoverJiraFields,
+  useDiscoverTeamMembers,
+  useRemoveTeamDeveloper,
+  useResetSettingsConfig,
+  useSaveSettingsConfig,
+  useUpdateTeamDeveloper,
+  type DiscoveredUser,
+  type JiraField,
+} from '@/hooks/useSettingsActions';
 import { TagManagementSection } from '@/components/settings/TagManagementSection';
 import { SettingsMaintenanceSection } from '@/components/settings/SettingsMaintenanceSection';
 import type { AuthUser, Developer, UserRole } from '@/types';
-
-interface JiraField {
-  id: string;
-  name: string;
-  custom: boolean;
-}
-
-interface DiscoveredUser {
-  accountId: string;
-  displayName: string;
-  email?: string;
-  avatarUrl?: string;
-}
-
-interface DiscoverUsersResponse {
-  users: DiscoveredUser[];
-  startAt: number;
-  maxResults: number;
-  count: number;
-  hasMore: boolean;
-}
 
 type FieldPickerTarget = 'dueDate' | 'aspenSeverity';
 type SectionId = 'connection' | 'sync' | 'team' | 'tags' | 'maintenance' | 'access';
@@ -68,6 +61,17 @@ export function SettingsPage() {
   const triggerSync = useTriggerSync();
   const { addToast } = useToast();
   const queryClient = useQueryClient();
+  const appUsersQuery = useAppUsers();
+  const { mutateAsync: createAppUser } = useCreateAppUser();
+  const { mutateAsync: deleteAppUser } = useDeleteAppUser();
+  const { mutateAsync: discoverJiraFields } = useDiscoverJiraFields();
+  const { mutateAsync: saveSettingsConfig } = useSaveSettingsConfig();
+  const { mutateAsync: resetSettingsConfig } = useResetSettingsConfig();
+  const { mutateAsync: discoverTeamMembers } = useDiscoverTeamMembers();
+  const { mutateAsync: addTeamDevelopers } = useAddTeamDevelopers();
+  const { mutateAsync: addManualDeveloper } = useAddManualDeveloper();
+  const { mutateAsync: updateTeamDeveloper } = useUpdateTeamDeveloper();
+  const { mutateAsync: removeTeamDeveloper } = useRemoveTeamDeveloper();
 
   const [jql, setJql] = useState('');
   const [devDueDateField, setDevDueDateField] = useState('');
@@ -106,8 +110,8 @@ export function SettingsPage() {
   const [removingAccountId, setRemovingAccountId] = useState<string | null>(null);
   const discoverRequestRef = useRef(0);
 
-  const [appUsers, setAppUsers] = useState<AuthUser[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const appUsers = appUsersQuery.data ?? [];
+  const loadingUsers = appUsersQuery.isLoading;
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [newDisplayName, setNewDisplayName] = useState('');
@@ -157,24 +161,6 @@ export function SettingsPage() {
     }
   }, [config]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoadingUsers(true);
-    api.get<{ users: AuthUser[] }>('/auth/users')
-      .then((res) => {
-        if (!cancelled) setAppUsers(res.users ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) setAppUsers([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingUsers(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const handleCreateUser = async () => {
     if (!newUsername.trim() || !newDisplayName.trim() || !newPassword.trim()) return;
     if (newRole === 'developer' && !newDevAccountId) {
@@ -183,14 +169,13 @@ export function SettingsPage() {
     }
     setCreatingUser(true);
     try {
-      const res = await api.post<{ user: AuthUser }>('/auth/register', {
+      const res = await createAppUser({
         username: newUsername.trim(),
         password: newPassword.trim(),
         displayName: newDisplayName.trim(),
         role: newRole,
         ...(newRole === 'developer' ? { developerAccountId: newDevAccountId } : {}),
       });
-      setAppUsers((prev) => [...prev, res.user]);
       setNewUsername('');
       setNewDisplayName('');
       setNewPassword('');
@@ -216,8 +201,7 @@ export function SettingsPage() {
   const handleDeleteUser = useCallback(async (user: AuthUser) => {
     setDeletingUsername(user.username);
     try {
-      await api.delete<{ ok: true }>(`/auth/users/${encodeURIComponent(user.username)}`);
-      setAppUsers((prev) => prev.filter((entry) => entry.username !== user.username));
+      await deleteAppUser(user.username);
       setConfirmDeleteUsername((current) => (current === user.username ? null : current));
       addToast({
         type: 'success',
@@ -233,7 +217,7 @@ export function SettingsPage() {
     } finally {
       setDeletingUsername(null);
     }
-  }, [addToast]);
+  }, [addToast, deleteAppUser]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -247,20 +231,20 @@ export function SettingsPage() {
     setFieldSearch('');
     setLoadingFields(true);
     try {
-      const res = await api.get<{ fields: JiraField[] }>('/config/fields');
-      setFields(res.fields);
+      const fields = await discoverJiraFields();
+      setFields(fields);
     } catch (err) {
       setFieldPickerTarget(null);
       addToast({ type: 'error', title: 'Failed to fetch Jira fields', message: err instanceof Error ? err.message : 'Request failed' });
     } finally {
       setLoadingFields(false);
     }
-  }, [addToast]);
+  }, [addToast, discoverJiraFields]);
 
   const handleSave = async (): Promise<boolean> => {
     setSaving(true);
     try {
-      await api.put('/config/settings', {
+      await saveSettingsConfig({
         jiraSyncJql: jql,
         jiraDevDueDateField: devDueDateField,
         jiraAspenSeverityField: aspenSeverityField,
@@ -298,7 +282,7 @@ export function SettingsPage() {
 
     setResetting(true);
     try {
-      await api.post('/config/reset');
+      await resetSettingsConfig();
       await queryClient.invalidateQueries({ queryKey: ['config'] });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['issues'] }),
@@ -417,7 +401,7 @@ export function SettingsPage() {
       }
 
       try {
-        const res = await api.post<DiscoverUsersResponse>('/team/discover', {
+        const res = await discoverTeamMembers({
           query,
           startAt,
           maxResults: DISCOVER_PAGE_SIZE,
@@ -467,7 +451,7 @@ export function SettingsPage() {
         }
       }
     },
-    [addToast, canUseJiraDirectory]
+    [addToast, canUseJiraDirectory, discoverTeamMembers]
   );
 
   useEffect(() => {
@@ -520,7 +504,7 @@ export function SettingsPage() {
         return;
       }
 
-      await api.post('/team/developers', { developers: newMembers });
+      await addTeamDevelopers(newMembers);
       setSelectedAddUsers(new Set());
       await syncTeamMembershipChange(
         `Added ${newMembers.length} team member${newMembers.length === 1 ? '' : 's'} and synced issues.`
@@ -530,7 +514,7 @@ export function SettingsPage() {
     } finally {
       setSavingTeam(false);
     }
-  }, [activeMemberIds, discoveredUsers, selectedAddUsers, addToast, syncTeamMembershipChange]);
+  }, [activeMemberIds, addTeamDevelopers, discoveredUsers, selectedAddUsers, addToast, syncTeamMembershipChange]);
 
   const handleAddManualMember = useCallback(async () => {
     if (!manualMemberName.trim()) {
@@ -539,7 +523,7 @@ export function SettingsPage() {
 
     setSavingManualMember(true);
     try {
-      await api.post('/team/developers/manual', {
+      await addManualDeveloper({
         displayName: manualMemberName.trim(),
         email: manualMemberEmail.trim(),
         ...(manualMemberJiraAccountId.trim() ? { jiraAccountId: manualMemberJiraAccountId.trim() } : {}),
@@ -558,7 +542,7 @@ export function SettingsPage() {
     } finally {
       setSavingManualMember(false);
     }
-  }, [addToast, invalidateTeamScopeData, manualMemberEmail, manualMemberJiraAccountId, manualMemberName]);
+  }, [addManualDeveloper, addToast, invalidateTeamScopeData, manualMemberEmail, manualMemberJiraAccountId, manualMemberName]);
 
   const startEditingMember = useCallback((member: Developer) => {
     setConfirmRemoveAccountId(null);
@@ -582,7 +566,8 @@ export function SettingsPage() {
 
     setSavingMemberId(editingMemberId);
     try {
-      await api.patch('/team/developers/' + encodeURIComponent(editingMemberId), {
+      await updateTeamDeveloper({
+        accountId: editingMemberId,
         displayName: editingMemberName.trim(),
         email: editingMemberEmail.trim(),
         jiraAccountId: editingMemberJiraAccountId.trim(),
@@ -599,12 +584,12 @@ export function SettingsPage() {
     } finally {
       setSavingMemberId(null);
     }
-  }, [addToast, cancelEditingMember, editingMemberEmail, editingMemberId, editingMemberJiraAccountId, editingMemberName, invalidateTeamScopeData]);
+  }, [addToast, cancelEditingMember, editingMemberEmail, editingMemberId, editingMemberJiraAccountId, editingMemberName, invalidateTeamScopeData, updateTeamDeveloper]);
 
   const handleRemoveMember = useCallback(async (accountId: string) => {
     setRemovingAccountId(accountId);
     try {
-      await api.delete(`/team/developers/${encodeURIComponent(accountId)}`);
+      await removeTeamDeveloper(accountId);
       setConfirmRemoveAccountId((current) => (current === accountId ? null : current));
       await syncTeamMembershipChange('Developer removed from tracked team and synced issues.');
     } catch (err) {
@@ -612,7 +597,7 @@ export function SettingsPage() {
     } finally {
       setRemovingAccountId(null);
     }
-  }, [addToast, syncTeamMembershipChange]);
+  }, [addToast, removeTeamDeveloper, syncTeamMembershipChange]);
 
   const hasChanges = saving || triggerSync.isPending || resetting || teamActionLoading;
 

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Header } from './Header';
 import { ErrorBanner } from '@/components/alerts/ErrorBanner';
 import { FilterSidebar } from '@/components/filters/FilterSidebar';
-import { DefectTable, useTableIssueKeys } from '@/components/table/DefectTable';
+import { DefectTable } from '@/components/table/DefectTable';
 import { TriagePanel } from '@/components/triage/TriagePanel';
 import { WorkloadBar } from '@/components/workload/WorkloadBar';
 import { WorkFocusStrip } from '@/components/work/WorkFocusStrip';
@@ -39,11 +39,120 @@ const RETAINED_HIGHLIGHT_INTERACTIVE_SELECTOR = [
   '[contenteditable="true"]',
 ].join(', ');
 
+function shouldIgnoreDashboardShortcut(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
+}
+
 interface DashboardLayoutProps {
   activeView?: AppView;
   onViewChange?: (view: AppView) => void;
   filterState?: DashboardFilterState;
   onFilterStateChange?: (state: DashboardFilterState) => void;
+}
+
+function useDashboardShortcuts({
+  visibleIssueKeys,
+  focusedIndex,
+  setFocusedIndex,
+  openIssue,
+  triggerSync,
+  setFilterState,
+  clearIssueHighlight,
+  closePanel,
+}: {
+  visibleIssueKeys: string[];
+  focusedIndex: number;
+  setFocusedIndex: (updater: number | ((previous: number) => number)) => void;
+  openIssue: (key: string) => void;
+  triggerSync: Pick<ReturnType<typeof useTriggerSync>, 'mutate'>;
+  setFilterState: (updater: DashboardFilterState | ((prev: DashboardFilterState) => DashboardFilterState)) => void;
+  clearIssueHighlight: () => void;
+  closePanel: () => void;
+}) {
+  useEffect(() => {
+    const setFilterShortcut = (activeFilter: FilterType) => {
+      setFilterState((prev) => ({ ...prev, activeFilter }));
+      clearIssueHighlight();
+      setFocusedIndex(-1);
+    };
+
+    const handler = (event: KeyboardEvent) => {
+      if (shouldIgnoreDashboardShortcut(event.target)) {
+        return;
+      }
+
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          setFocusedIndex((prev) => Math.min(prev + 1, visibleIssueKeys.length - 1));
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          setFocusedIndex((prev) => Math.max(prev - 1, 0));
+          break;
+        case 'Enter': {
+          event.preventDefault();
+          const issueKey = visibleIssueKeys[focusedIndex];
+          if (issueKey) {
+            openIssue(issueKey);
+          }
+          break;
+        }
+        case 'r':
+          event.preventDefault();
+          triggerSync.mutate();
+          break;
+        case '0':
+        case '1':
+          event.preventDefault();
+          setFilterShortcut('all');
+          break;
+        case '2':
+          event.preventDefault();
+          setFilterShortcut('unassigned');
+          break;
+        case '3':
+          event.preventDefault();
+          setFilterShortcut('dueToday');
+          break;
+        case '4':
+          event.preventDefault();
+          setFilterShortcut('dueThisWeek');
+          break;
+        case '5':
+          event.preventDefault();
+          setFilterShortcut('overdue');
+          break;
+        case '6':
+          event.preventDefault();
+          setFilterShortcut('blocked');
+          break;
+        case '7':
+          event.preventDefault();
+          setFilterShortcut('stale');
+          break;
+        case 'Escape':
+          closePanel();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [
+    clearIssueHighlight,
+    closePanel,
+    focusedIndex,
+    openIssue,
+    setFilterState,
+    setFocusedIndex,
+    triggerSync,
+    visibleIssueKeys,
+  ]);
 }
 
 export function DashboardLayout({ activeView, onViewChange, filterState, onFilterStateChange }: DashboardLayoutProps) {
@@ -52,6 +161,7 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
   const [highlightedIssueKey, setHighlightedIssueKey] = useState<string | undefined>();
   const [shouldClearHighlightedIssueOnInteraction, setShouldClearHighlightedIssueOnInteraction] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [visibleIssueKeys, setVisibleIssueKeys] = useState<string[]>([]);
   const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const hasAnimatedRef = useRef(false);
@@ -85,8 +195,14 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
     }
   }, [isCompact]);
 
-  // Get current issue list for keyboard nav
-  const issues = useTableIssueKeys(activeFilter, activeDeveloper, selectedTagId, noTagsFilter);
+  const handleVisibleIssueKeysChange = useCallback((keys: string[]) => {
+    setVisibleIssueKeys((previous) => {
+      if (previous.length === keys.length && previous.every((key, index) => key === keys[index])) {
+        return previous;
+      }
+      return keys;
+    });
+  }, []);
 
   // Mark animation as played after first render
   useEffect(() => {
@@ -290,92 +406,22 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
     };
   }, [cancelHighlightClearTimers]);
 
-  // Keyboard shortcuts
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      // Don't capture when typing in inputs
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+    if (focusedIndex >= visibleIssueKeys.length) {
+      setFocusedIndex(visibleIssueKeys.length - 1);
+    }
+  }, [focusedIndex, visibleIssueKeys.length]);
 
-      switch (e.key) {
-        case 'ArrowDown':
-          e.preventDefault();
-          setFocusedIndex((prev) => Math.min(prev + 1, issues.length - 1));
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          setFocusedIndex((prev) => Math.max(prev - 1, 0));
-          break;
-        case 'Enter':
-          e.preventDefault();
-          if (focusedIndex >= 0 && focusedIndex < issues.length) {
-            const issue = issues[focusedIndex];
-            if (issue) {
-              openIssue(issue.jiraKey);
-            }
-          }
-          break;
-        case 'r':
-          e.preventDefault();
-          triggerSync.mutate();
-          break;
-        case '0':
-          e.preventDefault();
-          setFilterState((prev) => ({ ...prev, activeFilter: 'all' }));
-          clearIssueHighlight();
-          setFocusedIndex(-1);
-          break;
-        case '1':
-          e.preventDefault();
-          setFilterState((prev) => ({ ...prev, activeFilter: 'all' }));
-          clearIssueHighlight();
-          setFocusedIndex(-1);
-          break;
-        case '2':
-          e.preventDefault();
-          setFilterState((prev) => ({ ...prev, activeFilter: 'unassigned' }));
-          clearIssueHighlight();
-          setFocusedIndex(-1);
-          break;
-        case '3':
-          e.preventDefault();
-          setFilterState((prev) => ({ ...prev, activeFilter: 'dueToday' }));
-          clearIssueHighlight();
-          setFocusedIndex(-1);
-          break;
-        case '4':
-          e.preventDefault();
-          setFilterState((prev) => ({ ...prev, activeFilter: 'dueThisWeek' }));
-          clearIssueHighlight();
-          setFocusedIndex(-1);
-          break;
-        case '5':
-          e.preventDefault();
-          setFilterState((prev) => ({ ...prev, activeFilter: 'overdue' }));
-          clearIssueHighlight();
-          setFocusedIndex(-1);
-          break;
-        case '6':
-          e.preventDefault();
-          setFilterState((prev) => ({ ...prev, activeFilter: 'blocked' }));
-          clearIssueHighlight();
-          setFocusedIndex(-1);
-          break;
-        case '7':
-          e.preventDefault();
-          setFilterState((prev) => ({ ...prev, activeFilter: 'stale' }));
-          clearIssueHighlight();
-          setFocusedIndex(-1);
-          break;
-        case 'Escape':
-          closePanel();
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [clearIssueHighlight, closePanel, focusedIndex, issues, openIssue, setFilterState, triggerSync]);
+  useDashboardShortcuts({
+    visibleIssueKeys,
+    focusedIndex,
+    setFocusedIndex,
+    openIssue,
+    triggerSync,
+    setFilterState,
+    clearIssueHighlight,
+    closePanel,
+  });
 
   const handleToggleSidebar = useCallback(() => {
     if (isCompact) {
@@ -439,6 +485,7 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
               tagId={selectedTagId}
               noTags={noTagsFilter}
               onClearFilters={handleClearAllFilters}
+              onVisibleIssueKeysChange={handleVisibleIssueKeysChange}
             />
 
             {/* Subtle backdrop — click to dismiss */}

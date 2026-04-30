@@ -255,6 +255,14 @@ export interface IssueUpdate {
   analysisNotes?: string;
 }
 
+export interface IssueCommentRequest {
+  text: string;
+}
+
+export interface IssueCommentResponse {
+  ok: true;
+}
+
 export interface IssueListOptions {
   trackerDate?: string;
 }

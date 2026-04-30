@@ -24,56 +24,46 @@ import { AvailabilityDialog } from './AvailabilityDialog';
 import { TrackerTaskDetailDrawer } from './TrackerTaskDetailDrawer';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
 import type { AppView } from '@/App';
-import type { TrackerAttentionActionItem, TrackerDeveloperDay, TrackerAttentionReason, TrackerWorkItem } from '@/types';
+import type {
+  TeamTrackerBoardResponse,
+  TrackerAttentionActionItem,
+  TrackerDeveloperDay,
+  TrackerAttentionReason,
+  TrackerWorkItem,
+} from '@/types';
 
 interface TeamTrackerPageProps {
   onViewChange?: (view: AppView) => void;
 }
 
-export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
-  const { addToast } = useToast();
-  const [date, setDate] = useState(getLocalIsoDate);
+function useTeamTrackerWorkflow({
+  date,
+  board,
+  readOnly,
+  addToast,
+  addTrackerItem,
+  updateAvailability,
+  setCurrent,
+  updateItem,
+  refetchBoard,
+}: {
+  date: string;
+  board?: TeamTrackerBoardResponse;
+  readOnly: boolean;
+  addToast: ReturnType<typeof useToast>['addToast'];
+  addTrackerItem: ReturnType<typeof useAddTrackerItem>;
+  updateAvailability: ReturnType<typeof useUpdateAvailability>;
+  setCurrent: ReturnType<typeof useSetCurrentItem>;
+  updateItem: ReturnType<typeof useUpdateTrackerItem>;
+  refetchBoard: () => unknown;
+}) {
   const [drawerAccountId, setDrawerAccountId] = useState<string | undefined>();
   const [selectedTask, setSelectedTask] = useState<{ trackerItemId: number; managerDeskItemId?: number } | null>(null);
   const [availabilityTarget, setAvailabilityTarget] = useState<TrackerDeveloperDay | undefined>();
   const [followUpTarget, setFollowUpTarget] = useState<{ day: TrackerDeveloperDay; reasons: TrackerAttentionReason[] } | null>(null);
-  const [activeLens, setActiveLens] = useState<TeamTrackerLens>('team');
-
-  // Board query + saved views (extracted hook)
-  const qs = useBoardQueryState(addToast);
-
-  const {
-    data: board,
-    isLoading,
-    isFetching: isBoardFetching,
-    refetch: refetchBoard,
-  } = useTeamTracker(date, qs.boardQuery);
-
-  // Feed resolved query back to qs for derived values
-  const resolvedQuery = board?.query;
-
-  const { data: issues } = useIssues('all');
-  const isToday = date === getLocalIsoDate();
-  const nextDate = useMemo(() => shiftLocalIsoDate(date, 1), [date]);
-
-  const addTrackerItem = useAddTrackerItem(date);
-  const updateDay = useUpdateDay(date);
-  const updateAvailability = useUpdateAvailability(date);
-  const setCurrent = useSetCurrentItem(date);
-  const updateItem = useUpdateTrackerItem(date);
-  const addCheckIn = useAddCheckIn(date);
-
-  const groups = board?.groups ?? [];
-  const viewMode = board?.viewMode ?? (isToday ? 'live' : 'history');
-  const readOnly = viewMode === 'history';
-  const resolvedSummaryFilter = resolvedQuery?.summaryFilter ?? 'all';
-  const resolvedSortBy = resolvedQuery?.sortBy ?? 'name';
-  const resolvedGroupBy = resolvedQuery?.groupBy ?? 'none';
-  const resolvedSearch = resolvedQuery?.q ?? '';
-  const isGrouped = resolvedGroupBy !== 'none';
 
   const drawerDay = useMemo(
-    () => board?.developers.find((d) => d.developer.accountId === drawerAccountId),
+    () => board?.developers.find((day) => day.developer.accountId === drawerAccountId),
     [board, drawerAccountId]
   );
 
@@ -205,8 +195,6 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
     setSelectedTask(null);
   }, [date]);
 
-  const isRefreshing = isBoardFetching;
-
   const handleMarkInactive = useCallback((day: TrackerDeveloperDay) => {
     setAvailabilityTarget(day);
   }, []);
@@ -241,6 +229,81 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
     const attentionItem = attentionItems.find((item) => item.developer.accountId === day.developer.accountId);
     setFollowUpTarget({ day, reasons: attentionItem?.reasons ?? [] });
   }, [attentionItems]);
+
+  return {
+    drawerAccountId,
+    setDrawerAccountId,
+    drawerDay,
+    selectedTask,
+    setSelectedTask,
+    availabilityTarget,
+    setAvailabilityTarget,
+    followUpTarget,
+    setFollowUpTarget,
+    attentionItems,
+    handleSetCurrent,
+    handleMarkDone,
+    handleDropItem,
+    handleOpenTaskDetail,
+    handleCreateTask,
+    handleRefresh,
+    handleMarkInactive,
+    handleConfirmInactive,
+    handleReactivate,
+    handleCaptureFollowUp,
+  };
+}
+
+export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
+  const { addToast } = useToast();
+  const [date, setDate] = useState(getLocalIsoDate);
+  const [activeLens, setActiveLens] = useState<TeamTrackerLens>('team');
+
+  // Board query + saved views (extracted hook)
+  const qs = useBoardQueryState(addToast);
+
+  const {
+    data: board,
+    isLoading,
+    isFetching: isBoardFetching,
+    refetch: refetchBoard,
+  } = useTeamTracker(date, qs.boardQuery);
+
+  // Feed resolved query back to qs for derived values
+  const resolvedQuery = board?.query;
+
+  const { data: issues } = useIssues('all');
+  const isToday = date === getLocalIsoDate();
+  const nextDate = useMemo(() => shiftLocalIsoDate(date, 1), [date]);
+
+  const addTrackerItem = useAddTrackerItem(date);
+  const updateDay = useUpdateDay(date);
+  const updateAvailability = useUpdateAvailability(date);
+  const setCurrent = useSetCurrentItem(date);
+  const updateItem = useUpdateTrackerItem(date);
+  const addCheckIn = useAddCheckIn(date);
+
+  const groups = board?.groups ?? [];
+  const viewMode = board?.viewMode ?? (isToday ? 'live' : 'history');
+  const readOnly = viewMode === 'history';
+  const resolvedSummaryFilter = resolvedQuery?.summaryFilter ?? 'all';
+  const resolvedSortBy = resolvedQuery?.sortBy ?? 'name';
+  const resolvedGroupBy = resolvedQuery?.groupBy ?? 'none';
+  const resolvedSearch = resolvedQuery?.q ?? '';
+  const isGrouped = resolvedGroupBy !== 'none';
+
+  const isRefreshing = isBoardFetching;
+  const workflow = useTeamTrackerWorkflow({
+    date,
+    board,
+    readOnly,
+    addToast,
+    addTrackerItem,
+    updateAvailability,
+    setCurrent,
+    updateItem,
+    refetchBoard,
+  });
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -280,7 +343,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
           <div className="ml-auto flex items-center gap-1.5">
             <button
               type="button"
-              onClick={handleRefresh}
+              onClick={workflow.handleRefresh}
               disabled={isRefreshing}
               className="flex h-8 items-center gap-1 rounded-lg px-2.5 text-[11px] font-medium transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
               style={{
@@ -390,11 +453,11 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
                 groups={groups}
                 isGrouped={isGrouped}
                 searchActive={!!resolvedSearch}
-                onOpenDrawer={setDrawerAccountId}
-                onOpenTaskDetail={readOnly ? undefined : handleOpenTaskDetail}
-                onCaptureFollowUp={handleCaptureFollowUp}
+                onOpenDrawer={workflow.setDrawerAccountId}
+                onOpenTaskDetail={readOnly ? undefined : workflow.handleOpenTaskDetail}
+                onCaptureFollowUp={workflow.handleCaptureFollowUp}
                 issues={issues}
-                attentionItems={attentionItems}
+                attentionItems={workflow.attentionItems}
                 attentionSorted={resolvedSortBy === 'attention'}
                 readOnly={readOnly}
               />
@@ -403,7 +466,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
               board.inactiveDevelopers.length > 0 ? (
                 <InactiveDeveloperTray
                   items={board.inactiveDevelopers}
-                  onReactivate={handleReactivate}
+                  onReactivate={workflow.handleReactivate}
                   pendingAccountId={updateAvailability.isPending ? updateAvailability.variables?.accountId : undefined}
                   readOnly={readOnly}
                   defaultExpanded
@@ -425,56 +488,56 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
       {/* Detail drawer */}
       <DeveloperTrackerDrawer
         date={date}
-        day={drawerDay}
-        open={!!drawerAccountId}
-        onClose={() => setDrawerAccountId(undefined)}
+        day={workflow.drawerDay}
+        open={!!workflow.drawerAccountId}
+        onClose={() => workflow.setDrawerAccountId(undefined)}
         onUpdateDay={(params) => updateDay.mutate(params)}
-        onAddItem={handleCreateTask}
-        onOpenTaskDetail={handleOpenTaskDetail}
+        onAddItem={workflow.handleCreateTask}
+        onOpenTaskDetail={workflow.handleOpenTaskDetail}
         onReorderPlannedItem={(params) => updateItem.mutate(params)}
         onUpdateItemNote={(params) => updateItem.mutate(params)}
         onUpdateItemTitle={(params) => updateItem.mutate(params)}
-        onSetCurrent={handleSetCurrent}
-        onMarkDone={handleMarkDone}
-        onDropItem={handleDropItem}
+        onSetCurrent={workflow.handleSetCurrent}
+        onMarkDone={workflow.handleMarkDone}
+        onDropItem={workflow.handleDropItem}
         onAddCheckIn={(params) => addCheckIn.mutate(params)}
-        onMarkInactive={handleMarkInactive}
+        onMarkInactive={workflow.handleMarkInactive}
         onOpenManagerDesk={onViewChange ? () => onViewChange('desk') : undefined}
         issues={issues}
         isAddItemPending={addTrackerItem.isPending}
         readOnly={readOnly}
       />
       <TrackerTaskDetailDrawer
-        trackerItemId={selectedTask?.trackerItemId ?? null}
-        initialManagerDeskItemId={selectedTask?.managerDeskItemId ?? null}
-        onClose={() => setSelectedTask(null)}
+        trackerItemId={workflow.selectedTask?.trackerItemId ?? null}
+        initialManagerDeskItemId={workflow.selectedTask?.managerDeskItemId ?? null}
+        onClose={() => workflow.setSelectedTask(null)}
       />
       <AvailabilityDialog
-        open={!!availabilityTarget}
-        developerName={availabilityTarget?.developer.displayName}
+        open={!!workflow.availabilityTarget}
+        developerName={workflow.availabilityTarget?.developer.displayName}
         date={date}
         isPending={updateAvailability.isPending && updateAvailability.variables?.state === 'inactive'}
-        onClose={() => setAvailabilityTarget(undefined)}
-        onConfirm={handleConfirmInactive}
+        onClose={() => workflow.setAvailabilityTarget(undefined)}
+        onConfirm={workflow.handleConfirmInactive}
       />
-      {followUpTarget && (
+      {workflow.followUpTarget && (
         <ManagerDeskCaptureDialog
-          onClose={() => setFollowUpTarget(null)}
+          onClose={() => workflow.setFollowUpTarget(null)}
           onOpenManagerDesk={onViewChange ? () => onViewChange('desk') : undefined}
-          heading={`Follow up with ${followUpTarget.day.developer.displayName}`}
+          heading={`Follow up with ${workflow.followUpTarget.day.developer.displayName}`}
           description="Capture a manager follow-up linked to this developer."
-          initialTitle={`Follow up with ${followUpTarget.day.developer.displayName}`}
+          initialTitle={`Follow up with ${workflow.followUpTarget.day.developer.displayName}`}
           initialKind="action"
           initialCategory="follow_up"
           initialContextNote={
-            followUpTarget.day.currentItem?.jiraKey
-              ? `Current tracker context: ${followUpTarget.day.currentItem.jiraKey} - ${followUpTarget.day.currentItem.title}`
+            workflow.followUpTarget.day.currentItem?.jiraKey
+              ? `Current tracker context: ${workflow.followUpTarget.day.currentItem.jiraKey} - ${workflow.followUpTarget.day.currentItem.title}`
               : ''
           }
-          initialLinks={[{ linkType: 'developer', developerAccountId: followUpTarget.day.developer.accountId }]}
+          initialLinks={[{ linkType: 'developer', developerAccountId: workflow.followUpTarget.day.developer.accountId }]}
           contextChips={[
-            { label: 'Developer', value: followUpTarget.day.developer.displayName, tone: 'developer' },
-            ...followUpTarget.reasons.map((reason) => ({ label: 'Reason', value: reason.label, tone: 'generic' as const })),
+            { label: 'Developer', value: workflow.followUpTarget.day.developer.displayName, tone: 'developer' },
+            ...workflow.followUpTarget.reasons.map((reason) => ({ label: 'Reason', value: reason.label, tone: 'generic' as const })),
           ]}
           date={date}
         />
