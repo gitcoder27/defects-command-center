@@ -50,7 +50,7 @@ function EmptyManagerFollowUp({ day }: { day: TrackerDeveloperDay }) {
       }}
     >
       <Briefcase size={14} className="shrink-0" style={{ color: 'var(--md-accent)' }} />
-      <div className="min-w-0 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+      <div className="min-w-0 text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>
         <span>Private follow-up linked to {day.developer.displayName}</span>
         {day.currentItem?.jiraKey && (
           <>
@@ -91,7 +91,7 @@ function ManagerFollowUpItem({ item, onComplete }: { item: ManagerDeskItem; onCo
             {item.title}
           </span>
           <span
-            className="shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase"
+            className="shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase"
             style={{
               color: statusStyle.color,
               background: statusStyle.background,
@@ -103,7 +103,7 @@ function ManagerFollowUpItem({ item, onComplete }: { item: ManagerDeskItem; onCo
           </span>
         </div>
         {(meta.issueKey || meta.subtitle) && (
-          <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
             {meta.issueKey && (
               <JiraIssueLink issueKey={meta.issueKey} className="shrink-0" style={{ color: 'var(--accent)' }}>
                 {meta.issueKey}
@@ -139,7 +139,7 @@ export function ManagerFollowUpRow({ day, items, isLoading, onComplete, onCaptur
         <button
           type="button"
           onClick={onCapture}
-          className="rounded-lg px-2 py-1 text-[11px] font-medium"
+          className="rounded-lg px-2 py-1 text-[12px] font-medium"
           style={{ color: 'var(--md-accent)', background: 'rgba(217,169,78,0.10)' }}
         >
           Capture
@@ -148,7 +148,7 @@ export function ManagerFollowUpRow({ day, items, isLoading, onComplete, onCaptur
     >
       <div className="space-y-1.5">
         {isLoading && (
-          <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-[12px]" style={{ color: 'var(--text-muted)', background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-[13px]" style={{ color: 'var(--text-muted)', background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
             <Loader2 size={13} className="animate-spin" />
             Loading follow-ups
           </div>

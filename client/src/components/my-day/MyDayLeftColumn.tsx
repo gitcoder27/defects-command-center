@@ -70,7 +70,7 @@ export function MyDayLeftColumn({
       <motion.section variants={sectionVariants} className={readOnly ? 'pointer-events-none opacity-60' : undefined}>
         <div className="flex items-center gap-2 mb-3 pl-2">
           <Zap size={14} className="text-[var(--text-muted)]" />
-          <h2 className="text-[12px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
+          <h2 className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
             Status
           </h2>
         </div>
@@ -86,7 +86,7 @@ export function MyDayLeftColumn({
       <motion.section variants={sectionVariants} className={readOnly ? 'pointer-events-none opacity-60' : undefined}>
         <div className="flex items-center gap-2 mb-3 pl-2">
           <Target size={14} className="text-[var(--text-muted)]" />
-          <h2 className="text-[12px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
+          <h2 className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
             Current Task
           </h2>
         </div>
@@ -106,11 +106,11 @@ export function MyDayLeftColumn({
             <div className="flex items-center justify-between pl-2 pr-1">
               <div className="flex items-center gap-2">
                 <CheckCircle2 size={14} className="text-[var(--success)]" />
-                <h2 className="text-[12px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
+                <h2 className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
                   Completed Today
                 </h2>
               </div>
-              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-[rgba(16,185,129,0.1)] text-[var(--success)] border border-[rgba(16,185,129,0.2)]">
+              <span className="text-[11px] uppercase font-bold px-2 py-0.5 rounded-full bg-[rgba(16,185,129,0.1)] text-[var(--success)] border border-[rgba(16,185,129,0.2)]">
                 {day!.completedItems.length} Finished
               </span>
             </div>
@@ -127,11 +127,11 @@ export function MyDayLeftColumn({
             <div className="flex items-center justify-between pl-2 pr-1">
               <div className="flex items-center gap-2">
                 <Target size={14} className="text-[var(--danger)]" />
-                <h2 className="text-[12px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
+                <h2 className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
                   Dropped Today
                 </h2>
               </div>
-              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-[rgba(239,68,68,0.1)] text-[var(--danger)] border border-[rgba(239,68,68,0.2)]">
+              <span className="text-[11px] uppercase font-bold px-2 py-0.5 rounded-full bg-[rgba(239,68,68,0.1)] text-[var(--danger)] border border-[rgba(239,68,68,0.2)]">
                 {day!.droppedItems.length} Dropped
               </span>
             </div>
@@ -145,7 +145,7 @@ export function MyDayLeftColumn({
       <motion.section variants={sectionVariants} className={`mt-2 ${readOnly ? 'pointer-events-none opacity-60' : ''}`}>
         <div className="flex items-center gap-2 mb-3 pl-2">
           <MessageSquare size={14} className="text-[var(--text-muted)]" />
-          <h2 className="text-[12px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
+          <h2 className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
             Quick Updates
           </h2>
         </div>

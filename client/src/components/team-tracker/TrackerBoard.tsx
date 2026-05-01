@@ -107,7 +107,7 @@ export function TrackerBoard({
           <div className="text-[14px] font-medium" style={{ color: 'var(--text-secondary)' }}>
             {searchActive ? 'No developers match your search' : 'No developers match this filter'}
           </div>
-          <div className="text-[12px] mt-1" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>
             {searchActive ? 'Try different search terms or clear the search' : 'Try a different filter or add new team members'}
           </div>
         </div>
@@ -152,13 +152,13 @@ export function TrackerBoard({
                 style={{ background: color }}
               />
               <span
-                className="text-[12px] font-semibold uppercase tracking-wider"
+                className="text-[13px] font-semibold uppercase tracking-wider"
                 style={{ color }}
               >
                 {group.label}
               </span>
               <span
-                className="text-[10px] font-mono font-semibold rounded-full px-1.5 py-0.5"
+                className="text-[11px] font-mono font-semibold rounded-full px-1.5 py-0.5"
                 style={{
                   background: `color-mix(in srgb, ${color} 12%, transparent)`,
                   color,

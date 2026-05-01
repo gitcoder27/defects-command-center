@@ -84,10 +84,10 @@ export function TrackerTaskExecutionPanel({
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--accent)' }}>
+          <div className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--accent)' }}>
             Team Tracker Execution
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px]">
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-[13px]">
             <span
               className="rounded-full px-2.5 py-1 font-semibold"
               style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
@@ -107,7 +107,7 @@ export function TrackerTaskExecutionPanel({
               type="button"
               onClick={() => onSetCurrent(item.id)}
               disabled={isPending}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px] font-semibold disabled:opacity-40"
               style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
             >
               <Play size={12} />
@@ -120,7 +120,7 @@ export function TrackerTaskExecutionPanel({
                 type="button"
                 onClick={() => onUpdateState(item.id, 'done')}
                 disabled={isPending}
-                className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px] font-semibold disabled:opacity-40"
                 style={{
                   background: 'rgba(16,185,129,0.12)',
                   color: 'var(--success)',
@@ -134,7 +134,7 @@ export function TrackerTaskExecutionPanel({
                 type="button"
                 onClick={() => onUpdateState(item.id, 'dropped')}
                 disabled={isPending}
-                className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px] font-semibold disabled:opacity-40"
                 style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
               >
                 <XCircle size={12} />
@@ -147,7 +147,7 @@ export function TrackerTaskExecutionPanel({
               type="button"
               onClick={() => onUpdateState(item.id, 'planned')}
               disabled={isPending}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px] font-semibold disabled:opacity-40"
               style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
             >
               <RotateCcw size={12} />
@@ -160,7 +160,7 @@ export function TrackerTaskExecutionPanel({
       <div className="mt-4">
         <label
           htmlFor={`tracker-task-note-${item.id}`}
-          className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em]"
+          className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em]"
           style={{ color: 'var(--text-muted)' }}
         >
           <StickyNote size={11} />
@@ -187,7 +187,7 @@ export function TrackerTaskExecutionPanel({
             type="button"
             onClick={() => void handleSaveNote()}
             disabled={(!noteChanged && noteSaveState !== 'error') || isPending || noteSaveState === 'saving'}
-            className="rounded-xl px-3 py-1.5 text-[11px] font-semibold disabled:opacity-40"
+            className="rounded-xl px-3 py-1.5 text-[12px] font-semibold disabled:opacity-40"
             style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
           >
             {noteSaveState === 'saving'
@@ -199,7 +199,7 @@ export function TrackerTaskExecutionPanel({
               : 'Save Note'}
           </button>
           <span
-            className="text-[11px]"
+            className="text-[12px]"
             style={{
               color:
                 noteSaveState === 'error'
@@ -218,7 +218,7 @@ export function TrackerTaskExecutionPanel({
                 setNote(item.note ?? '');
                 setNoteSaveState('idle');
               }}
-              className="text-[11px]"
+              className="text-[12px]"
               style={{ color: 'var(--text-muted)' }}
             >
               Reset

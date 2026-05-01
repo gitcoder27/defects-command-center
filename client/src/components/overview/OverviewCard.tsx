@@ -85,7 +85,7 @@ export function OverviewCard({ label, count, color, isActive, onClick, delay = 0
             />
           </span>
           <span
-            className="block truncate text-[11px] font-medium leading-tight md:text-[12px]"
+            className="block truncate text-[12px] font-medium leading-tight md:text-[13px]"
             style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}
           >
             {label}

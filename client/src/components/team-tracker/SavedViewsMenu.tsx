@@ -79,7 +79,7 @@ export function SavedViewsMenu({
     <div ref={ref} className="relative">
       <button
         onClick={() => { setOpen(!open); if (!open) resetMode(); }}
-        className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition-all shrink-0"
+        className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[12px] font-medium transition-all shrink-0"
         style={{
           background: hasActiveView ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'var(--bg-tertiary)',
           border: `1px solid ${hasActiveView ? 'color-mix(in srgb, var(--accent) 30%, transparent)' : 'var(--border)'}`,
@@ -124,8 +124,8 @@ export function SavedViewsMenu({
               </div>
             ) : views.length === 0 ? (
               <div className="px-3 py-4 text-center">
-                <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>No saved views yet</div>
-                <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Configure the board and save your setup</div>
+                <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>No saved views yet</div>
+                <div className="text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Configure the board and save your setup</div>
               </div>
             ) : (
               views.map((view) => (
@@ -162,9 +162,9 @@ export function SavedViewsMenu({
 function MenuHeader({ mode, onStartCreate, onCancel }: { mode: string; onStartCreate: () => void; onCancel: () => void }) {
   return (
     <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
-      <span className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>Saved Views</span>
+      <span className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>Saved Views</span>
       {mode === 'list' ? (
-        <button onClick={onStartCreate} className="flex items-center gap-1 text-[11px] font-medium rounded-lg px-1.5 py-0.5" style={{ color: 'var(--accent)' }}>
+        <button onClick={onStartCreate} className="flex items-center gap-1 text-[12px] font-medium rounded-lg px-1.5 py-0.5" style={{ color: 'var(--accent)' }}>
           <Plus size={11} /> Save current
         </button>
       ) : (
@@ -195,7 +195,7 @@ const NameInput = forwardRef<HTMLInputElement, {
       onKeyDown={(e) => { if (e.key === 'Enter') onSubmit(); if (e.key === 'Escape') onCancel(); }}
       placeholder={placeholder}
       maxLength={120}
-      className="flex-1 bg-transparent text-[12px] outline-none placeholder:text-[var(--text-muted)]"
+      className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-[var(--text-muted)]"
       style={{ color: 'var(--text-primary)' }}
     />
     <button
@@ -219,7 +219,7 @@ function MenuFooter({ isDirty, isSaving, activeViewName, onUpdate, onClear }: {
         <button
           onClick={onUpdate}
           disabled={isSaving}
-          className="flex-1 flex items-center justify-center gap-1 text-[11px] font-medium rounded-lg px-2 py-1.5"
+          className="flex-1 flex items-center justify-center gap-1 text-[12px] font-medium rounded-lg px-2 py-1.5"
           style={{
             background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
             color: 'var(--accent)',
@@ -232,7 +232,7 @@ function MenuFooter({ isDirty, isSaving, activeViewName, onUpdate, onClear }: {
       )}
       <button
         onClick={onClear}
-        className="flex items-center justify-center gap-1 text-[11px] font-medium rounded-lg px-2 py-1.5"
+        className="flex items-center justify-center gap-1 text-[12px] font-medium rounded-lg px-2 py-1.5"
         style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
       >
         <X size={11} /> Clear view

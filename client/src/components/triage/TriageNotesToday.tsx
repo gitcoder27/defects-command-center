@@ -48,11 +48,11 @@ export function TriageNotesToday({ value, dateLabel, onChange, onBlur, readOnly 
           className="inline-block shrink-0 rounded-full"
           style={{ width: 6, height: 6, background: 'var(--accent)', boxShadow: '0 0 6px var(--accent-glow)' }}
         />
-        <span className="text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+        <span className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>
           {dateLabel}
         </span>
         <span
-          className="rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-[0.1em]"
+          className="rounded-full px-1.5 py-px text-[10px] font-semibold uppercase tracking-[0.1em]"
           style={{ color: 'var(--accent)', background: 'var(--accent-glow)' }}
         >
           Today

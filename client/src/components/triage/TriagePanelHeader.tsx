@@ -40,7 +40,7 @@ export function TriagePanelHeader({ issue, jiraBaseUrl, onClose }: TriagePanelHe
       {issue && (
         <div className="flex items-center gap-2.5">
           <span
-            className="text-[9.5px] font-bold uppercase tracking-[0.06em] px-2 py-[3px] rounded-full leading-none"
+            className="text-[10.5px] font-bold uppercase tracking-[0.06em] px-2 py-[3px] rounded-full leading-none"
             style={{
               color: accent,
               background: `color-mix(in srgb, ${accent} 10%, transparent)`,

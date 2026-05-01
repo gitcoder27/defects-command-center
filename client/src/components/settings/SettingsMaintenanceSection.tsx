@@ -84,7 +84,7 @@ export function SettingsMaintenanceSection({
 
   if (previewQuery.isLoading) {
     return (
-      <div className="flex items-center gap-2 rounded-xl px-4 py-4 text-[12px]" style={{ background: 'var(--settings-inset-bg)', border: 'var(--settings-inset-border)', color: 'var(--text-secondary)' }}>
+      <div className="flex items-center gap-2 rounded-xl px-4 py-4 text-[13px]" style={{ background: 'var(--settings-inset-bg)', border: 'var(--settings-inset-border)', color: 'var(--text-secondary)' }}>
         <Loader2 size={13} className="animate-spin" style={{ color: 'var(--accent)' }} />
         Loading maintenance preview…
       </div>
@@ -97,10 +97,10 @@ export function SettingsMaintenanceSection({
         <div className="flex items-start gap-2">
           <AlertTriangle size={15} style={{ color: 'var(--danger-muted)' }} />
           <div>
-            <p className="text-[12px] font-semibold" style={{ color: 'var(--danger-muted)' }}>
+            <p className="text-[13px] font-semibold" style={{ color: 'var(--danger-muted)' }}>
               Maintenance preview unavailable
             </p>
-            <p className="mt-1 text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            <p className="mt-1 text-[12px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               We couldn&apos;t load the reset counts right now. Retry before running anything destructive.
             </p>
           </div>
@@ -108,7 +108,7 @@ export function SettingsMaintenanceSection({
         <button
           type="button"
           onClick={() => void previewQuery.refetch()}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium"
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium"
           style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-strong)' }}
         >
           <RefreshCcw size={12} />
@@ -141,10 +141,10 @@ export function SettingsMaintenanceSection({
               <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Use maintenance resets only for duplicate cleanup, test data wipes, or recovery after a bad migration.
               </p>
-              <p className="mt-1 text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              <p className="mt-1 text-[12px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                 Manager Desk reset is scoped to your desk. Team Tracker reset clears shared tracker history, check-ins, availability, and your saved tracker views.
               </p>
-              <p className="mt-2 text-[11px]" style={{ color: preview.backupBeforeReset ? 'var(--success)' : 'var(--warning)' }}>
+              <p className="mt-2 text-[12px]" style={{ color: preview.backupBeforeReset ? 'var(--success)' : 'var(--warning)' }}>
                 {preview.backupBeforeReset
                   ? 'Automatic pre-reset backup is enabled.'
                   : 'Automatic pre-reset backup is currently disabled in backup settings.'}
@@ -155,7 +155,7 @@ export function SettingsMaintenanceSection({
             type="button"
             onClick={() => void previewQuery.refetch()}
             disabled={previewQuery.isFetching}
-            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium disabled:opacity-50"
             style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-strong)' }}
           >
             {previewQuery.isFetching ? <Loader2 size={12} className="animate-spin" /> : <RefreshCcw size={12} />}
@@ -272,7 +272,7 @@ function MaintenanceActionCard({
           <p className="text-[12.5px] font-semibold" style={{ color: 'var(--text-primary)' }}>
             {title}
           </p>
-          <p className="mt-1 text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-1 text-[12px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
             {description}
           </p>
         </div>
@@ -282,7 +282,7 @@ function MaintenanceActionCard({
         {counts.map((count) => (
           <span
             key={`${target}-${count}`}
-            className="rounded-full px-2 py-1 text-[10px] font-semibold"
+            className="rounded-full px-2 py-1 text-[11px] font-semibold"
             style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' }}
           >
             {count}
@@ -294,7 +294,7 @@ function MaintenanceActionCard({
         <button
           type="button"
           onClick={onArm}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold"
           style={{ background: 'var(--settings-danger-soft-bg)', color: 'var(--danger-muted)', border: 'var(--settings-danger-soft-border)' }}
           aria-label={`Arm ${title}`}
         >
@@ -303,7 +303,7 @@ function MaintenanceActionCard({
         </button>
       ) : (
         <div className="mt-4 space-y-3 rounded-xl p-3" style={{ background: 'var(--settings-inset-bg)', border: 'var(--settings-inset-border)' }}>
-          <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--danger-muted)' }}>
+          <p className="text-[11.5px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--danger-muted)' }}>
             Type {expectedText} to confirm
           </p>
           <input
@@ -311,7 +311,7 @@ function MaintenanceActionCard({
             value={confirmationText}
             onChange={(event) => onChangeConfirmation(event.target.value)}
             placeholder={expectedText}
-            className="w-full rounded-lg px-3 py-2 text-[12px] outline-none"
+            className="w-full rounded-lg px-3 py-2 text-[13px] outline-none"
             style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
             aria-label={`Confirmation text for ${title}`}
           />
@@ -320,7 +320,7 @@ function MaintenanceActionCard({
               type="button"
               onClick={onRun}
               disabled={!canRun || running}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-50"
               style={{ background: 'var(--settings-danger-soft-bg)', color: 'var(--danger-muted)', border: 'var(--settings-danger-soft-border)' }}
               aria-label={`Run ${title}`}
             >
@@ -331,7 +331,7 @@ function MaintenanceActionCard({
               type="button"
               onClick={onCancel}
               disabled={running}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium disabled:opacity-50"
               style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-strong)' }}
             >
               Cancel

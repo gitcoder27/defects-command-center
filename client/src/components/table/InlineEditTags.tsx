@@ -149,7 +149,7 @@ export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
                 key={tag.id}
                 onClick={() => toggleTag(tag.id)}
                 disabled={isPending}
-                className="text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-none whitespace-nowrap hover:opacity-80 transition-opacity disabled:cursor-wait disabled:opacity-60"
+                className="text-[11px] px-1.5 py-0.5 rounded-full font-medium leading-none whitespace-nowrap hover:opacity-80 transition-opacity disabled:cursor-wait disabled:opacity-60"
                 style={{ background: `${tag.color}25`, color: tag.color, border: `1px solid ${tag.color}40` }}
                 title={`Remove "${tag.name}"`}
               >
@@ -162,7 +162,7 @@ export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
                   <Tooltip.Trigger asChild>
                     <button
                       type="button"
-                      className="text-[10px] px-1 py-0.5 rounded-full cursor-help"
+                      className="text-[11px] px-1 py-0.5 rounded-full cursor-help"
                       style={{ color: 'var(--text-muted)', border: '1px dashed var(--border)' }}
                       aria-label={`View ${hiddenTags.length} more tags`}
                     >
@@ -185,7 +185,7 @@ export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
                         {hiddenTags.map((tag) => (
                           <span
                             key={tag.id}
-                            className="text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-none whitespace-nowrap"
+                            className="text-[11px] px-1.5 py-0.5 rounded-full font-medium leading-none whitespace-nowrap"
                             style={{ background: `${tag.color}25`, color: tag.color, border: `1px solid ${tag.color}40` }}
                           >
                             {tag.name}
@@ -199,7 +199,7 @@ export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
             )}
           </>
         ) : (
-          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
             No tags
           </span>
         )}
@@ -232,7 +232,7 @@ export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
           >
             <div className="flex items-center gap-1.5 mb-2">
               <Tag size={12} style={{ color: 'var(--text-muted)' }} />
-              <span className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+              <span className="text-[12px] font-semibold uppercase" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
                 Tags
               </span>
             </div>
@@ -250,13 +250,13 @@ export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
                   }
                 }}
                 placeholder="Search or create tag…"
-                className="flex-1 text-[12px] px-2 py-1 rounded focus:outline-none focus:ring-1"
+                className="flex-1 text-[13px] px-2 py-1 rounded focus:outline-none focus:ring-1"
                 style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)', outlineColor: 'var(--accent)' }}
               />
               <button
                 onClick={() => createOrAssignTag(tagInput, { onSuccess: () => setTagInput('') })}
                 disabled={!tagInput.trim() || isPending}
-                className="text-[11px] px-2 py-1 rounded font-medium disabled:opacity-40 transition-colors"
+                className="text-[12px] px-2 py-1 rounded font-medium disabled:opacity-40 transition-colors"
                 style={{ background: 'var(--accent)', color: '#fff' }}
               >
                 {exactMatch ? 'Use' : 'Add'}
@@ -273,7 +273,7 @@ export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
                         key={tag.id}
                         onClick={() => toggleTag(tag.id)}
                         disabled={isPending}
-                        className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 transition-opacity disabled:cursor-wait disabled:opacity-60"
+                        className="text-[12px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 transition-opacity disabled:cursor-wait disabled:opacity-60"
                         style={{
                           background: isAssigned ? `${tag.color}40` : `${tag.color}15`,
                           color: tag.color,
@@ -289,7 +289,7 @@ export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
                   })}
                 </div>
               ) : (
-                <p className="text-[11px] px-1 py-1.5" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-[12px] px-1 py-1.5" style={{ color: 'var(--text-muted)' }}>
                   No matching tags. Create one with the input above.
                 </p>
               )}
@@ -298,7 +298,7 @@ export function InlineEditTags({ issueKey, localTags }: InlineEditTagsProps) {
             <div className="mt-2 flex justify-end">
               <button
                 onClick={() => setOpenState(false)}
-                className="text-[11px] px-2 py-1 rounded transition-colors hover:bg-[var(--bg-tertiary)]"
+                className="text-[12px] px-2 py-1 rounded transition-colors hover:bg-[var(--bg-tertiary)]"
                 style={{ color: 'var(--text-secondary)' }}
               >
                 <span className="inline-flex items-center gap-1">

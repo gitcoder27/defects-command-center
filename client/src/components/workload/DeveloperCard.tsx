@@ -39,7 +39,7 @@ export function DeveloperCard({ dev, expanded, active = false, onClick }: Develo
       }}
     >
       <div className="flex items-start gap-2">
-        <span className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0 text-[11px] font-semibold" style={{ background: isIdle ? 'var(--bg-tertiary)' : `${color}18`, color }}>
+        <span className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0 text-[12px] font-semibold" style={{ background: isIdle ? 'var(--bg-tertiary)' : `${color}18`, color }}>
           {dev.developer.displayName
             .split(' ')
             .filter(Boolean)
@@ -51,7 +51,7 @@ export function DeveloperCard({ dev, expanded, active = false, onClick }: Develo
           <span className="text-[13px] font-medium truncate block" style={{ color: 'var(--text-primary)' }}>
             {dev.developer.displayName}
           </span>
-          <div className="mt-1 flex items-center gap-1.5 text-[10px] flex-wrap">
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] flex-wrap">
             <span
               className="rounded-full px-1.5 py-0.5 font-mono"
               style={{ color, background: `${color}14` }}
@@ -71,7 +71,7 @@ export function DeveloperCard({ dev, expanded, active = false, onClick }: Develo
         <div className="flex flex-col items-end gap-0.5 shrink-0">
           {isIdle && (
             <span
-              className="text-[9px] uppercase font-semibold rounded-full px-1.5 py-0.5"
+              className="text-[10px] uppercase font-semibold rounded-full px-1.5 py-0.5"
               style={{ color: 'var(--text-muted)', background: 'var(--bg-tertiary)', letterSpacing: '0.06em' }}
             >
               idle
@@ -79,7 +79,7 @@ export function DeveloperCard({ dev, expanded, active = false, onClick }: Develo
           )}
           {hasMismatch && (
             <span
-              className="text-[9px] uppercase font-semibold rounded-full px-1.5 py-0.5"
+              className="text-[10px] uppercase font-semibold rounded-full px-1.5 py-0.5"
               style={{ color: 'var(--warning)', background: 'rgba(245,158,11,0.10)', letterSpacing: '0.06em' }}
             >
               mismatch
@@ -87,7 +87,7 @@ export function DeveloperCard({ dev, expanded, active = false, onClick }: Develo
           )}
           {noCurrentItem && !isIdle && (
             <span
-              className="text-[9px] uppercase font-semibold rounded-full px-1.5 py-0.5"
+              className="text-[10px] uppercase font-semibold rounded-full px-1.5 py-0.5"
               style={{ color: 'var(--warning)', background: 'rgba(245,158,11,0.10)', letterSpacing: '0.06em' }}
             >
               no current
@@ -111,24 +111,24 @@ export function DeveloperCard({ dev, expanded, active = false, onClick }: Develo
           <span className="font-mono text-[20px] font-semibold tabular-nums" style={{ color }}>
             {assignedLabel}
           </span>
-          <span className="ml-2 font-mono text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          <span className="ml-2 font-mono text-[12px]" style={{ color: 'var(--text-muted)' }}>
             S{dev.score}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
           {dev.signals?.overCapacity && (
-            <span className="text-[10px] uppercase rounded-full px-2 py-1" style={{ color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.10)', letterSpacing: '0.08em' }}>
+            <span className="text-[11px] uppercase rounded-full px-2 py-1" style={{ color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.10)', letterSpacing: '0.08em' }}>
               Over
             </span>
           )}
-          <span className="text-[11px] uppercase rounded-full px-2 py-1" style={{ color, background: `${color}14`, letterSpacing: '0.08em' }}>
+          <span className="text-[12px] uppercase rounded-full px-2 py-1" style={{ color, background: `${color}14`, letterSpacing: '0.08em' }}>
             {dev.level}
           </span>
         </div>
       </div>
 
       {expanded && (
-        <div className="grid grid-cols-2 gap-2 text-[11px] mt-1">
+        <div className="grid grid-cols-2 gap-2 text-[12px] mt-1">
           {statItems.map((stat) => (
             <span
               key={stat.label}

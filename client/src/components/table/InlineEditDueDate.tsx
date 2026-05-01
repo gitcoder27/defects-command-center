@@ -39,7 +39,7 @@ export function InlineEditDueDate({ issueKey, currentValue, onClose }: InlineEdi
       onChange={(e) => handleChange(e.target.value)}
       onBlur={onClose}
       onClick={(e) => e.stopPropagation()}
-      className="text-[12px] px-1.5 py-0.5 rounded cursor-pointer font-mono"
+      className="text-[13px] px-1.5 py-0.5 rounded cursor-pointer font-mono"
       style={{
         background: 'var(--bg-tertiary)',
         color: 'var(--text-primary)',

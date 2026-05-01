@@ -39,7 +39,7 @@ export function TrackerSummaryStrip({ summary, activeFilter, onFilterChange }: T
       <button
         type="button"
         onClick={() => onFilterChange('all')}
-        className="h-8 shrink-0 rounded-lg px-2.5 text-[11px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+        className="h-8 shrink-0 rounded-lg px-2.5 text-[12px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
         style={{
           background: activeFilter === 'all' ? 'var(--bg-elevated)' : 'transparent',
           border: `1px solid ${activeFilter === 'all' ? 'var(--border)' : 'transparent'}`,
@@ -50,7 +50,7 @@ export function TrackerSummaryStrip({ summary, activeFilter, onFilterChange }: T
       </button>
 
       {visibleChips.length === 0 && (
-        <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+        <span className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
           No active risk signals
         </span>
       )}
@@ -64,7 +64,7 @@ export function TrackerSummaryStrip({ summary, activeFilter, onFilterChange }: T
           <button
             key={chip.key}
             onClick={() => onFilterChange(chip.key === activeFilter ? 'all' : chip.key)}
-            className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
             style={{
               background: isActive ? `color-mix(in srgb, ${chip.color} 12%, var(--bg-elevated))` : 'transparent',
               border: `1px solid ${isActive ? `color-mix(in srgb, ${chip.color} 34%, var(--border))` : 'var(--border)'}`,

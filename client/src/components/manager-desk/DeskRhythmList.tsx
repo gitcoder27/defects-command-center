@@ -61,7 +61,9 @@ export function DeskRhythmList({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 md:px-4">
         {items.length === 0 ? (
-          <UnifiedEmptyState quickFilter="all" message="No desk work matches this view." />
+          <div className="max-w-[980px] 2xl:max-w-[1040px]">
+            <UnifiedEmptyState quickFilter="all" message="No desk work matches this view." />
+          </div>
         ) : (
           <div className="space-y-5">
             {activeSections.map((section) => (
@@ -100,7 +102,7 @@ function DeskRhythmSectionView({
   }
 
   return (
-    <section>
+    <section className="max-w-[980px] 2xl:max-w-[1040px]">
       <div className="pb-2">
         <SectionTitle section={section} />
       </div>
@@ -141,7 +143,7 @@ function SectionItems({
 function QuietDeskStrip({ sections }: { sections: DeskRhythmSection[] }) {
   return (
     <div
-      className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2"
+      className="flex max-w-[980px] flex-wrap items-center gap-2 rounded-xl border px-3 py-2 2xl:max-w-[1040px]"
       style={{
         background: 'color-mix(in srgb, var(--bg-secondary) 42%, transparent)',
         borderColor: 'color-mix(in srgb, var(--border) 72%, transparent)',

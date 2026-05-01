@@ -43,7 +43,7 @@ export function InlineEditAssignee({ issueKey, currentId, onClose }: InlineEditA
       onChange={(e) => handleChange(e.target.value)}
       onBlur={onClose}
       onClick={(e) => e.stopPropagation()}
-      className="text-[12px] px-1.5 py-0.5 rounded cursor-pointer max-w-[110px]"
+      className="text-[13px] px-1.5 py-0.5 rounded cursor-pointer max-w-[110px]"
       style={{
         background: 'var(--bg-tertiary)',
         color: 'var(--text-primary)',

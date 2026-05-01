@@ -31,7 +31,7 @@ export function DroppedWork({ items }: DroppedWorkProps) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <span
-                  className="text-[12px] truncate line-through"
+                  className="text-[13px] truncate line-through"
                   style={{ color: 'var(--text-muted)' }}
                 >
                   {item.title}
@@ -39,7 +39,7 @@ export function DroppedWork({ items }: DroppedWorkProps) {
               </div>
               {item.jiraKey && (
                 <div className="mt-0.5">
-                  <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                  <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[11px]" style={{ color: 'var(--text-muted)' }}>
                     {item.jiraSummary && item.jiraSummary !== item.title
                       ? `${item.jiraKey} · ${item.jiraSummary}`
                       : item.jiraKey}
@@ -48,7 +48,7 @@ export function DroppedWork({ items }: DroppedWorkProps) {
               )}
               {item.note && (
                 <div className="mt-1">
-                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                     {item.note}
                   </span>
                 </div>

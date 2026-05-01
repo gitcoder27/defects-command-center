@@ -149,7 +149,7 @@ export function GlobalCaptureDialog({
                   Capture
                 </div>
                 <span
-                  className="inline-flex items-center gap-1 mt-0.5 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors duration-300"
+                  className="inline-flex items-center gap-1 mt-0.5 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors duration-300"
                   style={{
                     background: isDesk
                       ? 'rgba(217,169,78,0.1)'
@@ -193,7 +193,7 @@ export function GlobalCaptureDialog({
                   key={t.id}
                   type="button"
                   onClick={() => setTarget(t.id)}
-                  className="relative z-10 flex-1 flex items-center justify-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[12px] font-semibold transition-colors duration-200"
+                  className="relative z-10 flex-1 flex items-center justify-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[13px] font-semibold transition-colors duration-200"
                   style={{
                     color: active
                       ? t.id === 'manager-desk'

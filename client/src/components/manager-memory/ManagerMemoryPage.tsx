@@ -100,7 +100,7 @@ export function ManagerMemoryPage({ mode, onViewChange }: ManagerMemoryPageProps
               </span>
               <div>
                 <h1 className="text-[18px] font-semibold" style={{ color: 'var(--text-primary)' }}>{copy.title}</h1>
-                <p className="mt-0.5 text-[12px]" style={{ color: 'var(--text-muted)' }}>{copy.detail}</p>
+                <p className="mt-0.5 text-[13px]" style={{ color: 'var(--text-muted)' }}>{copy.detail}</p>
               </div>
             </div>
           </div>
@@ -109,7 +109,7 @@ export function ManagerMemoryPage({ mode, onViewChange }: ManagerMemoryPageProps
             {stats.map((stat) => (
               <div key={stat.id} className="border-l px-3" style={{ borderColor: 'var(--memory-line)' }}>
                 <div className="text-[19px] font-semibold tabular-nums" style={{ color: statColor(stat.tone) }}>{stat.value}</div>
-                <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{stat.label}</div>
+                <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>{stat.label}</div>
               </div>
             ))}
           </div>
@@ -120,10 +120,10 @@ export function ManagerMemoryPage({ mode, onViewChange }: ManagerMemoryPageProps
         <div className="min-h-0 overflow-auto px-5 py-5 xl:px-8">
           <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+              <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {format(new Date(), 'MMM d, yyyy')}
               </p>
-              <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              <p className="mt-0.5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
                 {day.isFetching ? 'Refreshing memory' : `${allItems.length} item${allItems.length === 1 ? '' : 's'} in this workflow`}
               </p>
             </div>

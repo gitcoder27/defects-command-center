@@ -38,7 +38,7 @@ export function DeskRhythmHeader({
             <CountPill value={count} />
             {continuedOpenCount ? (
               <span
-                className="inline-flex h-5 items-center rounded-md border px-1.5 text-[10px] font-medium"
+                className="inline-flex h-5 items-center rounded-md border px-1.5 text-[11px] font-medium"
                 title={`${continuedOpenCount} open ${continuedOpenCount === 1 ? 'item has' : 'items have'} continued from earlier days.`}
                 style={{
                   borderColor: 'rgba(217,169,78,0.18)',
@@ -50,7 +50,7 @@ export function DeskRhythmHeader({
               </span>
             ) : null}
           </div>
-          <p className="mt-1.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-1.5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
             {subtitle}
           </p>
         </div>
@@ -89,12 +89,12 @@ export function SectionTitle({ section }: { section: DeskRhythmSection }) {
       </span>
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <h3 className="text-[12px] font-semibold leading-none tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>
+          <h3 className="text-[13px] font-semibold leading-none tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>
             {section.title}
           </h3>
           <CountPill value={section.items.length} subtle={section.quiet} />
         </div>
-        <p className="mt-1 hidden truncate text-[10px] sm:block" style={{ color: 'var(--text-muted)' }}>
+        <p className="mt-1 hidden truncate text-[11px] sm:block" style={{ color: 'var(--text-muted)' }}>
           {section.subtitle}
         </p>
       </div>
@@ -130,7 +130,7 @@ export function DeskCardRow({
 export function CountPill({ value, subtle = false }: { value: number; subtle?: boolean }) {
   return (
     <span
-      className="inline-flex h-5 items-center rounded-md border px-1.5 font-mono text-[10px] font-semibold tabular-nums"
+      className="inline-flex h-5 items-center rounded-md border px-1.5 font-mono text-[11px] font-semibold tabular-nums"
       style={{
         borderColor: 'var(--border)',
         background: subtle ? 'transparent' : 'color-mix(in srgb, var(--bg-secondary) 86%, transparent)',
@@ -160,7 +160,7 @@ function DeskMetric({
 
   return (
     <span
-      className="inline-flex h-7 items-center gap-1.5 rounded-lg border px-2 text-[10px] font-semibold uppercase tracking-[0.08em]"
+      className="inline-flex h-7 items-center gap-1.5 rounded-lg border px-2 text-[11px] font-semibold uppercase tracking-[0.08em]"
       style={{ background, borderColor: 'color-mix(in srgb, var(--border) 78%, transparent)', color }}
     >
       <span>{label}</span>

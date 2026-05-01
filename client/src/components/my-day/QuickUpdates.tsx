@@ -49,14 +49,14 @@ export function QuickUpdates({ onAddCheckIn, isPending }: QuickUpdatesProps) {
           }}
         />
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--border)]">
-          <span className="text-[11px] font-medium tracking-wide text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(to right, var(--text-muted), transparent)' }}>
+          <span className="text-[12px] font-medium tracking-wide text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(to right, var(--text-muted), transparent)' }}>
             Press Enter to send
           </span>
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={handleSubmit}
             disabled={!draft.trim() || isPending}
-            className="flex items-center gap-2 rounded-xl px-4 py-1.5 text-[12px] font-bold transition-all disabled:opacity-40 tracking-wide uppercase"
+            className="flex items-center gap-2 rounded-xl px-4 py-1.5 text-[13px] font-bold transition-all disabled:opacity-40 tracking-wide uppercase"
             style={{
               background: draft.trim() ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
               color: draft.trim() ? 'var(--accent)' : 'var(--text-muted)',

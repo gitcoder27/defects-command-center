@@ -33,13 +33,13 @@ export function LinkedIssueSnapshot({ issueKeys, showDescription = true }: Linke
     <section className="rounded-[22px] p-4 md:p-5" style={sectionSurfaceStyle}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--md-accent)' }}>
+          <div className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--md-accent)' }}>
             Linked Jira
           </div>
           <div className="mt-1 text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
             Triage snapshot
           </div>
-          <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-1 text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>
             Keep the connected defect context visible without leaving Desk.
           </p>
         </div>
@@ -48,7 +48,7 @@ export function LinkedIssueSnapshot({ issueKeys, showDescription = true }: Linke
             href={`${config.jiraBaseUrl}/browse/${issue.jiraKey}`}
             target="_blank"
             rel="noreferrer noopener"
-            className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-80"
+            className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px] font-semibold transition-opacity hover:opacity-80"
             style={{
               background: 'color-mix(in srgb, var(--bg-secondary) 90%, transparent)',
               color: 'var(--text-primary)',
@@ -70,7 +70,7 @@ export function LinkedIssueSnapshot({ issueKeys, showDescription = true }: Linke
                 key={jiraKey}
                 type="button"
                 onClick={() => setSelectedIssueKey(jiraKey)}
-                className="rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all"
+                className="rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all"
                 style={{
                   background: isActive ? 'var(--md-accent-glow)' : 'var(--bg-tertiary)',
                   color: isActive ? 'var(--md-accent)' : 'var(--text-secondary)',
@@ -87,7 +87,7 @@ export function LinkedIssueSnapshot({ issueKeys, showDescription = true }: Linke
       {isLoading ? (
         <div className="mt-4 flex items-center gap-2 rounded-[18px] px-4 py-5" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
           <LoaderCircle size={16} className="animate-spin" style={{ color: 'var(--md-accent)' }} />
-          <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+          <span className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
             Loading issue context…
           </span>
         </div>
@@ -102,14 +102,14 @@ export function LinkedIssueSnapshot({ issueKeys, showDescription = true }: Linke
             }}
           >
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ background: 'var(--md-accent-glow)', color: 'var(--md-accent)' }}>
+              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em]" style={{ background: 'var(--md-accent-glow)', color: 'var(--md-accent)' }}>
                 <Bug size={11} />
                 {issue.jiraKey}
               </span>
-              <span className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+              <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
                 {issue.statusName}
               </span>
-              <span className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+              <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
                 {issue.priorityName}
               </span>
             </div>
@@ -127,11 +127,11 @@ export function LinkedIssueSnapshot({ issueKeys, showDescription = true }: Linke
 
           {issue.analysisNotes?.trim() ? (
             <div className="rounded-[20px] px-4 py-4" style={{ background: 'rgba(14, 165, 233, 0.07)', border: '1px solid rgba(14, 165, 233, 0.18)' }}>
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--info)' }}>
+              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--info)' }}>
                 <Sparkles size={11} />
                 Analysis Notes
               </div>
-              <p className="mt-2 text-[12px] leading-6 whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>
+              <p className="mt-2 text-[13px] leading-6 whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>
                 {issue.analysisNotes}
               </p>
             </div>
@@ -139,10 +139,10 @@ export function LinkedIssueSnapshot({ issueKeys, showDescription = true }: Linke
 
           {showDescription && formattedDescription ? (
             <div className="rounded-[20px] px-4 py-4" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--text-muted)' }}>
+              <div className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--text-muted)' }}>
                 Description
               </div>
-              <div className="prose prose-sm mt-3 max-w-none text-[12px] leading-6" style={{ color: 'var(--text-secondary)' }}>
+              <div className="prose prose-sm mt-3 max-w-none text-[13px] leading-6" style={{ color: 'var(--text-secondary)' }}>
                 <ReactMarkdown>{formattedDescription}</ReactMarkdown>
               </div>
             </div>
@@ -150,7 +150,7 @@ export function LinkedIssueSnapshot({ issueKeys, showDescription = true }: Linke
         </div>
       ) : (
         <div className="mt-4 rounded-[18px] px-4 py-5" style={{ background: 'var(--bg-secondary)', border: '1px dashed var(--border)' }}>
-          <div className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+          <div className="flex items-center gap-2 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
             <AlertCircle size={14} />
             Linked issue details are not available in the synced issue cache right now.
           </div>
@@ -171,11 +171,11 @@ function SnapshotFact({
 }) {
   return (
     <div className="rounded-[18px] px-3.5 py-3" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
+      <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
         {icon}
         {label}
       </div>
-      <div className="mt-2 text-[12px] font-medium leading-5" style={{ color: 'var(--text-primary)' }}>
+      <div className="mt-2 text-[13px] font-medium leading-5" style={{ color: 'var(--text-primary)' }}>
         {value}
       </div>
     </div>

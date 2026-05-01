@@ -29,7 +29,7 @@ export function MyDayInactiveBanner({ availability }: MyDayInactiveBannerProps) 
           <div className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
             You are marked inactive for this day
           </div>
-          <div className="mt-1 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+          <div className="mt-1 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
             {availability.note || 'A manager marked this day unavailable. Your workspace is read-only until you are reactivated.'}
           </div>
         </div>

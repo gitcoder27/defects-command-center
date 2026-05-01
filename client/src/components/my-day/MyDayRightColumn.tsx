@@ -57,11 +57,11 @@ export function MyDayRightColumn({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <ListTodo size={14} style={{ color: 'var(--text-muted)' }} />
-            <h2 className="text-[12px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+            <h2 className="text-[13px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
               Up Next
             </h2>
           </div>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
             {day?.plannedItems.length ?? 0} TASKS
           </span>
         </div>
@@ -82,7 +82,7 @@ export function MyDayRightColumn({
       <motion.section variants={sectionVariants} className="mt-4">
         <div className="flex items-center gap-2 mb-4 pl-2">
           <Activity size={14} className="text-[var(--accent)]" />
-          <h2 className="text-[12px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+          <h2 className="text-[13px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
             Recent Activity
           </h2>
         </div>

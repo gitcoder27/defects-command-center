@@ -18,7 +18,7 @@ export function IssueDetails({ issue }: { issue: Issue }) {
           className="rounded-xl px-3 py-2.5"
           style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
         >
-          <span className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+          <span className="text-[12px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
             {field.label}
           </span>
           <span
@@ -35,14 +35,14 @@ export function IssueDetails({ issue }: { issue: Issue }) {
           className="rounded-xl px-3 py-2.5 sm:col-span-2"
           style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
         >
-          <span className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+          <span className="text-[12px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
             Labels
           </span>
           <div className="flex flex-wrap gap-1.5 mt-2">
             {issue.labels.map((label) => (
               <span
                 key={label}
-                className="text-[11px] px-2 py-0.5 rounded-full"
+                className="text-[12px] px-2 py-0.5 rounded-full"
                 style={{ background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
               >
                 {label}

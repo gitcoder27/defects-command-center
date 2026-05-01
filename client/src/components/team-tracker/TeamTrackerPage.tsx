@@ -325,7 +325,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
               <h1 className="shrink-0 text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Team
               </h1>
-              <div className="hidden truncate text-[11px] md:block" style={{ color: 'var(--text-muted)' }}>
+              <div className="hidden truncate text-[12px] md:block" style={{ color: 'var(--text-muted)' }}>
                 Full roster, current work, and blockers.
               </div>
             </div>
@@ -345,7 +345,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
               type="button"
               onClick={workflow.handleRefresh}
               disabled={isRefreshing}
-              className="flex h-8 items-center gap-1 rounded-lg px-2.5 text-[11px] font-medium transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+              className="flex h-8 items-center gap-1 rounded-lg px-2.5 text-[12px] font-medium transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
               style={{
                 background: 'transparent',
                 color: 'var(--text-secondary)',
@@ -375,7 +375,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-[116px] bg-transparent text-[11px] font-mono outline-none"
+                  className="w-[116px] bg-transparent text-[12px] font-mono outline-none"
                   style={{ color: 'var(--text-primary)' }}
                 />
               </div>
@@ -392,7 +392,7 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
             {!isToday && (
               <button
                 onClick={() => setDate(getLocalIsoDate())}
-                className="h-8 rounded-lg px-2.5 text-[11px] font-medium"
+                className="h-8 rounded-lg px-2.5 text-[12px] font-medium"
                 style={{
                   background: 'var(--bg-tertiary)',
                   color: 'var(--accent)',
@@ -568,7 +568,7 @@ function TeamTrackerModeBanner({
 
   return (
     <div className="rounded-lg border px-2.5 py-1.5" style={{ borderColor: 'var(--border)', background: 'transparent' }}>
-      <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+      <div className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
         <History size={13} style={{ color: 'var(--accent)' }} />
         {date} is a read-only historical snapshot.
       </div>
@@ -601,7 +601,7 @@ function EmptyLensState({ title, message }: { title: string; message: string }) 
         <div className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
           {title}
         </div>
-        <div className="mt-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="mt-1 text-[13px]" style={{ color: 'var(--text-muted)' }}>
           {message}
         </div>
       </div>

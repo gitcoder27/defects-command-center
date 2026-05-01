@@ -354,7 +354,7 @@ export function DeveloperTrackerDrawer({
                   !readOnly && !notesEditing ? (
                     <button
                       onClick={() => { setNotesText(day.managerNotes ?? ''); setNotesEditing(true); }}
-                      className="text-[11px]"
+                      className="text-[12px]"
                       style={{ color: 'var(--accent)' }}
                     >
                       Edit
@@ -378,14 +378,14 @@ export function DeveloperTrackerDrawer({
                     <div className="flex items-center gap-1">
                       <button
                         onClick={handleSaveNotes}
-                        className="flex items-center gap-1 rounded-lg px-2 py-1 text-[12px]"
+                        className="flex items-center gap-1 rounded-lg px-2 py-1 text-[13px]"
                         style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
                       >
                         <Save size={11} /> Save
                       </button>
                       <button
                         onClick={() => setNotesEditing(false)}
-                        className="text-[12px] px-1"
+                        className="text-[13px] px-1"
                         style={{ color: 'var(--text-muted)' }}
                       >
                         Cancel
@@ -416,7 +416,7 @@ export function DeveloperTrackerDrawer({
               <DrawerSection title="Check-ins" count={day.checkIns.length}>
                 <div className="space-y-1.5 mb-2">
                   {day.checkIns.length === 0 && (
-                    <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                    <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
                       {readOnly ? 'No check-ins recorded for this date.' : 'No check-ins today.'}
                     </div>
                   )}
@@ -429,9 +429,9 @@ export function DeveloperTrackerDrawer({
                         return (
                           <>
                             <div className="text-[13px] leading-5" style={{ color: 'var(--text-primary)' }}>{ci.summary}</div>
-                            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
                               <span
-                                className="rounded-md border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.05em]"
+                                className="rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.05em]"
                                 style={{
                                   color: badge.color,
                                   background: badge.background,
@@ -472,7 +472,7 @@ export function DeveloperTrackerDrawer({
                     <button
                       onClick={handleCheckIn}
                       disabled={!checkInText.trim()}
-                      className="shrink-0 h-7 rounded-lg px-2 text-[12px] font-medium disabled:opacity-40 transition-colors"
+                      className="shrink-0 h-7 rounded-lg px-2 text-[13px] font-medium disabled:opacity-40 transition-colors"
                       style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
                     >
                       Save

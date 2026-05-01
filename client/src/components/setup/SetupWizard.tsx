@@ -480,7 +480,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       <button
         type="button"
         onClick={toggleTheme}
-        className="absolute right-5 top-5 z-20 inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-semibold transition-colors"
+        className="absolute right-5 top-5 z-20 inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[13px] font-semibold transition-colors"
         style={{
           background: 'color-mix(in srgb, var(--bg-primary) 88%, transparent)',
           color: 'var(--text-primary)',
@@ -514,7 +514,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
               <LeadOSMark size={26} />
             </div>
             <div className="text-left">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.3em]" style={{ color: '#fbbf24' }}>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.3em]" style={{ color: '#fbbf24' }}>
                 Workspace Setup
               </div>
               <div className="text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
@@ -541,7 +541,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
               return (
                 <div key={stepKey} className="flex items-center gap-2">
                   <div
-                    className="flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-semibold transition-all duration-300"
+                    className="flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[12px] font-semibold transition-all duration-300"
                     style={{
                       borderColor: isActive
                         ? 'rgba(251, 191, 36, 0.5)'
@@ -601,7 +601,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
           {/* Step header — always visible */}
           <div className="shrink-0 px-7 pb-0 pt-7 md:px-9 md:pt-9">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em]" style={{ color: '#fbbf24' }}>
+            <div className="text-[12px] font-semibold uppercase tracking-[0.24em]" style={{ color: '#fbbf24' }}>
               Step {activeStepMeta.label} of {STEP_ORDER.length}
             </div>
             <h2 className="mt-2 text-[24px] font-semibold leading-tight tracking-tight md:text-[28px]" style={{ color: 'var(--text-primary)' }}>
@@ -849,7 +849,7 @@ function StepContent(props: any) {
               placeholder={props.configQuery.data?.jiraApiToken ? 'Leave blank to keep saved token' : 'Paste API token'}
             />
           </Field>
-          <div className="rounded-[14px] border px-4 py-3 text-[12px] leading-5" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg-tertiary) 72%, transparent)', color: 'var(--text-secondary)' }}>
+          <div className="rounded-[14px] border px-4 py-3 text-[13px] leading-5" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg-tertiary) 72%, transparent)', color: 'var(--text-secondary)' }}>
             Skip this step if you want to start with Team, Desk, Follow-ups, and Meetings first. Jira can be connected later from Settings.
           </div>
           <button
@@ -889,7 +889,7 @@ function StepContent(props: any) {
               <span className="block text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Include manager&apos;s Jira assignments
               </span>
-              <span className="mt-1 block text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+              <span className="mt-1 block text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>
                 Leave off if using a service account or if the manager stays outside tracked scope.
               </span>
             </span>
@@ -943,7 +943,7 @@ function StepContent(props: any) {
 
           {/* Selection counter badge */}
           <div
-            className="flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-semibold"
+            className="flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-semibold"
             style={{
               background: props.selectedDeveloperIds.size > 0 ? 'rgba(6, 182, 212, 0.1)' : 'var(--bg-tertiary)',
               color: props.selectedDeveloperIds.size > 0 ? 'var(--accent)' : 'var(--text-muted)',
@@ -1005,8 +1005,8 @@ function StepContent(props: any) {
             <div className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
               Developer login link
             </div>
-            <div className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
-              Share <span className="rounded-md px-1.5 py-0.5 font-mono text-[11px]" style={{ background: 'var(--bg-tertiary)' }}>{DEVELOPER_LOGIN_URL}</span> with developers after accounts are created.
+            <div className="mt-1 text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+              Share <span className="rounded-md px-1.5 py-0.5 font-mono text-[12px]" style={{ background: 'var(--bg-tertiary)' }}>{DEVELOPER_LOGIN_URL}</span> with developers after accounts are created.
             </div>
           </div>
 
@@ -1072,7 +1072,7 @@ function StepContent(props: any) {
 
           {/* Existing accounts list */}
           <div className="rounded-[16px] border" style={{ borderColor: 'var(--border)' }}>
-            <div className="border-b px-4 py-2.5 text-[12px] font-semibold uppercase tracking-wider" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+            <div className="border-b px-4 py-2.5 text-[13px] font-semibold uppercase tracking-wider" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
               Existing accounts
             </div>
             <div className="max-h-[180px] overflow-y-auto p-3">
@@ -1094,12 +1094,12 @@ function StepContent(props: any) {
                         <div className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                           {account.displayName}
                         </div>
-                        <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
                           @{account.username} {account.developerAccountId ? `· ${account.developerAccountId}` : '· manager'}
                         </div>
                       </div>
                       <span
-                        className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
+                        className="rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase"
                         style={{
                           background: account.role === 'manager' ? 'rgba(245, 158, 11, 0.14)' : 'rgba(6, 182, 212, 0.14)',
                           color: account.role === 'manager' ? 'var(--warning)' : 'var(--accent)',
@@ -1253,7 +1253,7 @@ function UserRow({
         <div className="truncate text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
           {user.displayName}
         </div>
-        <div className="truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+        <div className="truncate text-[12px]" style={{ color: 'var(--text-secondary)' }}>
           {user.email || user.accountId}
         </div>
       </div>
@@ -1267,7 +1267,7 @@ function UserRow({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
+      <span className="mb-2 block text-[13px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
         {label}
       </span>
       {children}

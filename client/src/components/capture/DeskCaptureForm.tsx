@@ -117,7 +117,7 @@ export function DeskCaptureForm({
                 key={opt}
                 type="button"
                 onClick={() => setKind(opt)}
-                className="rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all"
+                className="rounded-lg px-2.5 py-1 text-[12px] font-medium transition-all"
                 style={{
                   background: active ? 'var(--md-accent-glow)' : 'var(--bg-tertiary)',
                   color: active ? 'var(--md-accent)' : 'var(--text-muted)',
@@ -131,7 +131,7 @@ export function DeskCaptureForm({
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value as ManagerDeskCategory)}
-            className="ml-auto rounded-lg px-2 py-1 text-[11px] outline-none"
+            className="ml-auto rounded-lg px-2 py-1 text-[12px] outline-none"
             style={{
               background: 'var(--bg-tertiary)',
               color: 'var(--text-primary)',
@@ -162,13 +162,13 @@ export function DeskCaptureForm({
             }}
           >
             <span
-              className="flex items-center gap-1.5 text-[11px] font-medium"
+              className="flex items-center gap-1.5 text-[12px] font-medium"
               style={{ color: 'var(--text-secondary)' }}
             >
               <FileText size={11} style={{ color: 'var(--text-muted)' }} />
               Context note
             </span>
-            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
               {detailsOpen ? 'Hide' : 'Optional'}
             </span>
           </button>
@@ -179,7 +179,7 @@ export function DeskCaptureForm({
                 onChange={(e) => setContextNote(e.target.value)}
                 rows={2}
                 placeholder="Quick context so future-you remembers why..."
-                className="w-full rounded-lg px-2.5 py-2 text-[12px] outline-none resize-y"
+                className="w-full rounded-lg px-2.5 py-2 text-[13px] outline-none resize-y"
                 style={{
                   background: 'var(--bg-tertiary)',
                   color: 'var(--text-primary)',
@@ -201,7 +201,7 @@ export function DeskCaptureForm({
           background: 'color-mix(in srgb, var(--bg-tertiary) 40%, transparent)',
         }}
       >
-        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+        <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
           Lands on desk for{' '}
           <span style={{ color: 'var(--text-secondary)' }}>{formattedDate}</span>
         </span>
@@ -209,7 +209,7 @@ export function DeskCaptureForm({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium"
+            className="rounded-lg px-2.5 py-1.5 text-[12px] font-medium"
             style={{ color: 'var(--text-muted)' }}
           >
             Cancel
@@ -218,7 +218,7 @@ export function DeskCaptureForm({
             type="button"
             onClick={handleSubmit}
             disabled={!title.trim() || createItem.isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all disabled:opacity-40"
             style={{
               background: 'var(--md-accent)',
               color: '#111',

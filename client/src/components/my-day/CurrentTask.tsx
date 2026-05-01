@@ -40,7 +40,7 @@ export function CurrentTask({
         <p className="text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
           No active task
         </p>
-        <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-[12px] mt-1" style={{ color: 'var(--text-muted)' }}>
           {hasPlannedItems
             ? 'Select a planned item below to start working'
             : 'Add a task to get started'}
@@ -82,7 +82,7 @@ export function CurrentTask({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span
-              className="text-[10px] font-bold uppercase"
+              className="text-[11px] font-bold uppercase"
               style={{ color: 'var(--accent)', letterSpacing: '0.1em' }}
             >
               Working On

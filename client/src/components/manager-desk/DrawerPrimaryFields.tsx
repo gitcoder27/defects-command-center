@@ -40,7 +40,7 @@ export function DrawerPrimaryFields({
         >
           <div className="mb-2 flex items-center gap-2">
             <UserRound size={12} style={{ color: 'var(--md-accent)' }} />
-            <span className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
               Owner
             </span>
           </div>
@@ -58,12 +58,12 @@ export function DrawerPrimaryFields({
             emptyLabel={hasLinkedWork ? undefined : 'Unassigned'}
           />
           {hasLinkedWork && assigneeId && (
-            <p className="mt-2 text-[10px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            <p className="mt-2 text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               Assignee is locked while delegated work is active.
             </p>
           )}
           {selectedDev?.availability?.state === 'inactive' && (
-            <p className="mt-2 text-[10px] leading-relaxed" style={{ color: 'var(--warning)' }}>
+            <p className="mt-2 text-[11px] leading-relaxed" style={{ color: 'var(--warning)' }}>
               {selectedDev.availability.note || `${selectedDev.displayName} is inactive for ${date}.`}
             </p>
           )}
@@ -79,7 +79,7 @@ export function DrawerPrimaryFields({
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <ArrowRight size={12} style={{ color: 'var(--md-accent)' }} />
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
+              <span className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
                 Next move
               </span>
             </div>
@@ -118,7 +118,7 @@ function InlineSelect<T extends string>({
   const id = useId();
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-[9px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
+      <label htmlFor={id} className="mb-1 block text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
         {label}
       </label>
       <select
@@ -126,7 +126,7 @@ function InlineSelect<T extends string>({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
-        className="w-full cursor-pointer rounded-lg px-2.5 py-2 text-[12px] font-medium outline-none disabled:cursor-not-allowed disabled:opacity-70"
+        className="w-full cursor-pointer rounded-lg px-2.5 py-2 text-[13px] font-medium outline-none disabled:cursor-not-allowed disabled:opacity-70"
         style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
       >
         {emptyLabel && <option value="">{emptyLabel}</option>}
@@ -179,7 +179,7 @@ function DraftTextArea({
         readOnly={readOnly}
         placeholder={placeholder}
         rows={3}
-        className="w-full resize-none rounded-lg px-3 py-2 text-[12px] leading-relaxed outline-none read-only:cursor-default"
+        className="w-full resize-none rounded-lg px-3 py-2 text-[13px] leading-relaxed outline-none read-only:cursor-default"
         style={{
           background: 'color-mix(in srgb, var(--bg-primary) 72%, transparent)',
           color: 'var(--text-primary)',
@@ -195,7 +195,7 @@ function SaveIndicator({ state }: { state: 'idle' | 'dirty' | 'saving' | 'saved'
   if (state === 'idle') return null;
   return (
     <span
-      className="text-[9px] font-semibold uppercase tracking-[0.12em]"
+      className="text-[10px] font-semibold uppercase tracking-[0.12em]"
       style={{ color: state === 'saved' ? 'var(--success)' : 'var(--warning)' }}
     >
       {state === 'saved' ? 'Saved' : 'Saving...'}

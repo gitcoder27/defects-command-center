@@ -60,7 +60,7 @@ export function MyDayHeader({
             </h1>
             {day && (
               <span
-                className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider"
+                className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider"
                 style={{
                   color: statusInfo?.color,
                   background: statusInfo?.bg,
@@ -77,7 +77,7 @@ export function MyDayHeader({
             {day?.lastCheckInAt && (
               <>
                 <span style={{ color: 'var(--text-muted)' }}>•</span>
-                <span className="text-[12px] flex items-center gap-1 font-medium" style={{ color: 'var(--text-muted)' }}>
+                <span className="text-[13px] flex items-center gap-1 font-medium" style={{ color: 'var(--text-muted)' }}>
                   {formatRelativeTime(day.lastCheckInAt)}
                 </span>
               </>

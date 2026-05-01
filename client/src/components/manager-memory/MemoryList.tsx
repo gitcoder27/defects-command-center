@@ -41,7 +41,7 @@ export function MemoryList({ mode, items, onStatusChange, onOpenDesk }: MemoryLi
           <h2 className="mt-3 text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
             {mode === 'follow-ups' ? 'No follow-ups waiting' : 'No meetings captured'}
           </h2>
-          <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-1 text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>
             {mode === 'follow-ups'
               ? 'Add the next promise you need to close, then it will appear here and on Today.'
               : 'Capture a meeting when notes, decisions, or action items need to be remembered.'}
@@ -60,10 +60,10 @@ export function MemoryList({ mode, items, onStatusChange, onOpenDesk }: MemoryLi
         return (
           <section key={lane.id}>
             <div className="mb-2 flex items-center gap-2">
-              <h2 className="text-[12px] font-semibold uppercase" style={{ color: lane.id === 'overdue' ? 'var(--danger)' : 'var(--text-secondary)' }}>
+              <h2 className="text-[13px] font-semibold uppercase" style={{ color: lane.id === 'overdue' ? 'var(--danger)' : 'var(--text-secondary)' }}>
                 {lane.label}
               </h2>
-              <span className="rounded-md px-1.5 py-0.5 text-[10px] tabular-nums" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
+              <span className="rounded-md px-1.5 py-0.5 text-[11px] tabular-nums" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
                 {laneItems.length}
               </span>
             </div>
@@ -110,7 +110,7 @@ function MemoryRow({
     >
       <div className="min-w-0">
         <h3 className="truncate text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>{item.title}</h3>
-        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>
           <span className="inline-flex min-w-0 items-center gap-1">
             <UserRound size={11} />
             <span className="truncate">{personLabel}</span>
@@ -124,13 +124,13 @@ function MemoryRow({
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+      <div className="flex items-center gap-1.5 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
         <Clock3 size={12} style={{ color: 'var(--memory-accent)' }} />
         {formatMemoryDateTime(primaryTime)}
       </div>
 
       <div>
-        <span className="rounded-md px-2 py-1 text-[10px] font-semibold" style={{ background: statusBackground(item.status), color: statusColor(item.status) }}>
+        <span className="rounded-md px-2 py-1 text-[11px] font-semibold" style={{ background: statusBackground(item.status), color: statusColor(item.status) }}>
           {statusLabel(item.status)}
         </span>
       </div>
@@ -140,7 +140,7 @@ function MemoryRow({
           <button
             type="button"
             onClick={() => onStatusChange(item.id, 'done')}
-            className="rounded-md px-2 py-1 text-[11px] font-semibold transition-colors hover:bg-[var(--memory-hover)]"
+            className="rounded-md px-2 py-1 text-[12px] font-semibold transition-colors hover:bg-[var(--memory-hover)]"
             style={{ color: 'var(--success)' }}
           >
             Done
@@ -150,7 +150,7 @@ function MemoryRow({
           <button
             type="button"
             onClick={() => onStatusChange(item.id, item.status === 'waiting' ? 'planned' : 'waiting')}
-            className="rounded-md px-2 py-1 text-[11px] font-semibold transition-colors hover:bg-[var(--memory-hover)]"
+            className="rounded-md px-2 py-1 text-[12px] font-semibold transition-colors hover:bg-[var(--memory-hover)]"
             style={{ color: 'var(--warning)' }}
           >
             {item.status === 'waiting' ? 'Resume' : 'Waiting'}
@@ -159,7 +159,7 @@ function MemoryRow({
         <button
           type="button"
           onClick={onOpenDesk}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors hover:bg-[var(--memory-hover)]"
+          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[12px] font-semibold transition-colors hover:bg-[var(--memory-hover)]"
           style={{ color: 'var(--memory-accent)' }}
         >
           Desk

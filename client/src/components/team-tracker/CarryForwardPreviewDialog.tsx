@@ -31,7 +31,7 @@ function TaskSourceBadge({ item }: { item: TrackerWorkItem }) {
   if (item.managerDeskItemId != null) {
     return (
       <span
-        className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium"
+        className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium"
         style={{
           background: 'rgba(139, 92, 246, 0.10)',
           color: 'rgb(139, 92, 246)',
@@ -128,7 +128,7 @@ function DeveloperGroup({
         />
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <div
-            className="flex h-6 w-6 items-center justify-center rounded-lg text-[10px] font-bold shrink-0"
+            className="flex h-6 w-6 items-center justify-center rounded-lg text-[11px] font-bold shrink-0"
             style={{
               background: 'color-mix(in srgb, var(--accent) 14%, transparent)',
               color: 'var(--accent)',
@@ -137,13 +137,13 @@ function DeveloperGroup({
             {group.developer.displayName.charAt(0).toUpperCase()}
           </div>
           <span
-            className="text-[12px] font-semibold truncate"
+            className="text-[13px] font-semibold truncate"
             style={{ color: 'var(--text-primary)' }}
           >
             {group.developer.displayName}
           </span>
           <span
-            className="text-[10px] font-medium shrink-0 tabular-nums"
+            className="text-[11px] font-medium shrink-0 tabular-nums"
             style={{ color: 'var(--text-muted)' }}
           >
             {selectedInGroup}/{group.items.length}
@@ -218,7 +218,7 @@ function CarryForwardTaskRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span
-            className="text-[12px] leading-tight"
+            className="text-[13px] leading-tight"
             style={{
               color: selected ? 'var(--text-primary)' : 'var(--text-muted)',
             }}
@@ -231,7 +231,7 @@ function CarryForwardTaskRow({
           {item.jiraKey && (
             <JiraIssueLink
               issueKey={item.jiraKey}
-              className="text-[10px] font-mono"
+              className="text-[11px] font-mono"
               style={{ color: 'var(--accent)' }}
               onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
@@ -239,12 +239,12 @@ function CarryForwardTaskRow({
             </JiraIssueLink>
           )}
           {item.jiraPriorityName && (
-            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
               {item.jiraPriorityName}
             </span>
           )}
           <span
-            className="text-[10px] rounded-md px-1 py-px"
+            className="text-[11px] rounded-md px-1 py-px"
             style={{
               background: item.state === 'in_progress'
                 ? 'rgba(59, 130, 246, 0.10)'
@@ -404,7 +404,7 @@ export function CarryForwardPreviewDialog({
                     >
                       Carry Forward Preview
                     </div>
-                    <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-[12px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                       {fromDate} → {toDate} · {totalCount} task{totalCount === 1 ? '' : 's'} across {developers.length} developer{developers.length === 1 ? '' : 's'}
                     </div>
                   </div>
@@ -431,13 +431,13 @@ export function CarryForwardPreviewDialog({
                 <button
                   type="button"
                   onClick={toggleAll}
-                  className="text-[11px] font-medium"
+                  className="text-[12px] font-medium"
                   style={{ color: 'var(--text-secondary)' }}
                 >
                   {allSelected ? 'Deselect all' : 'Select all'}
                 </button>
                 <span
-                  className="ml-auto text-[10px] font-medium tabular-nums"
+                  className="ml-auto text-[11px] font-medium tabular-nums"
                   style={{ color: 'var(--text-muted)' }}
                 >
                   {selectedCount} of {totalCount} selected
@@ -470,7 +470,7 @@ export function CarryForwardPreviewDialog({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-xl px-3 py-2 text-[11px] font-semibold"
+                className="rounded-xl px-3 py-2 text-[12px] font-semibold"
                 style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
               >
                 Cancel
@@ -479,7 +479,7 @@ export function CarryForwardPreviewDialog({
                 type="button"
                 onClick={handleConfirm}
                 disabled={selectedCount === 0 || isPending}
-                className="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[11px] font-semibold transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[12px] font-semibold transition-colors disabled:opacity-40"
                 style={{
                   background: selectedCount > 0 ? 'var(--accent)' : 'var(--bg-tertiary)',
                   color: selectedCount > 0 ? 'white' : 'var(--text-muted)',

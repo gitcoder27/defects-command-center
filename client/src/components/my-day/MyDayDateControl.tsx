@@ -47,7 +47,7 @@ export function MyDayDateControl({
         {!todayStr && (
           <button
             onClick={goToday}
-            className="rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors uppercase tracking-wider"
+            className="rounded-lg px-2.5 py-1 text-[12px] font-semibold transition-colors uppercase tracking-wider"
             style={{
               color: 'var(--accent)',
               background: 'var(--accent-glow)',
@@ -60,11 +60,11 @@ export function MyDayDateControl({
 
       {totalTasks > 0 && (
         <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1.5 text-[12px] font-medium" style={{ color: 'var(--success)' }}>
+          <span className="flex items-center gap-1.5 text-[13px] font-medium" style={{ color: 'var(--success)' }}>
             <CheckCircle2 size={14} />
             {completedCount}
           </span>
-          <span className="flex items-center gap-1.5 text-[12px] font-medium" style={{ color: 'var(--text-muted)' }}>
+          <span className="flex items-center gap-1.5 text-[13px] font-medium" style={{ color: 'var(--text-muted)' }}>
             <Target size={14} />
             {totalTasks}
           </span>

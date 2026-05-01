@@ -151,7 +151,7 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
       <button
         type="button"
         onClick={toggleTheme}
-        className="absolute right-5 top-5 z-20 inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-semibold transition-colors"
+        className="absolute right-5 top-5 z-20 inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[13px] font-semibold transition-colors"
         style={{
           background: 'color-mix(in srgb, var(--bg-primary) 88%, transparent)',
           color: 'var(--text-primary)',
@@ -186,7 +186,7 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
             </div>
             <div className="text-left">
               <div
-                className="text-[10px] font-semibold uppercase tracking-[0.3em]"
+                className="text-[11px] font-semibold uppercase tracking-[0.3em]"
                 style={{ color: copy.accent }}
               >
                 {copy.eyebrow}
@@ -233,7 +233,7 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               >
                 <div
-                  className="text-[11px] font-semibold uppercase tracking-[0.24em]"
+                  className="text-[12px] font-semibold uppercase tracking-[0.24em]"
                   style={{ color: copy.accent }}
                 >
                   Sign in
@@ -286,13 +286,13 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
                 </form>
 
                 <div className="mt-6 flex items-center justify-between">
-                  <p className="text-[12px] leading-5" style={{ color: 'var(--text-muted)' }}>
+                  <p className="text-[13px] leading-5" style={{ color: 'var(--text-muted)' }}>
                     {copy.note}
                   </p>
                   <button
                     type="button"
                     onClick={() => switchMode('change-password')}
-                    className="ml-3 shrink-0 text-[12px] font-medium transition-colors hover:underline"
+                    className="ml-3 shrink-0 text-[13px] font-medium transition-colors hover:underline"
                     style={{ color: copy.accent }}
                   >
                     Change password
@@ -310,7 +310,7 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
                 <div className="flex items-center gap-2">
                   <KeyRound size={14} style={{ color: copy.accent }} />
                   <div
-                    className="text-[11px] font-semibold uppercase tracking-[0.24em]"
+                    className="text-[12px] font-semibold uppercase tracking-[0.24em]"
                     style={{ color: copy.accent }}
                   >
                     Change password
@@ -396,7 +396,7 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
                   <button
                     type="button"
                     onClick={() => switchMode('login')}
-                    className="text-[12px] font-medium transition-colors hover:underline"
+                    className="text-[13px] font-medium transition-colors hover:underline"
                     style={{ color: copy.accent }}
                   >
                     ← Back to sign in
@@ -414,7 +414,7 @@ export function LoginPage({ role = 'developer' }: LoginPageProps) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
+      <span className="mb-2 block text-[13px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
         {label}
       </span>
       {children}

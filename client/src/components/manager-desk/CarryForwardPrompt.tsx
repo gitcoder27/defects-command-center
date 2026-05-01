@@ -29,11 +29,11 @@ export function CarryForwardPrompt({
       data-testid="carry-forward-prompt"
     >
       <div className="min-w-0">
-        <div className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
+        <div className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
           {carryableCount} unfinished item{carryableCount === 1 ? '' : 's'} from{' '}
           <span style={{ color: 'var(--md-accent)' }}>{sourceDate}</span>
         </div>
-        <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+        <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
           Review and carry items into {viewedDate}.
         </div>
       </div>
@@ -42,7 +42,7 @@ export function CarryForwardPrompt({
           type="button"
           onClick={onReviewAndCarry}
           disabled={isPending}
-          className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-50"
           style={{
             background: 'var(--md-accent)',
             borderColor: 'var(--md-accent)',

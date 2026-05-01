@@ -74,7 +74,7 @@ export function AttentionCard({ item, index, onOpen, onCaptureFollowUp, onSetCur
       <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-sm" style={{ background: accent }} />
 
       <div className="flex min-w-0 items-center gap-3 pl-2">
-        <span className="tabular-nums text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+        <span className="tabular-nums text-[12px] font-semibold" style={{ color: 'var(--text-muted)' }}>
           {String(index + 1).padStart(2, '0')}
         </span>
         <div className="min-w-0">
@@ -92,7 +92,7 @@ export function AttentionCard({ item, index, onOpen, onCaptureFollowUp, onSetCur
           {tone === 'danger' ? <TriangleAlert size={14} /> : <CircleOff size={14} />}
           <span className="truncate">{reasonLine(item)}</span>
         </div>
-        <div className="mt-1 flex min-w-0 items-center gap-3 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="mt-1 flex min-w-0 items-center gap-3 text-[13px]" style={{ color: 'var(--text-muted)' }}>
           <span className="inline-flex items-center gap-1.5" title={absoluteCheckIn}>
             <Clock size={12} />
             {checkIn}
@@ -104,17 +104,17 @@ export function AttentionCard({ item, index, onOpen, onCaptureFollowUp, onSetCur
         </div>
       </div>
 
-      <div className="min-w-0 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+      <div className="min-w-0 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
         {currentWork ? (
           <div className="min-w-0">
-            <div className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+            <div className="text-[12px] font-medium" style={{ color: 'var(--text-muted)' }}>
               Current
             </div>
             <div className="truncate text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }} title={currentWork.title}>
               {currentWork.title}
             </div>
             {currentWork.jiraKey && (
-              <div className="truncate font-mono text-[11px]" style={{ color: 'var(--accent)' }}>
+              <div className="truncate font-mono text-[12px]" style={{ color: 'var(--accent)' }}>
                 {currentWork.jiraKey}
               </div>
             )}
@@ -139,7 +139,7 @@ export function AttentionCard({ item, index, onOpen, onCaptureFollowUp, onSetCur
               event.stopPropagation();
               onSetCurrent(setCurrentCandidate.id);
             }}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
             style={{ background: 'var(--accent)', color: 'var(--bg-primary)' }}
           >
             <Play size={13} />
@@ -152,14 +152,14 @@ export function AttentionCard({ item, index, onOpen, onCaptureFollowUp, onSetCur
               event.stopPropagation();
               onCaptureFollowUp();
             }}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
             style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
           >
             <MessageSquarePlus size={13} />
             Follow up
           </button>
         ) : (
-          <span className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold" style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}>
+          <span className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold" style={{ color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}>
             Open
             <ArrowRight size={13} />
           </span>

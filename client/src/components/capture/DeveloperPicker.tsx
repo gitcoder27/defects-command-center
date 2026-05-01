@@ -69,20 +69,20 @@ export function DeveloperPicker({ date, selected, onSelect, onClear }: Developer
           style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
         >
           <div
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[9px] font-bold"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold"
             style={{ background: `${c}20`, color: c, border: `1px solid ${c}30` }}
           >
             {getInitials(selected.displayName)}
           </div>
           <span
-            className="text-[12px] font-medium truncate"
+            className="text-[13px] font-medium truncate"
             style={{ color: 'var(--text-primary)' }}
           >
             {selected.displayName}
           </span>
           {unavail && (
             <span
-              className="text-[9px] px-1.5 py-0.5 rounded-md font-medium"
+              className="text-[10px] px-1.5 py-0.5 rounded-md font-medium"
               style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)' }}
             >
               {selected.availability?.note || 'Unavailable'}
@@ -95,7 +95,7 @@ export function DeveloperPicker({ date, selected, onSelect, onClear }: Developer
             setOpen(true);
             onClear();
           }}
-          className="text-[10px] px-2 py-1.5 rounded-lg font-medium shrink-0"
+          className="text-[11px] px-2 py-1.5 rounded-lg font-medium shrink-0"
           style={{
             color: 'var(--text-secondary)',
             background: 'var(--bg-tertiary)',
@@ -123,7 +123,7 @@ export function DeveloperPicker({ date, selected, onSelect, onClear }: Developer
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search developer…"
-          className="w-full rounded-xl pl-9 pr-3 py-2 text-[12px] outline-none"
+          className="w-full rounded-xl pl-9 pr-3 py-2 text-[13px] outline-none"
           style={{
             background: 'var(--bg-elevated)',
             color: 'var(--text-primary)',
@@ -138,14 +138,14 @@ export function DeveloperPicker({ date, selected, onSelect, onClear }: Developer
       >
         {isLoading ? (
           <div
-            className="px-3 py-6 text-center text-[11px]"
+            className="px-3 py-6 text-center text-[12px]"
             style={{ color: 'var(--text-muted)' }}
           >
             Loading team…
           </div>
         ) : filtered.length === 0 ? (
           <div
-            className="px-3 py-6 text-center text-[11px]"
+            className="px-3 py-6 text-center text-[12px]"
             style={{ color: 'var(--text-muted)' }}
           >
             {search ? 'No matching developers' : 'No developers found'}
@@ -171,20 +171,20 @@ export function DeveloperPicker({ date, selected, onSelect, onClear }: Developer
                 }}
               >
                 <div
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[9px] font-bold"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold"
                   style={{ background: `${c}15`, color: c, border: `1px solid ${c}20` }}
                 >
                   {getInitials(dev.displayName)}
                 </div>
                 <span
-                  className="text-[12px] font-medium truncate flex-1"
+                  className="text-[13px] font-medium truncate flex-1"
                   style={{ color: 'var(--text-primary)' }}
                 >
                   {dev.displayName}
                 </span>
                 {unavail && (
                   <span
-                    className="text-[9px] px-1.5 py-0.5 rounded-md font-medium shrink-0 flex items-center gap-0.5"
+                    className="text-[10px] px-1.5 py-0.5 rounded-md font-medium shrink-0 flex items-center gap-0.5"
                     style={{ background: 'rgba(239,68,68,0.08)', color: 'var(--danger)' }}
                   >
                     <Clock size={8} />

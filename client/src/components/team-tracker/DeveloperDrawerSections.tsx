@@ -75,7 +75,7 @@ export function DrawerHeader({
             <div className="truncate text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
               {day.developer.displayName}
             </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>
               <StatusPillSelect day={day} readOnly={readOnly} onUpdateDay={onUpdateDay} />
               <span>
                 Load{' '}
@@ -147,7 +147,7 @@ function StatusPillSelect({ day, readOnly, onUpdateDay }: StatusPillSelectProps)
       <select
         value={day.status}
         onChange={(event) => onUpdateDay({ accountId: day.developer.accountId, status: event.target.value as TrackerDeveloperStatus })}
-        className="h-[24px] appearance-none rounded-full py-0 pl-2.5 pr-6 text-[10px] font-semibold uppercase outline-none transition-colors focus:ring-2 focus:ring-[var(--border-active)]"
+        className="h-[24px] appearance-none rounded-full py-0 pl-2.5 pr-6 text-[11px] font-semibold uppercase outline-none transition-colors focus:ring-2 focus:ring-[var(--border-active)]"
         style={{
           color: style.color,
           background: style.background,
@@ -196,7 +196,7 @@ export function StatusSummary({
           <TrackerSignalBadges day={day} compact maxItems={3} />
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Cap</span>
+          <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Cap</span>
           <input
             type="number"
             min={1}
@@ -205,7 +205,7 @@ export function StatusSummary({
             onChange={(event) => setCapacityText(event.target.value)}
             disabled={readOnly}
             placeholder="-"
-            className="w-10 rounded-md px-1.5 py-0.5 text-center text-[12px] font-mono outline-none"
+            className="w-10 rounded-md px-1.5 py-0.5 text-center text-[13px] font-mono outline-none"
             style={{
               background: 'var(--bg-tertiary)',
               color: 'var(--text-primary)',
@@ -216,7 +216,7 @@ export function StatusSummary({
             type="button"
             onClick={onSaveCapacity}
             disabled={readOnly}
-            className="rounded-md px-1.5 py-0.5 text-[11px] font-medium disabled:opacity-40"
+            className="rounded-md px-1.5 py-0.5 text-[12px] font-medium disabled:opacity-40"
             style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
           >
             Save
@@ -228,7 +228,7 @@ export function StatusSummary({
                 setCapacityText('');
                 onUpdateDay({ accountId: day.developer.accountId, capacityUnits: null });
               }}
-              className="text-[11px]"
+              className="text-[12px]"
               style={{ color: 'var(--text-muted)' }}
             >
               Clear
@@ -251,7 +251,7 @@ export function DrawerSection({ title, count, action, children }: DrawerSectionP
   return (
     <section className="mb-3">
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+        <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
           <span>{title}</span>
           {typeof count === 'number' && (
             <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{count}</span>
@@ -284,7 +284,7 @@ export function HistorySection({ title, items, open, onToggle }: HistorySectionP
         style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
         aria-expanded={hasItems ? open : undefined}
       >
-        <span className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '0.06em' }}>
+        <span className="text-[12px] font-semibold uppercase" style={{ letterSpacing: '0.06em' }}>
           {title} <span className="font-mono">{items.length}</span>
         </span>
         {hasItems && (

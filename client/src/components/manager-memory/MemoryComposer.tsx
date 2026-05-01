@@ -90,7 +90,7 @@ export function MemoryComposer({ mode, date, isSaving, onCreate }: MemoryCompose
         </span>
         <div>
           <h2 className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>{titleLabel}</h2>
-          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{isFollowUps ? 'Promise, owner, and due time' : 'Notes, attendees, and next action'}</p>
+          <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>{isFollowUps ? 'Promise, owner, and due time' : 'Notes, attendees, and next action'}</p>
         </div>
       </div>
 
@@ -163,7 +163,7 @@ export function MemoryComposer({ mode, date, isSaving, onCreate }: MemoryCompose
           type="button"
           onClick={handleSubmit}
           disabled={!title.trim() || isSaving}
-          className="flex h-9 w-full items-center justify-center gap-2 rounded-md text-[12px] font-semibold transition-all active:scale-[0.98] disabled:opacity-40"
+          className="flex h-9 w-full items-center justify-center gap-2 rounded-md text-[13px] font-semibold transition-all active:scale-[0.98] disabled:opacity-40"
           style={{ background: 'var(--memory-accent)', color: 'var(--memory-button-text)' }}
         >
           <Check size={14} />
@@ -185,7 +185,7 @@ function FieldLabel({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+      <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
         {Icon ? <Icon size={12} style={{ color: 'var(--memory-accent)' }} /> : null}
         {text}
       </span>

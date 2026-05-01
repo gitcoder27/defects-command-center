@@ -24,7 +24,7 @@ export function SavedViewDescription({ view }: { view: TeamTrackerSavedView }) {
   if (parts.length === 0) return null;
 
   return (
-    <div className="text-[10px] truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>
+    <div className="text-[11px] truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>
       {parts.join(' · ')}
     </div>
   );
@@ -57,20 +57,20 @@ export function SavedViewItem({
         className="flex items-center justify-between px-3 py-2"
         style={{ background: 'color-mix(in srgb, var(--danger) 6%, transparent)' }}
       >
-        <span className="text-[11px]" style={{ color: 'var(--danger)' }}>
+        <span className="text-[12px]" style={{ color: 'var(--danger)' }}>
           Delete &ldquo;{view.name}&rdquo;?
         </span>
         <div className="flex items-center gap-1">
           <button
             onClick={onConfirmDelete}
-            className="text-[11px] font-medium px-1.5 py-0.5 rounded"
+            className="text-[12px] font-medium px-1.5 py-0.5 rounded"
             style={{ color: 'var(--danger)' }}
           >
             Delete
           </button>
           <button
             onClick={onCancelDelete}
-            className="text-[11px] px-1.5 py-0.5 rounded"
+            className="text-[12px] px-1.5 py-0.5 rounded"
             style={{ color: 'var(--text-muted)' }}
           >
             Cancel
@@ -94,7 +94,7 @@ export function SavedViewItem({
       />
       <div className="flex-1 min-w-0">
         <div
-          className="text-[12px] font-medium truncate"
+          className="text-[13px] font-medium truncate"
           style={{ color: isActive ? 'var(--accent)' : 'var(--text-primary)' }}
         >
           {view.name}

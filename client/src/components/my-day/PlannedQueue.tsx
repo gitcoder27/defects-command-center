@@ -81,7 +81,7 @@ export function PlannedQueue({
           border: '1px dashed var(--border)',
         }}
       >
-        <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
           No planned tasks — add one below
         </p>
       </div>

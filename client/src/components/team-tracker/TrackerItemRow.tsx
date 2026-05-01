@@ -223,16 +223,16 @@ export function TrackerItemRow({
         {item.jiraKey && (
           isDrawerPlanned ? (
             <div className="mt-0.5 min-w-0">
-              <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[11px] truncate" style={{ color: 'var(--accent)' }}>
+              <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[12px] truncate" style={{ color: 'var(--accent)' }}>
                 {item.jiraKey}
               </JiraIssueLink>
             </div>
           ) : (
             <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
-              <span className="text-[11px] font-semibold uppercase shrink-0" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+              <span className="text-[12px] font-semibold uppercase shrink-0" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
                 Jira
               </span>
-              <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[11px] truncate" style={{ color: 'var(--accent)' }}>
+              <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[12px] truncate" style={{ color: 'var(--accent)' }}>
                 {jiraLabel}
               </JiraIssueLink>
             </div>
@@ -240,7 +240,7 @@ export function TrackerItemRow({
         )}
         {jiraMeta && !isDrawerPlanned && (
           <div className="mt-0.5">
-            <span className="text-[11px]" style={{ color: item.jiraPriorityName ? priorityColor(item.jiraPriorityName) : 'var(--text-muted)' }}>
+            <span className="text-[12px]" style={{ color: item.jiraPriorityName ? priorityColor(item.jiraPriorityName) : 'var(--text-muted)' }}>
               {jiraMeta}
             </span>
           </div>
@@ -248,7 +248,7 @@ export function TrackerItemRow({
         {isLinked && !compact && !isDrawerPlanned && (
           <div className="mt-0.5">
             <span
-              className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.06em]"
+              className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]"
               style={{
                 background: 'rgba(217,169,78,0.10)',
                 color: 'var(--md-accent, var(--warning))',
@@ -264,7 +264,7 @@ export function TrackerItemRow({
         {item.note && !compact && !noteEditing && !isDrawerPlanned && (
           <div className="mt-1 flex items-start gap-1.5">
             <StickyNote size={12} className="shrink-0 mt-[2px]" style={{ color: 'var(--text-muted)' }} />
-            <span className="text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+            <span className="text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>
               {item.note}
             </span>
           </div>
@@ -279,7 +279,7 @@ export function TrackerItemRow({
               style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-active)' }}
             />
             <div className="flex items-center gap-1.5">
-              <button onClick={commitNote} className="flex items-center gap-1 rounded-lg px-2 py-1 text-[12px]" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
+              <button onClick={commitNote} className="flex items-center gap-1 rounded-lg px-2 py-1 text-[13px]" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
                 <Save size={11} />
                 Save
               </button>
@@ -288,7 +288,7 @@ export function TrackerItemRow({
                   setDraftNote(item.note ?? '');
                   setNoteEditing(false);
                 }}
-                className="text-[12px]"
+                className="text-[13px]"
                 style={{ color: 'var(--text-muted)' }}
               >
                 Cancel

@@ -37,7 +37,7 @@ export function TrackerDropdownMenu({ trigger, items, activeValue, onSelect }: T
               <button
                 key={item.value}
                 onClick={() => { onSelect(item.value); setOpen(false); }}
-                className="w-full text-left px-3 py-1.5 text-[12px] font-medium transition-colors flex items-center gap-2"
+                className="w-full text-left px-3 py-1.5 text-[13px] font-medium transition-colors flex items-center gap-2"
                 style={{
                   color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
                   background: isActive ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',

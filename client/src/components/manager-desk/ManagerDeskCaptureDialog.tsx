@@ -222,7 +222,7 @@ export function ManagerDeskCaptureDialog({
             </div>
             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
               <span
-                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
                 style={{ background: 'rgba(217,169,78,0.1)', color: 'var(--md-accent)', border: '1px solid rgba(217,169,78,0.18)' }}
               >
                 <CalendarDays size={10} />
@@ -242,7 +242,7 @@ export function ManagerDeskCaptureDialog({
                     <JiraIssueLink
                       key={`${chip.label}-${chip.value}`}
                       issueKey={chip.value}
-                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
                       style={{ background: accent.background, color: accent.color, border: `1px solid ${accent.border}` }}
                     >
                       {chipEl}
@@ -252,7 +252,7 @@ export function ManagerDeskCaptureDialog({
                 return (
                   <span
                     key={`${chip.label}-${chip.value}`}
-                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
                     style={{ background: accent.background, color: accent.color, border: `1px solid ${accent.border}` }}
                   >
                     {chipEl}
@@ -306,7 +306,7 @@ export function ManagerDeskCaptureDialog({
                   key={option}
                   type="button"
                   onClick={() => setKind(option)}
-                  className="rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all"
+                  className="rounded-lg px-2.5 py-1 text-[12px] font-medium transition-all"
                   style={{
                     background: isActive ? 'var(--md-accent-glow)' : 'var(--bg-tertiary)',
                     color: isActive ? 'var(--md-accent)' : 'var(--text-muted)',
@@ -322,7 +322,7 @@ export function ManagerDeskCaptureDialog({
                 id="manager-desk-capture-category"
                 value={category}
                 onChange={(event) => setCategory(event.target.value as ManagerDeskCategory)}
-                className="rounded-lg px-2 py-1 text-[11px] outline-none"
+                className="rounded-lg px-2 py-1 text-[12px] outline-none"
                 style={{
                   background: 'var(--bg-tertiary)',
                   color: 'var(--text-primary)',
@@ -351,11 +351,11 @@ export function ManagerDeskCaptureDialog({
                 background: detailsOpen ? 'color-mix(in srgb, var(--bg-tertiary) 80%, transparent)' : 'transparent',
               }}
             >
-              <span className="flex items-center gap-1.5 text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+              <span className="flex items-center gap-1.5 text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>
                 <FileText size={11} style={{ color: 'var(--text-muted)' }} />
                 Context note
               </span>
-              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                 {detailsOpen ? 'Hide' : 'Optional'}
               </span>
             </button>
@@ -366,7 +366,7 @@ export function ManagerDeskCaptureDialog({
                   onChange={(event) => setContextNote(event.target.value)}
                   rows={2}
                   placeholder="Quick context so future-you remembers why..."
-                  className="w-full rounded-lg px-2.5 py-2 text-[12px] outline-none resize-y"
+                  className="w-full rounded-lg px-2.5 py-2 text-[13px] outline-none resize-y"
                   style={{
                     background: 'var(--bg-tertiary)',
                     color: 'var(--text-primary)',
@@ -385,14 +385,14 @@ export function ManagerDeskCaptureDialog({
           className="flex items-center justify-between gap-2 px-4 py-2.5"
           style={{ borderTop: '1px solid var(--border)', background: 'color-mix(in srgb, var(--bg-tertiary) 40%, transparent)' }}
         >
-          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }} id={dialogDescriptionId}>
+          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }} id={dialogDescriptionId}>
             Lands on desk for <span style={{ color: 'var(--text-secondary)' }}>{formattedDate}</span>
           </span>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors"
+              className="rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition-colors"
               style={{ color: 'var(--text-muted)' }}
             >
               Cancel
@@ -401,7 +401,7 @@ export function ManagerDeskCaptureDialog({
               type="button"
               onClick={handleSubmit}
               disabled={!title.trim() || createItem.isPending}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all disabled:opacity-40"
               style={{
                 background: 'var(--md-accent)',
                 color: '#111',

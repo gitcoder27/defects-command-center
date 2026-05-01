@@ -11,7 +11,7 @@ export function RecentActivity({ checkIns }: RecentActivityProps) {
   if (checkIns.length === 0) {
     return (
       <div className="flex items-center justify-center p-6 rounded-2xl border border-dashed border-[var(--border)]">
-        <p className="text-[12px] font-medium" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-[13px] font-medium" style={{ color: 'var(--text-muted)' }}>
           No recent activity
         </p>
       </div>
@@ -57,12 +57,12 @@ export function RecentActivity({ checkIns }: RecentActivityProps) {
               </p>
               <div className="flex items-center gap-2 mt-2">
                 <Clock size={10} style={{ color: 'var(--text-muted)' }} />
-                <span className="text-[11px] tracking-wide font-medium" style={{ color: 'var(--text-muted)' }}>
+                <span className="text-[12px] tracking-wide font-medium" style={{ color: 'var(--text-muted)' }}>
                   {formatRelativeTime(ci.createdAt)}
                 </span>
                 {ci.authorType && (
                   <span
-                    className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-md"
+                    className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-md"
                     style={{
                       color: ci.authorType === 'manager' ? 'var(--warning)' : 'var(--accent)',
                       background:

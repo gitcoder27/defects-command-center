@@ -61,14 +61,14 @@ export function TagManagementSection() {
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search tags…"
               aria-label="Search tags"
-              className="w-full rounded-lg py-1.5 pl-8 pr-3 text-[11.5px] outline-none"
+              className="w-full rounded-lg py-1.5 pl-8 pr-3 text-[12.5px] outline-none"
               style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
             />
           </div>
           <button
             type="button"
             onClick={() => setUnusedOnly((v) => !v)}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition-colors"
             style={{
               background: unusedOnly ? 'var(--settings-accent-soft-bg)' : 'var(--settings-neutral-chip-bg)',
               color: unusedOnly ? 'var(--accent)' : 'var(--text-secondary)',
@@ -78,7 +78,7 @@ export function TagManagementSection() {
             Unused only
             {unusedCount > 0 ? (
               <span
-                className="rounded-full px-1.5 py-0.5 text-[9.5px] font-semibold"
+                className="rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold"
                 style={{ background: unusedOnly ? 'var(--accent)' : 'var(--settings-neutral-chip-bg)', color: unusedOnly ? '#fff' : 'var(--text-muted)', border: unusedOnly ? 'none' : '1px solid var(--border-strong)' }}
               >
                 {unusedCount}
@@ -86,7 +86,7 @@ export function TagManagementSection() {
             ) : null}
           </button>
           <span
-            className="shrink-0 rounded-lg px-2.5 py-1.5 text-[10.5px] font-semibold"
+            className="shrink-0 rounded-lg px-2.5 py-1.5 text-[11.5px] font-semibold"
             style={{ background: 'var(--settings-neutral-chip-bg)', color: 'var(--text-muted)', border: '1px solid var(--border-strong)' }}
           >
             {tags.length} total
@@ -96,7 +96,7 @@ export function TagManagementSection() {
         {/* Tag list */}
         <div className="overflow-hidden rounded-xl" style={{ border: 'var(--settings-inset-border)' }}>
           {filteredTags.length === 0 ? (
-            <div className="px-4 py-5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+            <div className="px-4 py-5 text-[13px]" style={{ color: 'var(--text-muted)' }}>
               {tags.length === 0
                 ? 'No tags yet — create them from the defect table or triage panel.'
                 : 'No tags match this filter.'}
@@ -122,13 +122,13 @@ export function TagManagementSection() {
                   />
 
                   {/* Name */}
-                  <p className="min-w-0 flex-1 truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                  <p className="min-w-0 flex-1 truncate text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
                     {tag.name}
                   </p>
 
                   {/* Usage badge */}
                   <span
-                    className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                    className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
                     style={{
                       background: isUnused ? 'var(--settings-success-soft-bg)' : 'var(--settings-warning-soft-bg)',
                       color: isUnused ? 'var(--success)' : 'var(--warning)',
@@ -142,7 +142,7 @@ export function TagManagementSection() {
                   <button
                     type="button"
                     onClick={() => setSelectedTag(tag)}
-                    className="flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10.5px] font-semibold transition-colors"
+                    className="flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11.5px] font-semibold transition-colors"
                     style={{
                       background: 'var(--settings-danger-soft-bg)',
                       color: 'var(--danger-muted)',
@@ -160,7 +160,7 @@ export function TagManagementSection() {
         </div>
 
         {filteredTags.length > 0 && (
-          <p className="mt-2 text-[10.5px]" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-2 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
             Deleting a tag removes it from every linked defect. The impact review shows exactly which issues will be affected before anything is removed.
           </p>
         )}
@@ -305,7 +305,7 @@ function DeleteTagDialog({
                   <div id="delete-tag-dialog-title" className="text-[16px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                     Delete tag "{tag.name}"
                   </div>
-                  <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+                  <div className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
                     {isLoading
                       ? 'Checking where this tag is used before deleting it.'
                       : hasLinkedDefects
@@ -319,7 +319,7 @@ function DeleteTagDialog({
               {!isLoading ? (
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <div
-                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium"
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium"
                     style={{
                       background: hasLinkedDefects ? 'var(--settings-warning-soft-bg)' : 'var(--settings-success-soft-bg)',
                       color: hasLinkedDefects ? 'var(--warning)' : 'var(--success)',
@@ -330,7 +330,7 @@ function DeleteTagDialog({
                     {resolvedUsage.issueCount} linked defect{resolvedUsage.issueCount === 1 ? '' : 's'}
                   </div>
                   <div
-                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium"
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium"
                     style={{
                       background: 'var(--settings-neutral-chip-bg)',
                       color: 'var(--text-secondary)',
@@ -358,7 +358,7 @@ function DeleteTagDialog({
         <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3.5 sm:px-5">
           {isLoading ? (
             <div
-              className="flex items-center gap-2 rounded-[18px] border px-4 py-4 text-[12px]"
+              className="flex items-center gap-2 rounded-[18px] border px-4 py-4 text-[13px]"
               style={{
                 borderColor: 'color-mix(in srgb, var(--border-strong) 82%, transparent)',
                 color: 'var(--text-secondary)',
@@ -371,7 +371,7 @@ function DeleteTagDialog({
           ) : hasLinkedDefects ? (
             <div className="space-y-4">
               <div
-                className="rounded-[18px] px-4 py-3.5 text-[12px] leading-relaxed"
+                className="rounded-[18px] px-4 py-3.5 text-[13px] leading-relaxed"
                 style={{
                   background: 'var(--settings-warning-soft-bg)',
                   color: 'var(--text-secondary)',
@@ -388,12 +388,12 @@ function DeleteTagDialog({
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <label
-                    className="text-[11px] font-semibold uppercase"
+                    className="text-[12px] font-semibold uppercase"
                     style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}
                   >
                     Linked defects
                   </label>
-                  <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
                     {hiddenLinkedDefectCount > 0
                       ? `${hiddenLinkedDefectCount} linked defect${hiddenLinkedDefectCount === 1 ? '' : 's'} ${hiddenLinkedDefectCount === 1 ? 'is' : 'are'} not available in the preview list yet.`
                       : 'Review exactly what will lose this tag.'}
@@ -412,11 +412,11 @@ function DeleteTagDialog({
                         }}
                       >
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[12px] font-semibold" style={{ color: 'var(--accent)' }}>
+                          <span className="text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
                             {issue.jiraKey}
                           </span>
                           <span
-                            className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
+                            className="rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em]"
                             style={{
                               background: 'var(--settings-neutral-chip-bg)',
                               color: 'var(--text-muted)',
@@ -426,10 +426,10 @@ function DeleteTagDialog({
                             {issue.statusName}
                           </span>
                         </div>
-                        <p className="text-[12px] font-medium leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                        <p className="text-[13px] font-medium leading-relaxed" style={{ color: 'var(--text-primary)' }}>
                           {issue.summary}
                         </p>
-                        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                        <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
                           {issue.assigneeName ? `Assigned to ${issue.assigneeName}` : 'Unassigned'}
                         </p>
                       </div>
@@ -437,7 +437,7 @@ function DeleteTagDialog({
                   </div>
                 ) : hiddenLinkedDefectCount > 0 ? (
                   <div
-                    className="rounded-[18px] px-4 py-3.5 text-[12px] leading-relaxed"
+                    className="rounded-[18px] px-4 py-3.5 text-[13px] leading-relaxed"
                     style={{
                       background: 'var(--settings-inset-bg)',
                       color: 'var(--text-secondary)',
@@ -451,7 +451,7 @@ function DeleteTagDialog({
             </div>
           ) : (
             <div
-              className="rounded-[18px] px-4 py-3.5 text-[12px] leading-relaxed"
+              className="rounded-[18px] px-4 py-3.5 text-[13px] leading-relaxed"
               style={{
                 background: 'var(--settings-success-soft-bg)',
                 color: 'var(--text-secondary)',

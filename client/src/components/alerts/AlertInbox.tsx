@@ -99,7 +99,7 @@ export function AlertInbox({ enabled = true, onAlertClick }: AlertInboxProps) {
         <Bell size={16} />
         {alerts.length > 0 ? (
           <span
-            className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold"
+            className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold"
             style={{
               background: 'var(--danger)',
               color: '#fff',
@@ -129,10 +129,10 @@ export function AlertInbox({ enabled = true, onAlertClick }: AlertInboxProps) {
             <div className="border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  <div className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                     Alerts inbox
                   </div>
-                  <div className="mt-0.5 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  <div className="mt-0.5 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
                     {alerts.length > 0
                       ? `${alerts.length} alert${alerts.length === 1 ? '' : 's'} currently need review`
                       : 'You are caught up for now.'}
@@ -142,7 +142,7 @@ export function AlertInbox({ enabled = true, onAlertClick }: AlertInboxProps) {
                   type="button"
                   onClick={handleClearAll}
                   disabled={alerts.length === 0}
-                  className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold transition-all disabled:opacity-40"
+                  className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px] font-semibold transition-all disabled:opacity-40"
                   style={{
                     background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
                     color: 'var(--warning)',
@@ -175,7 +175,7 @@ export function AlertInbox({ enabled = true, onAlertClick }: AlertInboxProps) {
                   <div className="mt-3 text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                     No active alerts
                   </div>
-                  <div className="mt-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  <div className="mt-1 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
                     Cleared alerts will return only if the condition resolves and later reappears.
                   </div>
                 </div>

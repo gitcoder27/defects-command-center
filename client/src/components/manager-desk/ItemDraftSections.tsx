@@ -95,7 +95,7 @@ function SaveStateLabel({ state }: { state: FieldSaveState }) {
 
   return (
     <span
-      className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em]"
+      className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.16em]"
       style={{ color: state === 'saved' ? 'var(--success)' : 'var(--warning)' }}
     >
       {state === 'saved' ? 'Saved' : 'Saving...'}
@@ -153,10 +153,10 @@ export function DraftTextArea({
         aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${label}`}
       >
         <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: headerTone }}>
+          <div className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: headerTone }}>
             {label}
           </div>
-          <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-1 text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>
             {collapsed ? 'Collapsed. Expand when you want to review or write here.' : description}
           </p>
         </div>
@@ -254,13 +254,13 @@ export function TabbedDraftTextArea({
         aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${title}`}
       >
         <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--text-muted)' }}>
             Secondary Notes
           </div>
           <div className="mt-1 text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
             {title}
           </div>
-          <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-1 text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>
             {collapsed ? 'Collapsed by default. Expand when you want to plan the next move or capture the result.' : description}
           </p>
           {collapsed ? <CollapsedTabState tabs={populatedTabs} /> : null}
@@ -352,7 +352,7 @@ function TabbedDraftPanel({
             aria-controls={`action-outcome-panel-${tab.id}`}
             tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => onTabChange(tab.id)}
-            className="rounded-[10px] px-3 py-1.5 text-[11px] font-semibold transition-all"
+            className="rounded-[10px] px-3 py-1.5 text-[12px] font-semibold transition-all"
             style={{
               background: activeTab === tab.id ? 'var(--bg-elevated)' : 'transparent',
               color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-secondary)',
@@ -364,10 +364,10 @@ function TabbedDraftPanel({
         ))}
       </div>
       <div className="mt-3">
-        <div className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>
+        <div className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>
           {activeConfig.label}
         </div>
-        <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+        <p className="mt-1 text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>
           {activeConfig.description}
         </p>
       </div>
@@ -403,7 +403,7 @@ function StateBadge({
 }) {
   return (
     <span
-      className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-[0.08em]"
+      className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-[0.08em]"
       style={{
         background: tone === 'filled' ? 'var(--md-accent-dim)' : 'color-mix(in srgb, var(--bg-secondary) 92%, transparent)',
         color: tone === 'filled' ? 'var(--md-accent)' : 'var(--text-muted)',

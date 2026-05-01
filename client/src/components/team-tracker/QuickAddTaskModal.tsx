@@ -179,7 +179,7 @@ export function QuickAddTaskModal({
                     {/* Developer chip */}
                     <div className="mt-1 flex items-center gap-1.5">
                       <div
-                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold"
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold"
                         style={{
                           background: 'linear-gradient(135deg, var(--accent-glow), var(--bg-tertiary))',
                           color: 'var(--accent)',
@@ -188,7 +188,7 @@ export function QuickAddTaskModal({
                       >
                         {initials}
                       </div>
-                      <span className="text-[12px] font-medium truncate" style={{ color: 'var(--text-secondary)' }}>
+                      <span className="text-[13px] font-medium truncate" style={{ color: 'var(--text-secondary)' }}>
                         {developerName}
                       </span>
                     </div>
@@ -211,7 +211,7 @@ export function QuickAddTaskModal({
               {/* Task title */}
               <div>
                 <label
-                  className="block text-[10px] font-semibold uppercase mb-1.5 tracking-widest"
+                  className="block text-[11px] font-semibold uppercase mb-1.5 tracking-widest"
                   style={{ color: 'var(--text-muted)' }}
                   htmlFor="quick-add-title"
                 >
@@ -252,7 +252,7 @@ export function QuickAddTaskModal({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label
-                    className="text-[10px] font-semibold uppercase tracking-widest"
+                    className="text-[11px] font-semibold uppercase tracking-widest"
                     style={{ color: 'var(--text-muted)' }}
                   >
                     Linked Jira
@@ -261,7 +261,7 @@ export function QuickAddTaskModal({
                     <button
                       type="button"
                       onClick={() => setJiraPickerOpen((v) => !v)}
-                      className="text-[10px] px-2.5 py-1 rounded-lg font-medium transition-colors"
+                      className="text-[11px] px-2.5 py-1 rounded-lg font-medium transition-colors"
                       style={{
                         color: 'var(--accent)',
                         background: 'var(--accent-glow)',
@@ -285,11 +285,11 @@ export function QuickAddTaskModal({
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <Link size={11} style={{ color: 'var(--accent)' }} />
-                          <JiraIssueLink issueKey={selectedIssue.jiraKey} className="font-mono text-[11px] font-semibold" style={{ color: 'var(--accent)' }}>
+                          <JiraIssueLink issueKey={selectedIssue.jiraKey} className="font-mono text-[12px] font-semibold" style={{ color: 'var(--accent)' }}>
                             {selectedIssue.jiraKey}
                           </JiraIssueLink>
                         </div>
-                        <div className="text-[12px] mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="text-[13px] mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>
                           {selectedIssue.summary}
                         </div>
                       </div>
@@ -315,7 +315,7 @@ export function QuickAddTaskModal({
                   </div>
                 ) : !jiraPickerOpen ? (
                   <div
-                    className="rounded-xl px-3 py-2.5 text-[12px]"
+                    className="rounded-xl px-3 py-2.5 text-[13px]"
                     style={{
                       background: 'var(--bg-elevated)',
                       border: '1px solid var(--border)',
@@ -340,7 +340,7 @@ export function QuickAddTaskModal({
                         value={jiraSearch}
                         onChange={(e) => setJiraSearch(e.target.value)}
                         placeholder="Search by key or summary…"
-                        className="w-full rounded-xl pl-9 pr-3.5 py-2.5 text-[12px] outline-none"
+                        className="w-full rounded-xl pl-9 pr-3.5 py-2.5 text-[13px] outline-none"
                         style={{
                           background: 'var(--bg-elevated)',
                           color: 'var(--text-primary)',
@@ -363,7 +363,7 @@ export function QuickAddTaskModal({
                             <JiraIssueLink
                               issueKey={issue.jiraKey}
                               stopPropagation
-                              className="font-mono text-[10px] font-semibold shrink-0"
+                              className="font-mono text-[11px] font-semibold shrink-0"
                               style={{ color: 'var(--accent)' }}
                             >
                               {issue.jiraKey}
@@ -375,7 +375,7 @@ export function QuickAddTaskModal({
                                 setJiraPickerOpen(false);
                                 setJiraSearch('');
                               }}
-                              className="min-w-0 flex-1 truncate text-left text-[12px]"
+                              className="min-w-0 flex-1 truncate text-left text-[13px]"
                               style={{ color: 'var(--text-secondary)' }}
                             >
                               {issue.summary}
@@ -387,7 +387,7 @@ export function QuickAddTaskModal({
 
                     {jiraSearch && filteredIssues.length === 0 && (
                       <div
-                        className="rounded-xl px-3 py-2.5 text-[12px] text-center"
+                        className="rounded-xl px-3 py-2.5 text-[13px] text-center"
                         style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
                       >
                         No matching issues
@@ -400,7 +400,7 @@ export function QuickAddTaskModal({
               {/* Note */}
               <div>
                 <label
-                  className="block text-[10px] font-semibold uppercase mb-1.5 tracking-widest"
+                  className="block text-[11px] font-semibold uppercase mb-1.5 tracking-widest"
                   style={{ color: 'var(--text-muted)' }}
                   htmlFor="quick-add-note"
                 >
@@ -412,7 +412,7 @@ export function QuickAddTaskModal({
                   onChange={(e) => setNote(e.target.value)}
                   rows={2}
                   placeholder="Context, handoff detail, or priority reason…"
-                  className="w-full rounded-xl px-3.5 py-2.5 text-[12px] outline-none resize-none transition-all"
+                  className="w-full rounded-xl px-3.5 py-2.5 text-[13px] outline-none resize-none transition-all"
                   style={{
                     background: 'var(--bg-elevated)',
                     color: 'var(--text-primary)',
@@ -430,9 +430,9 @@ export function QuickAddTaskModal({
                 background: 'color-mix(in srgb, var(--bg-primary) 60%, var(--bg-secondary) 40%)',
               }}
             >
-              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
                 Press <kbd
-                  className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-mono font-medium"
+                  className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-mono font-medium"
                   style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
                 >Enter</kbd> to add
               </p>
@@ -440,7 +440,7 @@ export function QuickAddTaskModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-xl px-3.5 py-2 text-[12px] font-medium transition-colors"
+                  className="rounded-xl px-3.5 py-2 text-[13px] font-medium transition-colors"
                   style={{ color: 'var(--text-secondary)', background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
                 >
                   Cancel
@@ -449,7 +449,7 @@ export function QuickAddTaskModal({
                   type="button"
                   onClick={handleSubmit}
                   disabled={!title.trim() || isPending}
-                  className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-[12px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{
                     background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 90%, transparent), color-mix(in srgb, var(--accent) 70%, transparent))',
                     color: 'var(--bg-primary)',

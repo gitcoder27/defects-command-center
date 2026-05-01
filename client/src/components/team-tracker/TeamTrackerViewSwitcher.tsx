@@ -47,7 +47,7 @@ export function TeamTrackerViewSwitcher({
             role="tab"
             aria-selected={isActive}
             onClick={() => onLensChange(lens.key)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[12px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-[var(--border-active)] sm:px-2.5"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[13px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-[var(--border-active)] sm:px-2.5"
             style={{
               color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
               background: isActive ? 'var(--bg-elevated)' : 'transparent',
@@ -57,7 +57,7 @@ export function TeamTrackerViewSwitcher({
             <Icon size={13} />
             <span>{lens.label}</span>
             <span
-              className="tabular-nums rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+              className="tabular-nums rounded-md px-1.5 py-0.5 text-[11px] font-semibold"
               style={{
                 color: isActive ? 'var(--accent)' : 'var(--text-muted)',
                 background: isActive ? 'var(--accent-glow)' : 'var(--bg-tertiary)',

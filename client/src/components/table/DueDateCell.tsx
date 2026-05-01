@@ -10,7 +10,7 @@ export function DueDateCell({ date }: { date?: string }) {
 
   return (
     <span
-      className="text-[12px] font-mono tabular-nums"
+      className="text-[13px] font-mono tabular-nums"
       style={{
         color: overdue
           ? 'var(--danger)'

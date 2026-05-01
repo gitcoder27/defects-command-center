@@ -29,11 +29,11 @@ export function MemoryError({ message, onRetry }: { message: string; onRetry: ()
     <div className="flex min-h-[320px] items-center justify-center border-y text-center" style={{ borderColor: 'var(--memory-line)' }}>
       <div>
         <h2 className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>Could not load this workflow</h2>
-        <p className="mt-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>{message}</p>
+        <p className="mt-1 text-[13px]" style={{ color: 'var(--text-muted)' }}>{message}</p>
         <button
           type="button"
           onClick={onRetry}
-          className="mt-4 rounded-md px-3 py-1.5 text-[12px] font-semibold"
+          className="mt-4 rounded-md px-3 py-1.5 text-[13px] font-semibold"
           style={{ background: 'var(--memory-accent)', color: 'var(--memory-button-text)' }}
         >
           Retry

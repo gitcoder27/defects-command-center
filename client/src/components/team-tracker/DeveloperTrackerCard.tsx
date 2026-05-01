@@ -85,7 +85,7 @@ export function DeveloperTrackerCard({
       {/* Header */}
       <div className="flex items-center gap-2.5 mb-2.5">
         <div
-          className="h-8 w-8 rounded-xl flex items-center justify-center text-[11px] font-bold shrink-0"
+          className="h-8 w-8 rounded-xl flex items-center justify-center text-[12px] font-bold shrink-0"
           style={{
             background: `linear-gradient(135deg, var(--accent-glow), var(--bg-tertiary))`,
             color: 'var(--accent)',
@@ -100,11 +100,11 @@ export function DeveloperTrackerCard({
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
             <TrackerStatusPill status={day.status} />
-            <span className="text-[10px] font-mono" style={{ color: day.capacityUnits && assignedTodayCount > day.capacityUnits ? 'var(--danger)' : 'var(--text-muted)' }}>
+            <span className="text-[11px] font-mono" style={{ color: day.capacityUnits && assignedTodayCount > day.capacityUnits ? 'var(--danger)' : 'var(--text-muted)' }}>
               {loadLabel} load
             </span>
             {day.completedItems.length > 0 && (
-              <span className="text-[10px] font-mono" style={{ color: 'var(--success)' }}>
+              <span className="text-[11px] font-mono" style={{ color: 'var(--success)' }}>
                 {day.completedItems.length} done
               </span>
             )}
@@ -115,7 +115,7 @@ export function DeveloperTrackerCard({
       {/* Current item */}
       {day.currentItem ? (
         <div className="mb-2">
-          <div className="text-[9px] font-semibold uppercase mb-0.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+          <div className="text-[10px] font-semibold uppercase mb-0.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
             Working on
           </div>
           <TrackerItemRow
@@ -133,14 +133,14 @@ export function DeveloperTrackerCard({
           style={{ background: 'rgba(245, 158, 11, 0.06)' }}
         >
           <AlertTriangle size={10} style={{ color: 'var(--warning)' }} />
-          <span className="text-[11px]" style={{ color: 'var(--warning)' }}>No current item</span>
+          <span className="text-[12px]" style={{ color: 'var(--warning)' }}>No current item</span>
         </div>
       )}
 
       {/* Next planned items */}
       {day.plannedItems.length > 0 && (
         <div className="mb-2">
-          <div className="text-[9px] font-semibold uppercase mb-0.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+          <div className="text-[10px] font-semibold uppercase mb-0.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
             Next up ({day.plannedItems.length})
           </div>
           <div className="space-y-0.5">
@@ -156,7 +156,7 @@ export function DeveloperTrackerCard({
               />
             ))}
             {day.plannedItems.length > 3 && (
-              <span className="text-[10px] pl-2" style={{ color: 'var(--text-muted)' }}>
+              <span className="text-[11px] pl-2" style={{ color: 'var(--text-muted)' }}>
                 +{day.plannedItems.length - 3} more
               </span>
             )}
@@ -176,7 +176,7 @@ export function DeveloperTrackerCard({
         <div className="flex items-center gap-1 shrink-0">
           <Clock size={10} style={{ color: 'var(--text-muted)' }} />
           <span
-            className="text-[10px]"
+            className="text-[11px]"
             style={{ color: day.signals.freshness.staleByTime ? 'var(--warning)' : 'var(--text-muted)' }}
             title={day.lastCheckInAt ? formatAbsoluteDateTime(day.lastCheckInAt) : undefined}
           >
@@ -186,14 +186,14 @@ export function DeveloperTrackerCard({
         {day.checkIns.length > 0 && (
           <div className="flex items-center gap-1 shrink-0">
             <MessageSquare size={10} style={{ color: 'var(--text-muted)' }} />
-            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
               {day.checkIns.length}
             </span>
           </div>
         )}
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
           {day.managerNotes && (
-            <span className="text-[10px] truncate" style={{ color: 'var(--text-muted)', maxWidth: 80 }}>
+            <span className="text-[11px] truncate" style={{ color: 'var(--text-muted)', maxWidth: 80 }}>
               {day.managerNotes}
             </span>
           )}
@@ -204,7 +204,7 @@ export function DeveloperTrackerCard({
                 e.stopPropagation();
                 onMarkInactive(day);
               }}
-              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium transition-all hover:brightness-125"
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium transition-all hover:brightness-125"
               style={{
                 background: 'rgba(245, 158, 11, 0.1)',
                 color: 'var(--warning)',
@@ -223,7 +223,7 @@ export function DeveloperTrackerCard({
                 e.stopPropagation();
                 setQuickAddOpen(true);
               }}
-              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium transition-all hover:brightness-125"
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium transition-all hover:brightness-125"
               style={{
                 background: 'var(--accent-glow)',
                 color: 'var(--accent)',

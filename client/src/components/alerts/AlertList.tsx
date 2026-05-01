@@ -64,7 +64,7 @@ function AlertListItem({
           </span>
           <span className="min-w-0 flex-1">
             <span
-              className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em]"
+              className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em]"
               style={{ color: 'var(--text-muted)' }}
             >
               {meta.label}

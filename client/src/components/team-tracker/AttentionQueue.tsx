@@ -26,11 +26,11 @@ export function AttentionQueue({
           <div className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
             Needs attention
           </div>
-          <div className="mt-0.5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          <div className="mt-0.5 text-[13px]" style={{ color: 'var(--text-muted)' }}>
             Sorted by the current risk and freshness signals.
           </div>
         </div>
-        <div className="rounded-md px-2 py-1 text-[11px] font-semibold tabular-nums" style={{ color: 'var(--accent)', background: 'var(--accent-glow)' }}>
+        <div className="rounded-md px-2 py-1 text-[12px] font-semibold tabular-nums" style={{ color: 'var(--accent)', background: 'var(--accent-glow)' }}>
           {items.length}
         </div>
       </div>
@@ -42,7 +42,7 @@ export function AttentionQueue({
             <div className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
               No one needs attention right now.
             </div>
-            <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+            <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
               Switch to Team when you want the full roster.
             </div>
           </div>

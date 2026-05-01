@@ -61,7 +61,7 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
         whileTap={{ scale: 0.96 }}
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[12px] font-medium transition-colors"
+        className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-medium transition-colors"
         style={{
           color: 'var(--text-secondary)',
           background: 'var(--bg-tertiary)',
@@ -86,7 +86,7 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
       }}
     >
       <div>
-        <div className="text-[11px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+        <div className="text-[12px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
           Task
         </div>
         <input
@@ -115,13 +115,13 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
 
       <div>
         <div className="flex items-center justify-between gap-2">
-          <div className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+          <div className="text-[12px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
             Linked Jira
           </div>
           <button
             type="button"
             onClick={() => setJiraPickerOpen((current) => !current)}
-            className="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold"
+            className="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold"
             style={{
               color: 'var(--accent)',
               background: 'var(--accent-glow)',
@@ -143,13 +143,13 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
                   <Link size={12} style={{ color: 'var(--accent)' }} />
                   <JiraIssueLink
                     issueKey={selectedIssue.jiraKey}
-                    className="font-mono text-[11px] font-semibold shrink-0"
+                    className="font-mono text-[12px] font-semibold shrink-0"
                     style={{ color: 'var(--accent)' }}
                   >
                     {selectedIssue.jiraKey}
                   </JiraIssueLink>
                 </div>
-                <div className="text-[12px] mt-1" style={{ color: 'var(--text-primary)' }}>
+                <div className="text-[13px] mt-1" style={{ color: 'var(--text-primary)' }}>
                   {selectedIssue.summary}
                 </div>
               </div>
@@ -206,7 +206,7 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
                       <JiraIssueLink
                         issueKey={issue.jiraKey}
                         stopPropagation
-                        className="font-mono text-[10px] font-semibold shrink-0"
+                        className="font-mono text-[11px] font-semibold shrink-0"
                         style={{ color: 'var(--accent)' }}
                       >
                         {issue.jiraKey}
@@ -217,14 +217,14 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
                           setSelectedIssue({ jiraKey: issue.jiraKey, summary: issue.summary });
                           setJiraPickerOpen(false);
                         }}
-                        className="min-w-0 flex-1 truncate text-left text-[12px]"
+                        className="min-w-0 flex-1 truncate text-left text-[13px]"
                         style={{ color: 'var(--text-secondary)' }}
                       >
                         {issue.summary}
                       </button>
                     </div>
                     {(issue.priorityName || issue.developmentDueDate || issue.dueDate) && (
-                      <div className="mt-0.5 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                      <div className="mt-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
                         {[
                           issue.priorityName,
                           (issue.developmentDueDate ?? issue.dueDate)
@@ -244,7 +244,7 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
       </div>
 
       <div>
-        <div className="text-[11px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+        <div className="text-[12px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
           Notes
         </div>
         <textarea
@@ -252,7 +252,7 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
           onChange={(event) => setNote(event.target.value)}
           rows={2}
           placeholder="Optional context or handoff detail"
-          className="w-full rounded-lg px-3 py-2 text-[12px] outline-none resize-none"
+          className="w-full rounded-lg px-3 py-2 text-[13px] outline-none resize-none"
           style={{
             background: 'var(--bg-tertiary)',
             color: 'var(--text-primary)',
@@ -267,7 +267,7 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
           type="button"
           onClick={handleSubmit}
           disabled={!title.trim() || isPending}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all disabled:opacity-40"
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-all disabled:opacity-40"
           style={{
             background: 'var(--accent-glow)',
             color: 'var(--accent)',
@@ -280,7 +280,7 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
         <button
           type="button"
           onClick={resetForm}
-          className="text-[12px] px-2 py-1.5"
+          className="text-[13px] px-2 py-1.5"
           style={{ color: 'var(--text-muted)' }}
         >
           Cancel

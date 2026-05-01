@@ -41,11 +41,11 @@ export function EmptyDay({ date, viewMode = 'live' }: Props) {
       >
         {title}
       </h3>
-      <p className="text-[11px] max-w-xs" style={{ color: 'var(--text-secondary)' }}>
+      <p className="text-[12px] max-w-xs" style={{ color: 'var(--text-secondary)' }}>
         {body}
       </p>
 
-      <div className="flex items-center gap-1 mt-2 text-[9px] font-medium" style={{ color: 'var(--text-muted)' }}>
+      <div className="flex items-center gap-1 mt-2 text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>
         <Inbox size={10} />
         Type in capture bar and press Enter
       </div>

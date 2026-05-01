@@ -148,7 +148,7 @@ function WorkSummary({
         {item.title}
       </span>
       {item.jiraKey && (
-        <span className="font-mono text-[11px]" style={{ color: 'var(--accent)' }}>
+        <span className="font-mono text-[12px]" style={{ color: 'var(--accent)' }}>
           {item.jiraKey}
         </span>
       )}
@@ -226,7 +226,7 @@ function RosterRow({
       )}
       <div className="flex min-w-0 items-center gap-3">
         <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[12px] font-bold"
           style={{ background: 'var(--bg-tertiary)', color: 'var(--accent)', border: '1px solid var(--border)' }}
         >
           {getInitials(day.developer.displayName)}
@@ -244,27 +244,27 @@ function RosterRow({
       <WorkSummary item={day.currentItem} fallback="No current work" onOpenTaskDetail={onOpenTaskDetail} />
 
       <div className="min-w-0">
-        <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
           Next
         </div>
-        <div className="truncate text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+        <div className="truncate text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
           {day.plannedItems.length > 0
             ? `${day.plannedItems.length} planned${firstPlanned ? ` · ${firstPlanned.title}` : ''}`
             : 'Nothing planned'}
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5 text-[12px] font-semibold tabular-nums" style={{ color: loadIsHigh ? 'var(--danger)' : 'var(--text-secondary)' }}>
+      <div className="flex items-center gap-1.5 text-[13px] font-semibold tabular-nums" style={{ color: loadIsHigh ? 'var(--danger)' : 'var(--text-secondary)' }}>
         <Zap size={13} />
         {getLoadLabel(day)}
       </div>
 
-      <div className="flex items-center gap-1.5 text-[12px] font-medium" style={{ color: freshnessIsStale ? 'var(--warning)' : 'var(--text-secondary)' }} title={freshnessTitle}>
+      <div className="flex items-center gap-1.5 text-[13px] font-medium" style={{ color: freshnessIsStale ? 'var(--warning)' : 'var(--text-secondary)' }} title={freshnessTitle}>
         <Clock size={13} />
         <span className="truncate">{getFreshnessLabel(day)}</span>
       </div>
 
-      <div className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: riskTone }}>
+      <div className="flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: riskTone }}>
         {riskLabel === 'Clear' ? <CheckCircle2 size={13} /> : riskLabel === 'Needs current' ? <CircleOff size={13} /> : <AlertTriangle size={13} />}
         <span className="truncate" title={attentionMeta?.reason}>{attentionMeta?.reason ?? riskLabel}</span>
       </div>
@@ -285,7 +285,7 @@ function RosterRow({
             <MessageSquarePlus size={13} />
           </button>
         ) : (
-          <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          <span className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
             -
           </span>
         )}
@@ -317,7 +317,7 @@ function RosterSection({
 
   return (
     <div className="overflow-hidden rounded-xl border" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg-secondary) 72%, transparent)' }}>
-      <div className="hidden border-b px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] md:grid md:grid-cols-[minmax(190px,1.05fr)_minmax(220px,1.35fr)_minmax(150px,0.9fr)_64px_minmax(110px,0.72fr)_minmax(210px,1.08fr)_52px]" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+      <div className="hidden border-b px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] md:grid md:grid-cols-[minmax(190px,1.05fr)_minmax(220px,1.35fr)_minmax(150px,0.9fr)_64px_minmax(110px,0.72fr)_minmax(210px,1.08fr)_52px]" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
         <span>Developer</span>
         <span>Current work</span>
         <span>Next</span>
@@ -366,7 +366,7 @@ export function TrackerRosterBoard({
           <div className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
             {searchActive ? 'No developers match this search.' : 'No developers match this view.'}
           </div>
-          <div className="mt-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          <div className="mt-1 text-[13px]" style={{ color: 'var(--text-muted)' }}>
             {searchActive ? 'Try a different name, task, or Jira key.' : 'Change the filters or add team members from settings.'}
           </div>
         </div>
@@ -402,10 +402,10 @@ export function TrackerRosterBoard({
           <section key={group.key}>
             <div className="mb-2 flex items-center gap-2 px-1">
               <span className="h-2 w-2 rounded-sm" style={{ background: color }} />
-              <span className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+              <span className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {group.label}
               </span>
-              <span className="tabular-nums text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              <span className="tabular-nums text-[12px]" style={{ color: 'var(--text-muted)' }}>
                 {group.count}
               </span>
             </div>

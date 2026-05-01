@@ -82,7 +82,7 @@ export function AddTrackerItemForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition-colors"
+        className="flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] transition-colors"
         style={{ color: 'var(--text-muted)', background: 'var(--bg-tertiary)' }}
       >
         <Plus size={10} />
@@ -97,7 +97,7 @@ export function AddTrackerItemForm({
       style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-active)' }}
     >
       <div>
-        <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+        <div className="text-[11px] font-semibold uppercase mb-1" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
           Task
         </div>
         <input
@@ -115,7 +115,7 @@ export function AddTrackerItemForm({
             }
           }}
           placeholder="Describe the work in one line"
-          className="w-full rounded-lg px-2.5 py-2 text-[12px] outline-none"
+          className="w-full rounded-lg px-2.5 py-2 text-[13px] outline-none"
           style={{
             background: 'var(--bg-tertiary)',
             color: 'var(--text-primary)',
@@ -126,13 +126,13 @@ export function AddTrackerItemForm({
 
       <div>
         <div className="flex items-center justify-between gap-2">
-          <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+          <div className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
             Linked Jira
           </div>
           <button
             type="button"
             onClick={() => setJiraPickerOpen((current) => !current)}
-            className="text-[10px] px-2 py-1 rounded-md"
+            className="text-[11px] px-2 py-1 rounded-md"
             style={{ color: 'var(--accent)', background: 'var(--accent-glow)' }}
           >
             {selectedIssue ? 'Change Jira' : 'Attach Jira'}
@@ -148,11 +148,11 @@ export function AddTrackerItemForm({
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <Link size={10} style={{ color: 'var(--accent)' }} />
-                  <JiraIssueLink issueKey={selectedIssue.jiraKey} className="font-mono text-[10px] font-semibold" style={{ color: 'var(--accent)' }}>
+                  <JiraIssueLink issueKey={selectedIssue.jiraKey} className="font-mono text-[11px] font-semibold" style={{ color: 'var(--accent)' }}>
                     {selectedIssue.jiraKey}
                   </JiraIssueLink>
                 </div>
-                <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-[12px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                   {selectedIssue.summary}
                 </div>
               </div>
@@ -191,7 +191,7 @@ export function AddTrackerItemForm({
                 value={jiraSearch}
                 onChange={(event) => setJiraSearch(event.target.value)}
                 placeholder="Search Jira issues"
-                className="w-full rounded-lg pl-8 pr-3 py-2 text-[12px] outline-none"
+                className="w-full rounded-lg pl-8 pr-3 py-2 text-[13px] outline-none"
                 style={{
                   background: 'var(--bg-tertiary)',
                   color: 'var(--text-primary)',
@@ -215,7 +215,7 @@ export function AddTrackerItemForm({
                       <JiraIssueLink
                         issueKey={issue.jiraKey}
                         stopPropagation
-                        className="font-mono text-[10px] font-semibold shrink-0"
+                        className="font-mono text-[11px] font-semibold shrink-0"
                         style={{ color: 'var(--accent)' }}
                       >
                         {issue.jiraKey}
@@ -226,7 +226,7 @@ export function AddTrackerItemForm({
                           setSelectedIssue({ jiraKey: issue.jiraKey, summary: issue.summary });
                           setJiraPickerOpen(false);
                         }}
-                        className="min-w-0 flex-1 truncate text-left text-[11px]"
+                        className="min-w-0 flex-1 truncate text-left text-[12px]"
                         style={{ color: 'var(--text-secondary)' }}
                       >
                         {issue.summary}
@@ -241,7 +241,7 @@ export function AddTrackerItemForm({
       </div>
 
       <div>
-        <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+        <div className="text-[11px] font-semibold uppercase mb-1" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
           Notes
         </div>
         <textarea
@@ -249,7 +249,7 @@ export function AddTrackerItemForm({
           onChange={(event) => setNote(event.target.value)}
           rows={2}
           placeholder="Optional context or handoff detail"
-          className="w-full rounded-lg px-2.5 py-2 text-[11px] outline-none resize-none"
+          className="w-full rounded-lg px-2.5 py-2 text-[12px] outline-none resize-none"
           style={{
             background: 'var(--bg-tertiary)',
             color: 'var(--text-primary)',
@@ -263,7 +263,7 @@ export function AddTrackerItemForm({
           type="button"
           onClick={handleSubmit}
           disabled={!title.trim() || isPending}
-          className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium disabled:opacity-40"
+          className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12px] font-medium disabled:opacity-40"
           style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
         >
           <Plus size={10} />
@@ -272,7 +272,7 @@ export function AddTrackerItemForm({
         <button
           type="button"
           onClick={resetForm}
-          className="text-[11px] px-1"
+          className="text-[12px] px-1"
           style={{ color: 'var(--text-muted)' }}
         >
           Cancel

@@ -59,7 +59,7 @@ export function AvailabilityDialog({
                   <div className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                     Mark {developerName} inactive
                   </div>
-                  <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
                     Hidden from {date} onward until reactivated.
                   </div>
                 </div>
@@ -75,7 +75,7 @@ export function AvailabilityDialog({
               </button>
             </div>
 
-            <label className="mt-4 block text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+            <label className="mt-4 block text-[12px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
               Optional note
             </label>
             <textarea
@@ -83,7 +83,7 @@ export function AvailabilityDialog({
               onChange={(event) => setNote(event.target.value)}
               placeholder="PTO today, holiday, training, or another note..."
               rows={3}
-              className="mt-1 w-full rounded-2xl border px-3 py-2 text-[12px] outline-none"
+              className="mt-1 w-full rounded-2xl border px-3 py-2 text-[13px] outline-none"
               style={{
                 borderColor: 'var(--border)',
                 background: 'var(--bg-tertiary)',
@@ -95,7 +95,7 @@ export function AvailabilityDialog({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-xl px-3 py-2 text-[11px] font-semibold"
+                className="rounded-xl px-3 py-2 text-[12px] font-semibold"
                 style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
               >
                 Cancel
@@ -104,7 +104,7 @@ export function AvailabilityDialog({
                 type="button"
                 onClick={() => onConfirm(note.trim() || undefined)}
                 disabled={isPending}
-                className="rounded-xl px-3 py-2 text-[11px] font-semibold disabled:opacity-50"
+                className="rounded-xl px-3 py-2 text-[12px] font-semibold disabled:opacity-50"
                 style={{
                   background: 'rgba(245, 158, 11, 0.12)',
                   color: 'var(--warning)',

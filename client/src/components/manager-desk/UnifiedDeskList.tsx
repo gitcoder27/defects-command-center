@@ -69,9 +69,11 @@ function SingleLensList({
       <DeskRhythmHeader title={visibleTitle} subtitle={copy.subtitle} count={items.length} />
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {items.length === 0 ? (
-          <UnifiedEmptyState quickFilter={quickFilter} message={copy.empty} />
+          <div className="max-w-[980px] 2xl:max-w-[1040px]">
+            <UnifiedEmptyState quickFilter={quickFilter} message={copy.empty} />
+          </div>
         ) : (
-          <div className="space-y-1.5">
+          <div className="max-w-[980px] space-y-1.5 2xl:max-w-[1040px]">
             {items.map((item) => (
               <DeskCardRow
                 key={item.id}

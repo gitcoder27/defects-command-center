@@ -40,7 +40,7 @@ export function WorkspaceNavLink({
       <button
         type="button"
         onClick={onClick}
-        className={`flex h-8 w-full min-w-[94px] items-center justify-center gap-1.5 rounded-lg text-[12px] font-medium transition-colors lg:min-w-[104px] ${hasNewTabAction ? 'pl-3 pr-8' : 'px-3'}`}
+        className={`flex h-8 w-full min-w-[112px] items-center justify-center gap-1.5 rounded-lg text-[12px] font-medium transition-colors lg:min-w-[126px] ${hasNewTabAction ? 'pl-3 pr-8' : 'px-3'}`}
         style={buttonStyle}
       >
         <Icon size={13} className="shrink-0" />

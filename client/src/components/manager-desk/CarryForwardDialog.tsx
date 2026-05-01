@@ -102,7 +102,7 @@ function PreviewItemRow({
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span
-              className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
+              className="rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase"
               style={{
                 background: 'var(--bg-secondary)',
                 color: 'var(--text-muted)',
@@ -111,7 +111,7 @@ function PreviewItemRow({
             >
               {KIND_LABELS[item.kind]}
             </span>
-            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+            <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
               {STATUS_LABELS[item.status] ?? item.status.replace(/_/g, ' ')}
             </span>
           </div>
@@ -121,7 +121,7 @@ function PreviewItemRow({
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
               {(rebasedPlannedStartAt || rebasedPlannedEndAt) && (
                 <span
-                  className="inline-flex items-center gap-1 text-[10px]"
+                  className="inline-flex items-center gap-1 text-[11px]"
                   style={{ color: 'var(--text-secondary)' }}
                 >
                   <Clock size={10} />
@@ -134,7 +134,7 @@ function PreviewItemRow({
               )}
               {rebasedFollowUpAt && (
                 <span
-                  className="inline-flex items-center gap-1 text-[10px]"
+                  className="inline-flex items-center gap-1 text-[11px]"
                   style={{ color: 'var(--text-secondary)' }}
                 >
                   <RefreshCw size={9} />
@@ -150,7 +150,7 @@ function PreviewItemRow({
               {warningCodes.map((code) => (
                 <div
                   key={code}
-                  className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-medium"
+                  className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium"
                   style={{
                     background: 'rgba(245, 158, 11, 0.10)',
                     color: 'var(--warning)',
@@ -309,14 +309,14 @@ export function CarryForwardDialog({
                   >
                     Carry Forward
                   </div>
-                  <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+                  <div className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
                     Move unfinished work from {formattedFromDate} into {formattedToDate}.
                   </div>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <div
-                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium"
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium"
                   style={{
                     background: 'rgba(217,169,78,0.12)',
                     color: 'var(--md-accent)',
@@ -327,7 +327,7 @@ export function CarryForwardDialog({
                   {isLoading ? '…' : `${selected.size} of ${previewItems.length} selected`}
                 </div>
                 <div
-                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium"
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium"
                   style={{
                     background: 'var(--bg-tertiary)',
                     color: 'var(--text-secondary)',
@@ -339,7 +339,7 @@ export function CarryForwardDialog({
                 </div>
                 {overdueCount > 0 && !isLoading && (
                   <div
-                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium"
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium"
                     style={{
                       background: 'rgba(245, 158, 11, 0.10)',
                       color: 'var(--warning)',
@@ -371,7 +371,7 @@ export function CarryForwardDialog({
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
               <div>
                 <label
-                  className="mb-1.5 block text-[11px] font-semibold uppercase"
+                  className="mb-1.5 block text-[12px] font-semibold uppercase"
                   style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}
                 >
                   Carry to date
@@ -395,7 +395,7 @@ export function CarryForwardDialog({
                 type="button"
                 onClick={toggleAll}
                 disabled={isLoading || previewItems.length === 0}
-                className="rounded-xl px-3 py-2 text-[11px] font-semibold transition-colors disabled:opacity-50"
+                className="rounded-xl px-3 py-2 text-[12px] font-semibold transition-colors disabled:opacity-50"
                 style={{
                   background: 'var(--bg-tertiary)',
                   color: 'var(--md-accent)',
@@ -415,7 +415,7 @@ export function CarryForwardDialog({
               }}
             >
               <Clock size={13} className="mt-0.5 shrink-0" style={{ color: 'var(--md-accent)' }} />
-              <div className="text-[11px] leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>
+              <div className="text-[12px] leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>
                 Scheduled times are automatically rebased to the target day. The original time-of-day is preserved.
               </div>
             </div>
@@ -424,20 +424,20 @@ export function CarryForwardDialog({
             <div>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <label
-                  className="text-[11px] font-semibold uppercase"
+                  className="text-[12px] font-semibold uppercase"
                   style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}
                 >
                   Unfinished items
                 </label>
                 {!isLoading && previewItems.length > 0 && (
-                  <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
                     Choose what should appear on {formattedToDate}.
                   </span>
                 )}
               </div>
 
               {!isFutureDate && (
-                <p className="mb-2 text-[11px]" style={{ color: 'var(--danger)' }}>
+                <p className="mb-2 text-[12px]" style={{ color: 'var(--danger)' }}>
                   Carry forward only supports dates after {formattedFromDate}.
                 </p>
               )}
@@ -452,7 +452,7 @@ export function CarryForwardDialog({
                 </div>
               ) : previewItems.length === 0 ? (
                 <div
-                  className="rounded-[18px] px-4 py-6 text-center text-[12px]"
+                  className="rounded-[18px] px-4 py-6 text-center text-[13px]"
                   style={{ background: 'color-mix(in srgb, var(--bg-secondary) 88%, transparent)', color: 'var(--text-muted)' }}
                 >
                   No items are eligible to carry forward.
@@ -488,7 +488,7 @@ export function CarryForwardDialog({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl px-3 py-2 text-[12px] font-medium transition-colors"
+              className="rounded-xl px-3 py-2 text-[13px] font-medium transition-colors"
               style={{
                 background: 'var(--bg-tertiary)',
                 color: 'var(--text-secondary)',
@@ -502,7 +502,7 @@ export function CarryForwardDialog({
               type="button"
               onClick={handleConfirm}
               disabled={selected.size === 0 || isPending || !isFutureDate || isLoading}
-              className="rounded-xl px-4 py-2 text-[12px] font-bold uppercase tracking-wide transition-all disabled:opacity-40"
+              className="rounded-xl px-4 py-2 text-[13px] font-bold uppercase tracking-wide transition-all disabled:opacity-40"
               style={{
                 background: 'var(--md-accent)',
                 color: '#000',

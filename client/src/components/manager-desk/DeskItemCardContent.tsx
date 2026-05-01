@@ -172,7 +172,7 @@ function RowActionButton({
         event.stopPropagation();
         onStatusChange(action.status);
       }}
-      className="inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[9px] font-semibold uppercase tracking-[0.08em] transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]"
+      className="inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[10px] font-semibold uppercase tracking-[0.08em] transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]"
       style={action.style}
       aria-label={`${action.label} ${itemTitle}`}
       title={action.label}
@@ -199,7 +199,7 @@ function RowMenuAction({
         event.stopPropagation();
         onStatusChange(action.status);
       }}
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors hover:bg-white/5"
+      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] transition-colors hover:bg-white/5"
       style={{ color: action.status === 'cancelled' ? 'var(--text-muted)' : 'var(--text-secondary)' }}
       aria-label={`${action.label} ${itemTitle}`}
       title={action.label}
@@ -213,7 +213,7 @@ function RowMenuAction({
 function PriorityPill({ item }: { item: ManagerDeskItem }) {
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.08em]"
+      className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]"
       style={{ background: 'var(--bg-secondary)', color: priorityColors[item.priority], border: '1px solid var(--border)' }}
       title={PRIORITY_LABELS[item.priority]}
     >
@@ -228,9 +228,9 @@ function RowContext({ item, isDone }: { item: ManagerDeskItem; isDone: boolean }
   return (
     <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2 pl-0.5">
       {item.assignee && <AssigneePill assignee={item.assignee} size="xs" tone="neutral" />}
-      {item.participants && <span className="truncate text-[10px]" style={{ color: 'var(--text-secondary)' }}>{item.participants}</span>}
-      {!isDone && item.nextAction && <span className="max-w-[320px] truncate text-[10px]" style={{ color: 'var(--text-muted)' }}>Next: {item.nextAction}</span>}
-      {isDone && item.outcome && <span className="max-w-[320px] truncate text-[10px]" style={{ color: 'var(--success)' }}>Outcome: {item.outcome}</span>}
+      {item.participants && <span className="truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>{item.participants}</span>}
+      {!isDone && item.nextAction && <span className="max-w-[320px] truncate text-[11px]" style={{ color: 'var(--text-muted)' }}>Next: {item.nextAction}</span>}
+      {isDone && item.outcome && <span className="max-w-[320px] truncate text-[11px]" style={{ color: 'var(--success)' }}>Outcome: {item.outcome}</span>}
     </div>
   );
 }

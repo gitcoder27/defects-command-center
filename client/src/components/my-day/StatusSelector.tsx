@@ -40,7 +40,7 @@ export function StatusSelector({ current, onUpdate, isPending }: StatusSelectorP
                 if (!isActive && !isPending) onUpdate(key);
               }}
               disabled={isPending}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[12px] font-semibold transition-all disabled:opacity-60"
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition-all disabled:opacity-60"
               style={{
                 background: isActive ? cfg.bg : 'var(--bg-tertiary)',
                 color: isActive ? cfg.color : 'var(--text-muted)',

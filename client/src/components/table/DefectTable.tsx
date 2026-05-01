@@ -512,7 +512,7 @@ export function DefectTable({
                 setStatusFilterOpen((open) => !open);
               }}
               onMouseDown={(event) => event.stopPropagation()}
-              className="h-6 px-1.5 rounded-md inline-flex items-center gap-1 text-[11px] transition-colors"
+              className="h-6 px-1.5 rounded-md inline-flex items-center gap-1 text-[12px] transition-colors"
               style={{
                 border: hasStatusFilter ? '1px solid var(--border)' : '1px dashed var(--border)',
                 background: statusFilterOpen ? 'var(--bg-tertiary)' : 'transparent',
@@ -549,7 +549,7 @@ export function DefectTable({
                 style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)' }}
                 onClick={(event) => event.stopPropagation()}
               >
-                <div className="px-2 py-1.5 text-[11px] uppercase font-semibold border-b flex items-center justify-between"
+                <div className="px-2 py-1.5 text-[12px] uppercase font-semibold border-b flex items-center justify-between"
                      style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)', letterSpacing: '0.08em' }}
                 >
                   <span>Status filter</span>
@@ -571,7 +571,7 @@ export function DefectTable({
                   {allStatuses.map((status) => (
                     <label
                       key={status}
-                      className="flex items-center gap-2 px-2 py-1 rounded-md text-[12px]"
+                      className="flex items-center gap-2 px-2 py-1 rounded-md text-[13px]"
                       style={{
                         color: 'var(--text-primary)',
                         cursor: 'pointer',
@@ -726,7 +726,7 @@ export function DefectTable({
           Defects
         </div>
         <div className="h-4 w-px" style={{ background: 'var(--border)' }} />
-        <div className="text-[12px] truncate" style={{ color: 'var(--text-secondary)' }}>
+        <div className="text-[13px] truncate" style={{ color: 'var(--text-secondary)' }}>
           {filteredIssues.length} visible defect{filteredIssues.length !== 1 ? 's' : ''}{normalizedSearch ? ' after search' : ''}.
         </div>
       </div>
@@ -746,7 +746,7 @@ export function DefectTable({
           title="Clear all filters"
         >
           <XCircle size={15} />
-          <span className="text-[12px] font-medium hidden sm:inline">Clear filters</span>
+          <span className="text-[13px] font-medium hidden sm:inline">Clear filters</span>
         </button>
 
         {!searchOpen ? (
@@ -759,7 +759,7 @@ export function DefectTable({
             title="Search defects"
           >
             <Search size={15} />
-            <span className="text-[12px] font-medium hidden sm:inline">Search</span>
+            <span className="text-[13px] font-medium hidden sm:inline">Search</span>
           </button>
         ) : (
           <div
@@ -773,7 +773,7 @@ export function DefectTable({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by ID or title..."
-              className="flex-1 text-[12px] bg-transparent outline-none"
+              className="flex-1 text-[13px] bg-transparent outline-none"
               style={{ color: 'var(--text-primary)' }}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
@@ -820,7 +820,7 @@ export function DefectTable({
           <p className="mt-2 text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
             {syncErrorMessage}
           </p>
-          <p className="mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-2 text-[13px]" style={{ color: 'var(--text-muted)' }}>
             Check the saved Jira API token in Settings, then run Save &amp; Sync.
           </p>
         </div>
@@ -848,7 +848,7 @@ export function DefectTable({
         {toolbar}
         <div className="flex-1 flex items-center justify-center px-6">
           <div className="text-center">
-            <div className="text-[11px] uppercase font-semibold" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
+            <div className="text-[12px] uppercase font-semibold" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
               Filter State
             </div>
             <p className="text-[14px] mt-2" style={{ color: 'var(--text-secondary)' }}>
@@ -871,7 +871,7 @@ export function DefectTable({
           {filteredIssues.length === 0 ? (
             <div className="h-full flex items-center justify-center px-6">
               <div className="text-center">
-                <div className="text-[11px] uppercase font-semibold" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
+                <div className="text-[12px] uppercase font-semibold" style={{ letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
                   Search State
                 </div>
                 <p className="text-[14px] mt-2" style={{ color: 'var(--text-secondary)' }}>
@@ -888,7 +888,7 @@ export function DefectTable({
                       <th
                         key={header.id}
                         onClick={header.column.getToggleSortingHandler()}
-                        className="text-left text-[10.5px] font-semibold uppercase px-2 py-1.5 cursor-pointer select-none sticky top-0 z-30"
+                        className="text-left text-[11.5px] font-semibold uppercase px-2 py-1.5 cursor-pointer select-none sticky top-0 z-30"
                         style={{
                           letterSpacing: '0.08em',
                           color: 'var(--text-muted)',

@@ -82,7 +82,7 @@ export function TrackerBoardToolbar({
       <div className="flex items-center gap-1.5 ml-auto">
         {isFiltered && (
           <span
-            className="h-8 rounded-lg px-2 text-[11px] font-mono font-medium inline-flex items-center"
+            className="h-8 rounded-lg px-2 text-[12px] font-mono font-medium inline-flex items-center"
             style={{ color: 'var(--text-secondary)', background: 'transparent', border: '1px solid var(--border)' }}
           >
             {visibleCount}/{totalCount}
@@ -128,7 +128,7 @@ const SearchInput = forwardRef<HTMLInputElement, {
       onChange={(e) => onChange(e.target.value)}
       placeholder="Search developers, tasks, Jira keys…"
       maxLength={200}
-      className="flex-1 bg-transparent text-[12px] outline-none placeholder:text-[var(--text-muted)]"
+      className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-[var(--text-muted)]"
       style={{ color: 'var(--text-primary)' }}
     />
     {value && (
@@ -182,7 +182,7 @@ function ViewOptionsMenu({
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition-all focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
+        className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium transition-all focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
         style={{
           background: isActive ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'transparent',
           border: `1px solid ${isActive ? 'color-mix(in srgb, var(--accent) 30%, transparent)' : 'var(--border)'}`,
@@ -230,7 +230,7 @@ function OptionGroup({
 }) {
   return (
     <div>
-      <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-muted)' }}>
+      <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-muted)' }}>
         {label}
       </div>
       <div className="grid gap-1">
@@ -241,7 +241,7 @@ function OptionGroup({
               key={option.value}
               type="button"
               onClick={() => onSelect(option.value)}
-              className="flex items-center justify-between rounded-lg px-2 py-1.5 text-left text-[12px] font-medium transition-colors"
+              className="flex items-center justify-between rounded-lg px-2 py-1.5 text-left text-[13px] font-medium transition-colors"
               style={{
                 color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
                 background: active ? 'var(--bg-tertiary)' : 'transparent',
