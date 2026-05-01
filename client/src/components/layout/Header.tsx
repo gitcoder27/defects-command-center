@@ -30,6 +30,16 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
 
   const isSyncing = sync?.status === 'syncing' || triggerSync.isPending;
   const hasError = sync?.status === 'error';
+  const syncLabel = hasError
+    ? 'Sync issue'
+    : sync?.lastSyncedAt
+    ? `Synced ${formatRelativeTime(sync.lastSyncedAt)}`
+    : 'Not synced';
+  const syncTitle = hasError && sync?.errorMessage
+    ? `Sync issue: ${sync.errorMessage}`
+    : sync?.lastSyncedAt
+    ? `Synced ${formatRelativeTime(sync.lastSyncedAt)}`
+    : 'Not synced';
   const canQuickCapture = user?.role === 'manager';
   const currentView = activeView ?? 'today';
   const showDashboardAlerts = user?.role === 'manager' && (currentView === 'work' || currentView === 'dashboard') && Boolean(onDashboardAlertClick);
@@ -120,7 +130,7 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
             <div
               className="h-9 rounded-xl px-2.5 flex items-center gap-2"
               style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
-              title={sync?.lastSyncedAt ? `Synced ${formatRelativeTime(sync.lastSyncedAt)}` : 'Not synced'}
+              title={syncTitle}
             >
               <span
                 className="w-2.5 h-2.5 rounded-full"
@@ -139,7 +149,7 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
               />
               <div className="min-w-0">
                 <div className="text-[11.5px] font-mono truncate" style={{ color: 'var(--text-secondary)' }}>
-                  {sync?.lastSyncedAt ? `Synced ${formatRelativeTime(sync.lastSyncedAt)}` : 'Not synced'}
+                  {syncLabel}
                 </div>
               </div>
             </div>

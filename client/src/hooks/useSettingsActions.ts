@@ -23,6 +23,15 @@ export interface DiscoverUsersResponse {
   hasMore: boolean;
 }
 
+export interface JiraConnectionCheckResult {
+  success: true;
+  checkedAt: string;
+  user?: {
+    accountId?: string;
+    displayName?: string;
+  };
+}
+
 interface CreateAppUserPayload {
   username: string;
   password: string;
@@ -93,6 +102,19 @@ export function useDiscoverJiraFields() {
   });
 }
 
+export function useCheckCurrentJiraConnection() {
+  return useMutation({
+    mutationFn: () => api.get<JiraConnectionCheckResult>('/config/connection-health'),
+  });
+}
+
+export function useTestJiraConnection() {
+  return useMutation({
+    mutationFn: (payload: { jiraBaseUrl: string; jiraEmail: string; jiraApiToken: string }) =>
+      api.post<JiraConnectionCheckResult>('/config/test', payload),
+  });
+}
+
 export function useSaveSettingsConfig() {
   return useMutation({
     mutationFn: (payload: {
@@ -100,6 +122,7 @@ export function useSaveSettingsConfig() {
       jiraDevDueDateField: string;
       jiraAspenSeverityField: string;
       managerJiraAccountId: string;
+      jiraApiToken?: string;
     }) => api.put('/config/settings', payload),
   });
 }

@@ -84,6 +84,12 @@ function normalizeManagerJiraAccountId(value: string | undefined): string | unde
   return trimmed;
 }
 
+async function testJiraConnection(baseUrl: string, email: string, token: string): Promise<{ displayName?: string; accountId?: string }> {
+  const client = new JiraClient(baseUrl, email, token);
+  const user = await client.getCurrentUser();
+  return { displayName: user.displayName, accountId: user.accountId };
+}
+
 export function createConfigRouter(syncEngine?: SyncEngine, backupService?: BackupService): Router {
   const settings = new SettingsService();
   const maintenance = new WorkspaceMaintenanceService(settings, backupService);
@@ -237,15 +243,29 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
 
   router.post("/test", validate(testSchema), async (req, res, next) => {
     try {
-      const client = new JiraClient(req.body.jiraBaseUrl, req.body.jiraEmail, req.body.jiraApiToken);
-      const ok = await client.testConnection();
-      if (!ok) {
-        res.status(400).json({ error: "Unable to connect to Jira", status: 400 });
+      const user = await testJiraConnection(req.body.jiraBaseUrl, req.body.jiraEmail, req.body.jiraApiToken);
+      res.json({ success: true, checkedAt: new Date().toISOString(), user });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to connect to Jira";
+      res.status(400).json({ error: message, status: 400 });
+    }
+  });
+
+  router.get("/connection-health", async (_req, res, next) => {
+    try {
+      const baseUrl = (await getConfigValue("jira_base_url")) ?? config.JIRA_BASE_URL;
+      const email = (await getConfigValue("jira_email")) ?? config.JIRA_EMAIL;
+      const token = (await getStoredJiraApiToken()) || getJiraApiToken() || config.JIRA_API_TOKEN;
+      if (!baseUrl || !email || !token) {
+        res.status(400).json({ error: "Jira credentials not configured", status: 400 });
         return;
       }
-      res.json({ success: true });
+
+      const user = await testJiraConnection(baseUrl, email, token);
+      res.json({ success: true, checkedAt: new Date().toISOString(), user });
     } catch (error) {
-      next(error);
+      const message = error instanceof Error ? error.message : "Unable to connect to Jira";
+      res.status(400).json({ error: message, status: 400 });
     }
   });
 
@@ -274,6 +294,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
       jiraDevDueDateField: z.string().optional(),
       jiraAspenSeverityField: z.string().optional(),
       managerJiraAccountId: z.string().trim().optional(),
+      jiraApiToken: z.string().trim().optional(),
     }),
     params: z.any().optional(),
     query: z.any().optional(),
@@ -289,6 +310,13 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
       }
       if (req.body.jiraAspenSeverityField !== undefined) {
         await upsertConfig("jira_aspen_severity_field", req.body.jiraAspenSeverityField);
+      }
+      if (req.body.jiraApiToken !== undefined) {
+        const trimmedToken = req.body.jiraApiToken.trim();
+        if (trimmedToken) {
+          await upsertConfig("jira_api_token", trimmedToken);
+          setJiraApiToken(trimmedToken);
+        }
       }
       if ("managerJiraAccountId" in req.body) {
         const managerJiraAccountId = normalizeManagerJiraAccountId(req.body.managerJiraAccountId);

@@ -26,6 +26,7 @@ import {
   X,
 } from 'lucide-react';
 import { useConfig } from '@/hooks/useConfig';
+import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
@@ -35,6 +36,7 @@ import {
   useAddManualDeveloper,
   useAddTeamDevelopers,
   useAppUsers,
+  useCheckCurrentJiraConnection,
   useCreateAppUser,
   useDeleteAppUser,
   useDiscoverJiraFields,
@@ -42,6 +44,7 @@ import {
   useRemoveTeamDeveloper,
   useResetSettingsConfig,
   useSaveSettingsConfig,
+  useTestJiraConnection,
   useUpdateTeamDeveloper,
   type DiscoveredUser,
   type JiraField,
@@ -58,12 +61,15 @@ export function SettingsPage() {
   const DISCOVER_SEARCH_DEBOUNCE_MS = 350;
   const { user, logout } = useAuth();
   const { data: config, refetch: refetchConfig } = useConfig();
+  const { data: syncStatus } = useSyncStatus();
   const triggerSync = useTriggerSync();
   const { addToast } = useToast();
   const queryClient = useQueryClient();
   const appUsersQuery = useAppUsers();
   const { mutateAsync: createAppUser } = useCreateAppUser();
   const { mutateAsync: deleteAppUser } = useDeleteAppUser();
+  const { mutateAsync: checkCurrentJiraConnection } = useCheckCurrentJiraConnection();
+  const { mutateAsync: testJiraConnection } = useTestJiraConnection();
   const { mutateAsync: discoverJiraFields } = useDiscoverJiraFields();
   const { mutateAsync: saveSettingsConfig } = useSaveSettingsConfig();
   const { mutateAsync: resetSettingsConfig } = useResetSettingsConfig();
@@ -77,6 +83,8 @@ export function SettingsPage() {
   const [devDueDateField, setDevDueDateField] = useState('');
   const [aspenSeverityField, setAspenSeverityField] = useState('');
   const [managerJiraAccountId, setManagerJiraAccountId] = useState('');
+  const [jiraApiTokenInput, setJiraApiTokenInput] = useState('');
+  const [checkingJiraConnection, setCheckingJiraConnection] = useState(false);
   const [managerSearch, setManagerSearch] = useState('');
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -135,6 +143,8 @@ export function SettingsPage() {
 
   const activeMemberIds = useMemo(() => new Set(developers.map((developer) => developer.accountId)), [developers]);
   const canUseJiraDirectory = Boolean(config?.jiraBaseUrl && config?.jiraEmail && config?.jiraProjectKey && config?.jiraApiToken);
+  const syncErrorMessage = syncStatus?.status === 'error' ? syncStatus.errorMessage : undefined;
+  const connectionNeedsAttention = Boolean(syncErrorMessage);
 
   const filteredDevelopers = useMemo(
     () =>
@@ -241,17 +251,55 @@ export function SettingsPage() {
     }
   }, [addToast, discoverJiraFields]);
 
+  const handleCheckJiraConnection = async () => {
+    const candidateToken = jiraApiTokenInput.trim();
+    if (candidateToken && (!config?.jiraBaseUrl || !config?.jiraEmail)) {
+      addToast({ type: 'error', title: 'Missing Jira connection', message: 'Base URL and email must be configured before testing a new API token.' });
+      return;
+    }
+
+    setCheckingJiraConnection(true);
+    try {
+      const result = candidateToken
+        ? await testJiraConnection({
+            jiraBaseUrl: config!.jiraBaseUrl,
+            jiraEmail: config!.jiraEmail,
+            jiraApiToken: candidateToken,
+          })
+        : await checkCurrentJiraConnection();
+      const displayName = result.user?.displayName ?? config?.jiraEmail ?? 'Jira';
+      addToast({ type: 'success', title: 'Jira connection verified', message: `${displayName} can authenticate with Jira.` });
+    } catch (err) {
+      addToast({
+        type: 'error',
+        title: 'Jira connection needs attention',
+        message: err instanceof Error ? err.message : 'Unable to verify the Jira API token.',
+      });
+    } finally {
+      setCheckingJiraConnection(false);
+    }
+  };
+
   const handleSave = async (): Promise<boolean> => {
     setSaving(true);
     try {
+      const trimmedToken = jiraApiTokenInput.trim();
       await saveSettingsConfig({
         jiraSyncJql: jql,
         jiraDevDueDateField: devDueDateField,
         jiraAspenSeverityField: aspenSeverityField,
         managerJiraAccountId: managerJiraAccountId.trim(),
+        ...(trimmedToken ? { jiraApiToken: trimmedToken } : {}),
       });
+      if (trimmedToken) {
+        setJiraApiTokenInput('');
+      }
       await refetchConfig();
-      addToast({ type: 'success', title: 'Settings saved', message: 'Your Jira sync settings have been saved.' });
+      addToast({
+        type: 'success',
+        title: 'Settings saved',
+        message: trimmedToken ? 'Your Jira sync settings and new API token have been saved.' : 'Your Jira sync settings have been saved.',
+      });
       return true;
     } catch (err) {
       addToast({ type: 'error', title: 'Failed to save settings', message: err instanceof Error ? err.message : 'Unable to save settings' });
@@ -599,7 +647,7 @@ export function SettingsPage() {
     }
   }, [addToast, removeTeamDeveloper, syncTeamMembershipChange]);
 
-  const hasChanges = saving || triggerSync.isPending || resetting || teamActionLoading;
+  const hasChanges = saving || triggerSync.isPending || resetting || teamActionLoading || checkingJiraConnection;
 
   const knownJiraUsers = useMemo(() => {
     const merged = new Map<string, DiscoveredUser>();
@@ -669,7 +717,7 @@ export function SettingsPage() {
   };
 
   const navItems: Array<{ id: SectionId; icon: ReactNode; label: string; status: string | null; sv: 'success' | 'warning' | 'muted' }> = [
-    { id: 'connection', icon: <Globe size={13} />, label: 'Jira Connection', status: connectionLabel !== 'Connection pending' ? connectionLabel : null, sv: config?.jiraBaseUrl ? 'success' : 'muted' },
+    { id: 'connection', icon: <Globe size={13} />, label: 'Jira Connection', status: connectionNeedsAttention ? 'Needs attention' : connectionLabel !== 'Connection pending' ? connectionLabel : null, sv: connectionNeedsAttention ? 'warning' : config?.jiraBaseUrl ? 'success' : 'muted' },
     { id: 'sync', icon: <RefreshCw size={13} />, label: 'Sync Scope', status: jql ? 'Query set' : 'No query', sv: jql ? 'muted' : 'warning' },
     { id: 'team', icon: <Users size={13} />, label: 'Team Members', status: `${developers.length} tracked`, sv: 'muted' },
     { id: 'tags', icon: <Tag size={13} />, label: 'Defect Tags', status: null, sv: 'muted' },
@@ -866,7 +914,9 @@ export function SettingsPage() {
                     <div className="mt-2.5 overflow-hidden rounded-xl" style={{ border: 'var(--settings-pane-border)' }}>
                       {([
                         { label: 'Workspace', value: connectionLabel },
+                        { label: 'Jira email', value: config?.jiraEmail || '-' },
                         { label: 'Project key', value: config?.jiraProjectKey || '—' },
+                        { label: 'API token', value: config?.jiraApiToken ? 'Saved' : 'Not saved' },
                         { label: 'Sync scope', value: 'Assignees auto-appended at sync time.' },
                       ] as Array<{ label: string; value: string }>).map((row, idx) => (
                         <div
@@ -885,6 +935,58 @@ export function SettingsPage() {
                     </div>
                     <p className="mt-2 text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                       Save the base query only — team assignees and the manager lead identity are appended automatically at sync time.
+                    </p>
+                  </div>
+
+                  {syncErrorMessage ? (
+                    <div
+                      className="rounded-xl p-3"
+                      style={{ background: 'var(--settings-danger-soft-bg)', border: 'var(--settings-danger-soft-border)' }}
+                    >
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--danger-muted)' }} />
+                        <div className="min-w-0">
+                          <p className="text-[12px] font-semibold" style={{ color: 'var(--danger-muted)' }}>
+                            Jira sync is failing
+                          </p>
+                          <p className="mt-1 text-[11px] leading-relaxed" style={{ color: 'var(--danger-muted)' }}>
+                            {syncErrorMessage}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* API token */}
+                  <div>
+                    <SettingsGroupLabel>Jira API Token</SettingsGroupLabel>
+                    <p className="mt-1 mb-3 text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                      Paste a new token here when Jira access changes. The saved token is never displayed.
+                    </p>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <input
+                        id="jira-api-token"
+                        type="password"
+                        value={jiraApiTokenInput}
+                        onChange={(e) => setJiraApiTokenInput(e.target.value)}
+                        placeholder={config?.jiraApiToken ? 'New API token' : 'API token'}
+                        autoComplete="off"
+                        className="min-w-0 flex-1 rounded-lg px-3 py-1.5 font-mono text-[11.5px] outline-none"
+                        style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleCheckJiraConnection()}
+                        disabled={checkingJiraConnection || (!jiraApiTokenInput.trim() && !config?.jiraApiToken)}
+                        className="flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[11.5px] font-semibold transition-colors disabled:opacity-50"
+                        style={{ background: 'var(--settings-accent-soft-bg)', color: 'var(--accent)', border: 'var(--settings-accent-soft-border)' }}
+                      >
+                        {checkingJiraConnection ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                        {jiraApiTokenInput.trim() ? 'Test new token' : 'Check saved token'}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                      After testing a new token, use Save &amp; Sync to store it and refresh Jira defects.
                     </p>
                   </div>
 

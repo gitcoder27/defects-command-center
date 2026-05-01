@@ -17,11 +17,16 @@ export function createSyncRouter(syncEngine: SyncEngine): Router {
     try {
       const latest = await syncEngine.getLastSyncLog();
       const runtime = syncEngine.getRuntimeStatus();
+      const status = runtime.status === "syncing" || runtime.status === "error"
+        ? runtime.status
+        : latest?.status === "error"
+        ? "error"
+        : "idle";
       res.json({
         lastSyncedAt: latest?.completedAt,
-        status: runtime.status,
+        status,
         issuesSynced: latest?.issuesSynced,
-        errorMessage: runtime.errorMessage,
+        errorMessage: runtime.errorMessage ?? latest?.errorMessage ?? undefined,
       });
     } catch (error) {
       next(error);

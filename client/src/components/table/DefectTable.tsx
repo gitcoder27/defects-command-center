@@ -9,7 +9,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { useState } from 'react';
-import { ArrowUpDown, Ban, Filter, Search, X, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowUpDown, Ban, Filter, Search, X, XCircle } from 'lucide-react';
 import { PriorityCell } from './PriorityCell';
 import { StatusBadge } from './StatusBadge';
 import { AssigneeCell } from './AssigneeCell';
@@ -22,6 +22,7 @@ import { InlineEditTags } from './InlineEditTags';
 import { DismissCell } from './DismissCell';
 import { useIssues } from '@/hooks/useIssues';
 import { useConfig } from '@/hooks/useConfig';
+import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useExcludeIssue } from '@/hooks/useExcludeIssue';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
@@ -175,6 +176,7 @@ export function DefectTable({
   const { theme } = useTheme();
   const { data: issues, isLoading } = useIssues(filter, assigneeFilter, tagId, noTags);
   const { data: config } = useConfig();
+  const { data: syncStatus } = useSyncStatus();
   const { exclude, restore } = useExcludeIssue();
   const { addToast } = useToast();
   const [sorting, setSorting] = useState<SortingState>([
@@ -245,6 +247,7 @@ export function DefectTable({
   // Expose issue keys for parent keyboard nav
   const rowCount = issues?.length ?? 0;
   const baseIssues = issues ?? [];
+  const syncErrorMessage = syncStatus?.status === 'error' ? syncStatus.errorMessage : undefined;
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const allStatuses = useMemo(() => {
     const statusSet = new Set<string>();
@@ -803,6 +806,27 @@ export function DefectTable({
       </div>
     </div>
   );
+
+  if (!baseIssues.length && !hasActiveFilters && syncErrorMessage) {
+    return (
+      <div className="flex-1 min-w-0 min-h-0 flex items-center justify-center p-4 text-center">
+        <div className="max-w-[420px] rounded-2xl px-5 py-4" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-strong)' }}>
+          <div className="mx-auto mb-3 flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: 'rgba(239,68,68,0.12)', color: 'var(--danger)' }}>
+            <AlertTriangle size={18} />
+          </div>
+          <p className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Jira defects could not be refreshed
+          </p>
+          <p className="mt-2 text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            {syncErrorMessage}
+          </p>
+          <p className="mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+            Check the saved Jira API token in Settings, then run Save &amp; Sync.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!baseIssues.length && !hasActiveFilters) {
     return (

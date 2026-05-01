@@ -80,6 +80,7 @@ describe("SyncEngine", () => {
     `);
 
     const jiraClient = {
+      getCurrentUser: vi.fn(async () => ({ accountId: "sync-user", displayName: "Sync User" })),
       searchIssues: vi.fn(async () => [
         {
           id: "1",
@@ -120,5 +121,39 @@ describe("SyncEngine", () => {
     expect(issue.assignee_id).toBe("dev-1");
     expect(issue.team_scope_state).toBe("in_team");
     expect(issue.excluded).toBe(0);
+  });
+
+  it("records a sync error when Jira authentication cannot be verified", async () => {
+    const jiraClient = {
+      getCurrentUser: vi.fn(async () => {
+        throw new Error("Jira authentication failed (401)");
+      }),
+      searchIssues: vi.fn(async () => []),
+    };
+    const settings = {
+      getJiraProjectKey: vi.fn(async () => "AM"),
+      getJiraSyncJql: vi.fn(async () => "project = AM"),
+      getManagerJiraAccountId: vi.fn(async () => ""),
+      getJiraDevDueDateField: vi.fn(async () => undefined),
+      getJiraAspenSeverityField: vi.fn(async () => undefined),
+      createJiraClient: vi.fn(async () => jiraClient),
+    };
+    const engine = new SyncEngine(settings as any);
+
+    const result = await engine.syncNow();
+    const log = rawDb.prepare("SELECT status, issues_synced, error_message FROM sync_log ORDER BY id DESC LIMIT 1").get() as {
+      status: string;
+      issues_synced: number;
+      error_message: string;
+    };
+
+    expect(result.status).toBe("error");
+    expect(result.errorMessage).toBe("Jira authentication failed (401)");
+    expect(jiraClient.searchIssues).not.toHaveBeenCalled();
+    expect(log).toEqual({
+      status: "error",
+      issues_synced: 0,
+      error_message: "Jira authentication failed (401)",
+    });
   });
 });

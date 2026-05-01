@@ -261,6 +261,7 @@ ORDER BY updated DESC`);
         jiraSyncJql: 'project = AM AND status != Done AND assignee IN ("lead-1", "dev-1")',
         jiraDevDueDateField: "customfield_99999",
         jiraAspenSeverityField: "customfield_11111",
+        jiraApiToken: "new-token-from-settings",
       },
     });
 
@@ -273,8 +274,10 @@ ORDER BY updated DESC`);
     expect(map["jira_sync_jql"]).toBe("project = AM AND status != Done");
     expect(map["jira_dev_due_date_field"]).toBe("customfield_99999");
     expect(map["jira_aspen_severity_field"]).toBe("customfield_11111");
+    expect(map["jira_api_token"]).toBe("new-token-from-settings");
     expect(map["jira_base_url"]).toBe("https://tenant.atlassian.net");
     expect(map["jira_project_key"]).toBe("AM");
+    expect(getJiraApiToken()).toBe("new-token-from-settings");
   });
 
   it("GET /api/config/maintenance/reset-preview reports scoped maintenance counts", async () => {

@@ -75,6 +75,7 @@ export class SyncEngine {
       const devDueDateField = await this.settings.getJiraDevDueDateField();
       const aspenSeverityField = await this.settings.getJiraAspenSeverityField();
       const jiraClient = await this.settings.createJiraClient();
+      await jiraClient.getCurrentUser();
       const locallyTrackedKeys = await this.getLocallyTrackedActiveKeys();
       const fields = [
         "summary",
