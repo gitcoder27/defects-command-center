@@ -107,14 +107,14 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
               <div className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
                 <LeadOSMark size={22} />
               </div>
-              <div className="min-w-[132px]">
+              <div className="min-w-[148px]">
                 <h1
-                  className="font-sans text-[16px] md:text-[17px] font-semibold leading-tight truncate"
+                  className="font-sans text-[17px] font-semibold leading-tight truncate md:text-[18px]"
                   style={{ color: 'var(--text-primary)' }}
                 >
                   LeadOS
                 </h1>
-                <div className="hidden text-[10.5px] sm:block" style={{ color: 'var(--text-secondary)' }}>
+                <div className="hidden text-[11.5px] leading-4 sm:block" style={{ color: 'var(--text-secondary)' }}>
                   People, work, risks, and planning
                 </div>
               </div>
@@ -148,7 +148,7 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
                 }}
               />
               <div className="min-w-0">
-                <div className="text-[11.5px] font-mono truncate" style={{ color: 'var(--text-secondary)' }}>
+                <div className="truncate font-mono text-[12px]" style={{ color: 'var(--text-secondary)' }}>
                   {syncLabel}
                 </div>
               </div>
@@ -163,7 +163,7 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
                 <button
                   type="button"
                   onClick={() => setCaptureOpen(true)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-xl px-3 text-[11px] font-semibold transition-all"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-xl px-3 text-[12px] font-semibold transition-all"
                   style={{
                     background: 'linear-gradient(135deg, var(--md-accent-glow), rgba(217,169,78,0.06))',
                     color: 'var(--md-accent)',

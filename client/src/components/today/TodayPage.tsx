@@ -616,7 +616,7 @@ function MiniList({
 }) {
   return (
     <section>
-      <h3 className="mb-2 text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+      <h3 className="mb-2.5 text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>{title}</h3>
       <div className="space-y-1">
         {items.length > 0 ? items.map((item) => {
           const style = toneStyles[item.tone];
@@ -625,13 +625,13 @@ function MiniList({
               key={item.id}
               type="button"
               onClick={item.onClick}
-              className="flex w-full items-center gap-3 px-1 py-2.5 text-left transition-colors hover:bg-[var(--today-hover)]"
+              className="flex w-full items-center gap-3 px-1 py-3 text-left transition-colors hover:bg-[var(--today-hover)]"
               style={{ borderBottom: '1px solid var(--today-line)' }}
             >
               <span className="h-2 w-2 rounded-full" style={{ background: style.color }} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{item.title}</span>
-                <span className="mt-0.5 block truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>{item.detail}</span>
+                <span className="block truncate text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>{item.title}</span>
+                <span className="mt-0.5 block truncate text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>{item.detail}</span>
               </span>
               <ArrowRight size={12} style={{ color: 'var(--text-muted)' }} />
             </button>
@@ -652,13 +652,13 @@ function CommandFooter({
   onSelectWorkFilter?: (filter: FilterType) => void;
 }) {
   return (
-    <footer className="shrink-0 border-t px-5 py-1.5 xl:px-8" style={{ borderColor: 'var(--today-line)', background: 'color-mix(in srgb, var(--bg-primary) 48%, transparent)' }}>
+    <footer className="shrink-0 border-t px-5 py-2 xl:px-8" style={{ borderColor: 'var(--today-line)', background: 'color-mix(in srgb, var(--bg-primary) 48%, transparent)' }}>
       <div className="grid gap-1.5 md:grid-cols-[150px_repeat(4,minmax(0,1fr))_170px]">
         <div className="hidden items-center gap-2.5 md:flex">
           <Zap size={16} style={{ color: 'var(--accent)' }} />
           <div>
-            <p className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>Quick actions</p>
-            <p className="text-[10.5px]" style={{ color: 'var(--text-muted)' }}>Jump into what matters</p>
+            <p className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>Quick actions</p>
+            <p className="text-[11.5px] leading-5" style={{ color: 'var(--text-muted)' }}>Jump into what matters</p>
           </div>
         </div>
         <FooterAction icon={Plus} title="Capture" detail="Note, decision, follow-up" onClick={() => onViewChange('desk')} />
@@ -673,8 +673,8 @@ function CommandFooter({
         >
           <AlertCircle size={16} style={{ color: 'var(--accent)' }} />
           <span>
-            <span className="block text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>Standup kit</span>
-            <span className="block text-[11px]" style={{ color: 'var(--text-muted)' }}>Talking points ready</span>
+            <span className="block text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>Standup kit</span>
+            <span className="block text-[12px] leading-5" style={{ color: 'var(--text-muted)' }}>Talking points ready</span>
           </span>
         </button>
       </div>
@@ -687,14 +687,14 @@ function FooterAction({ icon: Icon, title, detail, onClick }: { icon: LucideIcon
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-2.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-[var(--today-hover)] active:scale-[0.98]"
+      className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-[var(--today-hover)] active:scale-[0.98]"
     >
       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={{ background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)' }}>
         <Icon size={14} />
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</span>
-        <span className="hidden truncate text-[10.5px] xl:block" style={{ color: 'var(--text-muted)' }}>{detail}</span>
+        <span className="block truncate text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>{title}</span>
+        <span className="hidden truncate text-[11.5px] leading-5 xl:block" style={{ color: 'var(--text-muted)' }}>{detail}</span>
       </span>
     </button>
   );
@@ -705,8 +705,8 @@ function SectionHeading({ icon: Icon, title, detail }: { icon: LucideIcon; title
     <div className="flex items-start gap-3">
       <Icon size={18} className="mt-0.5" style={{ color: 'var(--accent)' }} />
       <div>
-        <h1 className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h1>
-        <p className="mt-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>{detail}</p>
+        <h1 className="text-[17px] font-semibold leading-6" style={{ color: 'var(--text-primary)' }}>{title}</h1>
+        <p className="mt-1 text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>{detail}</p>
       </div>
     </div>
   );
@@ -716,8 +716,8 @@ function CompactEmpty({ icon: Icon, title, detail }: { icon: LucideIcon; title: 
   return (
     <div className="py-5 text-center">
       <Icon size={18} className="mx-auto" style={{ color: 'var(--success)' }} />
-      <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</p>
-      <p className="mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>{detail}</p>
+      <p className="mt-2 text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>{title}</p>
+      <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-muted)' }}>{detail}</p>
     </div>
   );
 }

@@ -120,7 +120,7 @@ export function HeaderNav({ activeView, isManager, onViewChange }: HeaderNavProp
             <button
               type="button"
               onClick={() => setMoreOpen((open) => !open)}
-              className="flex h-8 min-w-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-[11px] font-medium transition-colors"
+              className="flex h-8 min-w-[48px] items-center justify-center gap-1.5 rounded-lg px-3 text-[12px] font-medium transition-colors"
               style={{
                 background: moreIsActive ? 'var(--bg-elevated)' : 'transparent',
                 color: moreIsActive ? 'var(--accent)' : 'var(--text-muted)',
