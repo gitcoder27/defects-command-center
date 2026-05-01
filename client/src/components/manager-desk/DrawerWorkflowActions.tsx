@@ -1,4 +1,4 @@
-import { Archive, ArrowRight, CheckCircle2, MoreHorizontal, Pause, RotateCcw, XCircle } from 'lucide-react';
+import { Archive, ArrowRight, CheckCircle2, MoreHorizontal, RotateCcw, XCircle } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
 import { STATUS_LABELS } from '@/types/manager-desk';
@@ -58,9 +58,6 @@ export function DrawerWorkflowActions({
   const isClosed = item.status === 'done' || item.status === 'cancelled';
   const primaryAction = getPrimaryAction(item, onUpdate);
   const correctionAction = getCorrectionAction(item, onUpdate);
-  const waitingAction = !isClosed && item.status !== 'backlog' && item.status !== 'waiting'
-    ? statusAction(item, 'waiting', 'Waiting', <Pause size={11} />, 'warning', onUpdate)
-    : null;
   const moreActions = getMoreActions(item, hasLinkedWork, onUpdate, onCarryForward, isCarryForwardPending);
 
   return (
@@ -83,7 +80,6 @@ export function DrawerWorkflowActions({
         </div>
 
         {correctionAction && <WorkflowButton action={correctionAction} variant="quiet" />}
-        {waitingAction && <WorkflowButton action={waitingAction} variant="quiet" />}
         {primaryAction && <WorkflowButton action={primaryAction} variant="primary" />}
 
         {moreActions.length > 0 && (

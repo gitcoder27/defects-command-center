@@ -157,9 +157,9 @@ export function TodayPage({ onViewChange, onSelectWorkFilter }: TodayPageProps) 
         ['--today-soft-panel' as string]: 'color-mix(in srgb, var(--bg-secondary) 38%, transparent)',
       }}
     >
-      <section className="shrink-0 border-b px-2 py-1" style={{ borderColor: 'var(--today-line)' }}>
+      <section className="shrink-0 border-b px-2 py-1.5" style={{ borderColor: 'var(--today-line)' }}>
         <div
-          className="grid gap-1 border-b border-t py-1 lg:grid-cols-[170px_repeat(6,minmax(0,1fr))_148px]"
+          className="grid gap-1.5 border-b border-t py-1.5 lg:grid-cols-[190px_repeat(6,minmax(0,1fr))_160px]"
           style={{
             background: 'linear-gradient(90deg, color-mix(in srgb, var(--bg-secondary) 20%, transparent), color-mix(in srgb, var(--bg-secondary) 8%, transparent))',
             borderColor: 'color-mix(in srgb, var(--border) 24%, transparent)',
@@ -172,10 +172,10 @@ export function TodayPage({ onViewChange, onSelectWorkFilter }: TodayPageProps) 
           <SummaryMetric value={staleCheckIns} label="Stale check-ins" detail="need update" tone="warning" />
           <SummaryMetric value={dueToday} label="Due today" detail="defects" tone="warning" />
           <SummaryMetric value={snapshot.followUpsDue.length} label="Follow-ups" detail="due today" tone="warning" />
-          <div className="hidden min-h-[52px] items-center rounded-lg px-3 lg:flex" style={{ background: 'color-mix(in srgb, var(--bg-secondary) 14%, transparent)' }}>
+          <div className="hidden min-h-[58px] items-center rounded-lg px-3 lg:flex" style={{ background: 'color-mix(in srgb, var(--bg-secondary) 14%, transparent)' }}>
             <div>
-              <p className="text-[12px] font-semibold" style={{ color: 'var(--accent)' }}>Standup kit</p>
-              <p className="mt-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>{snapshot.standupPrompts.length} prompts ready</p>
+              <p className="text-[13px] font-medium" style={{ color: 'var(--accent)' }}>Standup kit</p>
+              <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>{snapshot.standupPrompts.length} prompts ready</p>
             </div>
           </div>
         </div>
@@ -276,12 +276,12 @@ function SummaryDate({
   onRefresh: () => void;
 }) {
   return (
-    <div className="flex min-h-[52px] items-center justify-between gap-3 rounded-lg px-3 py-2" style={{ background: 'color-mix(in srgb, var(--bg-secondary) 14%, transparent)' }}>
+    <div className="flex min-h-[58px] items-center justify-between gap-3 rounded-lg px-3.5 py-2.5" style={{ background: 'color-mix(in srgb, var(--bg-secondary) 14%, transparent)' }}>
       <div className="flex items-center gap-3">
-        <CalendarClock size={15} style={{ color: 'var(--text-secondary)' }} />
+        <CalendarClock size={16} style={{ color: 'var(--text-secondary)' }} />
         <div>
-          <p className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>Today</p>
-          <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-secondary)' }}>{date} · {weekday}</p>
+          <p className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>Today</p>
+          <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>{date} · {weekday}</p>
         </div>
       </div>
       <button
@@ -291,7 +291,7 @@ function SummaryDate({
         aria-label="Refresh today"
         title="Refresh today"
       >
-        {isFetching ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+        {isFetching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
       </button>
     </div>
   );
@@ -310,12 +310,12 @@ function SummaryMetric({
 }) {
   const style = toneStyles[value > 0 ? tone : 'neutral'];
   return (
-    <div className="min-h-[52px] rounded-lg px-3 py-2 transition-colors hover:bg-[var(--today-hover)]" style={{ background: 'transparent' }}>
-      <div className="flex items-baseline gap-1.5">
-        <span className="font-mono text-[20px] font-semibold leading-none tabular-nums" style={{ color: style.color }}>{value}</span>
-        <span className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{label}</span>
+    <div className="min-h-[58px] rounded-lg px-3.5 py-2.5 transition-colors hover:bg-[var(--today-hover)]" style={{ background: 'transparent' }}>
+      <div className="flex items-baseline gap-2">
+        <span className="font-mono text-[22px] font-semibold leading-none tabular-nums" style={{ color: style.color }}>{value}</span>
+        <span className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>{label}</span>
       </div>
-      <p className="mt-1 truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>{detail}</p>
+      <p className="mt-1.5 truncate text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>{detail}</p>
     </div>
   );
 }
@@ -334,9 +334,9 @@ function OperationsBoard({
   onOpenTarget: (target: ManagerAttentionTarget, filter?: FilterType) => void;
 }) {
   return (
-    <section className="min-h-0 overflow-auto border-b px-5 py-5 lg:border-b-0 lg:border-r xl:px-8" style={{ borderColor: 'var(--today-line-strong)' }}>
+    <section className="min-h-0 overflow-auto border-b px-5 py-6 lg:border-b-0 lg:border-r xl:px-8" style={{ borderColor: 'var(--today-line-strong)' }}>
       <SectionHeading icon={Target} title="What needs attention" detail="Prioritized by impact and urgency" />
-      <div className="mt-5">
+      <div className="mt-6">
         {isLoading ? (
           <BoardSkeleton />
         ) : (
@@ -371,14 +371,14 @@ function BoardGroupBlock({
   }
 
   return (
-    <div className="mb-5 last:mb-0">
-      <div className="mb-2 flex items-baseline gap-2">
-        <h2 className="text-[13px] font-semibold uppercase" style={{ color: group === 'now' ? 'var(--danger)' : group === 'next' ? 'var(--warning)' : 'var(--text-secondary)' }}>
+    <div className="mb-6 last:mb-0">
+      <div className="mb-2.5 flex items-baseline gap-2">
+        <h2 className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: group === 'now' ? 'var(--danger)' : group === 'next' ? 'var(--warning)' : 'var(--text-secondary)' }}>
           {groupLabels[group].title}
         </h2>
-        <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>({groupLabels[group].hint})</span>
+        <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>({groupLabels[group].hint})</span>
       </div>
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {rows.map((row, index) => (
           <BoardAttentionRow key={row.id} row={row} featured={group === 'now' && index === 0} onOpenTarget={onOpenTarget} />
         ))}
@@ -405,33 +405,33 @@ function BoardAttentionRow({
     <button
       type="button"
       onClick={() => onOpenTarget(row.target, row.filter)}
-      className="grid w-full grid-cols-[30px_minmax(0,1.2fr)] gap-4 rounded-lg px-3 py-3 text-left transition-colors hover:bg-[var(--today-hover)] active:scale-[0.998] md:grid-cols-[30px_minmax(0,1.25fr)_minmax(130px,0.7fr)_110px_146px]"
+      className="grid w-full grid-cols-[32px_minmax(0,1.2fr)] gap-4 rounded-lg px-3.5 py-3.5 text-left transition-colors hover:bg-[var(--today-hover)] active:scale-[0.998] md:grid-cols-[32px_minmax(0,1.25fr)_minmax(140px,0.72fr)_112px_150px]"
       style={{
         background: featured ? featuredBackground : 'transparent',
         boxShadow: featured ? `inset 0 0 0 1px ${featuredBorder}` : 'inset 0 -1px 0 var(--today-line)',
       }}
     >
-      <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-md" style={{ color: style.color, background: featured ? `color-mix(in srgb, ${style.color} 5%, transparent)` : 'transparent' }}>
+      <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-md" style={{ color: style.color, background: featured ? `color-mix(in srgb, ${style.color} 5%, transparent)` : 'transparent' }}>
         <Icon size={16} />
       </span>
       <span className="min-w-0">
         <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>{row.title}</span>
+          <span className="truncate text-[14px] font-medium" style={{ color: 'var(--text-primary)' }}>{row.title}</span>
           {row.count !== undefined ? (
-            <span className="rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tabular-nums md:hidden" style={{ background: style.bg, borderColor: style.border, color: style.color }}>
+            <span className="rounded-md border px-1.5 py-0.5 text-[11px] font-medium tabular-nums md:hidden" style={{ background: style.bg, borderColor: style.border, color: style.color }}>
               {row.count}
             </span>
           ) : null}
         </span>
-        <span className="mt-1 block truncate text-[11px] md:hidden" style={{ color: 'var(--text-muted)' }}>{row.context}</span>
+        <span className="mt-1 block truncate text-[12px] leading-5 md:hidden" style={{ color: 'var(--text-secondary)' }}>{row.context}</span>
       </span>
-      <span className="hidden min-w-0 truncate text-[12px] md:block" style={{ color: 'var(--text-secondary)' }}>{row.context}</span>
+      <span className="hidden min-w-0 truncate text-[13px] leading-6 md:block" style={{ color: 'var(--text-secondary)' }}>{row.context}</span>
       <span className="hidden md:block">
-        <span className="rounded-md border px-2 py-1 text-[10px] font-semibold" style={{ background: style.bg, borderColor: style.border, color: style.color }}>
+        <span className="rounded-md border px-2 py-1 text-[11px] font-medium" style={{ background: style.bg, borderColor: style.border, color: style.color }}>
           {row.chip}
         </span>
       </span>
-      <span className="hidden items-center justify-end gap-2 whitespace-nowrap text-[12px] font-semibold md:flex" style={{ color: 'var(--accent)' }}>
+      <span className="hidden items-center justify-end gap-2 whitespace-nowrap text-[13px] font-medium md:flex" style={{ color: 'var(--accent)' }}>
         {actionLabel(row.target)}
         <ArrowRight size={13} />
       </span>
@@ -453,22 +453,22 @@ function StandupBrief({
 
   return (
     <section
-      className="mt-7 grid gap-4 rounded-lg px-4 py-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.8fr)]"
+      className="mt-8 grid gap-4 rounded-lg px-4 py-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.8fr)]"
       style={{ background: 'var(--today-muted-panel)', boxShadow: 'inset 0 0 0 1px var(--today-line)' }}
     >
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <Zap size={14} style={{ color: 'var(--accent)' }} />
-          <h3 className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>Standup brief</h3>
+          <h3 className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>Standup brief</h3>
         </div>
-        <p className="mt-2 max-w-xl text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+        <p className="mt-2 max-w-xl text-[13px] leading-6" style={{ color: 'var(--text-secondary)' }}>
           {leadPrompt ? leadPrompt.detail : 'No urgent prompts right now. Confirm the plan and protect focus time.'}
         </p>
         {leadPrompt ? (
           <button
             type="button"
             onClick={() => onOpenTarget(leadPrompt.target, leadPrompt.filter)}
-            className="mt-3 inline-flex items-center gap-2 text-[11.5px] font-semibold transition-colors hover:opacity-80"
+            className="mt-3 inline-flex items-center gap-2 text-[12.5px] font-medium transition-colors hover:opacity-80"
             style={{ color: 'var(--accent)' }}
           >
             {leadPrompt.title}
@@ -477,11 +477,11 @@ function StandupBrief({
         ) : null}
       </div>
       <div className="min-w-0 border-t pt-3 md:border-l md:border-t-0 md:pl-4 md:pt-0" style={{ borderColor: 'var(--today-line)' }}>
-        <p className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>Manager promise</p>
-        <p className="mt-2 truncate text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-secondary)' }}>Manager promise</p>
+        <p className="mt-2 truncate text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
           {leadFollowUp?.title ?? 'No follow-up due'}
         </p>
-        <p className="mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+        <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
           {leadFollowUp ? formatManagerDueSignal(leadFollowUp) : 'Desk is clear for now'}
         </p>
       </div>
@@ -506,17 +506,17 @@ function PeopleAndPromises({
   const hiddenTeamPulseCount = Math.max(teamPulse.length - visibleTeamPulse.length, 0);
 
   return (
-    <aside className="min-h-0 overflow-auto px-5 py-5 xl:px-8">
+    <aside className="min-h-0 overflow-auto px-5 py-6 xl:px-8">
       <SectionHeading icon={Users} title="Team Pulse" detail="People signals and manager follow-ups" />
-      <div className="mt-5">
+      <div className="mt-6">
         <div className="flex items-center gap-6 border-b" style={{ borderColor: 'var(--today-line)' }}>
-          <span className="border-b-2 pb-3 text-[12px] font-semibold" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>Team pulse</span>
-          <button type="button" onClick={() => onViewChange('desk')} className="pb-3 text-[12px] font-semibold" style={{ color: 'var(--text-muted)' }}>
-            My follow-ups <span className="ml-1 rounded-md px-1.5 py-0.5 text-[10px]" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>{followUps.length}</span>
+          <span className="border-b-2 pb-3 text-[13px] font-medium" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>Team pulse</span>
+          <button type="button" onClick={() => onViewChange('desk')} className="pb-3 text-[13px] font-medium" style={{ color: 'var(--text-muted)' }}>
+            My follow-ups <span className="ml-1 rounded-md px-1.5 py-0.5 text-[11px]" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>{followUps.length}</span>
           </button>
         </div>
 
-        <div className="mt-3 space-y-1">
+        <div className="mt-3 space-y-1.5">
           {teamPulse.length > 0 ? (
             <>
               {visibleTeamPulse.map((person) => (
@@ -526,7 +526,7 @@ function PeopleAndPromises({
                 <button
                   type="button"
                   onClick={() => onViewChange('team')}
-                  className="mt-2 flex w-full items-center justify-between px-1 py-2 text-left text-[12px] font-semibold transition-colors hover:bg-[var(--today-hover)]"
+                  className="mt-2 flex w-full items-center justify-between px-1 py-2.5 text-left text-[13px] font-medium transition-colors hover:bg-[var(--today-hover)]"
                   style={{ color: 'var(--accent)', borderBottom: '1px solid var(--today-line)' }}
                 >
                   View all team pulse
@@ -578,26 +578,26 @@ function TeamPulseRow({ person, onOpenTeam }: { person: ManagerTeamPulseItem; on
     <button
       type="button"
       onClick={onOpenTeam}
-      className="grid w-full grid-cols-[32px_minmax(0,1fr)_90px] gap-3 px-1 py-2.5 text-left transition-colors hover:bg-[var(--today-hover)] md:grid-cols-[36px_minmax(130px,0.75fr)_88px_minmax(0,1fr)_74px_82px]"
+      className="grid w-full grid-cols-[34px_minmax(0,1fr)_92px] gap-3 px-1 py-3 text-left transition-colors hover:bg-[var(--today-hover)] md:grid-cols-[38px_minmax(138px,0.78fr)_90px_minmax(0,1fr)_76px_86px]"
       style={{ borderBottom: '1px solid var(--today-line)' }}
     >
-      <span className="relative mt-0.5 flex h-7 w-7 items-center justify-center rounded-md text-[10.5px] font-semibold" style={{ background: style.bg, color: style.color, border: `1px solid ${style.border}` }}>
+      <span className="relative mt-0.5 flex h-8 w-8 items-center justify-center rounded-md text-[11px] font-medium" style={{ background: style.bg, color: style.color, border: `1px solid ${style.border}` }}>
         {person.initials}
         <span className="absolute -left-1 top-1.5 h-1.5 w-1.5 rounded-full" style={{ background: style.color }} />
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{person.displayName}</span>
-        <span className="mt-0.5 block truncate text-[11px] md:hidden" style={{ color: 'var(--text-muted)' }}>{person.currentWork}</span>
+        <span className="block truncate text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>{person.displayName}</span>
+        <span className="mt-0.5 block truncate text-[12px] leading-5 md:hidden" style={{ color: 'var(--text-secondary)' }}>{person.currentWork}</span>
       </span>
-      <span className="justify-self-start rounded-md px-2 py-0.5 text-[10px] font-semibold" style={{ background: style.bg, color: style.color }}>
+      <span className="justify-self-start rounded-md px-2 py-1 text-[11px] font-medium" style={{ background: style.bg, color: style.color }}>
         {person.status}
       </span>
       <span className="hidden min-w-0 md:block">
-        <span className="block truncate text-[12px]" style={{ color: 'var(--text-secondary)' }}>{person.currentWork}</span>
-        <span className="mt-0.5 block truncate text-[11px]" style={{ color: 'var(--text-muted)' }}>{person.detail}</span>
+        <span className="block truncate text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>{person.currentWork}</span>
+        <span className="mt-0.5 block truncate text-[12px] leading-5" style={{ color: 'var(--text-muted)' }}>{person.detail}</span>
       </span>
-      <span className="hidden text-[11px] md:block" style={{ color: 'var(--text-muted)' }}>{person.lastUpdate}</span>
-      <span className="hidden items-center justify-end gap-1.5 text-[11px] font-semibold md:flex" style={{ color: 'var(--accent)' }}>
+      <span className="hidden text-[12px] leading-5 md:block" style={{ color: 'var(--text-muted)' }}>{person.lastUpdate}</span>
+      <span className="hidden items-center justify-end gap-1.5 text-[12px] font-medium md:flex" style={{ color: 'var(--accent)' }}>
         {person.action === 'View' ? <Eye size={12} /> : <MessageSquare size={12} />}
         {person.action}
       </span>

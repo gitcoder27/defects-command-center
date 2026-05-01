@@ -6,7 +6,6 @@ import {
   CalendarCheck,
   CheckCircle2,
   Clock,
-  Pause,
   Scale,
   Zap,
 } from 'lucide-react';
@@ -88,13 +87,6 @@ function createQuickActions(item: ManagerDeskItem) {
     icon: <ArrowRight size={10} />,
     style: { background: 'var(--md-accent-glow)', color: 'var(--md-accent)', borderColor: 'color-mix(in srgb, var(--md-accent) 32%, transparent)' },
   };
-  const waiting = {
-    label: 'Waiting',
-    status: 'waiting' as const,
-    icon: <Pause size={10} />,
-    secondary: true,
-    style: { background: 'rgba(245,158,11,0.10)', color: 'var(--warning)', borderColor: 'rgba(245,158,11,0.22)' },
-  };
   const done = {
     label: 'Done',
     status: 'done' as const,
@@ -115,7 +107,7 @@ function createQuickActions(item: ManagerDeskItem) {
     secondary: true,
     style: { background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderColor: 'var(--border)' },
   };
-  return { start, waiting, done, drop, moveLater };
+  return { start, done, drop, moveLater };
 }
 
 export function getPrimaryQuickAction(item: ManagerDeskItem): RowQuickAction | null {
@@ -129,14 +121,14 @@ export function getPrimaryQuickAction(item: ManagerDeskItem): RowQuickAction | n
 export function getSecondaryQuickActions(item: ManagerDeskItem): RowQuickAction[] {
   if (item.status === 'done' || item.status === 'cancelled') return [];
 
-  const { waiting, done, drop, moveLater } = createQuickActions(item);
+  const { done, drop, moveLater } = createQuickActions(item);
   const laterActions = item.delegatedExecution ? [] : [moveLater];
   const terminalActions = item.delegatedExecution ? [done] : [done, drop];
 
   if (item.status === 'backlog') return item.delegatedExecution ? [] : [drop];
-  if (item.status === 'in_progress') return [waiting, ...laterActions, ...(!item.delegatedExecution ? [drop] : [])];
+  if (item.status === 'in_progress') return [...laterActions, ...(!item.delegatedExecution ? [drop] : [])];
   if (item.status === 'waiting') return [...laterActions, ...terminalActions];
-  return [...laterActions, waiting, ...terminalActions];
+  return [...laterActions, ...terminalActions];
 }
 
 export function getKindBackground(variant: DeskItemVariant) {
@@ -169,8 +161,8 @@ export function getDateSignal(item: ManagerDeskItem, isOverdue: boolean) {
   const dateValue = item.followUpAt ?? item.plannedStartAt ?? item.plannedEndAt;
   if (item.status === 'waiting') {
     const days = getWaitingDays(item);
-    if (days > 0) return { label: `Waiting ${days}d`, tone: days > 1 ? 'warning' as const : 'neutral' as const };
-    return { label: 'Waiting today', tone: 'neutral' as const };
+    if (days > 0) return { label: `Pending ${days}d`, tone: days > 1 ? 'warning' as const : 'neutral' as const };
+    return { label: 'Pending today', tone: 'neutral' as const };
   }
   if (!dateValue) return null;
   try {

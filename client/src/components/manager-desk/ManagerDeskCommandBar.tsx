@@ -9,7 +9,6 @@ const quickFilters: Array<{ key: ManagerDeskQuickFilter; label: string }> = [
   { key: 'now', label: 'Now' },
   { key: 'inbox', label: 'Triage' },
   { key: 'planned', label: 'Planned' },
-  { key: 'waiting', label: 'Waiting' },
   { key: 'backlog', label: 'Later' },
   { key: 'done', label: 'Done' },
 ];
@@ -170,7 +169,7 @@ function StructuredFilters({
         label="Kind"
         value={filters.kind ?? ''}
         onChange={(value) => onChange({ ...filters, kind: (value || null) as ManagerDeskFilterState['kind'] })}
-        options={['action', 'meeting', 'decision', 'waiting']}
+        options={['action', 'meeting', 'decision']}
       />
       <SelectControl
         label="Category"
@@ -182,7 +181,7 @@ function StructuredFilters({
         label="Status"
         value={filters.status ?? ''}
         onChange={(value) => onChange({ ...filters, status: (value || null) as ManagerDeskFilterState['status'] })}
-        options={['inbox', 'planned', 'in_progress', 'waiting', 'backlog', 'done', 'cancelled']}
+        options={['inbox', 'planned', 'in_progress', 'backlog', 'done', 'cancelled']}
       />
       <button
         type="button"

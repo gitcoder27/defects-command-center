@@ -37,7 +37,7 @@ export const KIND_LABELS: Record<ManagerDeskItemKind, string> = {
   action: 'Action',
   meeting: 'Meeting',
   decision: 'Decision',
-  waiting: 'Waiting',
+  waiting: 'Follow-up',
 };
 
 export const CATEGORY_LABELS: Record<ManagerDeskCategory, string> = {
@@ -56,7 +56,7 @@ export const STATUS_LABELS: Record<ManagerDeskStatus, string> = {
   inbox: 'Needs triage',
   planned: 'Planned',
   in_progress: 'Doing',
-  waiting: 'Waiting',
+  waiting: 'Planned',
   backlog: 'Later',
   done: 'Done',
   cancelled: 'Dropped',

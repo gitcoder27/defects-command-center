@@ -11,7 +11,7 @@ interface Props {
   disabledLabel?: string;
 }
 
-const kindOptions: ManagerDeskItemKind[] = ['action', 'meeting', 'decision', 'waiting'];
+const kindOptions: ManagerDeskItemKind[] = ['action', 'meeting', 'decision'];
 const categoryOptions: ManagerDeskCategory[] = [
   'analysis', 'design', 'team_management', 'cross_team',
   'follow_up', 'escalation', 'admin', 'planning', 'other',

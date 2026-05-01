@@ -282,7 +282,8 @@ describe('ManagerDeskPage', () => {
     );
     expect(screen.getByRole('button', { name: /today 5/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /triage 1/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /planned 2/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /planned 3/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^waiting \d+$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /needs attention/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /done 1/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /filters/i })).toBeInTheDocument();
@@ -320,7 +321,6 @@ describe('ManagerDeskPage', () => {
     expect(screen.getByRole('heading', { name: 'Planned' })).toBeInTheDocument();
     expect(screen.queryByText('Rail')).not.toBeInTheDocument();
     expect(screen.queryByText('Focus')).not.toBeInTheDocument();
-    expect(screen.getAllByText('Waiting').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Needs triage').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Analyze root cause for DEF-241').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Waiting on QA feedback').length).toBeGreaterThanOrEqual(1);
@@ -656,6 +656,18 @@ describe('ManagerDeskPage', () => {
   });
 
   it('moves open work to later from the detail panel more menu', () => {
+    currentMockDay = {
+      ...mockDayResponse,
+      items: mockDayResponse.items.map((item) =>
+        item.id === 1
+          ? {
+              ...item,
+              status: 'in_progress',
+            }
+          : item,
+      ),
+    };
+
     render(
       <TestWrapper>
         <ManagerDeskPage />
@@ -675,7 +687,19 @@ describe('ManagerDeskPage', () => {
     );
   });
 
-  it('moves open work to later from the row actions menu', () => {
+  it('moves started work to later from the row actions menu', () => {
+    currentMockDay = {
+      ...mockDayResponse,
+      items: mockDayResponse.items.map((item) =>
+        item.id === 1
+          ? {
+              ...item,
+              status: 'in_progress',
+            }
+          : item,
+      ),
+    };
+
     render(
       <TestWrapper>
         <ManagerDeskPage />
@@ -964,6 +988,8 @@ describe('ManagerDeskPage', () => {
     expect(screen.getByRole('button', { name: /today 5/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /now 0/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /triage 1/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /planned 3/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^waiting \d+$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /needs attention/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /done 1/i })).toBeInTheDocument();
     expect(screen.queryByText(/A new day changes the lens/i)).not.toBeInTheDocument();

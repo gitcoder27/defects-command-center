@@ -1,4 +1,4 @@
-import { Archive, CheckCircle2, Inbox, ListChecks, Pause, Play } from 'lucide-react';
+import { Archive, CheckCircle2, Inbox, ListChecks, Play } from 'lucide-react';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
 import { UnifiedEmptyState } from './UnifiedDeskListPrimitives';
 import {
@@ -167,8 +167,7 @@ function buildDeskRhythmSections(items: ManagerDeskItem[]): DeskRhythmSection[] 
   return [
     { key: 'now', title: 'Now', subtitle: 'The work already in motion.', icon: <Play size={12} />, items: items.filter((item) => item.status === 'in_progress'), tone: 'active' },
     { key: 'triage', title: 'Needs triage', subtitle: 'Fresh captures waiting for a decision.', icon: <Inbox size={12} />, items: items.filter((item) => item.status === 'inbox'), tone: 'decision' },
-    { key: 'planned', title: 'Planned', subtitle: 'Committed work that has not started yet.', icon: <ListChecks size={12} />, items: items.filter((item) => item.status === 'planned'), tone: 'calm' },
-    { key: 'waiting', title: 'Waiting', subtitle: 'Blocked follow-ups being watched.', icon: <Pause size={12} />, items: items.filter((item) => item.status === 'waiting'), tone: 'quiet' },
+    { key: 'planned', title: 'Planned', subtitle: 'Committed work and follow-ups that have not started yet.', icon: <ListChecks size={12} />, items: items.filter((item) => item.status === 'planned' || item.status === 'waiting'), tone: 'calm' },
     { key: 'later', title: 'Later', subtitle: 'Parked work, kept out of the active plan.', icon: <Archive size={12} />, items: items.filter((item) => item.status === 'backlog'), tone: 'quiet', quiet: true },
     { key: 'done', title: 'Done', subtitle: 'Closed work for this date.', icon: <CheckCircle2 size={12} />, items: items.filter((item) => item.status === 'done' || item.status === 'cancelled'), tone: 'quiet', quiet: true },
   ];

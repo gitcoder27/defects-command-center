@@ -16,7 +16,6 @@ export type ManagerDeskQuickFilter =
   | 'all'
   | 'now'
   | 'planned'
-  | 'waiting'
   | 'inbox'
   | 'backlog'
   | 'done';
@@ -55,8 +54,7 @@ function getAttentionRank(item: ManagerDeskItem) {
   if (!isOpenWork(item)) return nonAttentionRank;
   if (isOverdue(item)) return 0;
   if (item.status === 'in_progress') return 1;
-  if (item.status === 'waiting') return 2;
-  if (item.status === 'inbox') return 3;
+  if (item.status === 'inbox') return 2;
   if (item.priority === 'critical' || item.priority === 'high') return 4;
   return nonAttentionRank;
 }
@@ -98,9 +96,7 @@ export function filterItems(
       case 'now':
         return item.status === 'in_progress';
       case 'planned':
-        return item.status === 'planned';
-      case 'waiting':
-        return isOpenWork(item) && (item.status === 'waiting' || item.kind === 'waiting');
+        return item.status === 'planned' || item.status === 'waiting';
       case 'inbox':
         return item.status === 'inbox';
       case 'backlog':

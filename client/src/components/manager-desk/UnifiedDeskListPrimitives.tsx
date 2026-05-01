@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Archive, CheckCircle2, Clock3, Inbox, ListChecks } from 'lucide-react';
+import { Archive, CheckCircle2, Inbox, ListChecks } from 'lucide-react';
 import type { ManagerDeskItem } from '@/types/manager-desk';
 import type { ManagerDeskQuickFilter } from './workbench-utils';
 
@@ -16,13 +16,8 @@ export const lensCopy: Record<ManagerDeskQuickFilter, { title: string; subtitle:
   },
   planned: {
     title: 'Planned',
-    subtitle: 'Committed work that has not started yet.',
+    subtitle: 'Committed work and parked follow-ups that have not started yet.',
     empty: 'Nothing is planned in this view.',
-  },
-  waiting: {
-    title: 'Waiting',
-    subtitle: 'Blocked work and follow-ups that depend on someone else.',
-    empty: 'Nothing is currently waiting on someone else.',
   },
   inbox: {
     title: 'Needs triage',
@@ -85,8 +80,6 @@ export function UnifiedEmptyState({
 }) {
   const Icon = quickFilter === 'done'
     ? CheckCircle2
-    : quickFilter === 'waiting'
-    ? Clock3
     : quickFilter === 'inbox'
     ? Inbox
     : quickFilter === 'backlog'

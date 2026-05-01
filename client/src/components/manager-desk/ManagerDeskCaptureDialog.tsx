@@ -42,7 +42,7 @@ interface ManagerDeskCaptureDialogProps {
   date?: string;
 }
 
-const kindOptions: ManagerDeskItemKind[] = ['action', 'meeting', 'decision', 'waiting'];
+const kindOptions: ManagerDeskItemKind[] = ['action', 'meeting', 'decision'];
 const categoryOptions: ManagerDeskCategory[] = [
   'analysis',
   'design',

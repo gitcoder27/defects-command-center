@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import type { ManagerDeskItem, ManagerDeskUpdateItemPayload } from '@/types/manager-desk';
+import type { ManagerDeskItem, ManagerDeskItemKind, ManagerDeskStatus, ManagerDeskUpdateItemPayload } from '@/types/manager-desk';
 import { KIND_LABELS, STATUS_LABELS, CATEGORY_LABELS, PRIORITY_LABELS } from '@/types/manager-desk';
 
 interface DrawerPropertiesProps {
@@ -8,8 +8,10 @@ interface DrawerPropertiesProps {
   onFieldChange: (field: keyof ManagerDeskUpdateItemPayload, value: string | null) => void;
 }
 
-const kindOpts = (['action', 'meeting', 'decision', 'waiting'] as const).map((v) => ({ value: v, label: KIND_LABELS[v] }));
-const statusOpts = (['inbox', 'planned', 'in_progress', 'waiting', 'backlog', 'done', 'cancelled'] as const).map((v) => ({ value: v, label: STATUS_LABELS[v] }));
+const primaryKindValues = ['action', 'meeting', 'decision'] as const;
+const primaryStatusValues = ['inbox', 'planned', 'in_progress', 'backlog', 'done', 'cancelled'] as const;
+const kindOpts = primaryKindValues.map((v) => ({ value: v, label: KIND_LABELS[v] }));
+const statusOpts = primaryStatusValues.map((v) => ({ value: v, label: STATUS_LABELS[v] }));
 const categoryOpts = (['analysis', 'design', 'team_management', 'cross_team', 'follow_up', 'escalation', 'admin', 'planning', 'other'] as const).map((v) => ({ value: v, label: CATEGORY_LABELS[v] }));
 const priorityOpts = (['low', 'medium', 'high', 'critical'] as const).map((v) => ({ value: v, label: PRIORITY_LABELS[v] }));
 
@@ -19,6 +21,8 @@ export function DrawerProperties({ item, readOnly = false, onFieldChange }: Draw
   const filteredStatusOpts = hasLinkedWork
     ? statusOpts.filter((o) => o.value !== 'cancelled' && o.value !== 'backlog')
     : statusOpts;
+  const visibleKindOpts = includeCurrentOption(kindOpts, item.kind, KIND_LABELS);
+  const visibleStatusOpts = includeCurrentOption(filteredStatusOpts, item.status, STATUS_LABELS);
 
   return (
     <details className="px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
@@ -26,8 +30,8 @@ export function DrawerProperties({ item, readOnly = false, onFieldChange }: Draw
         Details
       </summary>
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
-        <InlineSelect label="Kind" value={item.kind} options={kindOpts} onChange={(v) => onFieldChange('kind', v)} disabled={readOnly} />
-        <InlineSelect label="Status" value={item.status} options={filteredStatusOpts} onChange={(v) => onFieldChange('status', v)} disabled={readOnly} />
+        <InlineSelect label="Kind" value={item.kind} options={visibleKindOpts} onChange={(v) => onFieldChange('kind', v)} disabled={readOnly} />
+        <InlineSelect label="Status" value={item.status} options={visibleStatusOpts} onChange={(v) => onFieldChange('status', v)} disabled={readOnly} />
         <InlineSelect label="Category" value={item.category} options={categoryOpts} onChange={(v) => onFieldChange('category', v)} disabled={readOnly} />
         <InlineSelect label="Priority" value={item.priority} options={priorityOpts} onChange={(v) => onFieldChange('priority', v)} disabled={readOnly} />
         <InlineText label="Participants" value={item.participants ?? ''} placeholder="e.g. Design Team, Rahul" onChange={(v) => onFieldChange('participants', v.trim() ? v : null)} className="col-span-2" disabled={readOnly} />
@@ -38,6 +42,17 @@ export function DrawerProperties({ item, readOnly = false, onFieldChange }: Draw
       </div>
     </details>
   );
+}
+
+function includeCurrentOption<T extends ManagerDeskItemKind | ManagerDeskStatus>(
+  options: Array<{ value: T; label: string }>,
+  currentValue: T,
+  labels: Record<T, string>,
+) {
+  if (options.some((option) => option.value === currentValue)) {
+    return options;
+  }
+  return [...options, { value: currentValue, label: `${labels[currentValue]} (legacy)` }];
 }
 
 function InlineSelect<T extends string>({ label, value, options, onChange, emptyLabel, disabled = false }: {
