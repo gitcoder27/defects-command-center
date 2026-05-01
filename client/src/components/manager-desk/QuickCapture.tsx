@@ -60,10 +60,12 @@ export function QuickCapture({ onCapture, isPending, disabled = false, disabledL
 
   return (
     <div
-      className="md-glass-panel rounded-lg overflow-hidden transition-all"
+      className="overflow-hidden rounded-lg border transition-all"
       style={{
+        background: 'color-mix(in srgb, var(--bg-secondary) 54%, transparent)',
+        borderColor: expanded || isFocused ? 'color-mix(in srgb, var(--md-accent) 42%, transparent)' : 'color-mix(in srgb, var(--border) 72%, transparent)',
         boxShadow: expanded || isFocused
-          ? '0 0 0 1px var(--md-accent), 0 2px 12px rgba(217,169,78,0.06)'
+          ? 'inset 0 1px 0 rgba(255,255,255,0.035), 0 8px 22px rgba(0,0,0,0.10)'
           : undefined,
       }}
     >

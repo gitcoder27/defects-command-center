@@ -59,7 +59,14 @@ export function ManagerDeskCommandBar({
 
   return (
     <div className="pt-2">
-      <div className="md-glass-panel rounded-xl p-2">
+      <div
+        className="rounded-xl border p-2"
+        style={{
+          background: 'color-mix(in srgb, var(--bg-primary) 78%, transparent)',
+          borderColor: 'color-mix(in srgb, var(--border) 76%, transparent)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.025)',
+        }}
+      >
         <div className="flex gap-2 items-stretch">
           <div className="flex-1 min-w-0">
             <QuickCapture
@@ -70,7 +77,7 @@ export function ManagerDeskCommandBar({
             />
           </div>
 
-          <div className="flex items-center gap-1.5 rounded-lg border px-2 py-1" style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)' }}>
+          <div className="flex items-center gap-1.5 rounded-lg border px-2 py-1" style={{ borderColor: 'color-mix(in srgb, var(--border) 76%, transparent)', background: 'color-mix(in srgb, var(--bg-secondary) 70%, transparent)' }}>
             <Search size={12} style={{ color: 'var(--text-muted)' }} />
             <input
               type="text"
@@ -93,8 +100,8 @@ export function ManagerDeskCommandBar({
             onClick={onToggleFilters}
             className="flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em]"
             style={{
-              background: hasStructuredFilters ? 'var(--md-accent-glow)' : 'var(--bg-secondary)',
-              borderColor: hasStructuredFilters ? 'var(--md-accent)' : 'var(--border)',
+              background: hasStructuredFilters ? 'var(--md-accent-glow)' : 'color-mix(in srgb, var(--bg-secondary) 70%, transparent)',
+              borderColor: hasStructuredFilters ? 'var(--md-accent)' : 'color-mix(in srgb, var(--border) 76%, transparent)',
               color: hasStructuredFilters ? 'var(--md-accent)' : 'var(--text-secondary)',
             }}
           >
@@ -108,8 +115,8 @@ export function ManagerDeskCommandBar({
               onClick={onResetView}
               className="rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em]"
               style={{
-                background: 'var(--bg-secondary)',
-                borderColor: 'var(--border)',
+                background: 'color-mix(in srgb, var(--bg-secondary) 70%, transparent)',
+                borderColor: 'color-mix(in srgb, var(--border) 76%, transparent)',
                 color: 'var(--text-secondary)',
               }}
             >
@@ -124,10 +131,10 @@ export function ManagerDeskCommandBar({
               key={key}
               type="button"
               onClick={() => onQuickFilterChange(key)}
-              className="flex items-center gap-1 rounded-md border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] transition-colors"
+              className="flex h-6 items-center gap-1 rounded-md border px-2 text-[9px] font-semibold uppercase tracking-[0.08em] transition-colors"
               style={{
-                background: quickFilter === key ? 'var(--md-accent-glow)' : 'var(--bg-primary)',
-                borderColor: quickFilter === key ? 'var(--md-accent)' : 'var(--border)',
+                background: quickFilter === key ? 'var(--md-accent-glow)' : 'transparent',
+                borderColor: quickFilter === key ? 'var(--md-accent)' : 'color-mix(in srgb, var(--border) 58%, transparent)',
                 color: quickFilter === key ? 'var(--md-accent)' : 'var(--text-secondary)',
               }}
               aria-pressed={quickFilter === key}

@@ -636,7 +636,6 @@ describe('ManagerDeskPage', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Later' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /later 1/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /later 1/i }));

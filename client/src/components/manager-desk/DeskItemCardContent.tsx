@@ -47,59 +47,57 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
   const showPriority = !isDone && (item.priority === 'high' || item.priority === 'critical');
 
   return (
-    <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-start gap-2.5">
-          <span
-            className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md"
-            style={{ background: getKindBackground(variant), color: getKindColor(variant, item.status) }}
-            title={KIND_LABELS[item.kind]}
-          >
-            <KindIcon size={12} />
-          </span>
+    <div className="flex min-w-0 flex-col gap-2 md:flex-row md:items-center">
+      <div className="flex min-w-0 flex-1 items-start gap-2.5">
+        <span
+          className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"
+          style={{ background: getKindBackground(variant), color: getKindColor(variant, item.status) }}
+          title={KIND_LABELS[item.kind]}
+        >
+          <KindIcon size={12} />
+        </span>
 
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              <span
-                className="min-w-0 max-w-full truncate text-[13px] font-semibold leading-5 tracking-[-0.01em]"
-                style={{
-                  color: isDone ? 'var(--text-muted)' : 'var(--text-primary)',
-                  textDecoration: item.status === 'cancelled' ? 'line-through' : undefined,
-                }}
-              >
-                {item.title}
-              </span>
-              {showPriority && <PriorityPill item={item} />}
-            </div>
-
-            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <SignalChip label={statusLabel} style={statusTone[item.status]} />
-              {showKind && <SignalChip icon={<KindIcon size={8} />} label={KIND_LABELS[item.kind]} />}
-              {showCategory && <SignalChip label={CATEGORY_LABELS[item.category]} />}
-              {dateSignal && (
-                <SignalChip
-                  icon={dateSignal.tone === 'danger' ? <AlertTriangle size={8} /> : <Clock3 size={8} />}
-                  label={dateSignal.label}
-                  tone={dateSignal.tone}
-                />
-              )}
-              {showSource && (
-                <SignalChip
-                  icon={sourceSignal.type === 'jira' ? <Link2 size={8} /> : <FileText size={8} />}
-                  label={sourceSignal.label}
-                  title={sourceSignal.title}
-                />
-              )}
-              {execChip && <SignalChip icon={<Users size={8} />} label={execChip.label} style={execChip.style} title={`Developer execution: ${execChip.label}`} />}
-            </div>
-
-            <RowContext item={item} isDone={isDone} />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <span
+              className="min-w-0 max-w-full truncate text-[13px] font-semibold leading-5 tracking-[-0.01em]"
+              style={{
+                color: isDone ? 'var(--text-muted)' : 'var(--text-primary)',
+                textDecoration: item.status === 'cancelled' ? 'line-through' : undefined,
+              }}
+            >
+              {item.title}
+            </span>
+            {showPriority && <PriorityPill item={item} />}
           </div>
+
+          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <SignalChip label={statusLabel} style={statusTone[item.status]} />
+            {showKind && <SignalChip icon={<KindIcon size={8} />} label={KIND_LABELS[item.kind]} />}
+            {showCategory && <SignalChip label={CATEGORY_LABELS[item.category]} />}
+            {dateSignal && (
+              <SignalChip
+                icon={dateSignal.tone === 'danger' ? <AlertTriangle size={8} /> : <Clock3 size={8} />}
+                label={dateSignal.label}
+                tone={dateSignal.tone}
+              />
+            )}
+            {showSource && (
+              <SignalChip
+                icon={sourceSignal.type === 'jira' ? <Link2 size={8} /> : <FileText size={8} />}
+                label={sourceSignal.label}
+                title={sourceSignal.title}
+              />
+            )}
+            {execChip && <SignalChip icon={<Users size={8} />} label={execChip.label} style={execChip.style} title={`Developer execution: ${execChip.label}`} />}
+          </div>
+
+          <RowContext item={item} isDone={isDone} />
         </div>
       </div>
 
       {primaryAction && onStatusChange && !readOnly && (
-        <div className="flex items-center gap-1 md:justify-end">
+        <div className="flex shrink-0 items-center gap-1 self-start pl-9 md:self-center md:pl-0">
           <RowActionButton action={primaryAction} itemTitle={item.title} onStatusChange={onStatusChange} />
           {secondaryActions.length > 0 && (
             <Popover.Root>
@@ -150,7 +148,7 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
       )}
 
       {isDone && (
-        <div className="hidden items-center justify-end md:flex">
+        <div className="hidden shrink-0 items-center justify-end md:flex">
           {item.status === 'done' ? <CheckCircle2 size={15} style={{ color: 'var(--success)' }} /> : <XCircle size={15} style={{ color: 'var(--text-muted)' }} />}
         </div>
       )}

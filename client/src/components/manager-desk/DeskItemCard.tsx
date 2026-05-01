@@ -41,7 +41,7 @@ export function DeskItemCard({
           onSelect();
         }
       }}
-      className="group relative cursor-pointer overflow-hidden rounded-lg border px-3 py-2.5 outline-none transition-[background-color,box-shadow,opacity,transform] duration-150 hover:-translate-y-[1px] focus-visible:ring-1 focus-visible:ring-[color-mix(in_srgb,var(--md-accent)_48%,transparent)] active:scale-[0.995]"
+      className="group relative cursor-pointer overflow-hidden rounded-xl border px-3 py-2 outline-none transition-[background-color,box-shadow,opacity,transform] duration-150 hover:-translate-y-[1px] focus-visible:ring-1 focus-visible:ring-[color-mix(in_srgb,var(--md-accent)_48%,transparent)] active:scale-[0.995]"
       role="button"
       tabIndex={0}
       aria-label={`Open ${item.title}`}
@@ -80,8 +80,8 @@ function getCardSurface(item: ManagerDeskItem, isOverdue: boolean) {
   if (item.status === 'in_progress') {
     return {
       background:
-        'linear-gradient(135deg, color-mix(in srgb, var(--accent-glow) 28%, var(--bg-tertiary) 72%) 0%, var(--bg-tertiary) 82%)',
-      border: 'color-mix(in srgb, var(--border) 82%, transparent)',
+        'linear-gradient(135deg, rgba(6,182,212,0.075) 0%, color-mix(in srgb, var(--bg-tertiary) 84%, transparent) 62%)',
+      border: 'rgba(6,182,212,0.18)',
     };
   }
   if (isOverdue) {
@@ -91,8 +91,8 @@ function getCardSurface(item: ManagerDeskItem, isOverdue: boolean) {
     };
   }
   return {
-    background: 'color-mix(in srgb, var(--bg-tertiary) 82%, transparent)',
-    border: 'color-mix(in srgb, var(--border) 78%, transparent)',
+    background: 'color-mix(in srgb, var(--bg-tertiary) 70%, transparent)',
+    border: 'color-mix(in srgb, var(--border) 62%, transparent)',
   };
 }
 

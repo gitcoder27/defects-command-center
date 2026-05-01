@@ -600,6 +600,51 @@ describe("manager desk routes", () => {
     expect("contextNote" in reopened.body).toBe(false);
   });
 
+  it("keeps items completed after UTC midnight visible on the local desk day", async () => {
+    vi.setSystemTime(new Date("2026-03-08T20:45:00.000Z"));
+
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+    const created = await invoke(app, {
+      method: "POST",
+      url: "/api/manager-desk/items",
+      headers: { cookie },
+      body: {
+        date: "2026-03-09",
+        title: "Close after local midnight",
+        status: "in_progress",
+      },
+    });
+
+    const completed = await invoke(app, {
+      method: "PATCH",
+      url: `/api/manager-desk/items/${created.body.id}`,
+      headers: { cookie },
+      body: {
+        status: "done",
+      },
+    });
+
+    expect(completed.status).toBe(200);
+    expect(completed.body?.completedAt).toMatch(/^2026-03-08T/);
+
+    const day = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk?date=2026-03-09",
+      headers: { cookie },
+    });
+
+    expect(day.status).toBe(200);
+    expect(day.body?.summary?.completed).toBe(1);
+    expect(day.body?.items).toEqual([
+      expect.objectContaining({
+        id: created.body.id,
+        title: "Close after local midnight",
+        status: "done",
+      }),
+    ]);
+  });
+
   it("PATCH /api/manager-desk/items/:itemId moves manager work to later and brings it back", async () => {
     const app = createTestApp();
     const cookie = await loginCookie("manager", "secret123");

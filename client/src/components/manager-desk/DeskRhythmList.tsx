@@ -28,29 +28,43 @@ export function DeskRhythmList({
   onStatusChange,
 }: Props) {
   const sections = buildDeskRhythmSections(items);
-  const visibleSections = sections.filter((section) => section.items.length > 0 || !section.quiet);
+  const activeSections = sections.filter((section) => !section.quiet && section.items.length > 0);
+  const quietSections = sections.filter((section) => section.quiet);
   const title = viewMode === 'planning' ? 'Scheduled work' : viewMode === 'history' ? 'Desk snapshot' : 'Today';
   const subtitle = viewMode === 'planning'
-    ? 'Future work grouped by the decisions a manager needs to make.'
+    ? 'Future work grouped by the decisions that need attention.'
     : viewMode === 'history'
     ? 'A read-only record of how the desk looked for this date.'
-    : 'Start with Now, clear triage, then work the plan.';
+    : 'Act on what is moving, clear new captures, then work the plan.';
+  const metrics = [
+    { label: 'Now', value: sections.find((section) => section.key === 'now')?.items.length ?? 0, tone: 'active' as const },
+    { label: 'Triage', value: sections.find((section) => section.key === 'triage')?.items.length ?? 0, tone: 'decision' as const },
+    { label: 'Planned', value: sections.find((section) => section.key === 'planned')?.items.length ?? 0, tone: 'calm' as const },
+  ];
 
   return (
-    <section className="md-glass-panel flex min-h-full flex-col overflow-hidden rounded-xl">
+    <section
+      className="flex min-h-full flex-col overflow-hidden rounded-xl border"
+      style={{
+        background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 92%, transparent), color-mix(in srgb, var(--bg-primary) 98%, transparent))',
+        borderColor: 'color-mix(in srgb, var(--border) 82%, transparent)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.025)',
+      }}
+    >
       <DeskRhythmHeader
         title={title}
         subtitle={subtitle}
         count={items.length}
         continuedOpenCount={continuedOpenCount}
+        metrics={metrics}
       />
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 md:px-4">
         {items.length === 0 ? (
           <UnifiedEmptyState quickFilter="all" message="No desk work matches this view." />
         ) : (
-          <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-            {visibleSections.map((section) => (
+          <div className="space-y-5">
+            {activeSections.map((section) => (
               <DeskRhythmSectionView
                 key={section.key}
                 section={section}
@@ -60,6 +74,7 @@ export function DeskRhythmList({
                 onStatusChange={onStatusChange}
               />
             ))}
+            <QuietDeskStrip sections={quietSections} />
           </div>
         )}
       </div>
@@ -81,28 +96,15 @@ function DeskRhythmSectionView({
   onStatusChange?: (itemId: number, status: ManagerDeskStatus) => void;
 }) {
   if (section.quiet) {
-    return (
-      <details className="group py-2" open={section.defaultOpen}>
-        <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
-          <SectionTitle section={section} />
-        </summary>
-        <SectionItems section={section} selectedItemId={selectedItemId} readOnly={readOnly} onSelect={onSelect} onStatusChange={onStatusChange} />
-      </details>
-    );
+    return null;
   }
 
   return (
-    <section className="py-2.5">
-      <div className="px-2 pb-1.5">
+    <section>
+      <div className="pb-2">
         <SectionTitle section={section} />
       </div>
-      {section.items.length === 0 ? (
-        <div className="mx-1 rounded-lg border border-dashed px-3 py-4 text-[11px]" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-          Clear.
-        </div>
-      ) : (
-        <SectionItems section={section} selectedItemId={selectedItemId} readOnly={readOnly} onSelect={onSelect} onStatusChange={onStatusChange} />
-      )}
+      <SectionItems section={section} selectedItemId={selectedItemId} readOnly={readOnly} onSelect={onSelect} onStatusChange={onStatusChange} />
     </section>
   );
 }
@@ -121,7 +123,7 @@ function SectionItems({
   onStatusChange?: (itemId: number, status: ManagerDeskStatus) => void;
 }) {
   return (
-    <div className="mt-1.5 space-y-1.5 px-1">
+    <div className={section.tone === 'active' ? 'space-y-2' : 'space-y-1.5'}>
       {section.items.map((item) => (
         <DeskCardRow
           key={item.id}
@@ -136,13 +138,38 @@ function SectionItems({
   );
 }
 
+function QuietDeskStrip({ sections }: { sections: DeskRhythmSection[] }) {
+  return (
+    <div
+      className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2"
+      style={{
+        background: 'color-mix(in srgb, var(--bg-secondary) 42%, transparent)',
+        borderColor: 'color-mix(in srgb, var(--border) 72%, transparent)',
+        color: 'var(--text-muted)',
+      }}
+    >
+      {sections.map((section) => (
+        <span
+          key={section.key}
+          className="inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-[10px] font-semibold uppercase tracking-[0.08em]"
+          style={{ color: section.items.length > 0 ? 'var(--text-secondary)' : 'var(--text-muted)' }}
+        >
+          {section.icon}
+          <span>{section.title}</span>
+          <span className="font-mono tabular-nums">{section.items.length}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function buildDeskRhythmSections(items: ManagerDeskItem[]): DeskRhythmSection[] {
   return [
-    { key: 'now', title: 'Now', subtitle: 'Work already in motion.', icon: <Play size={12} />, items: items.filter((item) => item.status === 'in_progress') },
-    { key: 'triage', title: 'Needs triage', subtitle: 'Fresh captures waiting for a decision.', icon: <Inbox size={12} />, items: items.filter((item) => item.status === 'inbox') },
-    { key: 'planned', title: 'Planned', subtitle: 'Committed work that has not started yet.', icon: <ListChecks size={12} />, items: items.filter((item) => item.status === 'planned') },
-    { key: 'waiting', title: 'Waiting', subtitle: 'Follow-ups blocked by another person or signal.', icon: <Pause size={12} />, items: items.filter((item) => item.status === 'waiting') },
-    { key: 'later', title: 'Later', subtitle: 'Parked work, kept out of the active plan.', icon: <Archive size={12} />, items: items.filter((item) => item.status === 'backlog'), quiet: true },
-    { key: 'done', title: 'Done', subtitle: 'Closed work for this date.', icon: <CheckCircle2 size={12} />, items: items.filter((item) => item.status === 'done' || item.status === 'cancelled'), quiet: true },
+    { key: 'now', title: 'Now', subtitle: 'The work already in motion.', icon: <Play size={12} />, items: items.filter((item) => item.status === 'in_progress'), tone: 'active' },
+    { key: 'triage', title: 'Needs triage', subtitle: 'Fresh captures waiting for a decision.', icon: <Inbox size={12} />, items: items.filter((item) => item.status === 'inbox'), tone: 'decision' },
+    { key: 'planned', title: 'Planned', subtitle: 'Committed work that has not started yet.', icon: <ListChecks size={12} />, items: items.filter((item) => item.status === 'planned'), tone: 'calm' },
+    { key: 'waiting', title: 'Waiting', subtitle: 'Blocked follow-ups being watched.', icon: <Pause size={12} />, items: items.filter((item) => item.status === 'waiting'), tone: 'quiet' },
+    { key: 'later', title: 'Later', subtitle: 'Parked work, kept out of the active plan.', icon: <Archive size={12} />, items: items.filter((item) => item.status === 'backlog'), tone: 'quiet', quiet: true },
+    { key: 'done', title: 'Done', subtitle: 'Closed work for this date.', icon: <CheckCircle2 size={12} />, items: items.filter((item) => item.status === 'done' || item.status === 'cancelled'), tone: 'quiet', quiet: true },
   ];
 }

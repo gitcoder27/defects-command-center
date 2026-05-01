@@ -11,6 +11,7 @@ export interface DeskRhythmSection {
   items: ManagerDeskItem[];
   quiet?: boolean;
   defaultOpen?: boolean;
+  tone?: 'active' | 'decision' | 'calm' | 'quiet';
 }
 
 export function DeskRhythmHeader({
@@ -18,18 +19,20 @@ export function DeskRhythmHeader({
   subtitle,
   count,
   continuedOpenCount,
+  metrics,
 }: {
   title: string;
   subtitle: string;
   count: number;
   continuedOpenCount?: number;
+  metrics?: Array<{ label: string; value: number; tone?: 'active' | 'decision' | 'calm' }>;
 }) {
   return (
-    <div className="border-b px-3 py-3" style={{ borderColor: 'var(--border)' }}>
-      <div className="flex min-h-8 flex-wrap items-center gap-2">
+    <div className="px-3 pb-3 pt-3.5 md:px-4">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h2 className="text-[13px] font-semibold leading-none" style={{ color: 'var(--text-primary)' }}>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-[15px] font-semibold leading-none tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>
               {title}
             </h2>
             <CountPill value={count} />
@@ -43,34 +46,50 @@ export function DeskRhythmHeader({
                   color: 'color-mix(in srgb, var(--md-accent) 82%, var(--text-secondary))',
                 }}
               >
-                {continuedOpenCount} carried
+                {continuedOpenCount} from earlier
               </span>
             ) : null}
           </div>
-          <p className="mt-1 hidden text-[11px] md:block" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-1.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
             {subtitle}
           </p>
         </div>
+        {metrics && metrics.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5 lg:justify-end">
+            {metrics.map((metric) => (
+              <DeskMetric key={metric.label} {...metric} />
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
 
 export function SectionTitle({ section }: { section: DeskRhythmSection }) {
+  const isActive = section.tone === 'active';
+  const isDecision = section.tone === 'decision';
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-2">
+    <div className="flex min-w-0 flex-1 items-center gap-2.5">
       <span
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
         style={{
-          background: section.quiet ? 'var(--bg-secondary)' : 'color-mix(in srgb, var(--md-accent-glow) 38%, transparent)',
-          color: section.quiet ? 'var(--text-secondary)' : 'var(--md-accent)',
+          background: isActive
+            ? 'rgba(6,182,212,0.12)'
+            : isDecision
+            ? 'color-mix(in srgb, var(--md-accent-glow) 58%, transparent)'
+            : section.quiet
+            ? 'transparent'
+            : 'color-mix(in srgb, var(--bg-secondary) 82%, transparent)',
+          color: isActive ? 'var(--accent)' : isDecision ? 'var(--md-accent)' : 'var(--text-secondary)',
+          border: section.quiet ? '1px solid var(--border)' : '1px solid color-mix(in srgb, var(--border) 70%, transparent)',
         }}
       >
         {section.icon}
       </span>
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <h3 className="text-[12px] font-semibold leading-none" style={{ color: 'var(--text-primary)' }}>
+          <h3 className="text-[12px] font-semibold leading-none tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>
             {section.title}
           </h3>
           <CountPill value={section.items.length} subtle={section.quiet} />
@@ -119,6 +138,33 @@ export function CountPill({ value, subtle = false }: { value: number; subtle?: b
       }}
     >
       {value}
+    </span>
+  );
+}
+
+function DeskMetric({
+  label,
+  value,
+  tone = 'calm',
+}: {
+  label: string;
+  value: number;
+  tone?: 'active' | 'decision' | 'calm';
+}) {
+  const color = tone === 'active' ? 'var(--accent)' : tone === 'decision' ? 'var(--md-accent)' : 'var(--text-secondary)';
+  const background = tone === 'active'
+    ? 'rgba(6,182,212,0.08)'
+    : tone === 'decision'
+    ? 'color-mix(in srgb, var(--md-accent-glow) 42%, transparent)'
+    : 'color-mix(in srgb, var(--bg-secondary) 58%, transparent)';
+
+  return (
+    <span
+      className="inline-flex h-7 items-center gap-1.5 rounded-lg border px-2 text-[10px] font-semibold uppercase tracking-[0.08em]"
+      style={{ background, borderColor: 'color-mix(in srgb, var(--border) 78%, transparent)', color }}
+    >
+      <span>{label}</span>
+      <span className="font-mono tabular-nums">{value}</span>
     </span>
   );
 }
