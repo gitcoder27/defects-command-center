@@ -56,29 +56,36 @@ export function DeskRhythmList({
         subtitle={subtitle}
         count={items.length}
         continuedOpenCount={continuedOpenCount}
-        metrics={metrics}
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 md:px-4">
-        {items.length === 0 ? (
-          <div className="max-w-[980px] 2xl:max-w-[1040px]">
-            <UnifiedEmptyState quickFilter="all" message="No desk work matches this view." />
+        <div className="grid gap-7 xl:grid-cols-[minmax(0,980px)_260px] xl:items-start 2xl:grid-cols-[minmax(0,1040px)_280px]">
+          <div className="min-w-0 space-y-5">
+            {items.length === 0 ? (
+              <UnifiedEmptyState quickFilter="all" message="No desk work matches this view." />
+            ) : (
+              <>
+                {activeSections.map((section) => (
+                  <DeskRhythmSectionView
+                    key={section.key}
+                    section={section}
+                    selectedItemId={selectedItemId}
+                    readOnly={readOnly}
+                    onSelect={onSelect}
+                    onStatusChange={onStatusChange}
+                  />
+                ))}
+                <QuietDeskStrip sections={quietSections} />
+              </>
+            )}
           </div>
-        ) : (
-          <div className="space-y-5">
-            {activeSections.map((section) => (
-              <DeskRhythmSectionView
-                key={section.key}
-                section={section}
-                selectedItemId={selectedItemId}
-                readOnly={readOnly}
-                onSelect={onSelect}
-                onStatusChange={onStatusChange}
-              />
-            ))}
-            <QuietDeskStrip sections={quietSections} />
-          </div>
-        )}
+          <DeskSignalRail
+            metrics={metrics}
+            sections={sections}
+            continuedOpenCount={continuedOpenCount}
+            viewMode={viewMode}
+          />
+        </div>
       </div>
     </section>
   );
@@ -102,7 +109,7 @@ function DeskRhythmSectionView({
   }
 
   return (
-    <section className="max-w-[980px] 2xl:max-w-[1040px]">
+    <section>
       <div className="pb-2">
         <SectionTitle section={section} />
       </div>
@@ -143,7 +150,7 @@ function SectionItems({
 function QuietDeskStrip({ sections }: { sections: DeskRhythmSection[] }) {
   return (
     <div
-      className="flex max-w-[980px] flex-wrap items-center gap-2 rounded-xl border px-3 py-2 2xl:max-w-[1040px]"
+      className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2"
       style={{
         background: 'color-mix(in srgb, var(--bg-secondary) 42%, transparent)',
         borderColor: 'color-mix(in srgb, var(--border) 72%, transparent)',
@@ -163,6 +170,116 @@ function QuietDeskStrip({ sections }: { sections: DeskRhythmSection[] }) {
       ))}
     </div>
   );
+}
+
+function DeskSignalRail({
+  metrics,
+  sections,
+  continuedOpenCount,
+  viewMode,
+}: {
+  metrics: Array<{ label: string; value: number; tone: 'active' | 'decision' | 'calm' }>;
+  sections: DeskRhythmSection[];
+  continuedOpenCount: number;
+  viewMode: 'live' | 'history' | 'planning';
+}) {
+  const nextPrompt = getNextDeskPrompt(sections, viewMode);
+
+  return (
+    <aside
+      className="hidden min-w-0 border-l pl-5 xl:block"
+      style={{ borderColor: 'color-mix(in srgb, var(--border) 60%, transparent)' }}
+      aria-label="Desk pulse"
+    >
+      <div className="sticky top-3 space-y-5 py-1">
+        <div>
+          <div className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
+            Desk pulse
+          </div>
+          <div className="mt-3 space-y-2">
+            {metrics.map((metric) => (
+              <RailMetric key={metric.label} {...metric} />
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t pt-4" style={{ borderColor: 'color-mix(in srgb, var(--border) 52%, transparent)' }}>
+          <div className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
+            Next
+          </div>
+          <div className="mt-2 text-[12px] font-semibold leading-5" style={{ color: 'var(--text-primary)' }}>
+            {nextPrompt.title}
+          </div>
+          <p className="mt-1 text-[11px] leading-4" style={{ color: 'var(--text-muted)' }}>
+            {nextPrompt.subtitle}
+          </p>
+        </div>
+
+        {continuedOpenCount > 0 && (
+          <div className="border-t pt-4" style={{ borderColor: 'color-mix(in srgb, var(--border) 52%, transparent)' }}>
+            <div className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
+              Carried
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="font-mono text-[18px] font-semibold tabular-nums" style={{ color: 'var(--md-accent)' }}>
+                {continuedOpenCount}
+              </span>
+              <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                from earlier
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function RailMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: 'active' | 'decision' | 'calm';
+}) {
+  const color = tone === 'active' ? 'var(--accent)' : tone === 'decision' ? 'var(--md-accent)' : 'var(--text-secondary)';
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+        {label}
+      </span>
+      <span className="font-mono text-[11px] font-semibold tabular-nums" style={{ color }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function getNextDeskPrompt(sections: DeskRhythmSection[], viewMode: 'live' | 'history' | 'planning') {
+  if (viewMode === 'history') {
+    return { title: 'Review the record', subtitle: 'Historical desks are read-only snapshots.' };
+  }
+
+  const triage = sections.find((section) => section.key === 'triage')?.items[0];
+  if (triage) {
+    return { title: 'Plan triage item', subtitle: 'Clear triage first so the day has a clean plan.' };
+  }
+
+  const now = sections.find((section) => section.key === 'now')?.items[0];
+  if (now) {
+    return { title: 'Finish active work', subtitle: 'One active task should stay easy to close.' };
+  }
+
+  const planned = sections.find((section) => section.key === 'planned')?.items[0];
+  if (planned) {
+    return { title: 'Start planned work', subtitle: 'Pick the next planned item when you are ready.' };
+  }
+
+  return viewMode === 'planning'
+    ? { title: 'Plan lightly', subtitle: 'Add only the work that should be visible on that day.' }
+    : { title: 'Desk is clear', subtitle: 'Capture only what needs a manager decision or action.' };
 }
 
 function buildDeskRhythmSections(items: ManagerDeskItem[]): DeskRhythmSection[] {
