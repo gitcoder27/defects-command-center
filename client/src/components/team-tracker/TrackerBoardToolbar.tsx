@@ -128,7 +128,7 @@ const SearchInput = forwardRef<HTMLInputElement, {
       onChange={(e) => onChange(e.target.value)}
       placeholder="Search developers, tasks, Jira keys…"
       maxLength={200}
-      className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-[var(--text-muted)]"
+      className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-placeholder"
       style={{ color: 'var(--text-primary)' }}
     />
     {value && (

@@ -83,7 +83,7 @@ export function ManagerDeskCommandBar({
               value={searchQuery}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder="Search…"
-              className="w-[120px] lg:w-[180px] bg-transparent text-[12px] outline-none placeholder:text-[11px]"
+              className="w-[120px] lg:w-[180px] bg-transparent text-[12px] outline-none placeholder:text-placeholder"
               style={{ color: 'var(--text-primary)' }}
               aria-label="Search manager desk tasks"
             />

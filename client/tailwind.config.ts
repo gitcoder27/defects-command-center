@@ -24,7 +24,11 @@ const config: Config = {
           primary: 'var(--text-primary)',
           secondary: 'var(--text-secondary)',
           muted: 'var(--text-muted)',
+          placeholder: 'var(--text-placeholder)',
+          disabled: 'var(--text-disabled)',
         },
+        placeholder: 'var(--text-placeholder)',
+        disabled: 'var(--text-disabled)',
         accent: {
           DEFAULT: 'var(--accent)',
           glow: 'var(--accent-glow)',
