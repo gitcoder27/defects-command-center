@@ -14,7 +14,7 @@ Options:
 
 Environment overrides:
   DEPLOY_SERVICE_NAME   systemd service to restart (default: lead-os)
-  DEPLOY_MANAGER_URL    manager URL for health checks (default: https://manager.daycommand.online)
+  DEPLOY_MANAGER_URL    manager URL for health checks (default: https://lead.daycommand.online)
   DEPLOY_DEVELOPER_URL  developer URL for route checks (default: https://developer.daycommand.online)
   DEPLOY_HEALTH_TIMEOUT_SECONDS   total time to wait for health checks (default: 30)
   DEPLOY_HEALTH_RETRY_DELAY_SECONDS   pause between health retries (default: 2)
@@ -99,7 +99,7 @@ fi
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 EXPECTED_BASENAME="lead-os-prod"
 SERVICE_NAME="${DEPLOY_SERVICE_NAME:-lead-os}"
-MANAGER_URL="${DEPLOY_MANAGER_URL:-https://manager.daycommand.online}"
+MANAGER_URL="${DEPLOY_MANAGER_URL:-https://lead.daycommand.online}"
 DEVELOPER_URL="${DEPLOY_DEVELOPER_URL:-https://developer.daycommand.online}"
 HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-30}"
 HEALTH_RETRY_DELAY_SECONDS="${DEPLOY_HEALTH_RETRY_DELAY_SECONDS:-2}"

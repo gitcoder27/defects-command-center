@@ -6,7 +6,7 @@ Use this checklist during the first few days after rollout to monitor the live V
 
 Current production entry points:
 
-- `https://manager.daycommand.online`
+- `https://lead.daycommand.online`
 - `https://developer.daycommand.online`
 
 Related docs:
@@ -32,9 +32,9 @@ Expected:
 ### 2. Confirm Public URLs Respond
 
 ```bash
-curl -I https://manager.daycommand.online
+curl -I https://lead.daycommand.online
 curl -I https://developer.daycommand.online/my-day
-curl -s https://manager.daycommand.online/api/health
+curl -s https://lead.daycommand.online/api/health
 ```
 
 Expected:
@@ -97,9 +97,9 @@ Run:
 
 ```bash
 sudo systemctl status lead-os --no-pager
-curl -I https://manager.daycommand.online
+curl -I https://lead.daycommand.online
 curl -I https://developer.daycommand.online/my-day
-curl -s https://manager.daycommand.online/api/health
+curl -s https://lead.daycommand.online/api/health
 ```
 
 Then verify manually in the browser:

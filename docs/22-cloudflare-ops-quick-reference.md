@@ -5,7 +5,7 @@ This document is now historical.
 The production deployment no longer uses the Cloudflare Quick Tunnel as the primary access path. The current live setup uses:
 
 - `nginx`
-- `https://manager.daycommand.online`
+- `https://lead.daycommand.online`
 - `https://developer.daycommand.online`
 
 Use `docs/23-hostinger-domain-vps-deployment-runbook.md` for the active VPS deployment and redeploy process.

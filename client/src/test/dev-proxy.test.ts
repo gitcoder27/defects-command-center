@@ -42,14 +42,14 @@ describe('assertSafeDevApiProxyTarget', () => {
   });
 
   it('blocks remote targets by default', () => {
-    expect(() => assertSafeDevApiProxyTarget('https://manager.daycommand.online', {})).toThrow(
+    expect(() => assertSafeDevApiProxyTarget('https://lead.daycommand.online', {})).toThrow(
       /Refusing to proxy dev API traffic/,
     );
   });
 
   it('allows remote targets with an explicit override', () => {
     expect(() =>
-      assertSafeDevApiProxyTarget('https://manager.daycommand.online', {
+      assertSafeDevApiProxyTarget('https://lead.daycommand.online', {
         ALLOW_REMOTE_DEV_PROXY: 'true',
       }),
     ).not.toThrow();
