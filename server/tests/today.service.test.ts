@@ -139,4 +139,31 @@ describe("TodayService", () => {
     });
     expect(response.syncStatus).toMatchObject({ status: "error", errorMessage: "Token expired" });
   });
+
+  it("uses set current instead of check-in when a developer has planned work but no current item", async () => {
+    const planned = await trackerService.addItem("dev-1", "2026-03-08", {
+      title: "BE modernization",
+    });
+
+    const response = await todayService().getToday("manager-1", "2026-03-08");
+    const developerAction = response.actionItems.find((item) => item.target.developerAccountId === "dev-1");
+    const pulseItem = response.teamPulse.find((item) => item.accountId === "dev-1");
+
+    expect(developerAction).toMatchObject({
+      title: "Alice Smith",
+      primaryAction: {
+        kind: "set_current_work",
+        label: "Set current",
+        target: expect.objectContaining({
+          type: "tracker_item",
+          trackerItemId: planned.id,
+        }),
+      },
+    });
+    expect(pulseItem?.primaryAction).toMatchObject({
+      kind: "set_current_work",
+      label: "Set current",
+      target: expect.objectContaining({ trackerItemId: planned.id }),
+    });
+  });
 });

@@ -90,6 +90,10 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
         });
       }
 
+      if (command.kind === 'set_current_work' && target.trackerItemId) {
+        return api.post(`/team-tracker/items/${target.trackerItemId}/set-current`);
+      }
+
       if (command.kind === 'capture_follow_up') {
         const title = window.prompt('Follow-up title', defaultFollowUpTitle(target));
         if (!title?.trim()) {
@@ -121,16 +125,22 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
       return { label: command.label, skipToast: true };
     },
     onMutate: ({ command }) => {
-      if (command.kind === 'mark_done' || command.kind === 'snooze' || command.kind === 'carry_forward' || command.kind === 'capture_meeting_outcome') {
+      if (
+        command.kind === 'mark_done' ||
+        command.kind === 'snooze' ||
+        command.kind === 'carry_forward' ||
+        command.kind === 'capture_meeting_outcome' ||
+        command.kind === 'set_current_work'
+      ) {
         removeTargetOptimistically(command.target);
       }
     },
     onSuccess: (result, variables) => {
       invalidateToday();
-      if (result && 'cancelled' in result) {
+      if (isActionResult(result, 'cancelled')) {
         return;
       }
-      if (result && 'skipToast' in result) {
+      if (isActionResult(result, 'skipToast')) {
         return;
       }
       addToast(actionToastTitle(variables.command.kind), 'success');
@@ -152,6 +162,10 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
     pendingKind: mutation.variables?.command.kind,
     pendingTarget: mutation.variables?.command.target,
   };
+}
+
+function isActionResult(result: unknown, key: 'cancelled' | 'skipToast'): boolean {
+  return Boolean(result && typeof result === 'object' && key in result);
 }
 
 function buildSnoozeIso(date: string, preset: NonNullable<TodayActionVariables['preset']>): string {
@@ -206,5 +220,6 @@ function actionToastTitle(kind: TodayActionCommand['kind']): string {
   if (kind === 'capture_follow_up') return 'Follow-up captured';
   if (kind === 'carry_forward') return 'Carried forward';
   if (kind === 'capture_meeting_outcome') return 'Outcome captured';
+  if (kind === 'set_current_work') return 'Current work set';
   return 'Updated';
 }

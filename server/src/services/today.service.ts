@@ -170,11 +170,8 @@ function buildDeveloperActions(board: TeamTrackerBoardResponse, date: string): T
     const currentWork = item.currentItem?.jiraKey
       ? `${item.currentItem.jiraKey} ${item.currentItem.title}`
       : item.currentItem?.title ?? "No current work";
-    const actionTarget = target("developer", "team", {
-      developerAccountId: item.developer.accountId,
-      trackerItemId: item.currentItem?.id,
-      date,
-    });
+    const primary = getDeveloperAttentionPrimary(item, date);
+    const actionTarget = primary.target;
 
     return action({
       id: `today-dev-${item.developer.accountId}-${leadReason ?? "attention"}`,
@@ -186,12 +183,105 @@ function buildDeveloperActions(board: TeamTrackerBoardResponse, date: string): T
       priority: item.status === "blocked" ? 100 : item.isStale && !item.hasCurrentItem ? 78 : 86,
       group: severity === "critical" ? "now" : "next",
       target: actionTarget,
-      primaryKind: "add_check_in",
-      primaryLabel: "Add check-in",
-      secondaryKinds: ["capture_follow_up", "open"],
+      primaryKind: primary.kind,
+      primaryLabel: primary.label,
+      secondaryKinds: primary.secondaryKinds,
       freshness: formatFreshness(item.lastCheckInAt),
     });
   });
+}
+
+function getDeveloperAttentionPrimary(
+  item: TrackerAttentionItem,
+  date: string,
+): {
+  kind: TodayActionCommand["kind"];
+  label: string;
+  target: TodayActionTarget;
+  secondaryKinds: TodayActionCommand["kind"][];
+} {
+  const currentTarget = target("developer", "team", {
+    developerAccountId: item.developer.accountId,
+    trackerItemId: item.currentItem?.id,
+    date,
+  });
+  const setCurrentCandidate = !item.hasCurrentItem ? item.setCurrentCandidates[0] : undefined;
+
+  if (setCurrentCandidate) {
+    return {
+      kind: "set_current_work",
+      label: "Set current",
+      target: target("tracker_item", "team", {
+        developerAccountId: item.developer.accountId,
+        trackerItemId: setCurrentCandidate.id,
+        date,
+      }),
+      secondaryKinds: ["open", "capture_follow_up"],
+    };
+  }
+
+  if (item.isStale || item.status === "blocked" || item.status === "at_risk" || item.status === "waiting") {
+    return {
+      kind: "add_check_in",
+      label: "Add check-in",
+      target: currentTarget,
+      secondaryKinds: ["capture_follow_up", "open"],
+    };
+  }
+
+  return {
+    kind: "open",
+    label: "Open developer",
+    target: currentTarget,
+    secondaryKinds: ["capture_follow_up"],
+  };
+}
+
+function getDeveloperPulsePrimary(
+  day: TrackerDeveloperDay,
+  attentionItem: TrackerAttentionItem | undefined,
+  date: string,
+): {
+  kind: TodayActionCommand["kind"];
+  label: string;
+  target: TodayActionTarget;
+  secondaryKinds: TodayActionCommand["kind"][];
+} {
+  const openTarget = target("developer", "team", {
+    developerAccountId: day.developer.accountId,
+    trackerItemId: day.currentItem?.id,
+    date,
+  });
+  const setCurrentCandidate = attentionItem?.setCurrentCandidates[0] ?? (!day.currentItem ? day.plannedItems[0] : undefined);
+
+  if (!day.currentItem && setCurrentCandidate) {
+    return {
+      kind: "set_current_work",
+      label: "Set current",
+      target: target("tracker_item", "team", {
+        developerAccountId: day.developer.accountId,
+        trackerItemId: setCurrentCandidate.id,
+        date,
+      }),
+      secondaryKinds: ["open", "capture_follow_up"],
+    };
+  }
+
+  if (day.isStale || attentionItem?.isStale || day.status === "blocked" || day.status === "at_risk" || day.status === "waiting") {
+    return {
+      kind: "add_check_in",
+      label: "Check-in",
+      target: openTarget,
+      secondaryKinds: ["capture_follow_up", "open"],
+    };
+  }
+
+  return {
+    kind: "open",
+    label: "Open",
+    target: openTarget,
+    secondaryKinds: ["capture_follow_up"],
+  };
 }
 
 function buildIssueActions(issues: Issue[], date: string): TodayActionItem[] {
@@ -348,6 +438,7 @@ function buildTeamPulse(board: TeamTrackerBoardResponse, date: string): TodayTea
         trackerItemId: day.currentItem?.id,
         date,
       });
+      const primary = getDeveloperPulsePrimary(day, attentionItem, date);
 
       return {
         accountId: day.developer.accountId,
@@ -360,9 +451,9 @@ function buildTeamPulse(board: TeamTrackerBoardResponse, date: string): TodayTea
           ? `${day.currentItem.jiraKey} ${day.currentItem.title}`
           : day.currentItem?.title ?? "No current work",
         lastUpdate: formatFreshness(day.lastCheckInAt) ?? "No check-in",
-        target: pulseTarget,
-        primaryAction: command("add_check_in", "Check-in", pulseTarget),
-        secondaryActions: [command("capture_follow_up", "Follow up", pulseTarget), command("open", "Open", pulseTarget)],
+        target: primary.target,
+        primaryAction: command(primary.kind, primary.label, primary.target),
+        secondaryActions: primary.secondaryKinds.map((kind) => command(kind, commandLabel(kind), pulseTarget)),
       };
     });
 }

@@ -43,7 +43,10 @@ export function TodayPage({ onViewChange, onSelectWorkFilter, onOpenTodayTarget 
   };
 
   const actions = useTodayActions({ date, onOpenTarget: openTarget, onViewChange });
-  const pendingTargetKey = useMemo(() => targetKey(actions.pendingTarget), [actions.pendingTarget]);
+  const pendingTargetKey = useMemo(
+    () => (actions.isPending ? targetKey(actions.pendingTarget) : undefined),
+    [actions.isPending, actions.pendingTarget],
+  );
 
   const runCommand = (command: TodayActionCommand, preset?: 'later_today' | 'tomorrow' | 'next_week') => {
     if (command.kind === 'add_check_in') {

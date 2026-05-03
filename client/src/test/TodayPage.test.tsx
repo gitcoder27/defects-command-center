@@ -187,4 +187,85 @@ describe('TodayPage V2', () => {
       expect(fetchMock).toHaveBeenCalledWith('/api/team-tracker/dev-1/checkins', expect.objectContaining({ method: 'POST' }));
     });
   });
+
+  it('sets planned work current when Today chooses Set current for a developer', async () => {
+    const setCurrentTarget = target({
+      type: 'tracker_item',
+      view: 'team',
+      developerAccountId: 'dev-1',
+      trackerItemId: 77,
+      date: '2026-03-08',
+    });
+    const fetchMock = mockFetch(todayResponse({
+      actionItems: [
+        actionItem(1, {
+          id: 'dev-set-current',
+          type: 'developer_attention',
+          title: 'Alice Smith',
+          context: 'No current work',
+          signal: 'No current item',
+          target: setCurrentTarget,
+          primaryAction: command('set_current_work', 'Set current', setCurrentTarget),
+          secondaryActions: [],
+        }),
+      ],
+    }));
+    renderToday();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Set current$/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/team-tracker/items/77/set-current', expect.objectContaining({ method: 'POST' }));
+    });
+  });
+
+  it('does not leave Set current rows stuck in Working', async () => {
+    const setCurrentTarget = target({
+      type: 'tracker_item',
+      view: 'team',
+      developerAccountId: 'dev-1',
+      trackerItemId: 77,
+      date: '2026-03-08',
+    });
+    const response = todayResponse({
+      actionItems: [
+        actionItem(1, {
+          id: 'dev-set-current',
+          type: 'developer_attention',
+          title: 'Alice Smith',
+          context: 'No current work',
+          signal: 'No current item',
+          target: setCurrentTarget,
+          primaryAction: command('set_current_work', 'Set current', setCurrentTarget),
+          secondaryActions: [],
+        }),
+      ],
+    });
+    let resolveSetCurrent: (() => void) | undefined;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/today')) {
+        return new Response(JSON.stringify(response), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      if (url.includes('/api/team-tracker/items/77/set-current')) {
+        await new Promise<void>((resolve) => {
+          resolveSetCurrent = resolve;
+        });
+        return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }));
+    renderToday();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Set current$/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /^Set current$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Working$/i })).not.toBeInTheDocument();
+    });
+
+    resolveSetCurrent?.();
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /^Working$/i })).not.toBeInTheDocument();
+    });
+  });
 });
