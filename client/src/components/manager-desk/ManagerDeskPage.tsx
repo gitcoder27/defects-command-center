@@ -31,7 +31,19 @@ const defaultFilters: ManagerDeskFilterState = { kind: null, category: null, sta
 type HistorySubview = 'snapshot' | 'created';
 const getDefaultQuickFilter = (): ManagerDeskQuickFilter => 'all';
 
-export function ManagerDeskPage() {
+interface ManagerDeskPageProps {
+  initialItemId?: number;
+  initialDate?: string;
+  initialItemNonce?: number;
+  onInitialItemHandled?: () => void;
+}
+
+export function ManagerDeskPage({
+  initialItemId,
+  initialDate,
+  initialItemNonce,
+  onInitialItemHandled,
+}: ManagerDeskPageProps = {}) {
   const { addToast } = useToast();
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
@@ -80,6 +92,19 @@ export function ManagerDeskPage() {
       setSelectedItemId(null);
     }
   }, [sourceItems, selectedItemId]);
+
+  useEffect(() => {
+    if (initialDate) {
+      setDate(initialDate);
+    }
+  }, [initialDate, initialItemNonce]);
+
+  useEffect(() => {
+    if (initialItemId && sourceItems.some((item) => item.id === initialItemId)) {
+      setSelectedItemId(initialItemId);
+      onInitialItemHandled?.();
+    }
+  }, [initialItemId, initialItemNonce, onInitialItemHandled, sourceItems]);
 
   const goToday = useCallback(() => setDate(format(new Date(), 'yyyy-MM-dd')), []);
   const goPrev = useCallback(() => setDate((value) => format(subDays(parseISO(value), 1), 'yyyy-MM-dd')), []);

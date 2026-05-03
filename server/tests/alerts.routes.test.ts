@@ -24,6 +24,7 @@ function createTestApp(authService: AuthService, alertService: AlertService) {
     authService,
     myDayService: {} as any,
     managerDeskService: {} as any,
+    todayService: {} as any,
   });
 }
 

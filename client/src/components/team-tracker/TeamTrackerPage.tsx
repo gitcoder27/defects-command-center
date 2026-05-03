@@ -34,6 +34,9 @@ import type {
 
 interface TeamTrackerPageProps {
   onViewChange?: (view: AppView) => void;
+  initialDeveloperAccountId?: string;
+  initialDeveloperNonce?: number;
+  onInitialDeveloperHandled?: () => void;
 }
 
 function useTeamTrackerWorkflow({
@@ -254,7 +257,12 @@ function useTeamTrackerWorkflow({
   };
 }
 
-export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
+export function TeamTrackerPage({
+  onViewChange,
+  initialDeveloperAccountId,
+  initialDeveloperNonce,
+  onInitialDeveloperHandled,
+}: TeamTrackerPageProps) {
   const { addToast } = useToast();
   const [date, setDate] = useState(getLocalIsoDate);
   const [activeLens, setActiveLens] = useState<TeamTrackerLens>('team');
@@ -304,6 +312,13 @@ export function TeamTrackerPage({ onViewChange }: TeamTrackerPageProps) {
     updateItem,
     refetchBoard,
   });
+
+  useEffect(() => {
+    if (initialDeveloperAccountId) {
+      workflow.setDrawerAccountId(initialDeveloperAccountId);
+      onInitialDeveloperHandled?.();
+    }
+  }, [initialDeveloperAccountId, initialDeveloperNonce, onInitialDeveloperHandled, workflow.setDrawerAccountId]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">

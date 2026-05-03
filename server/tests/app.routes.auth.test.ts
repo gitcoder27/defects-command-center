@@ -18,6 +18,7 @@ const managerOnlyCases = [
   { method: "GET", url: "/api/backups" },
   { method: "GET", url: "/api/tags" },
   { method: "GET", url: "/api/team-tracker?date=2026-03-08" },
+  { method: "GET", url: "/api/today?date=2026-03-08" },
   { method: "GET", url: "/api/manager-desk?date=2026-03-08" },
 ] as const;
 
@@ -37,6 +38,7 @@ function createTestApp(authService: AuthService) {
     authService,
     myDayService: {} as any,
     managerDeskService: {} as any,
+    todayService: {} as any,
   });
 }
 

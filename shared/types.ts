@@ -184,6 +184,162 @@ export interface SyncStatus {
   errorMessage?: string;
 }
 
+// ── Today cockpit types ─────────────────────────────────
+
+export type TodayRhythmStage =
+  | "morning_plan"
+  | "standup_window"
+  | "midday_check"
+  | "wrap_up";
+
+export type TodayActionTargetType =
+  | "issue"
+  | "developer"
+  | "manager_desk_item"
+  | "tracker_item"
+  | "follow_up"
+  | "meeting"
+  | "view";
+
+export type TodayActionItemType =
+  | "developer_attention"
+  | "overdue_issue"
+  | "due_issue"
+  | "unassigned_issue"
+  | "stale_check_in"
+  | "follow_up_due"
+  | "meeting_outcome"
+  | "desk_carry_forward"
+  | "manual_work"
+  | "sync_attention"
+  | "calm";
+
+export type TodayActionKind =
+  | "open"
+  | "ask_check_in"
+  | "add_check_in"
+  | "set_current_work"
+  | "assign_owner"
+  | "capture_follow_up"
+  | "snooze"
+  | "mark_done"
+  | "carry_forward"
+  | "capture_meeting_outcome";
+
+export type TodayActionSeverity =
+  | "critical"
+  | "warning"
+  | "info"
+  | "neutral"
+  | "success";
+
+export type TodayActionGroup = "now" | "next" | "later";
+
+export interface TodayActionTarget {
+  type: TodayActionTargetType;
+  view: "work" | "team" | "desk" | "follow-ups" | "meetings" | "settings";
+  issueKey?: string;
+  developerAccountId?: string;
+  managerDeskItemId?: number;
+  trackerItemId?: number;
+  date?: string;
+  filter?: FilterType;
+}
+
+export interface TodayActionCommand {
+  kind: TodayActionKind;
+  label: string;
+  target: TodayActionTarget;
+  confirm?: boolean;
+}
+
+export interface TodayActionItem {
+  id: string;
+  type: TodayActionItemType;
+  title: string;
+  context: string;
+  signal: string;
+  severity: TodayActionSeverity;
+  priority: number;
+  group: TodayActionGroup;
+  target: TodayActionTarget;
+  primaryAction: TodayActionCommand;
+  secondaryActions: TodayActionCommand[];
+  freshness?: string;
+}
+
+export interface TodayRhythmState {
+  stage: TodayRhythmStage;
+  label: string;
+  detail: string;
+}
+
+export interface TodaySummaryMetric {
+  id: string;
+  label: string;
+  value: number;
+  detail: string;
+  severity: TodayActionSeverity;
+  target?: TodayActionTarget;
+}
+
+export interface TodayTeamPulseItem {
+  accountId: string;
+  displayName: string;
+  initials: string;
+  status: string;
+  tone: TodayActionSeverity;
+  detail: string;
+  currentWork: string;
+  lastUpdate: string;
+  target: TodayActionTarget;
+  primaryAction: TodayActionCommand;
+  secondaryActions: TodayActionCommand[];
+}
+
+export interface TodayPromiseItem {
+  id: string;
+  title: string;
+  detail: string;
+  severity: TodayActionSeverity;
+  target: TodayActionTarget;
+  primaryAction: TodayActionCommand;
+  secondaryActions: TodayActionCommand[];
+}
+
+export interface TodayStandupPrompt {
+  id: string;
+  title: string;
+  detail: string;
+  severity: TodayActionSeverity;
+  target: TodayActionTarget;
+  primaryAction: TodayActionCommand;
+}
+
+export interface TodayMeetingPrompt {
+  id: string;
+  title: string;
+  detail: string;
+  severity: TodayActionSeverity;
+  target: TodayActionTarget;
+  primaryAction: TodayActionCommand;
+  secondaryActions: TodayActionCommand[];
+}
+
+export interface TodayResponse {
+  date: string;
+  generatedAt: string;
+  rhythm: TodayRhythmState;
+  summary: TodaySummaryMetric[];
+  currentPriority?: TodayActionItem;
+  actionItems: TodayActionItem[];
+  teamPulse: TodayTeamPulseItem[];
+  promises: TodayPromiseItem[];
+  standupPrompts: TodayStandupPrompt[];
+  meetingPrompts: TodayMeetingPrompt[];
+  syncStatus?: SyncStatus;
+}
+
 export interface DashboardConfig {
   jiraBaseUrl: string;
   jiraEmail: string;

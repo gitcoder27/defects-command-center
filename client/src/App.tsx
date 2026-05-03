@@ -13,6 +13,7 @@ import {
   type DashboardFilterState,
 } from '@/components/layout/DashboardLayout';
 import { Header } from '@/components/layout/Header';
+import type { TodayActionTarget } from '@/types';
 
 export type CanonicalAppView = 'today' | 'work' | 'team' | 'desk' | 'follow-ups' | 'meetings' | 'my-day' | 'settings';
 export type LegacyAppView = 'dashboard' | 'team-tracker' | 'manager-desk';
@@ -240,6 +241,9 @@ function AppContent() {
 
   const [activeView, setActiveView] = useState<CanonicalAppView>(() => pathToView(window.location.pathname));
   const [dashboardFilterState, setDashboardFilterState] = useState<DashboardFilterState>(DEFAULT_DASHBOARD_FILTER_STATE);
+  const [todayWorkTarget, setTodayWorkTarget] = useState<{ issueKey?: string; nonce: number }>({ nonce: 0 });
+  const [todayTeamTarget, setTodayTeamTarget] = useState<{ developerAccountId?: string; nonce: number }>({ nonce: 0 });
+  const [todayDeskTarget, setTodayDeskTarget] = useState<{ itemId?: number; date?: string; nonce: number }>({ nonce: 0 });
 
   const shouldLoadManagerConfig = Boolean(
     bootstrapState &&
@@ -249,14 +253,22 @@ function AppContent() {
   );
   const configQuery = useConfig({ enabled: shouldLoadManagerConfig });
 
+  const clearTodayTargets = useCallback(() => {
+    setTodayWorkTarget((prev) => ({ nonce: prev.nonce + 1 }));
+    setTodayTeamTarget((prev) => ({ nonce: prev.nonce + 1 }));
+    setTodayDeskTarget((prev) => ({ nonce: prev.nonce + 1 }));
+  }, []);
+
   const handleViewChange = useCallback((view: AppView) => {
     const nextView = canonicalizeView(view);
+    clearTodayTargets();
     preloadView(nextView);
     setActiveView(nextView);
     navigateToView(nextView);
-  }, []);
+  }, [clearTodayTargets]);
 
   const handleTodayWorkFilter = useCallback((filter: DashboardFilterState['activeFilter']) => {
+    clearTodayTargets();
     setDashboardFilterState((prev) => ({
       ...prev,
       activeFilter: filter,
@@ -267,6 +279,53 @@ function AppContent() {
     preloadView('work');
     setActiveView('work');
     navigateToView('work');
+  }, [clearTodayTargets]);
+
+  const handleOpenTodayTarget = useCallback((target: TodayActionTarget) => {
+    if (target.view === 'work') {
+      setDashboardFilterState((prev) => ({
+        ...prev,
+        activeFilter: target.filter ?? prev.activeFilter,
+        activeDeveloper: undefined,
+        selectedTagId: undefined,
+        noTagsFilter: false,
+      }));
+      setTodayWorkTarget((prev) => ({ issueKey: target.issueKey, nonce: prev.nonce + 1 }));
+      preloadView('work');
+      setActiveView('work');
+      navigateToView('work');
+      return;
+    }
+
+    if (target.view === 'team') {
+      setTodayTeamTarget((prev) => ({ developerAccountId: target.developerAccountId, nonce: prev.nonce + 1 }));
+      preloadView('team');
+      setActiveView('team');
+      navigateToView('team');
+      return;
+    }
+
+    if (target.managerDeskItemId) {
+      setTodayDeskTarget((prev) => ({
+        itemId: target.managerDeskItemId,
+        date: target.date,
+        nonce: prev.nonce + 1,
+      }));
+      preloadView('desk');
+      setActiveView('desk');
+      navigateToView('desk');
+      return;
+    }
+
+    if (target.view === 'desk' || target.view === 'follow-ups' || target.view === 'meetings') {
+      preloadView(target.view === 'desk' ? 'desk' : target.view);
+      setActiveView(target.view);
+      navigateToView(target.view);
+      return;
+    }
+
+    setActiveView(target.view);
+    navigateToView(target.view);
   }, []);
 
   const replaceView = useCallback((view: AppView) => {
@@ -394,7 +453,12 @@ function AppContent() {
     return (
       <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
         <Suspense fallback={<PanelLoading />}>
-          <ManagerDeskPage />
+          <ManagerDeskPage
+            initialItemId={todayDeskTarget.itemId}
+            initialDate={todayDeskTarget.date}
+            initialItemNonce={todayDeskTarget.nonce}
+            onInitialItemHandled={() => setTodayDeskTarget((prev) => ({ nonce: prev.nonce + 1 }))}
+          />
         </Suspense>
       </WorkspaceShell>
     );
@@ -404,7 +468,12 @@ function AppContent() {
     return (
       <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
         <Suspense fallback={<PanelLoading />}>
-          <TeamTrackerPage onViewChange={handleViewChange} />
+          <TeamTrackerPage
+            onViewChange={handleViewChange}
+            initialDeveloperAccountId={todayTeamTarget.developerAccountId}
+            initialDeveloperNonce={todayTeamTarget.nonce}
+            onInitialDeveloperHandled={() => setTodayTeamTarget((prev) => ({ nonce: prev.nonce + 1 }))}
+          />
         </Suspense>
       </WorkspaceShell>
     );
@@ -433,7 +502,11 @@ function AppContent() {
   if (activeView === 'today') {
     return (
       <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
-        <TodayPage onViewChange={handleViewChange} onSelectWorkFilter={handleTodayWorkFilter} />
+        <TodayPage
+          onViewChange={handleViewChange}
+          onSelectWorkFilter={handleTodayWorkFilter}
+          onOpenTodayTarget={handleOpenTodayTarget}
+        />
       </WorkspaceShell>
     );
   }
@@ -444,6 +517,9 @@ function AppContent() {
       onViewChange={handleViewChange}
       filterState={dashboardFilterState}
       onFilterStateChange={setDashboardFilterState}
+      initialIssueKey={todayWorkTarget.issueKey}
+      initialIssueNonce={todayWorkTarget.nonce}
+      onInitialIssueHandled={() => setTodayWorkTarget((prev) => ({ nonce: prev.nonce + 1 }))}
     />
   );
 }

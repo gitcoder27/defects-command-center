@@ -52,6 +52,9 @@ interface DashboardLayoutProps {
   onViewChange?: (view: AppView) => void;
   filterState?: DashboardFilterState;
   onFilterStateChange?: (state: DashboardFilterState) => void;
+  initialIssueKey?: string;
+  initialIssueNonce?: number;
+  onInitialIssueHandled?: () => void;
 }
 
 function useDashboardShortcuts({
@@ -155,7 +158,15 @@ function useDashboardShortcuts({
   ]);
 }
 
-export function DashboardLayout({ activeView, onViewChange, filterState, onFilterStateChange }: DashboardLayoutProps) {
+export function DashboardLayout({
+  activeView,
+  onViewChange,
+  filterState,
+  onFilterStateChange,
+  initialIssueKey,
+  initialIssueNonce,
+  onInitialIssueHandled,
+}: DashboardLayoutProps) {
   const [internalFilterState, setInternalFilterState] = useState<DashboardFilterState>(DEFAULT_DASHBOARD_FILTER_STATE);
   const [selectedIssueKey, setSelectedIssueKey] = useState<string | undefined>();
   const [highlightedIssueKey, setHighlightedIssueKey] = useState<string | undefined>();
@@ -411,6 +422,13 @@ export function DashboardLayout({ activeView, onViewChange, filterState, onFilte
       setFocusedIndex(visibleIssueKeys.length - 1);
     }
   }, [focusedIndex, visibleIssueKeys.length]);
+
+  useEffect(() => {
+    if (initialIssueKey) {
+      openIssue(initialIssueKey);
+      onInitialIssueHandled?.();
+    }
+  }, [initialIssueKey, initialIssueNonce, onInitialIssueHandled, openIssue]);
 
   useDashboardShortcuts({
     visibleIssueKeys,

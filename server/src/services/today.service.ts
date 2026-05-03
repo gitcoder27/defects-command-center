@@ -1,0 +1,669 @@
+import type {
+  FilterType,
+  Issue,
+  ManagerDeskItem,
+  SyncStatus,
+  TeamTrackerBoardResponse,
+  TodayActionCommand,
+  TodayActionGroup,
+  TodayActionItem,
+  TodayActionItemType,
+  TodayActionSeverity,
+  TodayActionTarget,
+  TodayMeetingPrompt,
+  TodayPromiseItem,
+  TodayResponse,
+  TodayRhythmState,
+  TodayStandupPrompt,
+  TodaySummaryMetric,
+  TodayTeamPulseItem,
+  TrackerAttentionItem,
+  TrackerDeveloperDay,
+} from "shared/types";
+import { IssueService } from "./issue.service";
+import { ManagerDeskService } from "./manager-desk.service";
+import { TeamTrackerService } from "./team-tracker.service";
+
+type SyncStatusSource = {
+  getLastSyncLog: () => Promise<{ completedAt: string | null; status: string; issuesSynced: number; errorMessage: string | null } | undefined>;
+  getRuntimeStatus: () => { status: "idle" | "syncing" | "error"; errorMessage?: string };
+};
+
+const openDeskStatuses = new Set<ManagerDeskItem["status"]>([
+  "inbox",
+  "planned",
+  "in_progress",
+  "waiting",
+  "backlog",
+]);
+
+const severityWeight: Record<TodayActionSeverity, number> = {
+  critical: 5,
+  warning: 4,
+  info: 3,
+  neutral: 2,
+  success: 1,
+};
+
+const statusLabels: Record<string, string> = {
+  on_track: "On track",
+  at_risk: "At risk",
+  blocked: "Blocked",
+  waiting: "Waiting",
+  done_for_today: "Done",
+};
+
+export class TodayService {
+  constructor(
+    private readonly issueService: IssueService,
+    private readonly teamTrackerService: TeamTrackerService,
+    private readonly managerDeskService: ManagerDeskService,
+    private readonly syncStatusSource?: SyncStatusSource,
+  ) {}
+
+  async getToday(managerAccountId: string, date: string): Promise<TodayResponse> {
+    const [overview, issues, teamBoard, deskDay, syncStatus] = await Promise.all([
+      this.issueService.getOverviewCounts(),
+      this.issueService.getAll({ filter: "all", trackerDate: date }),
+      this.teamTrackerService.getBoard(date, { managerAccountId }),
+      this.managerDeskService.getDay(managerAccountId, date),
+      this.getSyncStatus(),
+    ]);
+
+    const followUps = getDueFollowUps(deskDay.items, date);
+    const meetings = getMeetingPrompts(deskDay.items, date);
+    const actionItems = rankActionItems([
+      ...buildDeveloperActions(teamBoard, date),
+      ...buildIssueActions(issues, date),
+      ...buildFollowUpActions(followUps, date),
+      ...buildMeetingActions(meetings),
+      ...buildDeskCarryForwardActions(deskDay.items, date),
+      ...buildSyncActions(syncStatus),
+    ]);
+    const visibleActions = actionItems.slice(0, 20);
+
+    return {
+      date,
+      generatedAt: new Date().toISOString(),
+      rhythm: getRhythmState(new Date()),
+      summary: buildSummary({
+        attentionCount: visibleActions.filter((item) => item.type !== "calm").length,
+        activeDefects: overview.total,
+        teamSize: teamBoard.summary.total,
+        staleCheckIns: teamBoard.summary.stale,
+        dueWork: overview.dueToday + overview.overdue,
+        followUpsDue: followUps.length,
+        syncStatus,
+      }),
+      currentPriority: visibleActions[0] ?? buildCalmAction(date),
+      actionItems: visibleActions.length > 0 ? visibleActions : [buildCalmAction(date)],
+      teamPulse: buildTeamPulse(teamBoard, date).slice(0, 10),
+      promises: followUps.map((item) => buildPromiseItem(item, date)).slice(0, 10),
+      standupPrompts: buildStandupPrompts(teamBoard, issues, followUps, date).slice(0, 8),
+      meetingPrompts: meetings.map((item) => buildMeetingPrompt(item)).slice(0, 8),
+      syncStatus,
+    };
+  }
+
+  private async getSyncStatus(): Promise<SyncStatus | undefined> {
+    if (!this.syncStatusSource) {
+      return undefined;
+    }
+
+    const [latest, runtime] = await Promise.all([
+      this.syncStatusSource.getLastSyncLog(),
+      Promise.resolve(this.syncStatusSource.getRuntimeStatus()),
+    ]);
+    const status = runtime.status === "syncing" || runtime.status === "error"
+      ? runtime.status
+      : latest?.status === "error"
+      ? "error"
+      : "idle";
+
+    return {
+      lastSyncedAt: latest?.completedAt ?? undefined,
+      status,
+      issuesSynced: latest?.issuesSynced,
+      errorMessage: runtime.errorMessage ?? latest?.errorMessage ?? undefined,
+    };
+  }
+}
+
+function buildSummary(params: {
+  attentionCount: number;
+  activeDefects: number;
+  teamSize: number;
+  staleCheckIns: number;
+  dueWork: number;
+  followUpsDue: number;
+  syncStatus?: SyncStatus;
+}): TodaySummaryMetric[] {
+  return [
+    metric("attention", "Attention", params.attentionCount, "action rows", params.attentionCount > 0 ? "warning" : "success"),
+    metric("work", "Active defects", params.activeDefects, "in Work", "neutral", target("view", "work")),
+    metric("team", "People", params.teamSize, "on team", "info", target("view", "team")),
+    metric("stale", "Stale check-ins", params.staleCheckIns, "need update", params.staleCheckIns > 0 ? "warning" : "neutral", target("view", "team")),
+    metric("due-work", "Due work", params.dueWork, "today or late", params.dueWork > 0 ? "warning" : "neutral", target("view", "work", { filter: "overdue" })),
+    metric("promises", "Follow-ups", params.followUpsDue, "due now", params.followUpsDue > 0 ? "warning" : "neutral", target("view", "follow-ups")),
+  ].concat(params.syncStatus?.status === "error"
+    ? [metric("sync", "Sync", 1, "needs review", "critical", target("view", "settings"))]
+    : []);
+}
+
+function metric(
+  id: string,
+  label: string,
+  value: number,
+  detail: string,
+  severity: TodayActionSeverity,
+  actionTarget?: TodayActionTarget,
+): TodaySummaryMetric {
+  return { id, label, value, detail, severity, target: actionTarget };
+}
+
+function buildDeveloperActions(board: TeamTrackerBoardResponse, date: string): TodayActionItem[] {
+  return board.attentionQueue.map((item) => {
+    const reasons = item.reasons.map((reason) => reason.label);
+    const leadReason = item.reasons[0]?.code;
+    const severity: TodayActionSeverity = item.status === "blocked" || item.signals.risk.openRisk ? "critical" : "warning";
+    const actionType: TodayActionItemType = item.isStale ? "stale_check_in" : "developer_attention";
+    const currentWork = item.currentItem?.jiraKey
+      ? `${item.currentItem.jiraKey} ${item.currentItem.title}`
+      : item.currentItem?.title ?? "No current work";
+    const actionTarget = target("developer", "team", {
+      developerAccountId: item.developer.accountId,
+      trackerItemId: item.currentItem?.id,
+      date,
+    });
+
+    return action({
+      id: `today-dev-${item.developer.accountId}-${leadReason ?? "attention"}`,
+      type: actionType,
+      title: item.developer.displayName,
+      context: currentWork,
+      signal: reasons.slice(0, 2).join(" / ") || "Needs attention",
+      severity,
+      priority: item.status === "blocked" ? 100 : item.isStale && !item.hasCurrentItem ? 78 : 86,
+      group: severity === "critical" ? "now" : "next",
+      target: actionTarget,
+      primaryKind: "add_check_in",
+      primaryLabel: "Add check-in",
+      secondaryKinds: ["capture_follow_up", "open"],
+      freshness: formatFreshness(item.lastCheckInAt),
+    });
+  });
+}
+
+function buildIssueActions(issues: Issue[], date: string): TodayActionItem[] {
+  return issues
+    .filter((issue) => issue.statusCategory.toLowerCase() !== "done")
+    .filter((issue) => isOverdue(issueDueDate(issue), date) || isDueToday(issueDueDate(issue), date) || !issue.assigneeId || isHighPriority(issue))
+    .map((issue) => {
+      const dueDate = issueDueDate(issue);
+      const overdue = isOverdue(dueDate, date);
+      const dueToday = isDueToday(dueDate, date);
+      const unassigned = !issue.assigneeId;
+      const severity: TodayActionSeverity = overdue ? "critical" : dueToday ? "warning" : unassigned ? "info" : "warning";
+      const itemType: TodayActionItemType = overdue ? "overdue_issue" : dueToday ? "due_issue" : unassigned ? "unassigned_issue" : "manual_work";
+      const filter: FilterType = overdue ? "overdue" : dueToday ? "dueToday" : unassigned ? "unassigned" : "highPriority";
+      const actionTarget = target("issue", "work", { issueKey: issue.jiraKey, filter, date });
+      const signals = [
+        overdue ? "Overdue" : undefined,
+        dueToday ? "Due today" : undefined,
+        unassigned ? "Unassigned" : undefined,
+        isHighPriority(issue) ? "High priority" : undefined,
+      ].filter(Boolean).join(" / ");
+
+      return action({
+        id: `today-issue-${issue.jiraKey}`,
+        type: itemType,
+        title: `${issue.jiraKey} ${issue.summary}`,
+        context: issue.assigneeName ? `${issue.assigneeName} / ${issue.statusName}` : issue.statusName,
+        signal: signals,
+        severity,
+        priority: overdue && !unassigned ? 92 : overdue ? 90 : dueToday ? 72 : unassigned ? 70 : 66,
+        group: overdue || dueToday ? "now" : "next",
+        target: actionTarget,
+        primaryKind: unassigned ? "assign_owner" : "open",
+        primaryLabel: unassigned ? "Assign owner" : "Open issue",
+        secondaryKinds: ["capture_follow_up"],
+      });
+    });
+}
+
+function buildFollowUpActions(items: ManagerDeskItem[], date: string): TodayActionItem[] {
+  return items.map((item) => {
+    const actionTarget = target("follow_up", "follow-ups", {
+      managerDeskItemId: item.id,
+      date: item.originDate || date,
+    });
+
+    return action({
+      id: `today-follow-up-${item.id}`,
+      type: "follow_up_due",
+      title: item.title,
+      context: getLinkedContext(item) ?? item.nextAction ?? "Manager follow-up",
+      signal: isOverdue(item.followUpAt, date) ? "Overdue follow-up" : "Due follow-up",
+      severity: isOverdue(item.followUpAt, date) ? "critical" : "warning",
+      priority: isOverdue(item.followUpAt, date) ? 96 : 88,
+      group: "now",
+      target: actionTarget,
+      primaryKind: "mark_done",
+      primaryLabel: "Done",
+      secondaryKinds: ["snooze", "open"],
+      freshness: item.followUpAt ? formatIsoDateSignal(item.followUpAt, date) : undefined,
+    });
+  });
+}
+
+function buildMeetingActions(items: ManagerDeskItem[]): TodayActionItem[] {
+  return items.map((item) => {
+    const actionTarget = target("meeting", "meetings", {
+      managerDeskItemId: item.id,
+      date: item.originDate,
+    });
+
+    return action({
+      id: `today-meeting-${item.id}`,
+      type: "meeting_outcome",
+      title: item.title,
+      context: item.participants || item.nextAction || "Meeting memory",
+      signal: "Needs outcome",
+      severity: item.priority === "critical" || item.priority === "high" ? "warning" : "info",
+      priority: 62,
+      group: "later",
+      target: actionTarget,
+      primaryKind: "capture_meeting_outcome",
+      primaryLabel: "Capture outcome",
+      secondaryKinds: ["capture_follow_up", "open"],
+    });
+  });
+}
+
+function buildDeskCarryForwardActions(items: ManagerDeskItem[], date: string): TodayActionItem[] {
+  return items
+    .filter((item) => isOpenDeskItem(item))
+    .filter((item) => item.kind !== "meeting" && item.category !== "follow_up")
+    .filter((item) => isBeforeDay(item.originDate, date) || isBeforeDay(item.plannedEndAt, date) || isBeforeDay(item.plannedStartAt, date))
+    .map((item) => {
+      const actionTarget = target("manager_desk_item", "desk", {
+        managerDeskItemId: item.id,
+        date: item.originDate,
+      });
+
+      return action({
+        id: `today-desk-carry-${item.id}`,
+        type: "desk_carry_forward",
+        title: item.title,
+        context: getLinkedContext(item) ?? item.contextNote ?? "Open Manager Desk item",
+        signal: "Carry forward",
+        severity: item.priority === "critical" ? "critical" : "info",
+        priority: item.priority === "critical" ? 74 : 58,
+        group: "next",
+        target: actionTarget,
+        primaryKind: "carry_forward",
+        primaryLabel: "Carry forward",
+        secondaryKinds: ["mark_done", "open"],
+      });
+    });
+}
+
+function buildSyncActions(syncStatus?: SyncStatus): TodayActionItem[] {
+  if (syncStatus?.status !== "error") {
+    return [];
+  }
+
+  return [
+    action({
+      id: "today-sync-error",
+      type: "sync_attention",
+      title: "Jira sync needs review",
+      context: syncStatus.errorMessage ?? "Last sync failed",
+      signal: "Sync issue",
+      severity: "critical",
+      priority: 98,
+      group: "now",
+      target: target("view", "settings"),
+      primaryKind: "open",
+      primaryLabel: "Open settings",
+      secondaryKinds: [],
+    }),
+  ];
+}
+
+function buildTeamPulse(board: TeamTrackerBoardResponse, date: string): TodayTeamPulseItem[] {
+  const attentionByDeveloper = new Map(board.attentionQueue.map((item) => [item.developer.accountId, item]));
+
+  return board.developers
+    .filter((day) => attentionByDeveloper.has(day.developer.accountId) || day.isStale || !day.currentItem)
+    .sort((left, right) => {
+      const leftAttention = attentionByDeveloper.get(left.developer.accountId);
+      const rightAttention = attentionByDeveloper.get(right.developer.accountId);
+      return (rightAttention ? 1 : 0) - (leftAttention ? 1 : 0) || left.developer.displayName.localeCompare(right.developer.displayName);
+    })
+    .map((day) => {
+      const attentionItem = attentionByDeveloper.get(day.developer.accountId);
+      const pulseTarget = target("developer", "team", {
+        developerAccountId: day.developer.accountId,
+        trackerItemId: day.currentItem?.id,
+        date,
+      });
+
+      return {
+        accountId: day.developer.accountId,
+        displayName: day.developer.displayName,
+        initials: getInitials(day.developer.displayName),
+        status: statusLabels[day.status] ?? day.status.replace(/_/g, " "),
+        tone: day.status === "blocked" ? "critical" : day.status === "at_risk" || day.isStale ? "warning" : !day.currentItem ? "info" : "neutral",
+        detail: attentionItem?.reasons[0]?.label ?? (day.isStale ? "Stale check-in" : "Needs current work"),
+        currentWork: day.currentItem?.jiraKey
+          ? `${day.currentItem.jiraKey} ${day.currentItem.title}`
+          : day.currentItem?.title ?? "No current work",
+        lastUpdate: formatFreshness(day.lastCheckInAt) ?? "No check-in",
+        target: pulseTarget,
+        primaryAction: command("add_check_in", "Check-in", pulseTarget),
+        secondaryActions: [command("capture_follow_up", "Follow up", pulseTarget), command("open", "Open", pulseTarget)],
+      };
+    });
+}
+
+function buildPromiseItem(item: ManagerDeskItem, date: string): TodayPromiseItem {
+  const promiseTarget = target("follow_up", "follow-ups", {
+    managerDeskItemId: item.id,
+    date: item.originDate || date,
+  });
+
+  return {
+    id: `promise-${item.id}`,
+    title: item.title,
+    detail: item.followUpAt ? formatIsoDateSignal(item.followUpAt, date) : "Due now",
+    severity: isOverdue(item.followUpAt, date) ? "critical" : "warning",
+    target: promiseTarget,
+    primaryAction: command("mark_done", "Done", promiseTarget),
+    secondaryActions: [command("snooze", "Snooze", promiseTarget), command("open", "Open", promiseTarget)],
+  };
+}
+
+function buildMeetingPrompt(item: ManagerDeskItem): TodayMeetingPrompt {
+  const meetingTarget = target("meeting", "meetings", {
+    managerDeskItemId: item.id,
+    date: item.originDate,
+  });
+
+  return {
+    id: `meeting-${item.id}`,
+    title: item.title,
+    detail: item.participants || "Needs captured outcome",
+    severity: item.priority === "critical" || item.priority === "high" ? "warning" : "info",
+    target: meetingTarget,
+    primaryAction: command("capture_meeting_outcome", "Outcome", meetingTarget),
+    secondaryActions: [command("capture_follow_up", "Follow up", meetingTarget), command("open", "Open", meetingTarget)],
+  };
+}
+
+function buildStandupPrompts(
+  board: TeamTrackerBoardResponse,
+  issues: Issue[],
+  followUps: ManagerDeskItem[],
+  date: string,
+): TodayStandupPrompt[] {
+  const peoplePrompts = board.attentionQueue.slice(0, 3).map((item) => ({
+    id: `standup-dev-${item.developer.accountId}`,
+    title: item.developer.displayName,
+    detail: item.reasons[0]?.label ?? "Needs manager attention",
+    severity: item.status === "blocked" ? "critical" as const : "warning" as const,
+    target: target("developer", "team", { developerAccountId: item.developer.accountId, date }),
+    primaryAction: command("add_check_in", "Check-in", target("developer", "team", { developerAccountId: item.developer.accountId, date })),
+  }));
+  const issuePrompts = issues
+    .filter((issue) => isOverdue(issueDueDate(issue), date) || isDueToday(issueDueDate(issue), date))
+    .slice(0, 3)
+    .map((issue) => {
+      const issueTarget = target("issue", "work", { issueKey: issue.jiraKey, filter: isOverdue(issueDueDate(issue), date) ? "overdue" : "dueToday", date });
+      return {
+        id: `standup-issue-${issue.jiraKey}`,
+        title: issue.jiraKey,
+        detail: issue.summary,
+        severity: isOverdue(issueDueDate(issue), date) ? "critical" as const : "warning" as const,
+        target: issueTarget,
+        primaryAction: command("open", "Open", issueTarget),
+      };
+    });
+  const promisePrompts = followUps.slice(0, 2).map((item) => {
+    const promiseTarget = target("follow_up", "follow-ups", { managerDeskItemId: item.id, date: item.originDate || date });
+    return {
+      id: `standup-follow-up-${item.id}`,
+      title: item.title,
+      detail: "Promise due",
+      severity: isOverdue(item.followUpAt, date) ? "critical" as const : "warning" as const,
+      target: promiseTarget,
+      primaryAction: command("open", "Open", promiseTarget),
+    };
+  });
+
+  return [...peoplePrompts, ...issuePrompts, ...promisePrompts];
+}
+
+function getMeetingPrompts(items: ManagerDeskItem[], date: string): ManagerDeskItem[] {
+  return items
+    .filter((item) => isOpenDeskItem(item))
+    .filter((item) => item.kind === "meeting")
+    .filter((item) => !item.outcome?.trim())
+    .filter((item) => !isAfterDay(item.originDate, date))
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+}
+
+function getDueFollowUps(items: ManagerDeskItem[], date: string): ManagerDeskItem[] {
+  return items
+    .filter((item) => isOpenDeskItem(item))
+    .filter((item) => item.category === "follow_up" || Boolean(item.followUpAt))
+    .filter((item) => !item.followUpAt || !isAfterDay(item.followUpAt, date))
+    .sort((left, right) => (left.followUpAt ?? left.createdAt).localeCompare(right.followUpAt ?? right.createdAt));
+}
+
+function action(params: {
+  id: string;
+  type: TodayActionItemType;
+  title: string;
+  context: string;
+  signal: string;
+  severity: TodayActionSeverity;
+  priority: number;
+  group: TodayActionGroup;
+  target: TodayActionTarget;
+  primaryKind: TodayActionCommand["kind"];
+  primaryLabel: string;
+  secondaryKinds: TodayActionCommand["kind"][];
+  freshness?: string;
+}): TodayActionItem {
+  return {
+    id: params.id,
+    type: params.type,
+    title: compactText(params.title, 120),
+    context: compactText(params.context, 140),
+    signal: compactText(params.signal, 80),
+    severity: params.severity,
+    priority: params.priority,
+    group: params.group,
+    target: params.target,
+    primaryAction: command(params.primaryKind, params.primaryLabel, params.target),
+    secondaryActions: params.secondaryKinds.map((kind) => command(kind, commandLabel(kind), params.target)),
+    freshness: params.freshness,
+  };
+}
+
+function command(kind: TodayActionCommand["kind"], label: string, actionTarget: TodayActionTarget): TodayActionCommand {
+  return { kind, label, target: actionTarget, confirm: kind === "mark_done" || kind === "carry_forward" };
+}
+
+function commandLabel(kind: TodayActionCommand["kind"]): string {
+  switch (kind) {
+    case "add_check_in":
+      return "Add check-in";
+    case "ask_check_in":
+      return "Ask check-in";
+    case "assign_owner":
+      return "Assign owner";
+    case "capture_follow_up":
+      return "Follow up";
+    case "snooze":
+      return "Snooze";
+    case "mark_done":
+      return "Done";
+    case "carry_forward":
+      return "Carry";
+    case "capture_meeting_outcome":
+      return "Outcome";
+    case "set_current_work":
+      return "Set current";
+    default:
+      return "Open";
+  }
+}
+
+function target(type: TodayActionTarget["type"], view: TodayActionTarget["view"], extra: Partial<TodayActionTarget> = {}): TodayActionTarget {
+  return { type, view, ...extra };
+}
+
+function rankActionItems(items: TodayActionItem[]): TodayActionItem[] {
+  return items.sort((left, right) =>
+    right.priority - left.priority ||
+    severityWeight[right.severity] - severityWeight[left.severity] ||
+    Number(hasDirectWriteAction(right)) - Number(hasDirectWriteAction(left)) ||
+    left.title.localeCompare(right.title)
+  );
+}
+
+function hasDirectWriteAction(item: TodayActionItem): boolean {
+  return item.primaryAction.kind !== "open" && item.primaryAction.kind !== "assign_owner";
+}
+
+function buildCalmAction(date: string): TodayActionItem {
+  const calmTarget = target("view", "team", { date });
+  return action({
+    id: "today-calm",
+    type: "calm",
+    title: "Team is calm",
+    context: "No urgent signals",
+    signal: "Clear",
+    severity: "success",
+    priority: 0,
+    group: "later",
+    target: calmTarget,
+    primaryKind: "open",
+    primaryLabel: "Open Team",
+    secondaryKinds: [],
+  });
+}
+
+function getRhythmState(now: Date): TodayRhythmState {
+  const hour = now.getHours();
+  if (hour < 10) {
+    return { stage: "morning_plan", label: "Morning plan", detail: "Set direction" };
+  }
+  if (hour < 12) {
+    return { stage: "standup_window", label: "Standup window", detail: "Clear blockers" };
+  }
+  if (hour < 16) {
+    return { stage: "midday_check", label: "Midday check", detail: "Keep flow moving" };
+  }
+  return { stage: "wrap_up", label: "Wrap-up", detail: "Close loops" };
+}
+
+function issueDueDate(issue: Issue): string | undefined {
+  return issue.developmentDueDate ?? issue.dueDate;
+}
+
+function isHighPriority(issue: Issue): boolean {
+  return ["high", "highest"].includes(issue.priorityName.toLowerCase());
+}
+
+function isOpenDeskItem(item: ManagerDeskItem): boolean {
+  return openDeskStatuses.has(item.status);
+}
+
+function isDueToday(value: string | undefined, date: string): boolean {
+  return toIsoDay(value) === date;
+}
+
+function isOverdue(value: string | undefined, date: string): boolean {
+  const day = toIsoDay(value);
+  return Boolean(day && day < date);
+}
+
+function isBeforeDay(value: string | undefined, date: string): boolean {
+  const day = toIsoDay(value);
+  return Boolean(day && day < date);
+}
+
+function isAfterDay(value: string | undefined, date: string): boolean {
+  const day = toIsoDay(value);
+  return Boolean(day && day > date);
+}
+
+function toIsoDay(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  return value.slice(0, 10);
+}
+
+function formatIsoDateSignal(value: string, date: string): string {
+  const day = toIsoDay(value);
+  if (!day) {
+    return "Due";
+  }
+  if (day === date) {
+    return "Due today";
+  }
+  if (day < date) {
+    return `Overdue ${day}`;
+  }
+  return `Due ${day}`;
+}
+
+function formatFreshness(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) {
+    return undefined;
+  }
+
+  const hours = Math.max(Math.floor((Date.now() - timestamp) / 3_600_000), 0);
+  if (hours < 1) {
+    return "Just now";
+  }
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "??";
+}
+
+function getLinkedContext(item: ManagerDeskItem): string | undefined {
+  const issueLink = item.links.find((link) => link.linkType === "issue" && link.issueKey);
+  if (issueLink?.issueKey) {
+    return issueLink.issueKey;
+  }
+
+  const developerLink = item.links.find((link) => link.linkType === "developer");
+  return developerLink?.displayLabel;
+}
+
+function compactText(value: string, limit: number): string {
+  if (value.length <= limit) {
+    return value;
+  }
+  return `${value.slice(0, limit - 3).trim()}...`;
+}

@@ -14,6 +14,7 @@ import { createTeamTrackerRouter } from "./routes/team-tracker";
 import { createAuthRouter } from "./routes/auth";
 import { createMyDayRouter } from "./routes/my-day";
 import { createManagerDeskRouter } from "./routes/manager-desk";
+import { createTodayRouter } from "./routes/today";
 import { requireManager } from "./middleware/auth";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { AlertService } from "./services/alert.service";
@@ -26,6 +27,7 @@ import { MyDayService } from "./services/my-day.service";
 import { WorkloadService } from "./services/workload.service";
 import { TagService } from "./services/tag.service";
 import { TeamTrackerService } from "./services/team-tracker.service";
+import { TodayService } from "./services/today.service";
 import { SyncEngine } from "./sync/engine";
 import { resolveWorkspaceRoot } from "./db/paths";
 
@@ -41,6 +43,7 @@ export interface AppServices {
   authService: AuthService;
   myDayService: MyDayService;
   managerDeskService: ManagerDeskService;
+  todayService: TodayService;
 }
 
 export function createApp(services: AppServices) {
@@ -73,6 +76,7 @@ export function createApp(services: AppServices) {
     createTagsRouter(services.tagService, services.issueService)
   );
   app.use("/api/auth", createAuthRouter(services.authService));
+  app.use("/api/today", requireManager(services.authService), createTodayRouter(services.todayService));
   app.use(
     "/api/team-tracker",
     requireManager(services.authService),
