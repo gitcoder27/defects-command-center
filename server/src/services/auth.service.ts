@@ -1,4 +1,5 @@
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
 import { and, eq } from "drizzle-orm";
 import type { AuthUser, UserRole } from "shared/types";
 import { db } from "../db/connection";
@@ -9,6 +10,7 @@ const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 const DEFAULT_SESSION_COOKIE_NAME = "dcc_session";
 export const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME?.trim() || DEFAULT_SESSION_COOKIE_NAME;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const scryptAsync = promisify(scrypt);
 
 interface CreateUserParams {
   username: string;
@@ -39,19 +41,19 @@ function normalizeUsername(username: string): string {
   return username.trim().toLowerCase();
 }
 
-function hashPassword(password: string): string {
+async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(password, salt, 64).toString("hex");
+  const hash = (await scryptAsync(password, salt, 64) as Buffer).toString("hex");
   return `scrypt$${salt}$${hash}`;
 }
 
-function verifyPassword(password: string, encoded: string): boolean {
+async function verifyPassword(password: string, encoded: string): Promise<boolean> {
   const [scheme, salt, hash] = encoded.split("$");
   if (scheme !== "scrypt" || !salt || !hash) {
     return false;
   }
 
-  const derived = scryptSync(password, salt, 64);
+  const derived = await scryptAsync(password, salt, 64) as Buffer;
   const stored = Buffer.from(hash, "hex");
 
   if (stored.length !== derived.length) {
@@ -129,7 +131,7 @@ export class AuthService {
       .values({
         username,
         displayName: params.displayName.trim(),
-        passwordHash: hashPassword(params.password),
+        passwordHash: await hashPassword(params.password),
         role: params.role,
         developerAccountId: params.developerAccountId ?? null,
         isActive: params.isActive === false ? 0 : 1,
@@ -161,7 +163,7 @@ export class AuthService {
       .limit(1);
 
     const row = rows[0];
-    if (!row || !verifyPassword(password, row.passwordHash)) {
+    if (!row || !(await verifyPassword(password, row.passwordHash))) {
       throw new HttpError(401, "Invalid username or password");
     }
 
@@ -274,13 +276,13 @@ export class AuthService {
       .limit(1);
 
     const row = rows[0];
-    if (!row || !verifyPassword(currentPassword, row.passwordHash)) {
+    if (!row || !(await verifyPassword(currentPassword, row.passwordHash))) {
       throw new HttpError(401, "Invalid username or current password");
     }
 
     await db
       .update(appUsers)
-      .set({ passwordHash: hashPassword(newPassword), updatedAt: nowIso() })
+      .set({ passwordHash: await hashPassword(newPassword), updatedAt: nowIso() })
       .where(eq(appUsers.id, row.id));
   }
 

@@ -20,7 +20,7 @@ const patchDaySchema = z.object({
     status: z
       .enum(["on_track", "at_risk", "blocked", "waiting", "done_for_today"])
       .optional(),
-  }),
+  }).refine((value) => value.status !== undefined, { message: "At least one day field is required" }),
   query: z.any().optional(),
   params: z.any().optional(),
 });
@@ -29,8 +29,8 @@ const addItemSchema = z.object({
   body: z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     jiraKey: z.string().trim().optional(),
-    title: z.string().min(1).max(500),
-    note: z.string().max(2000).optional(),
+    title: z.string().trim().min(1).max(500),
+    note: z.string().trim().max(2000).optional(),
   }),
   query: z.any().optional(),
   params: z.any().optional(),
@@ -49,18 +49,18 @@ const updateItemSchema = z.object({
     itemId: z.string().regex(/^\d+$/, "Invalid item id"),
   }),
   body: z.object({
-    title: z.string().min(1).max(500).optional(),
+    title: z.string().trim().min(1).max(500).optional(),
     state: z.enum(["planned", "in_progress", "done", "dropped"]).optional(),
-    note: z.string().max(2000).nullable().optional(),
+    note: z.string().trim().max(2000).nullable().optional(),
     position: z.number().int().min(0).optional(),
-  }),
+  }).refine((value) => Object.keys(value).length > 0, { message: "At least one item field is required" }),
   query: z.any().optional(),
 });
 
 const addCheckInSchema = z.object({
   body: z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    summary: z.string().min(1).max(2000),
+    summary: z.string().trim().min(1).max(2000),
     status: z
       .enum(["on_track", "at_risk", "blocked", "waiting", "done_for_today"])
       .optional(),

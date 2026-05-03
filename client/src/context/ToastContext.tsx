@@ -51,7 +51,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ addToast, removeToast }}>
       {children}
-      <div className="fixed top-4 right-4 z-[10000] flex flex-col gap-2 max-w-sm">
+      <div className="fixed top-4 right-4 z-[10000] flex flex-col gap-2 max-w-sm" role="status" aria-live="polite" aria-atomic="false">
         <AnimatePresence>
           {toasts.map((toast) => (
             <ToastItem key={toast.id} toast={toast} onDismiss={() => removeToast(toast.id)} />
@@ -129,6 +129,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
         )}
         {toast.action && (
           <button
+            type="button"
             onClick={toast.action.onClick}
             className="text-[12px] font-semibold mt-1.5 px-2 py-0.5 rounded transition-colors"
             style={{ color: colors.icon, background: `${colors.icon}15` }}
@@ -137,7 +138,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
           </button>
         )}
       </div>
-      <button onClick={onDismiss} className="p-0.5 shrink-0 mt-0.5 rounded hover:bg-white/10 transition-colors">
+      <button type="button" onClick={onDismiss} className="p-0.5 shrink-0 mt-0.5 rounded hover:bg-white/10 transition-colors" aria-label="Dismiss notification">
         <X size={12} style={{ color: 'var(--text-muted)' }} />
       </button>
     </motion.div>

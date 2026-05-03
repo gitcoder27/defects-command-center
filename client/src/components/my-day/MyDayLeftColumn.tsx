@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Target, Zap, CheckCircle2, MessageSquare } from 'lucide-react';
-import type { AuthUser, MyDayResponse } from '@/types';
+import type { AuthUser, MyDayResponse, TrackerDeveloperStatus } from '@/types';
 import { MyDayHeader } from './MyDayHeader';
 import { StatusSelector } from './StatusSelector';
 import { CurrentTask } from './CurrentTask';
@@ -17,7 +17,7 @@ interface MyDayLeftColumnProps {
   onRefresh: () => void;
   onToggleTheme: () => void;
   onLogout: () => void;
-  handleStatusUpdate: (s: any) => void;
+  handleStatusUpdate: (s: TrackerDeveloperStatus) => void;
   updateStatusPending: boolean;
   handleMarkDone: (id: number) => void;
   handleDrop: (id: number) => void;
@@ -67,7 +67,7 @@ export function MyDayLeftColumn({
         <MyDayInactiveBanner availability={day.availability} />
       )}
 
-      <motion.section variants={sectionVariants} className={readOnly ? 'pointer-events-none opacity-60' : undefined}>
+      <motion.section variants={sectionVariants} className={readOnly ? 'opacity-60' : undefined} aria-disabled={readOnly}>
         <div className="flex items-center gap-2 mb-3 pl-2">
           <Zap size={14} className="text-[var(--text-muted)]" />
           <h2 className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
@@ -79,11 +79,12 @@ export function MyDayLeftColumn({
             current={day?.status ?? 'on_track'}
             onUpdate={handleStatusUpdate}
             isPending={updateStatusPending}
+            disabled={readOnly}
           />
         </div>
       </motion.section>
 
-      <motion.section variants={sectionVariants} className={readOnly ? 'pointer-events-none opacity-60' : undefined}>
+      <motion.section variants={sectionVariants} className={readOnly ? 'opacity-60' : undefined} aria-disabled={readOnly}>
         <div className="flex items-center gap-2 mb-3 pl-2">
           <Target size={14} className="text-[var(--text-muted)]" />
           <h2 className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
@@ -97,6 +98,7 @@ export function MyDayLeftColumn({
           onUpdateNote={handleUpdateItemNote}
           onUpdateTitle={handleUpdateItemTitle}
           hasPlannedItems={(day?.plannedItems.length ?? 0) > 0}
+          readOnly={readOnly}
         />
       </motion.section>
 
@@ -142,14 +144,14 @@ export function MyDayLeftColumn({
         </motion.section>
       )}
 
-      <motion.section variants={sectionVariants} className={`mt-2 ${readOnly ? 'pointer-events-none opacity-60' : ''}`}>
+      <motion.section variants={sectionVariants} className={`mt-2 ${readOnly ? 'opacity-60' : ''}`} aria-disabled={readOnly}>
         <div className="flex items-center gap-2 mb-3 pl-2">
           <MessageSquare size={14} className="text-[var(--text-muted)]" />
           <h2 className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">
             Quick Updates
           </h2>
         </div>
-        <QuickUpdates onAddCheckIn={handleAddCheckIn} isPending={addCheckInPending} />
+        <QuickUpdates onAddCheckIn={handleAddCheckIn} isPending={addCheckInPending} disabled={readOnly} />
       </motion.section>
     </div>
   );

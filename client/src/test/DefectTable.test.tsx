@@ -91,6 +91,12 @@ const mockCreateTagMutate = vi.fn();
 const mockSetIssueTagsMutate = vi.fn();
 const mockUpdateIssueMutate = vi.fn();
 let currentIssues = mockIssues;
+let issueQueryState = {
+  isError: false,
+  error: null as Error | null,
+  isFetching: false,
+  refetch: vi.fn(),
+};
 
 function ThemeToggleHarness(props: React.ComponentProps<typeof DefectTable>) {
   const { toggleTheme } = useTheme();
@@ -123,7 +129,14 @@ const animatedRows: Issue[] = Array.from({ length: 14 }, (_, index) => ({
 }));
 
 vi.mock('@/hooks/useIssues', () => ({
-  useIssues: () => ({ data: currentIssues, isLoading: false }),
+  useIssues: () => ({
+    data: currentIssues,
+    isLoading: false,
+    isError: issueQueryState.isError,
+    error: issueQueryState.error,
+    isFetching: issueQueryState.isFetching,
+    refetch: issueQueryState.refetch,
+  }),
 }));
 
 vi.mock('@/hooks/useConfig', () => ({
@@ -155,6 +168,12 @@ describe('DefectTable', () => {
 
   beforeEach(() => {
     currentIssues = mockIssues;
+    issueQueryState = {
+      isError: false,
+      error: null,
+      isFetching: false,
+      refetch: vi.fn(),
+    };
     onSelectIssue.mockClear();
     onFocusedIndexChange.mockClear();
     onClearFilters.mockClear();
@@ -184,6 +203,18 @@ describe('DefectTable', () => {
     );
 
     fireEvent.click(screen.getByText('Login page crashes on submit'));
+    expect(onSelectIssue).toHaveBeenCalledWith('PROJ-101');
+  });
+
+  it('exposes an explicit Open button for keyboard and assistive tech users', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /open triage for proj-101/i }));
+
     expect(onSelectIssue).toHaveBeenCalledWith('PROJ-101');
   });
 
@@ -229,6 +260,39 @@ describe('DefectTable', () => {
     expect(screen.getByText('Status')).toBeInTheDocument();
     expect(screen.getByText('Notes')).toBeInTheDocument();
     expect(screen.getByText('Tracker')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /notes/i })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /notes/i })).toHaveAttribute('aria-sort', 'none');
+  });
+
+  it('uses button semantics for inline assignee and due-date edits', () => {
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByRole('button', { name: /edit assignee for proj-101/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /edit due date for proj-102/i })).toBeInTheDocument();
+  });
+
+  it('renders issue query failures as retryable errors instead of empty data', () => {
+    issueQueryState = {
+      isError: true,
+      error: new Error('Query exploded'),
+      isFetching: false,
+      refetch: vi.fn(),
+    };
+
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText('Could not load defects')).toBeInTheDocument();
+    expect(screen.getByText('Query exploded')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^retry$/i }));
+    expect(issueQueryState.refetch).toHaveBeenCalled();
   });
 
   it('renders Jira links for issue IDs when config available', () => {

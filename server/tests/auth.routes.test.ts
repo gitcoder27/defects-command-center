@@ -91,6 +91,40 @@ describe("auth routes", () => {
     expect(res.headers["set-cookie"]).toContain("HttpOnly");
   });
 
+  it("POST /api/auth/login throttles repeated failed attempts by username and address", async () => {
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
+
+    const app = createTestApp();
+    for (let index = 0; index < 5; index += 1) {
+      const failed = await invoke(app, {
+        method: "POST",
+        url: "/api/auth/login",
+        body: {
+          username: "manager",
+          password: "wrong-password",
+        },
+      });
+      expect(failed.status).toBe(401);
+    }
+
+    const throttled = await invoke(app, {
+      method: "POST",
+      url: "/api/auth/login",
+      body: {
+        username: "manager",
+        password: "secret123",
+      },
+    });
+
+    expect(throttled.status).toBe(429);
+    expect(throttled.body?.error).toBe("Too many failed attempts. Try again later.");
+  });
+
   it("POST /api/auth/register only allows a manager for the bootstrap account and auto-signs them in", async () => {
     const app = createTestApp();
 

@@ -16,6 +16,26 @@ vi.mock("../src/config", () => ({
   },
 }));
 
+const jiraClientMock = vi.hoisted(() => ({
+  constructorArgs: [] as Array<[string, string, string]>,
+}));
+
+vi.mock("../src/jira/client", () => ({
+  JiraClient: class {
+    constructor(baseUrl: string, email: string, token: string) {
+      jiraClientMock.constructorArgs.push([baseUrl, email, token]);
+    }
+
+    async getCurrentUser() {
+      return { displayName: "Jira User", accountId: "jira-user-1" };
+    }
+
+    async getFields() {
+      return [];
+    }
+  },
+}));
+
 import { createConfigRouter } from "../src/routes/config";
 import {
   configTable,
@@ -43,6 +63,8 @@ import { resetDatabase } from "./helpers/db";
 import { migrate } from "../src/db/migrate";
 import { BackupService } from "../src/services/backup.service";
 import { DEFAULT_BACKUP_MAX_SCHEDULED_SNAPSHOTS, SettingsService } from "../src/services/settings.service";
+import { getPersistedJiraApiToken, storeJiraApiToken } from "../src/services/jira-credentials.service";
+import { isEncryptedSecret } from "../src/services/secret-crypto";
 
 const testBackupDirectory = path.resolve("/tmp", "lead-os-test-config-backups");
 
@@ -50,6 +72,7 @@ beforeEach(async () => {
   migrate(rawDb);
   await resetDatabase();
   clearJiraApiToken();
+  jiraClientMock.constructorArgs.length = 0;
   fs.rmSync(testBackupDirectory, { recursive: true, force: true });
   await db.insert(configTable).values({ key: "backup_directory", value: testBackupDirectory }).onConflictDoUpdate({
     target: configTable.key,
@@ -274,10 +297,35 @@ ORDER BY updated DESC`);
     expect(map["jira_sync_jql"]).toBe("project = AM AND status != Done");
     expect(map["jira_dev_due_date_field"]).toBe("customfield_99999");
     expect(map["jira_aspen_severity_field"]).toBe("customfield_11111");
-    expect(map["jira_api_token"]).toBe("new-token-from-settings");
+    expect(map["jira_api_token"]).not.toBe("new-token-from-settings");
+    expect(isEncryptedSecret(map["jira_api_token"] as string)).toBe(true);
+    expect(await getPersistedJiraApiToken()).toBe("new-token-from-settings");
     expect(map["jira_base_url"]).toBe("https://tenant.atlassian.net");
     expect(map["jira_project_key"]).toBe("AM");
     expect(getJiraApiToken()).toBe("new-token-from-settings");
+  });
+
+  it("POST /api/config/test can use the saved encrypted Jira token", async () => {
+    await storeJiraApiToken("saved-token");
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/config/test",
+      body: {
+        jiraBaseUrl: "https://tenant.atlassian.net",
+        jiraEmail: "ops@example.com",
+        jiraProjectKey: "AM",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.success).toBe(true);
+    expect(jiraClientMock.constructorArgs.at(-1)).toEqual([
+      "https://tenant.atlassian.net",
+      "ops@example.com",
+      "saved-token",
+    ]);
   });
 
   it("GET /api/config/maintenance/reset-preview reports scoped maintenance counts", async () => {

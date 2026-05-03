@@ -9,11 +9,12 @@ import { logger } from "../utils/logger";
 import { SettingsService } from "../services/settings.service";
 
 export interface SyncResult {
-  status: "success" | "error";
+  status: "success" | "error" | "skipped";
   issuesSynced: number;
   startedAt: string;
   completedAt: string;
   errorMessage?: string;
+  reason?: "already_running";
 }
 
 type TeamScopeState = "in_team" | "out_of_team" | "unassigned";
@@ -54,7 +55,7 @@ export class SyncEngine {
   async syncNow(): Promise<SyncResult> {
     if (this.syncing) {
       const now = new Date().toISOString();
-      return { status: "success", issuesSynced: 0, startedAt: now, completedAt: now };
+      return { status: "skipped", reason: "already_running", issuesSynced: 0, startedAt: now, completedAt: now };
     }
 
     this.syncing = true;

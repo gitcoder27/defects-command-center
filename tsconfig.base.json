@@ -11,9 +11,7 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "shared/types": [
-        "shared/types"
-      ]
+      "shared/types": ["shared/types"]
     }
   }
 }

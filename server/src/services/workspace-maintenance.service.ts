@@ -7,6 +7,7 @@ import type {
   WorkspaceMaintenanceResetTarget,
 } from "shared/types";
 import { db } from "../db/connection";
+import { runInTransaction } from "../db/transaction";
 import {
   developerAvailabilityPeriods,
   managerDeskDays,
@@ -71,17 +72,19 @@ export class WorkspaceMaintenanceService {
   ): Promise<WorkspaceMaintenanceResetResponse> {
     const backup = await this.backupService?.createPreResetBackup();
 
-    if (target === "team_tracker" || target === "workspace") {
-      const teamTrackerScope = await this.buildTeamTrackerScope(managerAccountId);
-      await this.clearTeamTracker(managerAccountId, teamTrackerScope);
-    }
+    await runInTransaction(async () => {
+      if (target === "team_tracker" || target === "workspace") {
+        const teamTrackerScope = await this.buildTeamTrackerScope(managerAccountId);
+        await this.clearTeamTracker(managerAccountId, teamTrackerScope);
+      }
 
-    if (target === "manager_desk" || target === "workspace") {
-      const managerDeskScope = await this.buildManagerDeskScope(managerAccountId);
-      await this.clearManagerDesk(managerDeskScope, {
-        deleteLinkedTrackerItems: target === "manager_desk",
-      });
-    }
+      if (target === "manager_desk" || target === "workspace") {
+        const managerDeskScope = await this.buildManagerDeskScope(managerAccountId);
+        await this.clearManagerDesk(managerDeskScope, {
+          deleteLinkedTrackerItems: target === "manager_desk",
+        });
+      }
+    });
 
     return {
       success: true,

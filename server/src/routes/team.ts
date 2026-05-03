@@ -5,10 +5,11 @@ import { validate } from "../middleware/validate";
 import { WorkloadService } from "../services/workload.service";
 import { JiraClient } from "../jira/client";
 import { db } from "../db/connection";
-import { componentMap, configTable, developers as developersTable, issues } from "../db/schema";
+import { configTable, developers as developersTable, issues } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { config } from "../config";
 import { getJiraApiToken } from "../runtime-credentials";
+import { getPersistedJiraApiToken } from "../services/jira-credentials.service";
 
 const paramsSchema = z.object({
   params: z.object({ accountId: z.string().regex(/^[A-Za-z0-9:-]+$/, "Invalid account id format") }),
@@ -132,19 +133,6 @@ async function getConfigValue(key: string): Promise<string | undefined> {
   return rows[0]?.value;
 }
 
-async function getStoredJiraApiToken(): Promise<string | undefined> {
-  const rows = await db.select().from(configTable).where(eq(configTable.key, "jira_api_token")).limit(1);
-  return rows[0]?.value;
-}
-
-async function normalizeLegacyDevelopers(): Promise<void> {
-  // Remove deprecated placeholder developer records from legacy setup flows.
-  await db.delete(componentMap).where(eq(componentMap.accountId, "dev-1"));
-  await db.delete(developersTable).where(eq(developersTable.accountId, "dev-1"));
-  await db.delete(componentMap).where(eq(componentMap.accountId, "lead-1"));
-  await db.delete(developersTable).where(eq(developersTable.accountId, "lead-1"));
-}
-
 function makeManualAccountId(displayName: string): string {
   const slug = displayName
     .trim()
@@ -160,7 +148,6 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
 
   router.get("/workload", validate(workloadQuerySchema), async (req, res, next) => {
     try {
-      await normalizeLegacyDevelopers();
       const workloads = await workloadService.getTeamWorkload(req.query.date as string | undefined);
       res.json({ developers: workloads });
     } catch (error) {
@@ -170,7 +157,6 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
 
   router.get("/developers", validate(developersQuerySchema), async (req, res, next) => {
     try {
-      await normalizeLegacyDevelopers();
       const developers = await workloadService.getDevelopers(req.query.date as string | undefined);
       res.json({ developers });
     } catch (error) {
@@ -183,7 +169,7 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
       const jiraBaseUrl = (await getConfigValue("jira_base_url")) ?? config.JIRA_BASE_URL ?? "";
       const jiraEmail = (await getConfigValue("jira_email")) ?? config.JIRA_EMAIL ?? "";
       const projectKey = (await getConfigValue("jira_project_key")) ?? config.JIRA_PROJECT_KEY ?? "";
-      const token = req.body.jiraApiToken ?? (await getStoredJiraApiToken()) ?? getJiraApiToken() ?? config.JIRA_API_TOKEN ?? "";
+      const token = req.body.jiraApiToken ?? (await getPersistedJiraApiToken()) ?? getJiraApiToken() ?? config.JIRA_API_TOKEN ?? "";
       const query = (req.body.query as string | undefined)?.trim() || undefined;
       const startAt = (req.body.startAt as number | undefined) ?? 0;
       const maxResults = (req.body.maxResults as number | undefined) ?? 50;

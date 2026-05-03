@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:check": "tsc -p tsconfig.json && vite build --outDir .build-check",
+    "build:check": "tsc -p tsconfig.json && vite build --outDir $(mktemp -d) --emptyOutDir",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json"
   },

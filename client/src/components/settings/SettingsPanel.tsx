@@ -773,11 +773,11 @@ export function SettingsPage() {
       }}
     >
       {/* ── SIDEBAR + CONTENT ───────────────────────────────── */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 flex-col overflow-hidden md:flex-row">
 
         {/* ── SIDEBAR ─────────────────────────────────────────── */}
         <aside
-          className="w-[214px] shrink-0 flex flex-col overflow-hidden"
+          className="flex w-full shrink-0 flex-col overflow-hidden md:w-[214px]"
           style={{
             borderRight: 'var(--settings-pane-border)',
             background: 'color-mix(in srgb, var(--bg-secondary) 72%, var(--bg-primary) 28%)',
@@ -800,7 +800,7 @@ export function SettingsPage() {
           </div>
 
           {/* Nav items */}
-          <nav className="flex-1 overflow-y-auto p-1.5">
+          <nav className="flex gap-1 overflow-x-auto p-1.5 md:flex-1 md:flex-col md:overflow-x-visible md:overflow-y-auto">
             {navItems.map((item) => {
               const isActive = activeSection === item.id;
               return (
@@ -808,7 +808,8 @@ export function SettingsPage() {
                   key={item.id}
                   type="button"
                   onClick={() => setActiveSection(item.id)}
-                  className="relative mb-0.5 flex w-full items-start gap-2 rounded-md py-1.5 text-left transition-all last:mb-0"
+                  className="relative flex min-w-[168px] items-start gap-2 rounded-md py-1.5 text-left transition-all md:mb-0.5 md:w-full md:min-w-0 md:last:mb-0"
+                  aria-current={isActive ? 'page' : undefined}
                   style={{
                     background: isActive ? 'color-mix(in srgb, var(--accent) 10%, var(--bg-primary))' : 'transparent',
                     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
@@ -838,7 +839,7 @@ export function SettingsPage() {
           </nav>
 
           {/* User footer */}
-          <div className="border-t p-2.5" style={{ borderColor: 'var(--border-strong)' }}>
+          <div className="hidden border-t p-2.5 md:block" style={{ borderColor: 'var(--border-strong)' }}>
             <div className="flex items-center gap-2">
               <div
                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10.5px] font-bold"
@@ -2240,6 +2241,8 @@ function ToggleChip({
     <button
       type="button"
       onClick={() => { if (!disabled) onChange(!checked); }}
+      aria-pressed={checked}
+      disabled={disabled}
       className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition-all"
       style={{
         background: checked ? 'color-mix(in srgb, var(--accent) 14%, transparent)' : 'var(--settings-neutral-chip-bg)',

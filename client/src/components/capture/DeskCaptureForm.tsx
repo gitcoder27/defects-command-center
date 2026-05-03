@@ -87,7 +87,11 @@ export function DeskCaptureForm({
     >
       {/* Form body */}
       <div className="px-5 py-3.5 space-y-3">
+        <label htmlFor="desk-capture-title" className="sr-only">
+          Desk item title
+        </label>
         <input
+          id="desk-capture-title"
           ref={titleRef}
           type="text"
           value={title}
@@ -117,6 +121,8 @@ export function DeskCaptureForm({
                 key={opt}
                 type="button"
                 onClick={() => setKind(opt)}
+                aria-pressed={active}
+                aria-label={`${KIND_LABELS[opt]} kind`}
                 className="rounded-lg px-2.5 py-1 text-[12px] font-medium transition-all"
                 style={{
                   background: active ? 'var(--md-accent-glow)' : 'var(--bg-tertiary)',
@@ -128,7 +134,11 @@ export function DeskCaptureForm({
               </button>
             );
           })}
+          <label htmlFor="desk-capture-category" className="sr-only">
+            Desk item category
+          </label>
           <select
+            id="desk-capture-category"
             value={category}
             onChange={(e) => setCategory(e.target.value as ManagerDeskCategory)}
             className="ml-auto rounded-lg px-2 py-1 text-[12px] outline-none"
@@ -175,6 +185,7 @@ export function DeskCaptureForm({
           {detailsOpen && (
             <div className="border-t px-3 py-2.5" style={{ borderColor: 'var(--border)' }}>
               <textarea
+                aria-label="Context note"
                 value={contextNote}
                 onChange={(e) => setContextNote(e.target.value)}
                 rows={2}

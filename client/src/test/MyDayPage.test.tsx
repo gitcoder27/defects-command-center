@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { act, render, renderHook, screen, fireEvent, within } from '@testing-library/react';
 import { MyDayPage } from '@/components/my-day/MyDayPage';
+import { useMyDayHandlers } from '@/components/my-day/useMyDayHandlers';
 import { TestWrapper } from '@/test/wrapper';
 import type { MyDayResponse, TrackerWorkItem } from '@/types';
 
@@ -262,5 +263,22 @@ describe('MyDayPage', () => {
         onError: expect.any(Function),
       })
     );
+  });
+
+  it('guards read-only My Day mutation handlers for keyboard and programmatic calls', () => {
+    const { result } = renderHook(() => useMyDayHandlers('2026-03-10', true), { wrapper: TestWrapper });
+
+    act(() => {
+      result.current.handleStatusUpdate('blocked');
+      result.current.handleAddItem({ title: 'Historical edit' });
+      result.current.handleAddCheckIn('Historical update');
+      result.current.handleUpdateItemTitle(101, 'Changed');
+    });
+
+    expect(mockUpdateStatusMutate).not.toHaveBeenCalled();
+    expect(mockAddItemMutate).not.toHaveBeenCalled();
+    expect(mockAddCheckInMutate).not.toHaveBeenCalled();
+    expect(mockUpdateItemMutate).not.toHaveBeenCalled();
+    expect(mockAddToast).toHaveBeenCalledWith('This day is read-only', 'warning');
   });
 });

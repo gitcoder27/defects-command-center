@@ -509,6 +509,20 @@ describe("team tracker routes", () => {
     expect(res.body?.capacityUnits).toBe(4);
   });
 
+  it("PATCH /api/team-tracker/:accountId/day rejects empty updates", async () => {
+    const app = createTestApp();
+
+    const res = await invoke(app, {
+      method: "PATCH",
+      url: "/api/team-tracker/dev-1/day",
+      body: {
+        date: "2026-03-07",
+      },
+    });
+
+    expect(res.status).toBe(400);
+  });
+
   it("POST /api/team-tracker/:accountId/checkins records manager-authored attribution", async () => {
     const app = createTestApp();
 
@@ -599,6 +613,36 @@ describe("team tracker routes", () => {
       itemType: "custom",
       title: "Investigate login regression",
     });
+  });
+
+  it("POST /api/team-tracker/:accountId/items rejects whitespace-only titles", async () => {
+    const app = createTestApp();
+
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/team-tracker/dev-1/items",
+      body: {
+        date: "2026-03-07",
+        title: "   ",
+      },
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("PATCH /api/team-tracker/items/:itemId rejects empty patch bodies", async () => {
+    const item = await trackerService.addItem("dev-1", "2026-03-07", {
+      title: "Investigate login regression",
+    });
+    const app = createTestApp();
+
+    const res = await invoke(app, {
+      method: "PATCH",
+      url: `/api/team-tracker/items/${item.id}`,
+      body: {},
+    });
+
+    expect(res.status).toBe(400);
   });
 
   it("PATCH /api/team-tracker/items/:itemId rejects title edits for linked delegated tasks", async () => {

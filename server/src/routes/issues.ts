@@ -1,11 +1,30 @@
 import { Router } from "express";
 import { z } from "zod";
+import type { IssueCommentResponse } from "shared/types";
 import { IssueService } from "../services/issue.service";
 import { validate } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 
 const keyRegex = /^[A-Z]+-\d+$/;
 const accountIdRegex = /^[A-Za-z0-9:-]+$/;
+const filterSchema = z.enum([
+  "all",
+  "new",
+  "recentlyAssigned",
+  "inProgress",
+  "reopened",
+  "unassigned",
+  "dueToday",
+  "dueThisWeek",
+  "noDueDate",
+  "overdue",
+  "blocked",
+  "stale",
+  "highPriority",
+  "outOfTeam",
+]);
+const sortSchema = z.enum(["priority", "dueDate", "updated", "created"]);
+const orderSchema = z.enum(["asc", "desc"]);
 
 const paramsSchema = z.object({
   params: z.object({ key: z.string().regex(keyRegex, "Invalid issue key format") }),
@@ -34,26 +53,43 @@ const commentSchema = z.object({
   query: z.any().optional(),
 });
 
+const listQuerySchema = z.object({
+  query: z.object({
+    filter: filterSchema.optional(),
+    assignee: z.string().optional(),
+    priority: z.string().optional(),
+    status: z.string().optional(),
+    trackerDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    sort: sortSchema.optional(),
+    order: orderSchema.optional(),
+    tags: z.string().optional(),
+    noTags: z.enum(["true", "false"]).optional(),
+  }),
+  body: z.unknown().optional(),
+  params: z.unknown().optional(),
+});
+
 export function createIssuesRouter(issueService: IssueService): Router {
   const router = Router();
 
-  router.get("/", async (req, res, next) => {
+  router.get("/", validate(listQuerySchema), async (req, res, next) => {
     try {
-      const tagsParam = typeof req.query.tags === 'string' ? req.query.tags : undefined;
-      const trackerDate = typeof req.query.trackerDate === 'string' ? req.query.trackerDate : undefined;
+      const query = req.query as z.infer<typeof listQuerySchema>["query"];
+      const tagsParam = typeof query.tags === 'string' ? query.tags : undefined;
+      const trackerDate = typeof query.trackerDate === 'string' ? query.trackerDate : undefined;
       const tagIds = tagsParam
         ? tagsParam.split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0)
         : undefined;
-      const noTags = req.query.noTags === 'true';
+      const noTags = query.noTags === 'true';
 
       const issues = await issueService.getAll({
-        filter: req.query.filter as any,
-        assignee: req.query.assignee as string | undefined,
-        priority: req.query.priority as string | undefined,
-        status: req.query.status as string | undefined,
+        filter: query.filter,
+        assignee: query.assignee,
+        priority: query.priority,
+        status: query.status,
         trackerDate,
-        sort: req.query.sort as any,
-        order: req.query.order as any,
+        sort: query.sort,
+        order: query.order,
         tagIds,
         noTags,
       });
@@ -91,7 +127,8 @@ export function createIssuesRouter(issueService: IssueService): Router {
     try {
       const key = req.params.key as string;
       await issueService.addComment(key, req.body.text);
-      res.status(201).json({ success: true });
+      const response: IssueCommentResponse = { ok: true };
+      res.status(201).json(response);
     } catch (error) {
       next(error);
     }

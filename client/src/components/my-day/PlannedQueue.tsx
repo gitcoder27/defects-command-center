@@ -11,6 +11,7 @@ interface PlannedQueueProps {
   onReorder: (itemId: number, newPosition: number) => void;
   onUpdateNote: (id: number, note: string | null) => void;
   onUpdateTitle: (id: number, title: string) => void;
+  readOnly?: boolean;
 }
 
 export function PlannedQueue({
@@ -21,6 +22,7 @@ export function PlannedQueue({
   onReorder,
   onUpdateNote,
   onUpdateTitle,
+  readOnly,
 }: PlannedQueueProps) {
   const [orderedItems, setOrderedItems] = useState(items);
   const orderedItemsRef = useRef(items);
@@ -88,6 +90,25 @@ export function PlannedQueue({
     );
   }
 
+  if (readOnly) {
+    return (
+      <div className="space-y-1">
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className="rounded-xl px-1"
+            style={{
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <TrackerItemRow item={item} readOnly />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <Reorder.Group axis="y" values={orderedItems} onReorder={handleReorder} className="space-y-1">
       {orderedItems.map((item) => (
@@ -115,6 +136,7 @@ export function PlannedQueue({
             onDrop={onDrop}
             onUpdateNote={onUpdateNote}
             onUpdateTitle={onUpdateTitle}
+            readOnly={readOnly}
           />
         </Reorder.Item>
       ))}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -45,6 +45,89 @@ type WizardStep =
   | 'team-members'
   | 'developer-access'
   | 'syncing';
+
+type ConfigQuerySnapshot = {
+  data?: {
+    jiraApiToken?: string;
+  };
+};
+
+interface StepContentProps {
+  step: WizardStep;
+  managerUsername: string;
+  setManagerUsername: (value: string) => void;
+  managerDisplayName: string;
+  setManagerDisplayName: (value: string) => void;
+  managerPassword: string;
+  setManagerPassword: (value: string) => void;
+  creatingManager: boolean;
+  handleCreateManager: () => void;
+  jiraBaseUrl: string;
+  setJiraBaseUrl: (value: string) => void;
+  jiraProjectKey: string;
+  setJiraProjectKey: (value: string) => void;
+  jiraEmail: string;
+  setJiraEmail: (value: string) => void;
+  jiraApiToken: string;
+  setJiraApiToken: (value: string) => void;
+  configQuery: ConfigQuerySnapshot;
+  setConnectionValidated: (value: boolean) => void;
+  connectionValidated: boolean;
+  testingConnection: boolean;
+  handleTestConnection: () => void;
+  savingConnection: boolean;
+  handleSaveConnection: () => void;
+  includeManagerJira: boolean;
+  setIncludeManagerJira: (value: boolean) => void;
+  selectedManagerJiraAccountId: string;
+  setSelectedManagerJiraAccountId: (value: string) => void;
+  discoveredUsers: DiscoveredUser[];
+  discoveringUsers: boolean;
+  loadDiscoverableUsers: (search?: string) => Promise<DiscoveredUser[]>;
+  discoverQuery: string;
+  setDiscoverQuery: (value: string) => void;
+  filteredDiscoveredUsers: DiscoveredUser[];
+  selectedDeveloperIds: Set<string>;
+  setSelectedDeveloperIds: Dispatch<SetStateAction<Set<string>>>;
+  savingDevelopers: boolean;
+  newAccountUsername: string;
+  setNewAccountUsername: (value: string) => void;
+  newAccountDisplayName: string;
+  setNewAccountDisplayName: (value: string) => void;
+  newAccountPassword: string;
+  setNewAccountPassword: (value: string) => void;
+  newAccountDeveloperId: string;
+  setNewAccountDeveloperId: (value: string) => void;
+  trackedDevelopers: DiscoveredUser[];
+  eligibleDeveloperAccounts: DiscoveredUser[];
+  creatingDeveloperAccess: boolean;
+  handleCreateDeveloperAccount: () => void;
+  appUsers: AuthUser[];
+  loadingUsers: boolean;
+}
+
+interface StepFooterProps {
+  step: WizardStep;
+  goToStep: (step: WizardStep) => void;
+  creatingManager: boolean;
+  handleCreateManager: () => void;
+  managerUsername: string;
+  managerDisplayName: string;
+  managerPassword: string;
+  savingConnection: boolean;
+  handleSaveConnection: () => void;
+  handleSkipJira: () => void;
+  jiraBaseUrl: string;
+  jiraEmail: string;
+  jiraProjectKey: string;
+  jiraApiToken: string;
+  configQuery: ConfigQuerySnapshot;
+  handleSaveManagerMapping: () => void;
+  savingDevelopers: boolean;
+  handleSaveTrackedDevelopers: () => void;
+  handleFinish: () => void;
+  triggerSyncPending: boolean;
+}
 
 const STEP_ORDER: Exclude<WizardStep, 'syncing'>[] = [
   'manager-account',
@@ -275,7 +358,9 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   };
 
   const handleTestConnection = async () => {
-    if (!jiraBaseUrl || !jiraEmail || !jiraApiToken || !jiraProjectKey) {
+    const token = jiraApiToken.trim();
+    const hasSavedToken = Boolean(configQuery.data?.jiraApiToken);
+    if (!jiraBaseUrl || !jiraEmail || (!token && !hasSavedToken) || !jiraProjectKey) {
       return;
     }
 
@@ -286,7 +371,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       await api.post('/config/test', {
         jiraBaseUrl,
         jiraEmail,
-        jiraApiToken,
+        ...(token ? { jiraApiToken: token } : {}),
         jiraProjectKey,
       });
       setConnectionValidated(true);
@@ -613,6 +698,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
             {errorMessage && (
               <motion.div
+                role="alert"
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="mt-4 rounded-[14px] border px-4 py-3 text-[13px]"
@@ -760,8 +846,7 @@ function OrbDecoration() {
 
 /* ── Step content (form body only — no footer buttons) ── */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function StepContent(props: any) {
+function StepContent(props: StepContentProps) {
   const { step } = props;
 
   switch (step) {
@@ -1123,8 +1208,7 @@ function StepContent(props: any) {
 
 /* ── Persistent footer with nav buttons ──────────── */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function StepFooter(props: any) {
+function StepFooter(props: StepFooterProps) {
   const { step } = props;
 
   let backAction: (() => void) | undefined;
@@ -1243,6 +1327,7 @@ function UserRow({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={selected}
       className="flex w-full items-center justify-between rounded-[14px] border px-4 py-3 text-left transition-all duration-200"
       style={{
         borderColor: selected ? colors.border : 'var(--border)',

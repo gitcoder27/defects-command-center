@@ -18,6 +18,8 @@ import type { TodayActionTarget } from '@/types';
 export type CanonicalAppView = 'today' | 'work' | 'team' | 'desk' | 'follow-ups' | 'meetings' | 'my-day' | 'settings';
 export type LegacyAppView = 'dashboard' | 'team-tracker' | 'manager-desk';
 export type AppView = CanonicalAppView | LegacyAppView;
+export type ActiveAppView = AppView | 'not-found';
+type ResolvedAppView = CanonicalAppView | 'not-found';
 
 const loadTeamTrackerPage = () => import('@/components/team-tracker/TeamTrackerPage');
 const loadSetupWizard = () => import('@/components/setup/SetupWizard');
@@ -69,7 +71,7 @@ function canonicalizeView(view: AppView): CanonicalAppView {
   return view;
 }
 
-function pathToView(pathname: string): CanonicalAppView {
+function pathToView(pathname: string): ResolvedAppView {
   if (pathname === '/my-day' || pathname === '/my-day/') return 'my-day';
   if (pathname === '/team' || pathname === '/team/' || pathname === '/team-tracker' || pathname === '/team-tracker/') return 'team';
   if (pathname === '/desk' || pathname === '/desk/' || pathname === '/manager-desk' || pathname === '/manager-desk/') return 'desk';
@@ -78,7 +80,7 @@ function pathToView(pathname: string): CanonicalAppView {
   if (pathname === '/work' || pathname === '/work/' || pathname === '/dashboard' || pathname === '/dashboard/') return 'work';
   if (pathname === '/today' || pathname === '/today/' || pathname === '/' || pathname === '') return 'today';
   if (pathname === '/settings' || pathname === '/settings/') return 'settings';
-  return 'today';
+  return 'not-found';
 }
 
 function viewToPath(view: AppView): string {
@@ -142,6 +144,9 @@ function navigateToView(view: AppView, replace = false) {
 
 function replaceLegacyPathIfNeeded() {
   const currentView = pathToView(window.location.pathname);
+  if (currentView === 'not-found') {
+    return;
+  }
   const canonicalPath = viewToPath(currentView);
   if (window.location.pathname !== canonicalPath) {
     window.history.replaceState(null, '', canonicalPath);
@@ -205,8 +210,40 @@ function ConfigErrorState({ onRetry }: { onRetry: () => void }) {
   );
 }
 
+function NotFoundState({ onGoToday }: { onGoToday: () => void }) {
+  return (
+    <main className="flex min-h-0 flex-1 items-center justify-center px-4" style={{ background: 'var(--bg-canvas)' }}>
+      <section
+        className="w-full max-w-xl rounded-[18px] border px-6 py-8 text-center"
+        style={{
+          borderColor: 'var(--border-strong)',
+          background: 'color-mix(in srgb, var(--bg-primary) 94%, transparent)',
+        }}
+      >
+        <p className="text-[12px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>
+          404
+        </p>
+        <h1 className="mt-2 text-[24px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Workspace not found
+        </h1>
+        <p className="mt-3 text-[14px] leading-6" style={{ color: 'var(--text-secondary)' }}>
+          This LeadOS route does not match a known workspace.
+        </p>
+        <button
+          type="button"
+          onClick={onGoToday}
+          className="mt-6 rounded-lg px-4 py-2.5 text-[13px] font-semibold"
+          style={{ background: 'var(--accent)', color: '#fff' }}
+        >
+          Go to Today
+        </button>
+      </section>
+    </main>
+  );
+}
+
 interface WorkspaceShellProps {
-  activeView: AppView;
+  activeView: ActiveAppView;
   onViewChange: (view: AppView) => void;
   children: ReactNode;
 }
@@ -239,7 +276,7 @@ function AppContent() {
 
   useSyncRefreshCoordinator({ enabled: shouldCoordinateSyncRefresh });
 
-  const [activeView, setActiveView] = useState<CanonicalAppView>(() => pathToView(window.location.pathname));
+  const [activeView, setActiveView] = useState<ResolvedAppView>(() => pathToView(window.location.pathname));
   const [dashboardFilterState, setDashboardFilterState] = useState<DashboardFilterState>(DEFAULT_DASHBOARD_FILTER_STATE);
   const [todayWorkTarget, setTodayWorkTarget] = useState<{ issueKey?: string; nonce: number }>({ nonce: 0 });
   const [todayTeamTarget, setTodayTeamTarget] = useState<{ developerAccountId?: string; nonce: number }>({ nonce: 0 });
@@ -324,8 +361,9 @@ function AppContent() {
       return;
     }
 
-    setActiveView(target.view);
-    navigateToView(target.view);
+    const nextView = canonicalizeView(target.view as AppView);
+    setActiveView(nextView);
+    navigateToView(nextView);
   }, []);
 
   const replaceView = useCallback((view: AppView) => {
@@ -446,6 +484,14 @@ function AppContent() {
           }}
         />
       </Suspense>
+    );
+  }
+
+  if (activeView === 'not-found') {
+    return (
+      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
+        <NotFoundState onGoToday={() => handleViewChange('today')} />
+      </WorkspaceShell>
     );
   }
 

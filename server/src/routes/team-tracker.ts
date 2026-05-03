@@ -55,7 +55,7 @@ const dateQuerySchema = z.object({
 
 const createSavedViewSchema = z.object({
   body: z.object({
-    name: z.string().min(1).max(120),
+    name: z.string().trim().min(1).max(120),
     q: z.string().max(200).optional(),
     summaryFilter: trackerSummaryFilterSchema.optional(),
     sortBy: trackerSortSchema.optional(),
@@ -71,7 +71,7 @@ const updateSavedViewSchema = z.object({
   }),
   body: z
     .object({
-      name: z.string().min(1).max(120).optional(),
+      name: z.string().trim().min(1).max(120).optional(),
       q: z.string().max(200).optional(),
       summaryFilter: trackerSummaryFilterSchema.optional(),
       sortBy: trackerSortSchema.optional(),
@@ -99,7 +99,9 @@ const updateDaySchema = z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     status: trackerStatusSchema.optional(),
     capacityUnits: z.number().int().min(1).nullable().optional(),
-    managerNotes: z.string().optional(),
+    managerNotes: z.string().trim().optional(),
+  }).refine((value) => value.status !== undefined || value.capacityUnits !== undefined || value.managerNotes !== undefined, {
+    message: "At least one day field is required",
   }),
   query: z.any().optional(),
 });
@@ -111,7 +113,7 @@ const updateAvailabilitySchema = z.object({
   body: z.object({
     effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     state: z.enum(["active", "inactive"]),
-    note: z.string().max(500).optional(),
+    note: z.string().trim().max(500).optional(),
   }),
   query: z.any().optional(),
 });
@@ -123,8 +125,8 @@ const addItemSchema = z.object({
   body: z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     jiraKey: z.string().trim().optional(),
-    title: z.string().min(1).max(500),
-    note: z.string().max(2000).optional(),
+    title: z.string().trim().min(1).max(500),
+    note: z.string().trim().max(2000).optional(),
   }),
   query: z.any().optional(),
 });
@@ -162,11 +164,11 @@ const updateItemSchema = z.object({
     itemId: z.string().regex(/^\d+$/, "Invalid item id"),
   }),
   body: z.object({
-    title: z.string().min(1).max(500).optional(),
+    title: z.string().trim().min(1).max(500).optional(),
     state: z.enum(["planned", "in_progress", "done", "dropped"]).optional(),
-    note: z.string().max(2000).nullable().optional(),
+    note: z.string().trim().max(2000).nullable().optional(),
     position: z.number().int().min(0).optional(),
-  }),
+  }).refine((value) => Object.keys(value).length > 0, { message: "At least one item field is required" }),
   query: z.any().optional(),
 });
 
@@ -194,7 +196,7 @@ const addCheckInSchema = z.object({
   }),
   body: z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    summary: z.string().min(1).max(2000),
+    summary: z.string().trim().min(1).max(2000),
     status: trackerStatusSchema.optional(),
   }),
   query: z.any().optional(),
@@ -208,8 +210,8 @@ const statusUpdateSchema = z
     body: z.object({
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       status: trackerStatusSchema,
-      rationale: z.string().max(2000).optional(),
-      summary: z.string().max(2000).optional(),
+      rationale: z.string().trim().max(2000).optional(),
+      summary: z.string().trim().max(2000).optional(),
       nextFollowUpAt: isoDateTimeSchema.nullable().optional(),
     }),
     query: z.any().optional(),

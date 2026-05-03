@@ -254,6 +254,41 @@ describe("my day routes", () => {
     });
   });
 
+  it("POST /api/my-day/items rejects whitespace-only titles", async () => {
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/my-day/items",
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+      body: {
+        date: "2026-03-07",
+        title: "   ",
+      },
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("PATCH /api/my-day/items/:itemId rejects empty patch bodies", async () => {
+    const item = await trackerService.addItem("dev-1", "2026-03-07", {
+      title: "Investigate login issue",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "PATCH",
+      url: `/api/my-day/items/${item.id}`,
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+      body: {},
+    });
+
+    expect(res.status).toBe(400);
+  });
+
   it("POST /api/my-day/items rejects writes while the developer is inactive", async () => {
     await trackerService.updateAvailability("dev-1", {
       effectiveDate: "2026-03-07",

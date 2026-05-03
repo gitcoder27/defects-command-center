@@ -47,6 +47,10 @@ function shouldIgnoreDashboardShortcut(target: EventTarget | null): boolean {
   return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
 }
 
+function hasShortcutModifier(event: KeyboardEvent): boolean {
+  return event.ctrlKey || event.metaKey || event.altKey || event.isComposing;
+}
+
 interface DashboardLayoutProps {
   activeView?: AppView;
   onViewChange?: (view: AppView) => void;
@@ -84,7 +88,7 @@ function useDashboardShortcuts({
     };
 
     const handler = (event: KeyboardEvent) => {
-      if (shouldIgnoreDashboardShortcut(event.target)) {
+      if (hasShortcutModifier(event) || shouldIgnoreDashboardShortcut(event.target)) {
         return;
       }
 

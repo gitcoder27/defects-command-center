@@ -1,4 +1,5 @@
 import BetterSqlite3 from "better-sqlite3";
+import { encryptSecretIfNeeded, isEncryptedSecret } from "../services/secret-crypto";
 
 const ddl = `
 CREATE TABLE IF NOT EXISTS issues (
@@ -319,6 +320,81 @@ const alterStatements = [
   "CREATE INDEX IF NOT EXISTS idx_manager_desk_item_history_manager_recorded ON manager_desk_item_history(manager_account_id, recorded_at)",
 ];
 
+const constraintRepairStatements = [
+  "DELETE FROM component_map WHERE account_id IN ('dev-1', 'lead-1')",
+  "DELETE FROM developers WHERE account_id IN ('dev-1', 'lead-1')",
+  `UPDATE team_tracker_items
+   SET day_id = (
+     SELECT MIN(keeper.id)
+     FROM team_tracker_days keeper
+     JOIN team_tracker_days duplicate ON duplicate.date = keeper.date
+       AND duplicate.developer_account_id = keeper.developer_account_id
+     WHERE duplicate.id = team_tracker_items.day_id
+   )
+   WHERE day_id IN (
+     SELECT duplicate.id
+     FROM team_tracker_days duplicate
+     WHERE duplicate.id != (
+       SELECT MIN(keeper.id)
+       FROM team_tracker_days keeper
+       WHERE keeper.date = duplicate.date
+         AND keeper.developer_account_id = duplicate.developer_account_id
+     )
+   )`,
+  `UPDATE team_tracker_checkins
+   SET day_id = (
+     SELECT MIN(keeper.id)
+     FROM team_tracker_days keeper
+     JOIN team_tracker_days duplicate ON duplicate.date = keeper.date
+       AND duplicate.developer_account_id = keeper.developer_account_id
+     WHERE duplicate.id = team_tracker_checkins.day_id
+   )
+   WHERE day_id IN (
+     SELECT duplicate.id
+     FROM team_tracker_days duplicate
+     WHERE duplicate.id != (
+       SELECT MIN(keeper.id)
+       FROM team_tracker_days keeper
+       WHERE keeper.date = duplicate.date
+         AND keeper.developer_account_id = duplicate.developer_account_id
+     )
+   )`,
+  `DELETE FROM team_tracker_days
+   WHERE id != (
+     SELECT MIN(keeper.id)
+     FROM team_tracker_days keeper
+     WHERE keeper.date = team_tracker_days.date
+       AND keeper.developer_account_id = team_tracker_days.developer_account_id
+   )`,
+  `UPDATE manager_desk_items
+   SET day_id = (
+     SELECT MIN(keeper.id)
+     FROM manager_desk_days keeper
+     JOIN manager_desk_days duplicate ON duplicate.date = keeper.date
+       AND duplicate.manager_account_id = keeper.manager_account_id
+     WHERE duplicate.id = manager_desk_items.day_id
+   )
+   WHERE day_id IN (
+     SELECT duplicate.id
+     FROM manager_desk_days duplicate
+     WHERE duplicate.id != (
+       SELECT MIN(keeper.id)
+       FROM manager_desk_days keeper
+       WHERE keeper.date = duplicate.date
+         AND keeper.manager_account_id = duplicate.manager_account_id
+     )
+   )`,
+  `DELETE FROM manager_desk_days
+   WHERE id != (
+     SELECT MIN(keeper.id)
+     FROM manager_desk_days keeper
+     WHERE keeper.date = manager_desk_days.date
+       AND keeper.manager_account_id = manager_desk_days.manager_account_id
+   )`,
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_tracker_days_unique_date_developer ON team_tracker_days(date, developer_account_id)",
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_manager_desk_days_unique_date_manager ON manager_desk_days(date, manager_account_id)",
+];
+
 function isExpectedMigrationError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /duplicate column name/i.test(message);
@@ -335,4 +411,22 @@ export function migrate(sqlite: BetterSqlite3.Database): void {
       }
     }
   }
+  for (const stmt of constraintRepairStatements) {
+    sqlite.exec(stmt);
+  }
+  migrateSecretConfigValues(sqlite);
+}
+
+function migrateSecretConfigValues(sqlite: BetterSqlite3.Database): void {
+  const row = sqlite
+    .prepare("SELECT value FROM config WHERE key = ?")
+    .get("jira_api_token") as { value?: string } | undefined;
+  const value = row?.value;
+  if (!value || isEncryptedSecret(value)) {
+    return;
+  }
+
+  sqlite
+    .prepare("UPDATE config SET value = ? WHERE key = ?")
+    .run(encryptSecretIfNeeded(value), "jira_api_token");
 }

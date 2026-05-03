@@ -3,13 +3,7 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "..",
-    "types": [
-      "node",
-      "vitest/globals"
-    ]
+    "types": ["node"]
   },
-  "include": [
-    "src",
-    "../shared/types.ts"
-  ]
+  "include": ["src", "../shared/types.ts"]
 }

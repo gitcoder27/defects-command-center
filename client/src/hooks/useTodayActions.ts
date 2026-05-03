@@ -20,6 +20,7 @@ interface UseTodayActionsOptions {
 type TodayActionVariables = {
   command: TodayActionCommand;
   title?: string;
+  outcome?: string;
   preset?: 'later_today' | 'tomorrow' | 'next_week';
   summary?: string;
 };
@@ -123,7 +124,7 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
   };
 
   const mutation = useMutation({
-    mutationFn: async ({ command, preset, summary }: TodayActionVariables) => {
+    mutationFn: async ({ command, outcome, preset, summary, title }: TodayActionVariables) => {
       const { target } = command;
 
       if (command.kind === 'open' || command.kind === 'assign_owner' || command.kind === 'ask_check_in') {
@@ -156,7 +157,6 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
       }
 
       if (command.kind === 'capture_follow_up') {
-        const title = window.prompt('Follow-up title', defaultFollowUpTitle(target));
         if (!title?.trim()) {
           return { cancelled: true };
         }
@@ -172,7 +172,6 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
       }
 
       if (command.kind === 'capture_meeting_outcome' && target.managerDeskItemId) {
-        const outcome = window.prompt('Meeting outcome');
         if (!outcome?.trim()) {
           return { cancelled: true };
         }
@@ -223,8 +222,8 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
   });
 
   return {
-    runAction: (command: TodayActionCommand, preset?: TodayActionVariables['preset'], summary?: string) =>
-      mutation.mutate({ command, preset, summary }),
+    runAction: (command: TodayActionCommand, options: Omit<TodayActionVariables, 'command'> = {}) =>
+      mutation.mutate({ command, ...options }),
     isPending: mutation.isPending,
     pendingKind: mutation.variables?.command.kind,
     pendingTarget: mutation.variables?.command.target,
@@ -268,16 +267,6 @@ function buildFollowUpPayload(date: string, target: TodayActionTarget, title: st
     contextNote: target.trackerItemId ? `Tracker item ${target.trackerItemId}` : undefined,
     links,
   };
-}
-
-function defaultFollowUpTitle(target: TodayActionTarget): string {
-  if (target.issueKey) {
-    return `Follow up on ${target.issueKey}`;
-  }
-  if (target.developerAccountId) {
-    return 'Follow up with developer';
-  }
-  return 'Follow up';
 }
 
 function actionToastTitle(kind: TodayActionCommand['kind']): string {

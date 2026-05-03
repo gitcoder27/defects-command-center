@@ -11,6 +11,7 @@ import { TodayCurrentPriority } from './TodayCurrentPriority';
 import { TodayPeoplePulse } from './TodayPeoplePulse';
 import { TodayRhythmHeader } from './TodayRhythmHeader';
 import { TodayRhythmRail } from './TodayRhythmRail';
+import { TodayTextCaptureDialog } from './TodayTextCaptureDialog';
 
 interface TodayPageProps {
   onViewChange: (view: AppView) => void;
@@ -24,6 +25,15 @@ export function TodayPage({ onViewChange, onSelectWorkFilter, onOpenTodayTarget 
     command: TodayActionCommand;
     developerName: string;
     defaultSummary: string;
+  } | null>(null);
+  const [textDraft, setTextDraft] = useState<{
+    command: TodayActionCommand;
+    title: string;
+    description: string;
+    label: string;
+    defaultValue: string;
+    saveLabel: string;
+    multiline?: boolean;
   } | null>(null);
   const today = useToday(date);
   const snapshot = today.data;
@@ -58,7 +68,32 @@ export function TodayPage({ onViewChange, onSelectWorkFilter, onOpenTodayTarget 
       return;
     }
 
-    actions.runAction(command, preset);
+    if (command.kind === 'capture_follow_up') {
+      setTextDraft({
+        command,
+        title: 'Capture follow-up',
+        description: 'Save a Manager Desk follow-up without leaving Today.',
+        label: 'Follow-up title',
+        defaultValue: defaultFollowUpTitle(command.target),
+        saveLabel: 'Save follow-up',
+      });
+      return;
+    }
+
+    if (command.kind === 'capture_meeting_outcome') {
+      setTextDraft({
+        command,
+        title: 'Capture meeting outcome',
+        description: 'Mark the meeting complete and save the outcome to Manager Desk.',
+        label: 'Meeting outcome',
+        defaultValue: '',
+        saveLabel: 'Save outcome',
+        multiline: true,
+      });
+      return;
+    }
+
+    actions.runAction(command, { preset });
   };
 
   return (
@@ -119,8 +154,27 @@ export function TodayPage({ onViewChange, onSelectWorkFilter, onOpenTodayTarget 
           isSaving={actions.isPending && actions.pendingKind === 'add_check_in'}
           onClose={() => setCheckInDraft(null)}
           onSave={(summary) => {
-            actions.runAction(checkInDraft.command, undefined, summary);
+            actions.runAction(checkInDraft.command, { summary });
             setCheckInDraft(null);
+          }}
+        />
+      ) : null}
+      {textDraft ? (
+        <TodayTextCaptureDialog
+          title={textDraft.title}
+          description={textDraft.description}
+          label={textDraft.label}
+          defaultValue={textDraft.defaultValue}
+          saveLabel={textDraft.saveLabel}
+          multiline={textDraft.multiline}
+          isSaving={actions.isPending && actions.pendingKind === textDraft.command.kind}
+          onClose={() => setTextDraft(null)}
+          onSave={(value) => {
+            actions.runAction(textDraft.command, {
+              title: textDraft.command.kind === 'capture_follow_up' ? value : undefined,
+              outcome: textDraft.command.kind === 'capture_meeting_outcome' ? value : undefined,
+            });
+            setTextDraft(null);
           }}
         />
       ) : null}
@@ -191,4 +245,14 @@ function buildDefaultCheckInSummary(snapshot: TodayResponse | undefined, target:
   }
 
   return `Manager check-in: ${actionMatch.signal}`;
+}
+
+function defaultFollowUpTitle(target: TodayActionTarget): string {
+  if (target.issueKey) {
+    return `Follow up on ${target.issueKey}`;
+  }
+  if (target.developerAccountId) {
+    return 'Follow up with developer';
+  }
+  return 'Follow up';
 }

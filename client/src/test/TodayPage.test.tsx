@@ -174,6 +174,56 @@ describe('TodayPage V2', () => {
     });
   });
 
+  it('captures a follow-up through the Today dialog instead of a native prompt', async () => {
+    const promptSpy = vi.spyOn(window, 'prompt');
+    const fetchMock = mockFetch(todayResponse());
+    renderToday();
+
+    fireEvent.click((await screen.findAllByLabelText('More actions'))[0]!);
+    fireEvent.click(screen.getAllByRole('button', { name: /^follow up$/i })[0]!);
+    expect(await screen.findByRole('dialog', { name: /capture follow-up/i })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Follow-up title'), { target: { value: 'Check API rollout' } });
+    fireEvent.click(screen.getByRole('button', { name: /save follow-up/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/manager-desk/items', expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('Check API rollout'),
+      }));
+    });
+    expect(promptSpy).not.toHaveBeenCalled();
+  });
+
+  it('captures a meeting outcome through the Today dialog', async () => {
+    const meetingTarget = target({ type: 'meeting', view: 'meetings', managerDeskItemId: 91, date: '2026-03-08' });
+    const fetchMock = mockFetch(todayResponse({
+      meetingPrompts: [
+        {
+          id: 'meeting-91',
+          title: 'Payments sync',
+          detail: 'Outcome missing',
+          severity: 'warning',
+          target: meetingTarget,
+          primaryAction: command('capture_meeting_outcome', 'Capture outcome', meetingTarget),
+          secondaryActions: [],
+        },
+      ],
+    }));
+    renderToday();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^meetings 1$/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /capture outcome/i }));
+    fireEvent.change(screen.getByLabelText('Meeting outcome'), { target: { value: 'Decision approved' } });
+    fireEvent.click(screen.getByRole('button', { name: /save outcome/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/manager-desk/items/91', expect.objectContaining({
+        method: 'PATCH',
+        body: expect.stringContaining('Decision approved'),
+      }));
+    });
+  });
+
   it('adds a developer check-in from People Pulse', async () => {
     const fetchMock = mockFetch(todayResponse());
     renderToday();

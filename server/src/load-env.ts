@@ -11,9 +11,19 @@ function getWorkspaceRoot(): string {
 
 const workspaceRoot = getWorkspaceRoot();
 
-for (const fileName of [".env", ".env.local", ".env.development.local"]) {
+loadEnvFile({
+  path: path.resolve(workspaceRoot, ".env"),
+  override: false,
+});
+
+const nodeEnv = process.env.NODE_ENV?.trim() || "development";
+const localEnvFiles = nodeEnv === "production"
+  ? []
+  : [".env.local", `.env.${nodeEnv}.local`];
+
+for (const fileName of localEnvFiles) {
   loadEnvFile({
     path: path.resolve(workspaceRoot, fileName),
-    override: true,
+    override: false,
   });
 }

@@ -273,6 +273,8 @@ export function TeamTrackerPage({
   const {
     data: board,
     isLoading,
+    isError,
+    error,
     isFetching: isBoardFetching,
     refetch: refetchBoard,
   } = useTeamTracker(date, qs.boardQuery);
@@ -459,6 +461,26 @@ export function TeamTrackerPage({
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 pt-4">
         {isLoading ? (
           <TeamTrackerSkeleton />
+        ) : isError ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="text-[13px] font-semibold" style={{ color: 'var(--danger)' }}>
+                Could not load team tracker
+              </div>
+              <p className="mt-2 max-w-md text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+                {error instanceof Error ? error.message : 'The team tracker query failed.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => void refetchBoard()}
+                disabled={isBoardFetching}
+                className="mt-4 rounded-md px-3 py-1.5 text-[12px] font-semibold disabled:opacity-50"
+                style={{ background: 'var(--accent)', color: '#fff' }}
+              >
+                {isBoardFetching ? 'Retrying' : 'Retry'}
+              </button>
+            </div>
+          </div>
         ) : board ? (
           <div className="mx-auto max-w-[1600px]">
             {activeLens === 'team' && (

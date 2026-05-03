@@ -40,6 +40,7 @@ export function WorkspaceNavLink({
       <button
         type="button"
         onClick={onClick}
+        aria-current={active ? 'page' : undefined}
         className={`flex h-8 w-full min-w-[112px] items-center justify-center gap-1.5 rounded-lg text-[12px] font-medium transition-colors lg:min-w-[126px] ${hasNewTabAction ? 'pl-3 pr-8' : 'px-3'}`}
         style={buttonStyle}
       >

@@ -308,6 +308,8 @@ export class IssueService {
       case "all":
       case undefined:
         return activeTeamIssues();
+      default:
+        return activeTeamIssues();
     }
   }
 

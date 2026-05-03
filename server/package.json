@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "build:check": "tsc -p tsconfig.json --outDir .build-check",
+    "build:check": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/server/src/index.js",
     "backup:restore": "tsx src/scripts/restore-backup.ts",
     "manager-desk:cleanup-carry-forward": "tsx src/scripts/cleanup-manager-desk-carry-forward.ts",

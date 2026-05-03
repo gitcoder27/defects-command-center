@@ -78,6 +78,7 @@ export function QuickCapture({ onCapture, isPending, disabled = false, disabledL
         </div>
 
         <input
+          id="manager-desk-quick-capture-title"
           ref={inputRef}
           type="text"
           value={title}
@@ -93,6 +94,7 @@ export function QuickCapture({ onCapture, isPending, disabled = false, disabledL
           onBlur={() => setIsFocused(false)}
           onKeyDown={handleKeyDown}
           placeholder="Quick capture — Enter to add…"
+          aria-label="Quick capture title"
           className="flex-1 bg-transparent outline-none text-[12px] font-medium placeholder:font-normal"
           style={{
             color: 'var(--text-primary)',
@@ -127,6 +129,7 @@ export function QuickCapture({ onCapture, isPending, disabled = false, disabledL
           <div className="flex items-center gap-1">
             <Zap size={9} style={{ color: 'var(--text-muted)' }} />
             <select
+              aria-label="Quick capture kind"
               value={kind}
               onChange={e => setKind(e.target.value as ManagerDeskItemKind | '')}
               className="bg-transparent text-[11px] font-medium outline-none cursor-pointer"
@@ -144,6 +147,7 @@ export function QuickCapture({ onCapture, isPending, disabled = false, disabledL
           <div className="flex items-center gap-1">
             <Tag size={9} style={{ color: 'var(--text-muted)' }} />
             <select
+              aria-label="Quick capture category"
               value={category}
               onChange={e => setCategory(e.target.value as ManagerDeskCategory | '')}
               className="bg-transparent text-[11px] font-medium outline-none cursor-pointer"

@@ -140,8 +140,16 @@ else
   log "Checkout already matches origin/main"
 fi
 
-log "Installing dependencies"
-run_cmd npm install
+log "Installing dependencies from lockfile"
+run_cmd npm ci
+
+log "Running production validation gate"
+run_cmd npm run guard:data
+run_cmd npm run typecheck
+run_cmd npm test
+run_cmd npm run lint
+run_cmd npm run format:check
+run_cmd npm run build:check
 
 log "Building client and server"
 run_cmd npm run build

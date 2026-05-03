@@ -351,4 +351,15 @@ describe('DashboardLayout', () => {
 
     expect(screen.getByTestId('selected-key')).toHaveTextContent('PROJ-102');
   });
+
+  it('does not hijack browser shortcuts that use modifier keys', () => {
+    render(<DashboardLayout />);
+
+    fireEvent.keyDown(window, { key: 'r', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'r', metaKey: true });
+    fireEvent.keyDown(window, { key: 'ArrowDown', altKey: true });
+
+    expect(mockTriggerSync.mutate).not.toHaveBeenCalled();
+    expect(screen.getByTestId('selected-key')).toHaveTextContent('none');
+  });
 });

@@ -22,6 +22,7 @@ import { SyncEngine } from "./sync/engine";
 import { logger } from "./utils/logger";
 import { db } from "./db/connection";
 import { clearJiraApiToken, getJiraApiToken, setJiraApiToken } from "./runtime-credentials";
+import { getPersistedJiraApiToken } from "./services/jira-credentials.service";
 
 async function getConfig(key: string): Promise<string | undefined> {
   const rows = await db.select().from(configTable).where(eq(configTable.key, key)).limit(1);
@@ -40,7 +41,7 @@ async function bootstrap(): Promise<void> {
   if (config.JIRA_PROJECT_KEY) {
     await db.insert(configTable).values({ key: "jira_project_key", value: config.JIRA_PROJECT_KEY }).onConflictDoNothing();
   }
-  const persistedToken = await getConfig("jira_api_token");
+  const persistedToken = await getPersistedJiraApiToken();
   if (persistedToken) {
     setJiraApiToken(persistedToken);
   } else if (config.JIRA_API_TOKEN) {

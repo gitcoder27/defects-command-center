@@ -23,9 +23,10 @@ interface StatusSelectorProps {
   current: TrackerDeveloperStatus;
   onUpdate: (status: TrackerDeveloperStatus) => void;
   isPending?: boolean;
+  disabled?: boolean;
 }
 
-export function StatusSelector({ current, onUpdate, isPending }: StatusSelectorProps) {
+export function StatusSelector({ current, onUpdate, isPending, disabled }: StatusSelectorProps) {
   return (
     <div className="flex flex-wrap gap-2">
       {(Object.entries(statusConfig) as [TrackerDeveloperStatus, typeof statusConfig[TrackerDeveloperStatus]][]).map(
@@ -37,9 +38,10 @@ export function StatusSelector({ current, onUpdate, isPending }: StatusSelectorP
               key={key}
               whileTap={{ scale: 0.96 }}
               onClick={() => {
-                if (!isActive && !isPending) onUpdate(key);
+                if (!isActive && !isPending && !disabled) onUpdate(key);
               }}
-              disabled={isPending}
+              disabled={isPending || disabled}
+              aria-pressed={isActive}
               className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition-all disabled:opacity-60"
               style={{
                 background: isActive ? cfg.bg : 'var(--bg-tertiary)',

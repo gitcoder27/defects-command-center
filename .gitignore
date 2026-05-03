@@ -6,11 +6,15 @@ coverage/
 .env.development.local
 data/*.db
 data/*.db-*
+data/*.db.bak*
 data/**/*.db
 data/**/*.db-*
+data/**/*.db.bak*
+data/secrets/
 server/data/
 client/dist/
 server/dist/
 client/.build-check/
 server/.build-check/
+.env.production.local
 *.tsbuildinfo

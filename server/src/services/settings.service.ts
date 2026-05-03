@@ -1,10 +1,13 @@
 import { eq } from "drizzle-orm";
 import { config } from "../config";
-import { getDefaultBackupDirectory } from "../db/paths";
+import { getDefaultBackupDirectory, resolveWorkspacePath, workspaceRoot } from "../db/paths";
 import { db } from "../db/connection";
 import { configTable } from "../db/schema";
 import { JiraClient } from "../jira/client";
 import { getJiraApiToken } from "../runtime-credentials";
+import { getPersistedJiraApiToken } from "./jira-credentials.service";
+import path from "node:path";
+import { HttpError } from "../middleware/errorHandler";
 
 export const DEFAULT_SYNC_INTERVAL_MS = 300_000;
 export const DEFAULT_STALE_THRESHOLD_HOURS = 48;
@@ -48,8 +51,7 @@ export class SettingsService {
   }
 
   async getJiraToken(): Promise<string | undefined> {
-    const tokenFromDb = await this.getConfigValue("jira_api_token");
-    return tokenFromDb || getJiraApiToken() || config.JIRA_API_TOKEN;
+    return (await getPersistedJiraApiToken()) || getJiraApiToken() || config.JIRA_API_TOKEN;
   }
 
   async getJiraSyncJql(): Promise<string | undefined> {
@@ -122,7 +124,25 @@ export class SettingsService {
   }
 
   async getBackupDirectory(): Promise<string> {
-    return (await this.getConfigValue("backup_directory")) ?? getDefaultBackupDirectory();
+    const configured = await this.getConfigValue("backup_directory");
+    if (configured) {
+      await this.validateBackupDirectory(configured);
+      return configured;
+    }
+    return getDefaultBackupDirectory();
+  }
+
+  async validateBackupDirectory(targetPath: string): Promise<void> {
+    if (config.NODE_ENV !== "production") {
+      return;
+    }
+
+    const resolved = resolveWorkspacePath(targetPath);
+    const allowedRoot = path.resolve(workspaceRoot, "data", "backups");
+    const relative = path.relative(allowedRoot, resolved);
+    if (relative.startsWith("..") || path.isAbsolute(relative)) {
+      throw new HttpError(400, "Backup directory must be inside the app-owned data/backups directory");
+    }
   }
 
   async createJiraClient(): Promise<JiraClient> {

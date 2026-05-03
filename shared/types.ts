@@ -177,6 +177,17 @@ export interface AssignmentSuggestion {
   workload: DeveloperWorkload;
 }
 
+export type SyncRunStatus = "success" | "error" | "skipped";
+
+export interface SyncRunResponse {
+  status: SyncRunStatus;
+  issuesSynced: number;
+  startedAt: string;
+  completedAt: string;
+  errorMessage?: string;
+  reason?: "already_running";
+}
+
 export interface SyncStatus {
   lastSyncedAt?: string;
   status: "idle" | "syncing" | "error";

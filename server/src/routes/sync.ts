@@ -7,6 +7,10 @@ export function createSyncRouter(syncEngine: SyncEngine): Router {
   router.post("/", async (_req, res, next) => {
     try {
       const result = await syncEngine.syncNow();
+      if (result.status === "skipped") {
+        res.status(202).json(result);
+        return;
+      }
       res.json(result);
     } catch (error) {
       next(error);

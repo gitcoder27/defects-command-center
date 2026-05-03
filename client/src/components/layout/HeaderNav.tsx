@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bell, Briefcase, CalendarDays, ClipboardList, ExternalLink, Home, MoreHorizontal, type LucideIcon, Users } from 'lucide-react';
-import type { AppView } from '@/App';
+import type { ActiveAppView, AppView } from '@/App';
 import { WorkspaceNavLink } from '@/components/layout/WorkspaceNavLink';
 
 interface HeaderNavProps {
-  activeView?: AppView;
+  activeView?: ActiveAppView;
   isManager: boolean;
   onViewChange: (view: AppView) => void;
 }

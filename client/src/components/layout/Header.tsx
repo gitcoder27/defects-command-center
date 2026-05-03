@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { formatRelativeTime } from '@/lib/utils';
-import type { AppView } from '@/App';
+import type { ActiveAppView, AppView } from '@/App';
 import type { Alert } from '@/types';
 import { GlobalCaptureDialog } from '@/components/capture/GlobalCaptureDialog';
 import { HeaderNav } from '@/components/layout/HeaderNav';
@@ -15,7 +15,7 @@ import { LeadOSMark } from '@/components/brand/LeadOSMark';
 
 interface HeaderProps {
   onOpenMobileSidebar?: () => void;
-  activeView?: AppView;
+  activeView?: ActiveAppView;
   onViewChange?: (view: AppView) => void;
   onDashboardAlertClick?: (alert: Alert) => void;
 }

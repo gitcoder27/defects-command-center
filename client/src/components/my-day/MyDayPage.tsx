@@ -18,6 +18,7 @@ export function MyDayPage() {
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
 
   const { data: day, isLoading, isFetching, error, refetch } = useMyDay(date);
+  const isReadOnly = Boolean(day?.isReadOnly);
 
   const {
     handleStatusUpdate,
@@ -32,7 +33,7 @@ export function MyDayPage() {
     updateStatusPending,
     addItemPending,
     addCheckInPending,
-  } = useMyDayHandlers(date);
+  } = useMyDayHandlers(date, isReadOnly);
 
   const handleRefresh = async () => {
     try {
@@ -86,8 +87,6 @@ export function MyDayPage() {
   const completedCount = day?.completedItems.length ?? 0;
   const plannedCount = day?.plannedItems.length ?? 0;
   const totalTasks = completedCount + plannedCount + (day?.currentItem ? 1 : 0);
-  const isReadOnly = Boolean(day?.isReadOnly);
-
   return (
     <div className="h-full overflow-y-auto" style={{ background: 'var(--bg-canvas)' }}>
       <div className="max-w-[1280px] mx-auto px-4 py-6 md:px-8 md:py-8 lg:py-10">

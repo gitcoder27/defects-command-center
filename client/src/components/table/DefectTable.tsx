@@ -174,7 +174,7 @@ export function DefectTable({
   onVisibleIssueKeysChange,
 }: DefectTableProps) {
   const { theme } = useTheme();
-  const { data: issues, isLoading } = useIssues(filter, assigneeFilter, tagId, noTags);
+  const { data: issues, isLoading, isError, error, refetch, isFetching } = useIssues(filter, assigneeFilter, tagId, noTags);
   const { data: config } = useConfig();
   const { data: syncStatus } = useSyncStatus();
   const { exclude, restore } = useExcludeIssue();
@@ -376,6 +376,29 @@ export function DefectTable({
             }),
           ]
         : []),
+      columnHelper.display({
+        id: 'open',
+        header: 'Open',
+        cell: (info) => {
+          const issue = info.row.original;
+          return (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectIssue(issue.jiraKey);
+              }}
+              className="rounded-md px-2 py-1 text-[12px] font-semibold transition-colors hover:bg-[var(--bg-tertiary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-active)]"
+              style={{ color: 'var(--accent)' }}
+              aria-label={`Open triage for ${issue.jiraKey}`}
+            >
+              Open
+            </button>
+          );
+        },
+        size: 58,
+        enableSorting: false,
+      }),
       columnHelper.accessor('aspenSeverity', {
         id: 'aspenSeverity',
         header: 'Sev',
@@ -471,9 +494,15 @@ export function DefectTable({
             );
           }
           return (
-            <span data-inline-edit-trigger="assignee" onClick={(e) => handleCellClick(issue.jiraKey, 'assignee', e)}>
+            <button
+              type="button"
+              data-inline-edit-trigger="assignee"
+              onClick={(e) => handleCellClick(issue.jiraKey, 'assignee', e)}
+              className="block min-w-0 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-active)]"
+              aria-label={`Edit assignee for ${issue.jiraKey}`}
+            >
               <AssigneeCell name={info.getValue() ?? undefined} />
-            </span>
+            </button>
           );
         },
         size: 120,
@@ -493,9 +522,15 @@ export function DefectTable({
             );
           }
           return (
-            <span data-inline-edit-trigger="dueDate" onClick={(e) => handleCellClick(issue.jiraKey, 'dueDate', e)}>
+            <button
+              type="button"
+              data-inline-edit-trigger="dueDate"
+              onClick={(e) => handleCellClick(issue.jiraKey, 'dueDate', e)}
+              className="block min-w-0 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-active)]"
+              aria-label={`Edit due date for ${issue.jiraKey}`}
+            >
               <DueDateCell date={effectiveDueDate ?? undefined} />
-            </span>
+            </button>
           );
         },
         size: 100,
@@ -596,6 +631,7 @@ export function DefectTable({
         ),
         cell: (info) => <StatusBadge status={info.getValue()} />,
         size: 100,
+        enableSorting: false,
       }),
       columnHelper.accessor((row) => (hasAnalysisNotes(row) ? 1 : 0), {
         id: 'analysisStatus',
@@ -640,6 +676,7 @@ export function DefectTable({
       statusFilterOpen,
       clearStatusFilter,
       toggleStatusFilter,
+      onSelectIssue,
     ]
   );
 
@@ -711,6 +748,30 @@ export function DefectTable({
             style={{ background: 'var(--bg-secondary)' }}
           />
         ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex-1 min-w-0 min-h-0 flex items-center justify-center p-6 text-center">
+        <div>
+          <div className="text-[13px] font-semibold" style={{ color: 'var(--danger)' }}>
+            Could not load defects
+          </div>
+          <p className="mt-2 max-w-md text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+            {error instanceof Error ? error.message : 'The issue query failed.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className="mt-4 rounded-md px-3 py-1.5 text-[12px] font-semibold disabled:opacity-50"
+            style={{ background: 'var(--accent)', color: '#fff' }}
+          >
+            {isFetching ? 'Retrying' : 'Retry'}
+          </button>
+        </div>
       </div>
     );
   }
@@ -884,27 +945,39 @@ export function DefectTable({
               <thead>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        onClick={header.column.getToggleSortingHandler()}
-                        className="text-left text-[11.5px] font-semibold uppercase px-2 py-1.5 cursor-pointer select-none sticky top-0 z-30"
-                        style={{
-                          letterSpacing: '0.08em',
-                          color: 'var(--text-muted)',
-                          background: 'color-mix(in srgb, var(--bg-secondary) 94%, white 6%)',
-                          boxShadow: '0 1px 0 var(--border)',
-                          width: header.column.getSize() !== 150 ? header.column.getSize() : undefined,
-                        }}
-                      >
-                        <span className="flex items-center gap-1">
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                          {header.column.getCanSort() && (
-                            <ArrowUpDown size={10} style={{ opacity: 0.4 }} />
+                    {headerGroup.headers.map((header) => {
+                      const canSort = header.column.getCanSort();
+                      const sortState = header.column.getIsSorted();
+                      return (
+                        <th
+                          key={header.id}
+                          aria-sort={canSort ? sortState === 'asc' ? 'ascending' : sortState === 'desc' ? 'descending' : 'none' : undefined}
+                          className="text-left text-[11.5px] font-semibold uppercase px-2 py-1.5 select-none sticky top-0 z-30"
+                          style={{
+                            letterSpacing: '0.08em',
+                            color: 'var(--text-muted)',
+                            background: 'color-mix(in srgb, var(--bg-secondary) 94%, white 6%)',
+                            boxShadow: '0 1px 0 var(--border)',
+                            width: header.column.getSize() !== 150 ? header.column.getSize() : undefined,
+                          }}
+                        >
+                          {canSort ? (
+                            <button
+                              type="button"
+                              onClick={header.column.getToggleSortingHandler()}
+                              className="flex items-center gap-1 rounded-sm text-left uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-active)]"
+                            >
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                              <ArrowUpDown size={10} style={{ opacity: sortState ? 0.8 : 0.4 }} />
+                            </button>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                            </span>
                           )}
-                        </span>
-                      </th>
-                    ))}
+                        </th>
+                      );
+                    })}
                   </tr>
                 ))}
               </thead>

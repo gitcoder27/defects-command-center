@@ -309,12 +309,19 @@ function buildMockBoard(): TeamTrackerBoardResponse {
 }
 
 let mockBoard: TeamTrackerBoardResponse = buildMockBoard();
+let mockBoardQueryState = {
+  isError: false,
+  error: null as Error | null,
+  isFetching: false,
+};
 
 vi.mock('@/hooks/useTeamTracker', () => ({
   useTeamTracker: () => ({
     data: mockBoard,
     isLoading: false,
-    isFetching: false,
+    isError: mockBoardQueryState.isError,
+    error: mockBoardQueryState.error,
+    isFetching: mockBoardQueryState.isFetching,
     refetch: mockRefetchBoard,
   }),
   useCarryForwardPreview: () => ({
@@ -424,6 +431,11 @@ describe('TeamTrackerPage', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-07T12:00:00.000Z'));
     mockBoard = buildMockBoard();
+    mockBoardQueryState = {
+      isError: false,
+      error: null,
+      isFetching: false,
+    };
     mockCarryForwardMutate.mockReset();
     mockUpdateDayMutate.mockReset();
     mockUpdateAvailabilityMutate.mockReset();
@@ -490,6 +502,80 @@ describe('TeamTrackerPage', () => {
     );
     expect(screen.getAllByText('Alice Smith').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Bob Jones').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows a retryable error state when the board query fails', () => {
+    mockBoardQueryState = {
+      isError: true,
+      error: new Error('Board query failed'),
+      isFetching: false,
+    };
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText('Could not load team tracker')).toBeInTheDocument();
+    expect(screen.getByText('Board query failed')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^retry$/i }));
+    expect(mockRefetchBoard).toHaveBeenCalled();
+  });
+
+  it('gives the availability dialog modal semantics, Escape close, and focus restoration', async () => {
+    const { AvailabilityDialog } = await import('@/components/team-tracker/AvailabilityDialog');
+    const onClose = vi.fn();
+    const onConfirm = vi.fn();
+    const { rerender } = render(
+      <>
+        <button type="button">Before dialog</button>
+        <AvailabilityDialog
+          open={false}
+          developerName="Alice Smith"
+          date="2026-03-07"
+          onClose={onClose}
+          onConfirm={onConfirm}
+        />
+      </>
+    );
+
+    const beforeButton = screen.getByRole('button', { name: /before dialog/i });
+    beforeButton.focus();
+    rerender(
+      <>
+        <button type="button">Before dialog</button>
+        <AvailabilityDialog
+          open
+          developerName="Alice Smith"
+          date="2026-03-07"
+          onClose={onClose}
+          onConfirm={onConfirm}
+        />
+      </>
+    );
+    vi.runOnlyPendingTimers();
+
+    const dialog = screen.getByRole('dialog', { name: /mark alice smith inactive/i });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(screen.getByRole('button', { name: /close inactive dialog/i })).toHaveFocus();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalled();
+
+    rerender(
+      <>
+        <button type="button">Before dialog</button>
+        <AvailabilityDialog
+          open={false}
+          developerName="Alice Smith"
+          date="2026-03-07"
+          onClose={onClose}
+          onConfirm={onConfirm}
+        />
+      </>
+    );
+    expect(screen.getByRole('button', { name: /before dialog/i })).toHaveFocus();
   });
 
   it('renders summary strip with counts', () => {

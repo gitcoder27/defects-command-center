@@ -7,6 +7,8 @@ import { db, rawDb } from "../src/db/connection";
 import { migrate } from "../src/db/migrate";
 import { BackupService } from "../src/services/backup.service";
 import { SettingsService } from "../src/services/settings.service";
+import { storeJiraApiToken } from "../src/services/jira-credentials.service";
+import { isEncryptedSecret } from "../src/services/secret-crypto";
 import { resetDatabase } from "./helpers/db";
 
 const testBackupDirectory = path.resolve("/tmp", "lead-os-test-backups");
@@ -73,6 +75,28 @@ describe("BackupService", () => {
         | { jira_key: string; summary: string }
         | undefined;
       expect(row).toEqual({ jira_key: "AM-1", summary: "Backup me" });
+    } finally {
+      restored.close();
+    }
+  });
+
+  it("copies encrypted Jira tokens without leaking plaintext into backup files", async () => {
+    await storeJiraApiToken("super-secret-token");
+
+    const backupService = createBackupService();
+    const backup = await backupService.createManualBackup("secret-check");
+    const backupBytes = fs.readFileSync(backup.path);
+
+    expect(backupBytes.includes(Buffer.from("super-secret-token"))).toBe(false);
+
+    const restored = new Database(backup.path, { readonly: true, fileMustExist: true });
+    try {
+      const row = restored.prepare("SELECT value FROM config WHERE key = ?").get("jira_api_token") as
+        | { value: string }
+        | undefined;
+      expect(row?.value).toBeDefined();
+      expect(row?.value).not.toBe("super-secret-token");
+      expect(isEncryptedSecret(row!.value)).toBe(true);
     } finally {
       restored.close();
     }

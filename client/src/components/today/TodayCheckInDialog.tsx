@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { MessageSquare, X } from 'lucide-react';
 
 interface TodayCheckInDialogProps {
@@ -19,18 +19,46 @@ export function TodayCheckInDialog({
   const [summary, setSummary] = useState(defaultSummary);
   const titleId = useId();
   const descriptionId = useId();
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const canSave = summary.trim().length > 0 && !isSaving;
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    textAreaRef.current?.focus();
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+    return () => {
+      previousFocusRef.current?.focus();
+    };
+  }, []);
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+
+    if (event.key !== 'Tab' || !dialogRef.current) {
+      return;
+    }
+
+    const focusable = getFocusableElements(dialogRef.current);
+    if (focusable.length === 0) {
+      return;
+    }
+
+    const first = focusable[0]!;
+    const last = focusable[focusable.length - 1]!;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center px-4">
@@ -42,6 +70,7 @@ export function TodayCheckInDialog({
         onClick={onClose}
       />
       <section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -52,6 +81,7 @@ export function TodayCheckInDialog({
           borderColor: 'var(--border-strong)',
           boxShadow: '0 24px 80px rgba(0, 0, 0, 0.36)',
         }}
+        onKeyDown={handleKeyDown}
       >
         <div className="flex items-start justify-between gap-3 border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
           <div className="flex min-w-0 items-start gap-3">
@@ -90,7 +120,7 @@ export function TodayCheckInDialog({
               Check-in note
             </span>
             <textarea
-              autoFocus
+              ref={textAreaRef}
               value={summary}
               onChange={(event) => setSummary(event.target.value)}
               rows={4}
@@ -126,5 +156,13 @@ export function TodayCheckInDialog({
         </div>
       </section>
     </div>
+  );
+}
+
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+    ),
   );
 }

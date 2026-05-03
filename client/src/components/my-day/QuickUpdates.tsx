@@ -6,14 +6,15 @@ import type { TrackerDeveloperStatus } from '@/types';
 interface QuickUpdatesProps {
   onAddCheckIn: (summary: string, status?: TrackerDeveloperStatus) => void;
   isPending?: boolean;
+  disabled?: boolean;
 }
 
-export function QuickUpdates({ onAddCheckIn, isPending }: QuickUpdatesProps) {
+export function QuickUpdates({ onAddCheckIn, isPending, disabled }: QuickUpdatesProps) {
   const [draft, setDraft] = useState('');
 
   const handleSubmit = () => {
     const text = draft.trim();
-    if (!text) return;
+    if (!text || disabled) return;
     onAddCheckIn(text);
     setDraft('');
   };
@@ -42,6 +43,8 @@ export function QuickUpdates({ onAddCheckIn, isPending }: QuickUpdatesProps) {
             }
           }}
           placeholder="Quick update... what's happening?"
+          aria-label="Quick update"
+          disabled={disabled}
           rows={2}
           className="w-full text-[14px] outline-none resize-none bg-transparent"
           style={{
@@ -54,8 +57,9 @@ export function QuickUpdates({ onAddCheckIn, isPending }: QuickUpdatesProps) {
           </span>
           <motion.button
             whileTap={{ scale: 0.95 }}
+            type="button"
             onClick={handleSubmit}
-            disabled={!draft.trim() || isPending}
+            disabled={!draft.trim() || isPending || disabled}
             className="flex items-center gap-2 rounded-xl px-4 py-1.5 text-[13px] font-bold transition-all disabled:opacity-40 tracking-wide uppercase"
             style={{
               background: draft.trim() ? 'var(--accent-glow)' : 'var(--bg-tertiary)',

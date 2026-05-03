@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CalendarX, X } from 'lucide-react';
 
@@ -20,12 +20,62 @@ export function AvailabilityDialog({
   onConfirm,
 }: AvailabilityDialogProps) {
   const [note, setNote] = useState('');
+  const titleId = useId();
+  const descriptionId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (open) {
       setNote('');
+      previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+    } else {
+      previousFocusRef.current?.focus();
+      previousFocusRef.current = null;
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key !== 'Tab' || !dialogRef.current) {
+        return;
+      }
+
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+        )
+      );
+      if (focusable.length === 0) {
+        return;
+      }
+
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, open]);
 
   return (
     <AnimatePresence>
@@ -40,6 +90,11 @@ export function AvailabilityDialog({
             onClick={onClose}
           />
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={descriptionId}
             initial={{ opacity: 0, y: 18, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -56,15 +111,16 @@ export function AvailabilityDialog({
                   <CalendarX size={18} />
                 </div>
                 <div>
-                  <div className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  <div id={titleId} className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                     Mark {developerName} inactive
                   </div>
-                  <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+                  <div id={descriptionId} className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
                     Hidden from {date} onward until reactivated.
                   </div>
                 </div>
               </div>
               <button
+                ref={closeButtonRef}
                 type="button"
                 onClick={onClose}
                 className="flex h-8 w-8 items-center justify-center rounded-xl"

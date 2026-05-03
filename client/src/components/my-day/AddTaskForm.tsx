@@ -8,9 +8,10 @@ import { formatDate } from '@/lib/utils';
 interface AddTaskFormProps {
   onAdd: (params: { title: string; jiraKey?: string; note?: string }) => void;
   isPending?: boolean;
+  disabled?: boolean;
 }
 
-export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
+export function AddTaskForm({ onAdd, isPending, disabled }: AddTaskFormProps) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
@@ -43,7 +44,7 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
 
   const handleSubmit = () => {
     const trimmedTitle = title.trim();
-    if (!trimmedTitle) {
+    if (!trimmedTitle || disabled) {
       return;
     }
 
@@ -61,6 +62,7 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
         whileTap={{ scale: 0.96 }}
         type="button"
         onClick={() => setOpen(true)}
+        disabled={disabled}
         className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-medium transition-colors"
         style={{
           color: 'var(--text-secondary)',
@@ -86,14 +88,16 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
       }}
     >
       <div>
-        <div className="text-[12px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+        <label htmlFor="my-day-task-title" className="block text-[12px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
           Task
-        </div>
+        </label>
         <input
+          id="my-day-task-title"
           type="text"
           autoFocus
           value={title}
           onChange={(event) => setTitle(event.target.value)}
+          disabled={disabled}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
               event.preventDefault();
@@ -121,6 +125,7 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
           <button
             type="button"
             onClick={() => setJiraPickerOpen((current) => !current)}
+            disabled={disabled}
             className="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold"
             style={{
               color: 'var(--accent)',
@@ -178,10 +183,13 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
                 style={{ color: 'var(--text-muted)' }}
               />
               <input
+                id="my-day-jira-search"
                 type="text"
                 value={jiraSearch}
                 onChange={(event) => setJiraSearch(event.target.value)}
+                disabled={disabled}
                 placeholder="Search by key or summary..."
+                aria-label="Search Jira issues"
                 className="w-full rounded-lg pl-8 pr-3 py-2 text-[13px] outline-none"
                 style={{
                   background: 'var(--bg-tertiary)',
@@ -244,12 +252,14 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
       </div>
 
       <div>
-        <div className="text-[12px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+        <label htmlFor="my-day-task-notes" className="block text-[12px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
           Notes
-        </div>
+        </label>
         <textarea
+          id="my-day-task-notes"
           value={note}
           onChange={(event) => setNote(event.target.value)}
+          disabled={disabled}
           rows={2}
           placeholder="Optional context or handoff detail"
           className="w-full rounded-lg px-3 py-2 text-[13px] outline-none resize-none"
@@ -266,7 +276,7 @@ export function AddTaskForm({ onAdd, isPending }: AddTaskFormProps) {
           whileTap={{ scale: 0.95 }}
           type="button"
           onClick={handleSubmit}
-          disabled={!title.trim() || isPending}
+          disabled={!title.trim() || isPending || disabled}
           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-all disabled:opacity-40"
           style={{
             background: 'var(--accent-glow)',

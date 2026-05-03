@@ -297,6 +297,23 @@ describe('App', () => {
     expect(window.location.pathname).toBe('/meetings');
   });
 
+  it('renders a not-found state for unknown manager routes without rewriting the URL', async () => {
+    window.history.pushState(null, '', '/does-not-exist');
+    useAuthMock.mockReturnValue({
+      user: { role: 'manager' },
+      isLoading: false,
+      isAuthenticated: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshSession: vi.fn(),
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /workspace not found/i })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/does-not-exist');
+  });
+
   it('preserves work filters when switching away and back without refreshing', async () => {
     window.history.pushState(null, '', '/work');
     useAuthMock.mockReturnValue({

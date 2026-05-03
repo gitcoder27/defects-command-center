@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Target, ListTodo, Activity } from 'lucide-react';
-import type { TrackerDeveloperStatus, TrackerWorkItem, TrackerCheckIn } from '@/types';
+import type { MyDayResponse } from '@/types';
 import { MyDayDateControl } from './MyDayDateControl';
 import { PlannedQueue } from './PlannedQueue';
 import { AddTaskForm } from './AddTaskForm';
@@ -9,14 +9,14 @@ import { RecentActivity } from './RecentActivity';
 interface MyDayRightColumnProps {
   date: string;
   setDate: (date: string | ((d: string) => string)) => void;
-  day: any;
+  day: MyDayResponse | undefined;
   handleSetCurrent: (id: number) => void;
   handleMarkDone: (id: number) => void;
   handleDrop: (id: number) => void;
   handleReorder: (id: number, pos: number) => void;
   handleUpdateItemNote: (id: number, note: string | null) => void;
   handleUpdateItemTitle: (id: number, title: string) => void;
-  handleAddItem: (params: any) => void;
+  handleAddItem: (params: { title: string; jiraKey?: string; note?: string }) => void;
   addItemPending: boolean;
   completedCount: number;
   totalTasks: number;
@@ -53,7 +53,7 @@ export function MyDayRightColumn({
         totalTasks={totalTasks}
       />
 
-      <motion.section variants={sectionVariants} className={readOnly ? 'pointer-events-none opacity-60' : undefined}>
+      <motion.section variants={sectionVariants} className={readOnly ? 'opacity-60' : undefined} aria-disabled={readOnly}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <ListTodo size={14} style={{ color: 'var(--text-muted)' }} />
@@ -73,9 +73,10 @@ export function MyDayRightColumn({
           onReorder={handleReorder}
           onUpdateNote={handleUpdateItemNote}
           onUpdateTitle={handleUpdateItemTitle}
+          readOnly={readOnly}
         />
         <div className="mt-2">
-          <AddTaskForm onAdd={handleAddItem} isPending={addItemPending} />
+          <AddTaskForm onAdd={handleAddItem} isPending={addItemPending} disabled={readOnly} />
         </div>
       </motion.section>
 

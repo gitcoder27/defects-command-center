@@ -26,6 +26,7 @@ interface TrackerItemRowProps {
   showDetailsToggle?: boolean;
   actionPreset?: TrackerItemActionPreset;
   hideActions?: boolean;
+  readOnly?: boolean;
 }
 
 const stateIcons: Record<TrackerItemState, { icon: typeof Play; color: string }> = {
@@ -53,6 +54,7 @@ export function TrackerItemRow({
   showDetailsToggle = false,
   actionPreset = 'default',
   hideActions = false,
+  readOnly = false,
 }: TrackerItemRowProps) {
   const [noteEditing, setNoteEditing] = useState(false);
   const [draftNote, setDraftNote] = useState(item.note ?? '');
@@ -75,14 +77,14 @@ export function TrackerItemRow({
   const isLinked = Boolean(item.managerDeskItemId);
   const isDrawerPlanned = variant === 'drawer-planned';
   const canOpen = Boolean(onOpen) && !noteEditing && !titleEditing;
-  const isTitleEditable = !compact && Boolean(onUpdateTitle) && !isDone && !isLinked;
+  const isTitleEditable = !readOnly && !compact && Boolean(onUpdateTitle) && !isDone && !isLinked;
   const hasExplicitTitleEditAction = isTitleEditable && Boolean(onOpen);
   const isInlineTitleEditable = isTitleEditable && !hasExplicitTitleEditAction;
   const canShowDetails = showDetailsToggle && !compact && !canOpen;
   const detailsRegionId = `tracker-item-details-${item.id}`;
   const jiraLabel = item.jiraSummary && item.jiraSummary !== item.title ? `${item.jiraKey} · ${item.jiraSummary}` : item.jiraKey;
   const jiraMeta = [item.jiraPriorityName, item.jiraDueDate ? `Due ${formatDate(item.jiraDueDate)}` : undefined].filter(Boolean).join(' • ');
-  const resolvedActionPreset = hideActions ? 'none' : actionPreset;
+  const resolvedActionPreset = hideActions || readOnly ? 'none' : actionPreset;
 
   const commitTitle = () => {
     const trimmed = draftTitle.trim();

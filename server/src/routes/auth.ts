@@ -4,6 +4,7 @@ import type { AuthBootstrapResponse, AuthSessionResponse, AuthUser } from "share
 import { validate } from "../middleware/validate";
 import { requireAuth, requireManager } from "../middleware/auth";
 import { AuthService, clearSessionCookie, serializeSessionCookie, SESSION_COOKIE_NAME } from "../services/auth.service";
+import { HttpError } from "../middleware/errorHandler";
 
 const loginSchema = z.object({
   body: z.object({
@@ -44,8 +45,45 @@ const deleteUserSchema = z.object({
   query: z.any().optional(),
 });
 
+class AuthAttemptThrottle {
+  private readonly attempts = new Map<string, { failures: number; lockedUntil?: number; lastFailureAt: number }>();
+
+  assertAllowed(key: string): void {
+    const attempt = this.attempts.get(key);
+    if (!attempt?.lockedUntil) {
+      return;
+    }
+    if (attempt.lockedUntil <= Date.now()) {
+      this.attempts.delete(key);
+      return;
+    }
+    throw new HttpError(429, "Too many failed attempts. Try again later.");
+  }
+
+  recordSuccess(key: string): void {
+    this.attempts.delete(key);
+  }
+
+  recordFailure(key: string): void {
+    const now = Date.now();
+    const previous = this.attempts.get(key);
+    const failures = previous && now - previous.lastFailureAt < 15 * 60_000
+      ? previous.failures + 1
+      : 1;
+    const lockedUntil = failures >= 5
+      ? now + Math.min(15 * 60_000, (failures - 4) * 30_000)
+      : undefined;
+    this.attempts.set(key, { failures, lockedUntil, lastFailureAt: now });
+  }
+}
+
+function throttleKey(req: { ip?: string; socket?: { remoteAddress?: string } }, username: string): string {
+  return `${req.ip ?? req.socket?.remoteAddress ?? "unknown"}:${username.trim().toLowerCase()}`;
+}
+
 export function createAuthRouter(authService: AuthService): Router {
   const router = Router();
+  const throttle = new AuthAttemptThrottle();
 
   router.get("/bootstrap", async (_req, res, next) => {
     try {
@@ -63,7 +101,10 @@ export function createAuthRouter(authService: AuthService): Router {
   router.post("/login", validate(loginSchema), async (req, res, next) => {
     try {
       const { username, password } = req.body;
+      const key = throttleKey(req, username);
+      throttle.assertAllowed(key);
       const result = await authService.authenticate(username, password);
+      throttle.recordSuccess(key);
       res.setHeader(
         "Set-Cookie",
         serializeSessionCookie(result.sessionId, authService.sessionMaxAgeSeconds)
@@ -71,6 +112,9 @@ export function createAuthRouter(authService: AuthService): Router {
       const response: AuthSessionResponse = { user: result.user };
       res.json(response);
     } catch (error) {
+      if (req.body?.username && error instanceof HttpError && error.status === 401) {
+        throttle.recordFailure(throttleKey(req, req.body.username));
+      }
       next(error);
     }
   });
@@ -126,9 +170,15 @@ export function createAuthRouter(authService: AuthService): Router {
   router.post("/change-password", validate(changePasswordSchema), async (req, res, next) => {
     try {
       const { username, currentPassword, newPassword } = req.body;
+      const key = throttleKey(req, username);
+      throttle.assertAllowed(key);
       await authService.changePassword(username, currentPassword, newPassword);
+      throttle.recordSuccess(key);
       res.json({ ok: true });
     } catch (error) {
+      if (req.body?.username && error instanceof HttpError && error.status === 401) {
+        throttle.recordFailure(throttleKey(req, req.body.username));
+      }
       next(error);
     }
   });

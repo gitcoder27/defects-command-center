@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const issues = sqliteTable("issues", {
   jiraKey: text("jira_key").primaryKey(),
@@ -125,7 +125,9 @@ export const teamTrackerDays = sqliteTable("team_tracker_days", {
   statusUpdatedAt: text("status_updated_at"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
-});
+}, (table) => [
+  uniqueIndex("idx_tracker_days_unique_date_developer").on(table.date, table.developerAccountId),
+]);
 
 export const developerAvailabilityPeriods = sqliteTable("developer_availability_periods", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -184,7 +186,9 @@ export const managerDeskDays = sqliteTable("manager_desk_days", {
   managerAccountId: text("manager_account_id").notNull(),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
-});
+}, (table) => [
+  uniqueIndex("idx_manager_desk_days_unique_date_manager").on(table.date, table.managerAccountId),
+]);
 
 export const managerDeskItems = sqliteTable("manager_desk_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),

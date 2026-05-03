@@ -10,6 +10,7 @@ interface CurrentTaskProps {
   onUpdateNote?: (id: number, note: string | null) => void;
   onUpdateTitle?: (id: number, title: string) => void;
   hasPlannedItems?: boolean;
+  readOnly?: boolean;
 }
 
 export function CurrentTask({
@@ -19,6 +20,7 @@ export function CurrentTask({
   onUpdateNote,
   onUpdateTitle,
   hasPlannedItems,
+  readOnly,
 }: CurrentTaskProps) {
   if (!item) {
     return (
@@ -95,6 +97,7 @@ export function CurrentTask({
               onUpdateTitle={onUpdateTitle}
               onMarkDone={onMarkDone}
               onDrop={onDrop}
+              readOnly={readOnly}
             />
           </div>
         </div>
