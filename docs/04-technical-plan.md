@@ -36,7 +36,7 @@
 ## 2. Repository Structure
 
 ```
-defects-dashboard/
+lead-os/
 ├── docs/                          # Project documentation
 │   ├── 01-PRD.md
 │   ├── 02-system-design.md

@@ -90,9 +90,9 @@ Windows users can use `run-node20.ps1` modes:
 - The backend performs startup migration, backup initialization, and scheduled Jira sync bootstrapping in `server/src/index.ts`.
 - Default runtime storage lives under repo-root `data/`, not `server/data/`.
 - Production backend serves the built SPA for non-API routes when `client/dist` exists.
-- On this VPS, this checkout at `/home/ubuntu/Development/defects-command-center` is the development workspace. The live production checkout is `/home/ubuntu/apps/defects-command-center-prod`.
+- On this VPS, this checkout at `/home/ubuntu/Development/lead-os` is the development workspace. The live production checkout is `/home/ubuntu/apps/lead-os-prod`.
 - Development and production are intentionally separated by both working directory and SQLite path. Development uses this checkout's local `data/` area, while production uses the production checkout's `data/` area.
-- Safe local validation in the development workspace should prefer `npm run typecheck` or `npm run build:check`. Production deploys should be run only from `/home/ubuntu/apps/defects-command-center-prod`.
+- Safe local validation in the development workspace should prefer `npm run typecheck` or `npm run build:check`. Production deploys should be run only from `/home/ubuntu/apps/lead-os-prod`.
 
 ## Commit & Pull Request Guidelines
 - Follow Conventional Commit style (`feat:`, `fix:`, `chore:`) with concise imperative summaries.
@@ -104,9 +104,9 @@ Windows users can use `run-node20.ps1` modes:
 - Do not commit secrets; use `.env.example` as the template for local `.env`.
 
 ## Worktree Workflow
-- Main integration workspace: `/home/ubuntu/Development/defects-command-center` on `main`. Keep this as the Cursor/testing workspace.
-- Codex worktree A: `/home/ubuntu/Development/defects-command-center-codex-a` on `task/codex-a`.
-- Codex worktree B: `/home/ubuntu/Development/defects-command-center-codex-b` on `task/codex-b`.
+- Main integration workspace: `/home/ubuntu/Development/lead-os` on `main`. Keep this as the Cursor/testing workspace.
+- Codex worktree A: `/home/ubuntu/Development/lead-os-codex-a` on `task/codex-a`.
+- Codex worktree B: `/home/ubuntu/Development/lead-os-codex-b` on `task/codex-b`.
 - Start each checkout from its own root with `npm run dev`; ports come from that checkout's root `.env` and optional `.env.local`.
 - Safe validation: `npm run typecheck`, `npm run build:check`, `npm run test`, `npm run test --workspace=client`.
 - Keep branches task-scoped and small. Do not broaden a worktree change beyond the assigned task.

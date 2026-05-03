@@ -21,12 +21,12 @@ Run these checks at least 2 to 3 times per day during the initial rollout window
 ### 1. Confirm Core Services Are Running
 
 ```bash
-sudo systemctl status defects-dashboard nginx --no-pager
+sudo systemctl status lead-os nginx --no-pager
 ```
 
 Expected:
 
-- `defects-dashboard` is `active (running)`
+- `lead-os` is `active (running)`
 - `nginx` is `active (running)`
 
 ### 2. Confirm Public URLs Respond
@@ -46,7 +46,7 @@ Expected:
 ### 3. Review Recent App Logs
 
 ```bash
-sudo journalctl -u defects-dashboard -n 100 --no-pager
+sudo journalctl -u lead-os -n 100 --no-pager
 ```
 
 Watch for repeated errors such as:
@@ -76,7 +76,7 @@ Watch for:
 Follow the app logs live:
 
 ```bash
-sudo journalctl -u defects-dashboard -f
+sudo journalctl -u lead-os -f
 ```
 
 While watching logs:
@@ -96,7 +96,7 @@ ps -o pid,ppid,%cpu,%mem,cmd -C node -C nginx
 Run:
 
 ```bash
-sudo systemctl status defects-dashboard --no-pager
+sudo systemctl status lead-os --no-pager
 curl -I https://manager.daycommand.online
 curl -I https://developer.daycommand.online/my-day
 curl -s https://manager.daycommand.online/api/health
@@ -114,8 +114,8 @@ Then verify manually in the browser:
 If the app appears down:
 
 ```bash
-sudo systemctl restart defects-dashboard
-sudo systemctl status defects-dashboard --no-pager
+sudo systemctl restart lead-os
+sudo systemctl status lead-os --no-pager
 ```
 
 If the app is up but public traffic behaves incorrectly:

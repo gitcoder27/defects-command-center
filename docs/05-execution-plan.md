@@ -44,10 +44,10 @@ This document breaks the entire Phase 1 build into **small, sequential, self-con
 **Goal:** Create the monorepo root with npm workspaces.
 
 **Steps:**
-1. In the project root `defects-dashboard/`, create `package.json`:
+1. In the project root `lead-os/`, create `package.json`:
    ```json
    {
-     "name": "defects-dashboard",
+     "name": "lead-os",
      "version": "1.0.0",
      "private": true,
      "workspaces": ["client", "server", "shared"],

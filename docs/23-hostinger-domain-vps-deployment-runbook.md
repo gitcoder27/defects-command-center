@@ -66,7 +66,7 @@ This runbook assumes:
 - the app is already deployed on the VPS
 - the Node app runs on port `3001`
 - the app is or will be managed by `systemd`
-- the current app service name is `defects-dashboard`
+- the current app service name is `lead-os`
 
 Relevant docs:
 
@@ -102,40 +102,40 @@ Once the domain setup is live, use this process whenever you want production to 
 You can now trigger the production redeploy from the development checkout with one command:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 npm run deploy:prod
 ```
 
 Equivalent npm form:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 npm run deploy -- prod
 ```
 
 What it does:
 
-- switches into the production checkout at `/home/ubuntu/apps/defects-command-center-prod`
+- switches into the production checkout at `/home/ubuntu/apps/lead-os-prod`
 - refuses to run if the production checkout is dirty
 - fetches and fast-forwards to `origin/main`
 - runs `npm install`
 - runs the full production build
-- restarts `defects-dashboard`
+- restarts `lead-os`
 - verifies the manager URL, developer `/my-day` URL, and `/api/health`
 
 Important:
 
 - database migration is already handled automatically on server startup in `server/src/index.ts`
-- the command is designed for this VPS layout and expects the production checkout to exist at `/home/ubuntu/apps/defects-command-center-prod`
+- the command is designed for this VPS layout and expects the production checkout to exist at `/home/ubuntu/apps/lead-os-prod`
 
 ### Production And Development Separation
 
 This VPS now uses two separate checkouts:
 
-- development workspace: `/home/ubuntu/Development/defects-command-center`
-- production checkout: `/home/ubuntu/apps/defects-command-center-prod`
+- development workspace: `/home/ubuntu/Development/lead-os`
+- production checkout: `/home/ubuntu/apps/lead-os-prod`
 
-The live `defects-dashboard` service runs from the production checkout, not from the development workspace.
+The live `lead-os` service runs from the production checkout, not from the development workspace.
 
 That means:
 
@@ -148,7 +148,7 @@ That means:
 For compile-only validation in the development workspace, prefer:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 npm run typecheck
 npm run build:check
 ```
@@ -181,8 +181,8 @@ If `5173` matches `3001`, the Vite process is proxying to production and must be
 
 - backend runtime: `server/dist/server/src/index.js`
 - frontend runtime assets: `client/dist/`
-- service name: `defects-dashboard`
-- production checkout path: `/home/ubuntu/apps/defects-command-center-prod`
+- service name: `lead-os`
+- production checkout path: `/home/ubuntu/apps/lead-os-prod`
 
 This means source changes in `server/src/` or `client/src/` do **not** affect production until you rebuild and restart the service.
 
@@ -191,10 +191,10 @@ This means source changes in `server/src/` or `client/src/` do **not** affect pr
 If you changed only backend files and did not change frontend or shared UI code:
 
 ```bash
-cd /home/ubuntu/apps/defects-command-center-prod
+cd /home/ubuntu/apps/lead-os-prod
 npm run build --workspace=server
-sudo systemctl restart defects-dashboard
-sudo systemctl status defects-dashboard --no-pager
+sudo systemctl restart lead-os
+sudo systemctl status lead-os --no-pager
 curl -s https://manager.YOUR_DOMAIN/api/health
 ```
 
@@ -203,11 +203,11 @@ curl -s https://manager.YOUR_DOMAIN/api/health
 If you changed frontend code, shared contracts, or anything used by both workspaces:
 
 ```bash
-cd /home/ubuntu/apps/defects-command-center-prod
+cd /home/ubuntu/apps/lead-os-prod
 npm install
 npm run build
-sudo systemctl restart defects-dashboard
-sudo systemctl status defects-dashboard --no-pager
+sudo systemctl restart lead-os
+sudo systemctl status lead-os --no-pager
 curl -I https://manager.YOUR_DOMAIN
 curl -I https://developer.YOUR_DOMAIN/my-day
 curl -s https://manager.YOUR_DOMAIN/api/health
@@ -216,11 +216,11 @@ curl -s https://manager.YOUR_DOMAIN/api/health
 ### If The VPS Needs The Latest Git Changes First
 
 ```bash
-cd /home/ubuntu/apps/defects-command-center-prod
+cd /home/ubuntu/apps/lead-os-prod
 git pull
 npm install
 npm run build
-sudo systemctl restart defects-dashboard
+sudo systemctl restart lead-os
 ```
 
 ### Fast Validation Checklist
@@ -283,26 +283,26 @@ Before touching DNS, verify the app is healthy locally on the VPS.
 Run:
 
 ```bash
-cd /home/ubuntu/apps/defects-command-center-prod
+cd /home/ubuntu/apps/lead-os-prod
 curl -I http://localhost:3001
 curl -s http://localhost:3001/api/health
-sudo systemctl status defects-dashboard --no-pager
+sudo systemctl status lead-os --no-pager
 ```
 
 Expected:
 
 - `http://localhost:3001` returns HTTP 200
 - `/api/health` returns `{"status":"ok"}`
-- `defects-dashboard` is `active (running)`
+- `lead-os` is `active (running)`
 
 If the app is not running yet, build and start it:
 
 ```bash
-cd /home/ubuntu/apps/defects-command-center-prod
+cd /home/ubuntu/apps/lead-os-prod
 npm install
 npm run build
-sudo systemctl restart defects-dashboard
-sudo systemctl status defects-dashboard --no-pager
+sudo systemctl restart lead-os
+sudo systemctl status lead-os --no-pager
 ```
 
 ## Phase 3: Create The Subdomain In Hostinger
@@ -442,7 +442,7 @@ After saving, retry the HTTP check and Certbot. If it still times out, the remai
 
 Create:
 
-`/etc/nginx/sites-available/defects-dashboard`
+`/etc/nginx/sites-available/lead-os`
 
 Use this content:
 
@@ -466,7 +466,7 @@ server {
 Enable the site:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/defects-dashboard /etc/nginx/sites-enabled/defects-dashboard
+sudo ln -s /etc/nginx/sites-available/lead-os /etc/nginx/sites-enabled/lead-os
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -475,7 +475,7 @@ sudo systemctl reload nginx
 
 Create:
 
-`/etc/nginx/sites-available/defects-dashboard`
+`/etc/nginx/sites-available/lead-os`
 
 Use this content first:
 
@@ -499,7 +499,7 @@ server {
 Enable the site:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/defects-dashboard /etc/nginx/sites-enabled/defects-dashboard
+sudo ln -s /etc/nginx/sites-available/lead-os /etc/nginx/sites-enabled/lead-os
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -611,7 +611,7 @@ Only after the new domain works correctly:
 ```bash
 sudo systemctl stop defects-cloudflared
 sudo systemctl disable defects-cloudflared
-sudo systemctl status defects-dashboard --no-pager
+sudo systemctl status lead-os --no-pager
 ```
 
 You can keep the old tunnel for a short overlap period if you want a rollback path.
@@ -684,7 +684,7 @@ Check:
 
 Check:
 
-1. `defects-dashboard` is running
+1. `lead-os` is running
 2. `curl -s http://localhost:3001/api/health` works on the VPS
 3. `nginx` is proxying to `127.0.0.1:3001`
 4. `nginx` was reloaded after the config change

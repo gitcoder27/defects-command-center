@@ -258,7 +258,7 @@ PORT=3001
 ## Directory Structure to Create
 
 ```
-defects-dashboard/
+lead-os/
 ├── .env.example
 ├── .gitignore
 ├── package.json               ← root, npm workspaces

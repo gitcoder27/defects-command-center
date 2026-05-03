@@ -22,7 +22,7 @@ Jira defects remain a first-class workflow, but the product direction is broader
 ## Repository Layout
 
 ```text
-defects-dashboard/
+lead-os/
 ├── client/                    # React frontend
 ├── data/                      # SQLite DB location
 ├── docs/                      # Product and technical documentation
@@ -75,7 +75,7 @@ It expects Node 20 at:
 
 ### Common Commands
 
-Run from repo root (`defects-dashboard/`):
+Run from repo root (`lead-os/`):
 
 ```powershell
 # One-time setup / verification
@@ -126,10 +126,10 @@ npm run dev:server
 
 This VPS now keeps development and production in separate directories:
 
-- development workspace: `/home/ubuntu/Development/defects-command-center`
-- production checkout: `/home/ubuntu/apps/defects-command-center-prod`
+- development workspace: `/home/ubuntu/Development/lead-os`
+- production checkout: `/home/ubuntu/apps/lead-os-prod`
 
-The live `defects-dashboard` service runs from the production checkout. Building in the development workspace does not update the public site.
+The live `lead-os` service runs from the production checkout. Building in the development workspace does not update the public site.
 
 Safe validation commands for development:
 

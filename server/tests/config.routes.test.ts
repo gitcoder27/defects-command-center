@@ -44,7 +44,7 @@ import { migrate } from "../src/db/migrate";
 import { BackupService } from "../src/services/backup.service";
 import { DEFAULT_BACKUP_MAX_SCHEDULED_SNAPSHOTS, SettingsService } from "../src/services/settings.service";
 
-const testBackupDirectory = path.resolve("/tmp", "defects-command-center-test-config-backups");
+const testBackupDirectory = path.resolve("/tmp", "lead-os-test-config-backups");
 
 beforeEach(async () => {
   migrate(rawDb);

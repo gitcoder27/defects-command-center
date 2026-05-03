@@ -67,7 +67,7 @@ Before using these steps:
 Commands:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 npm install
 npm run build
 ```
@@ -76,7 +76,7 @@ npm run build
 
 Create:
 
-`/etc/systemd/system/defects-dashboard.service`
+`/etc/systemd/system/lead-os.service`
 
 Recommended content:
 
@@ -88,7 +88,7 @@ After=network.target
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/home/ubuntu/Development/defects-command-center
+WorkingDirectory=/home/ubuntu/Development/lead-os
 Environment=NODE_ENV=production
 ExecStart=/usr/bin/npm run start
 Restart=always
@@ -109,13 +109,13 @@ Recommended content:
 ```ini
 [Unit]
 Description=Cloudflare Quick Tunnel For LeadOS
-After=network.target defects-dashboard.service
-Requires=defects-dashboard.service
+After=network.target lead-os.service
+Requires=lead-os.service
 
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/home/ubuntu/Development/defects-command-center
+WorkingDirectory=/home/ubuntu/Development/lead-os
 ExecStart=/usr/bin/cloudflared tunnel --no-autoupdate --url http://localhost:3001
 Restart=always
 RestartSec=5
@@ -130,7 +130,7 @@ After creating the service files:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable defects-dashboard
+sudo systemctl enable lead-os
 sudo systemctl enable defects-cloudflared
 ```
 
@@ -139,7 +139,7 @@ sudo systemctl enable defects-cloudflared
 Start the dashboard app:
 
 ```bash
-sudo systemctl start defects-dashboard
+sudo systemctl start lead-os
 ```
 
 Start the Cloudflare tunnel:
@@ -153,7 +153,7 @@ sudo systemctl start defects-cloudflared
 Check app status:
 
 ```bash
-sudo systemctl status defects-dashboard
+sudo systemctl status lead-os
 ```
 
 Check tunnel status:
@@ -187,7 +187,7 @@ sudo systemctl stop defects-cloudflared
 Stop the app:
 
 ```bash
-sudo systemctl stop defects-dashboard
+sudo systemctl stop lead-os
 ```
 
 ## Start Again Later
@@ -195,7 +195,7 @@ sudo systemctl stop defects-dashboard
 If you previously stopped them and want to start them again:
 
 ```bash
-sudo systemctl start defects-dashboard
+sudo systemctl start lead-os
 sudo systemctl start defects-cloudflared
 ```
 
@@ -204,7 +204,7 @@ sudo systemctl start defects-cloudflared
 If the app is already running and you want to restart it:
 
 ```bash
-sudo systemctl restart defects-dashboard
+sudo systemctl restart lead-os
 ```
 
 If you want to restart the tunnel:
@@ -220,7 +220,7 @@ After restarting the tunnel, re-check the logs because the public URL may change
 App logs:
 
 ```bash
-sudo journalctl -u defects-dashboard -f
+sudo journalctl -u lead-os -f
 ```
 
 Tunnel logs:
@@ -240,7 +240,7 @@ After initial setup, the normal flow is:
 Useful checks:
 
 ```bash
-sudo systemctl status defects-dashboard
+sudo systemctl status lead-os
 sudo systemctl status defects-cloudflared
 ```
 
@@ -257,7 +257,7 @@ ssh <your-vps>
 ### Step 2: Go to the project directory
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 ```
 
 ### Step 3: Pull or copy the latest code
@@ -285,14 +285,14 @@ npm run build
 ### Step 6: Restart the app service
 
 ```bash
-sudo systemctl restart defects-dashboard
+sudo systemctl restart lead-os
 ```
 
 ### Step 7: Decide whether the tunnel also needs restart
 
 Usually:
 
-- if only app code changed, restart only `defects-dashboard`
+- if only app code changed, restart only `lead-os`
 - if the tunnel is healthy, you do not need to restart `defects-cloudflared`
 
 Restart the tunnel only if:
@@ -314,12 +314,12 @@ If you restart the tunnel, check the public URL again because it may change.
 For normal code deployment:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 git pull
 npm install
 npm run build
-sudo systemctl restart defects-dashboard
-sudo systemctl status defects-dashboard
+sudo systemctl restart lead-os
+sudo systemctl status lead-os
 ```
 
 Only if needed:
@@ -334,9 +334,9 @@ sudo journalctl -u defects-cloudflared -n 50 --no-pager
 If services were stopped:
 
 ```bash
-sudo systemctl start defects-dashboard
+sudo systemctl start lead-os
 sudo systemctl start defects-cloudflared
-sudo systemctl status defects-dashboard
+sudo systemctl status lead-os
 sudo systemctl status defects-cloudflared
 sudo journalctl -u defects-cloudflared -n 50 --no-pager
 ```
@@ -347,7 +347,7 @@ If you want the system fully stopped:
 
 ```bash
 sudo systemctl stop defects-cloudflared
-sudo systemctl stop defects-dashboard
+sudo systemctl stop lead-os
 ```
 
 ## Recommended Operating Rule

@@ -14,19 +14,19 @@ Keep this document only for rollback or legacy tunnel troubleshooting.
 
 ## Current Services
 
-- app service: `defects-dashboard`
+- app service: `lead-os`
 - tunnel service: `defects-cloudflared`
 
 ## Check Status
 
 ```bash
-sudo systemctl status defects-dashboard defects-cloudflared --no-pager
+sudo systemctl status lead-os defects-cloudflared --no-pager
 ```
 
 ## Start Services
 
 ```bash
-sudo systemctl start defects-dashboard
+sudo systemctl start lead-os
 sudo systemctl start defects-cloudflared
 ```
 
@@ -34,7 +34,7 @@ sudo systemctl start defects-cloudflared
 
 ```bash
 sudo systemctl stop defects-cloudflared
-sudo systemctl stop defects-dashboard
+sudo systemctl stop lead-os
 ```
 
 ## Restart Services
@@ -42,7 +42,7 @@ sudo systemctl stop defects-dashboard
 Restart app only:
 
 ```bash
-sudo systemctl restart defects-dashboard
+sudo systemctl restart lead-os
 ```
 
 Restart tunnel only:
@@ -54,7 +54,7 @@ sudo systemctl restart defects-cloudflared
 Restart both:
 
 ```bash
-sudo systemctl restart defects-dashboard
+sudo systemctl restart lead-os
 sudo systemctl restart defects-cloudflared
 ```
 
@@ -75,17 +75,17 @@ https://<random-name>.trycloudflare.com
 Run after pulling or copying updated code to the VPS:
 
 ```bash
-cd /home/ubuntu/apps/defects-command-center-prod
+cd /home/ubuntu/apps/lead-os-prod
 npm install
 npm run build
-sudo systemctl restart defects-dashboard
-sudo systemctl status defects-dashboard --no-pager
+sudo systemctl restart lead-os
+sudo systemctl status lead-os --no-pager
 ```
 
 For non-deploy validation in the development workspace, use:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 npm run typecheck
 npm run build:check
 ```
@@ -102,7 +102,7 @@ Restart the tunnel only if:
 
 Reason:
 
-- restarting `defects-dashboard` applies new code
+- restarting `lead-os` applies new code
 - restarting `defects-cloudflared` can generate a different public URL
 
 ## After VPS Reboot
@@ -112,7 +112,7 @@ These services are enabled in `systemd`, so they should start automatically.
 To verify:
 
 ```bash
-sudo systemctl status defects-dashboard defects-cloudflared --no-pager
+sudo systemctl status lead-os defects-cloudflared --no-pager
 ```
 
 ## Useful Logs
@@ -120,7 +120,7 @@ sudo systemctl status defects-dashboard defects-cloudflared --no-pager
 App logs:
 
 ```bash
-sudo journalctl -u defects-dashboard -f
+sudo journalctl -u lead-os -f
 ```
 
 Tunnel logs:
@@ -136,7 +136,7 @@ Use this checklist when you want to confirm the dashboard is still available.
 ### 1. Check both services are running
 
 ```bash
-sudo systemctl status defects-dashboard defects-cloudflared --no-pager
+sudo systemctl status lead-os defects-cloudflared --no-pager
 ```
 
 Expected:
@@ -202,8 +202,8 @@ The dashboard can still become unavailable if:
 If the dashboard is down:
 
 ```bash
-sudo systemctl status defects-dashboard defects-cloudflared --no-pager
-sudo systemctl restart defects-dashboard
+sudo systemctl status lead-os defects-cloudflared --no-pager
+sudo systemctl restart lead-os
 sudo systemctl restart defects-cloudflared
 sudo journalctl -u defects-cloudflared -n 50 --no-pager
 ```

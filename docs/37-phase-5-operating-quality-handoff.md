@@ -44,4 +44,4 @@ Run from the development checkout:
 - `npm run test --workspace=client`
 - `npm run test`
 
-Production deployment should still be run only from `/home/ubuntu/apps/defects-command-center-prod`.
+Production deployment should still be run only from `/home/ubuntu/apps/lead-os-prod`.

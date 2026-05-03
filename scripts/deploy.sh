@@ -13,7 +13,7 @@ Options:
   --dry-run   Print the planned steps without changing the checkout or restarting services.
 
 Environment overrides:
-  DEPLOY_SERVICE_NAME   systemd service to restart (default: defects-dashboard)
+  DEPLOY_SERVICE_NAME   systemd service to restart (default: lead-os)
   DEPLOY_MANAGER_URL    manager URL for health checks (default: https://manager.daycommand.online)
   DEPLOY_DEVELOPER_URL  developer URL for route checks (default: https://developer.daycommand.online)
   DEPLOY_HEALTH_TIMEOUT_SECONDS   total time to wait for health checks (default: 30)
@@ -97,14 +97,14 @@ if [[ "${MODE}" != "prod" ]]; then
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-EXPECTED_BASENAME="defects-command-center-prod"
-SERVICE_NAME="${DEPLOY_SERVICE_NAME:-defects-dashboard}"
+EXPECTED_BASENAME="lead-os-prod"
+SERVICE_NAME="${DEPLOY_SERVICE_NAME:-lead-os}"
 MANAGER_URL="${DEPLOY_MANAGER_URL:-https://manager.daycommand.online}"
 DEVELOPER_URL="${DEPLOY_DEVELOPER_URL:-https://developer.daycommand.online}"
 HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-30}"
 HEALTH_RETRY_DELAY_SECONDS="${DEPLOY_HEALTH_RETRY_DELAY_SECONDS:-2}"
 
-if [[ "$(basename "${ROOT_DIR}")" == "defects-command-center" ]]; then
+if [[ "$(basename "${ROOT_DIR}")" != "${EXPECTED_BASENAME}" ]]; then
   ROOT_DIR="/home/ubuntu/apps/${EXPECTED_BASENAME}"
 fi
 

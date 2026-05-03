@@ -4,9 +4,9 @@ This repository uses the main checkout as the integration workspace and two sibl
 
 ## Worktree Paths And Branches
 
-- Main workspace: `/home/ubuntu/Development/defects-command-center` on `main`
-- Codex agent A: `/home/ubuntu/Development/defects-command-center-codex-a` on `task/codex-a`
-- Codex agent B: `/home/ubuntu/Development/defects-command-center-codex-b` on `task/codex-b`
+- Main workspace: `/home/ubuntu/Development/lead-os` on `main`
+- Codex agent A: `/home/ubuntu/Development/lead-os-codex-a` on `task/codex-a`
+- Codex agent B: `/home/ubuntu/Development/lead-os-codex-b` on `task/codex-b`
 
 ## Port Mapping
 
@@ -29,19 +29,19 @@ Run each command from the matching checkout root:
 
 ```bash
 # Main integration workspace
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 npm run dev
 ```
 
 ```bash
 # Codex agent A
-cd /home/ubuntu/Development/defects-command-center-codex-a
+cd /home/ubuntu/Development/lead-os-codex-a
 npm run dev
 ```
 
 ```bash
 # Codex agent B
-cd /home/ubuntu/Development/defects-command-center-codex-b
+cd /home/ubuntu/Development/lead-os-codex-b
 npm run dev
 ```
 
@@ -84,7 +84,7 @@ Do not rely on `PORT` to steer Vite, because shell-level `PORT` overrides can ac
 ## Merge Task Branches Locally Into Main
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 git fetch --all --prune
 git merge --no-ff task/codex-a
 git merge --no-ff task/codex-b
@@ -93,7 +93,7 @@ git merge --no-ff task/codex-b
 If you prefer to review commits first:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 git log --oneline main..task/codex-a
 git log --oneline main..task/codex-b
 ```
@@ -103,7 +103,7 @@ git log --oneline main..task/codex-b
 Update `main` first, then rebase or recreate the task worktrees:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 git checkout main
 git pull --ff-only
 ```
@@ -111,27 +111,27 @@ git pull --ff-only
 If the Codex worktrees are disposable and you want to snap both of them to the current local `main` commit in one command:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 npm run sync:worktrees
 ```
 
 If a worktree has changes you want to throw away, use the force mode:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 bash scripts/sync-worktrees.sh --force
 ```
 
 Reuse an existing worktree:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center-codex-a
+cd /home/ubuntu/Development/lead-os-codex-a
 git fetch origin
 git rebase main
 ```
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center-codex-b
+cd /home/ubuntu/Development/lead-os-codex-b
 git fetch origin
 git rebase main
 ```
@@ -139,17 +139,17 @@ git rebase main
 Recreate a worktree cleanly if needed:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
-git worktree remove ../defects-command-center-codex-a
+cd /home/ubuntu/Development/lead-os
+git worktree remove ../lead-os-codex-a
 git branch -D task/codex-a
-git worktree add ../defects-command-center-codex-a -b task/codex-a main
+git worktree add ../lead-os-codex-a -b task/codex-a main
 ```
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
-git worktree remove ../defects-command-center-codex-b
+cd /home/ubuntu/Development/lead-os
+git worktree remove ../lead-os-codex-b
 git branch -D task/codex-b
-git worktree add ../defects-command-center-codex-b -b task/codex-b main
+git worktree add ../lead-os-codex-b -b task/codex-b main
 ```
 
 ## Revert A Bad Merge Safely
@@ -157,7 +157,7 @@ git worktree add ../defects-command-center-codex-b -b task/codex-b main
 If the merge commit has not been pushed and you want to undo the latest merge in `main`:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 git log --oneline --decorate -n 5
 git reset --hard HEAD~1
 ```
@@ -165,7 +165,7 @@ git reset --hard HEAD~1
 If the merge has already been shared or you want a history-preserving rollback:
 
 ```bash
-cd /home/ubuntu/Development/defects-command-center
+cd /home/ubuntu/Development/lead-os
 git log --oneline --merges -n 5
 git revert -m 1 <merge-commit-sha>
 ```

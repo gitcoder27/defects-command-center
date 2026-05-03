@@ -9,7 +9,7 @@ import { BackupService } from "../src/services/backup.service";
 import { SettingsService } from "../src/services/settings.service";
 import { resetDatabase } from "./helpers/db";
 
-const testBackupDirectory = path.resolve("/tmp", "defects-command-center-test-backups");
+const testBackupDirectory = path.resolve("/tmp", "lead-os-test-backups");
 
 async function upsertConfig(key: string, value: string): Promise<void> {
   await db.insert(configTable).values({ key, value }).onConflictDoUpdate({ target: configTable.key, set: { value } });

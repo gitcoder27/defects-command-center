@@ -3,7 +3,7 @@
 Use this prompt in a new Codex session to start implementation directly.
 
 ```text
-You are working in the `defects-command-center` repository.
+You are working in the `lead-os` repository.
 
 Read these first:
 - AGENTS.md

@@ -10,7 +10,7 @@ The goal is not broad cosmetic refactoring. The goal is to fix real maintainabil
 
 Before implementing any item from this document:
 
-- Work from `/home/ubuntu/Development/defects-command-center` unless explicitly told otherwise.
+- Work from `/home/ubuntu/Development/lead-os` unless explicitly told otherwise.
 - Keep changes task-scoped and small.
 - Do not refactor unrelated files.
 - Do not split simple logic just to make files smaller.
