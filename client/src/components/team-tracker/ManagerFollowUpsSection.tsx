@@ -43,13 +43,12 @@ function getManagerFollowUpMeta(item: ManagerDeskItem) {
 function EmptyManagerFollowUp({ day }: { day: TrackerDeveloperDay }) {
   return (
     <div
-      className="flex items-center gap-2 rounded-xl px-3 py-2"
+      className="flex items-center gap-3 rounded-2xl px-4 py-3"
       style={{
-        background: 'var(--bg-tertiary)',
-        border: '1px solid rgba(217,169,78,0.16)',
+        background: 'color-mix(in srgb, var(--md-accent) 8%, transparent)',
       }}
     >
-      <Briefcase size={14} className="shrink-0" style={{ color: 'var(--md-accent)' }} />
+      <Briefcase size={15} className="shrink-0" style={{ color: 'var(--md-accent)' }} />
       <div className="min-w-0 text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>
         <span>Private follow-up linked to {day.developer.displayName}</span>
         {day.currentItem?.jiraKey && (
@@ -72,17 +71,18 @@ function ManagerFollowUpItem({ item, onComplete }: { item: ManagerDeskItem; onCo
 
   return (
     <div
-      className="group flex items-start gap-2 rounded-xl px-3 py-2"
+      className="group flex items-start gap-3 rounded-2xl px-4 py-3 transition-colors"
       style={{
-        background: isDone ? 'color-mix(in srgb, var(--bg-tertiary) 72%, transparent)' : 'var(--bg-tertiary)',
-        border: `1px solid ${isDone ? 'var(--border)' : 'rgba(217,169,78,0.16)'}`,
+        background: isDone
+          ? 'color-mix(in srgb, var(--bg-tertiary) 28%, transparent)'
+          : 'color-mix(in srgb, var(--md-accent) 8%, transparent)',
       }}
     >
-      <Briefcase size={14} className="mt-0.5 shrink-0" style={{ color: isDone ? 'var(--success)' : 'var(--md-accent)' }} />
+      <Briefcase size={15} className="mt-0.5 shrink-0" style={{ color: isDone ? 'var(--success)' : 'var(--md-accent)' }} />
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-1.5">
+        <div className="flex min-w-0 items-center gap-2">
           <span
-            className="truncate text-[13px] font-medium"
+            className="truncate text-[13px] font-semibold"
             style={{
               color: isDone ? 'var(--text-secondary)' : 'var(--text-primary)',
               textDecoration: isDone ? 'line-through' : undefined,
@@ -91,11 +91,10 @@ function ManagerFollowUpItem({ item, onComplete }: { item: ManagerDeskItem; onCo
             {item.title}
           </span>
           <span
-            className="shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase"
+            className="shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase"
             style={{
               color: statusStyle.color,
               background: statusStyle.background,
-              borderColor: statusStyle.border,
               letterSpacing: '0.04em',
             }}
           >
@@ -118,8 +117,8 @@ function ManagerFollowUpItem({ item, onComplete }: { item: ManagerDeskItem; onCo
         <button
           type="button"
           onClick={() => onComplete(item.id)}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg opacity-80 transition-all hover:opacity-100"
-          style={{ color: 'var(--success)', background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.18)' }}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl opacity-80 transition-all hover:opacity-100"
+          style={{ color: 'var(--success)', background: 'rgba(16,185,129,0.10)' }}
           aria-label={`Mark ${item.title} complete`}
           title="Mark complete"
         >
@@ -139,16 +138,16 @@ export function ManagerFollowUpRow({ day, items, isLoading, onComplete, onCaptur
         <button
           type="button"
           onClick={onCapture}
-          className="rounded-lg px-2 py-1 text-[12px] font-medium"
+          className="rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition-colors"
           style={{ color: 'var(--md-accent)', background: 'rgba(217,169,78,0.10)' }}
         >
           Capture
         </button>
       }
     >
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {isLoading && (
-          <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-[13px]" style={{ color: 'var(--text-muted)', background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-2 rounded-2xl px-4 py-3 text-[13px]" style={{ color: 'var(--text-muted)', background: 'color-mix(in srgb, var(--bg-tertiary) 36%, transparent)' }}>
             <Loader2 size={13} className="animate-spin" />
             Loading follow-ups
           </div>

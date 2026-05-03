@@ -37,6 +37,7 @@ interface TodayActionRowProps {
 export function TodayActionRow({ item, featured = false, isPending = false, onRunCommand }: TodayActionRowProps) {
   const Icon = iconByType[item.type] ?? Target;
   const style = todayToneStyles[item.severity];
+  const displaySignal = getCompactSignal(item.signal);
 
   return (
     <div
@@ -64,8 +65,12 @@ export function TodayActionRow({ item, featured = false, isPending = false, onRu
       >
         <span className="flex min-w-0 items-center gap-2">
           <span className="truncate text-[14px] font-medium" style={{ color: 'var(--text-primary)' }}>{item.title}</span>
-          <span className="rounded-md border px-1.5 py-0.5 text-[11px] font-medium md:hidden" style={{ background: style.bg, borderColor: style.border, color: style.color }}>
-            {item.signal}
+          <span
+            className="rounded-md border px-1.5 py-0.5 text-[11px] font-medium md:hidden"
+            style={{ background: style.bg, borderColor: style.border, color: style.color }}
+            title={item.signal}
+          >
+            {displaySignal}
           </span>
         </span>
         <span className="mt-1 block truncate text-[12px] leading-5 md:hidden" style={{ color: 'var(--text-secondary)' }}>{item.context}</span>
@@ -81,8 +86,12 @@ export function TodayActionRow({ item, featured = false, isPending = false, onRu
       </button>
 
       <span className="hidden md:block">
-        <span className="inline-flex max-w-full items-center truncate rounded-md border px-2 py-1 text-[11px] font-medium" style={{ background: style.bg, borderColor: style.border, color: style.color }}>
-          {item.signal}
+        <span
+          className="inline-flex max-w-full items-center truncate rounded-md border px-2 py-1 text-[11px] font-medium"
+          style={{ background: style.bg, borderColor: style.border, color: style.color }}
+          title={item.signal}
+        >
+          {displaySignal}
         </span>
       </span>
 
@@ -99,4 +108,13 @@ export function TodayActionRow({ item, featured = false, isPending = false, onRu
       <TodayActionMenu actions={item.secondaryActions} onRunAction={onRunCommand} />
     </div>
   );
+}
+
+function getCompactSignal(signal: string): string {
+  if (signal.includes('Stale without current work')) {
+    return 'Stale';
+  }
+
+  return signal
+    .split(' / ')[0] ?? signal;
 }

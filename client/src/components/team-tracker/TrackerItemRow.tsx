@@ -100,11 +100,15 @@ export function TrackerItemRow({
 
   return (
     <div
-      className={`group relative flex items-center gap-2 rounded-lg transition-colors ${canOpen ? 'cursor-pointer' : ''} ${
-        isDrawerPlanned ? 'px-2 py-1' : 'px-2 py-1.5'
+      className={`group relative flex items-center gap-2.5 rounded-xl transition-colors ${canOpen ? 'cursor-pointer' : ''} ${
+        isDrawerPlanned ? 'px-3 py-2.5' : 'px-2 py-1.5'
       }`}
       style={{
-        background: isActive ? 'rgba(6, 182, 212, 0.06)' : 'transparent',
+        background: isActive
+          ? 'rgba(6, 182, 212, 0.08)'
+          : isDrawerPlanned
+            ? 'color-mix(in srgb, var(--bg-tertiary) 36%, transparent)'
+            : 'transparent',
         borderLeft: isActive ? '2px solid var(--accent)' : '2px solid transparent',
       }}
       onClick={canOpen ? (event) => {
@@ -181,7 +185,7 @@ export function TrackerItemRow({
                 title={item.title}
               >
                 <span
-                  className="block truncate text-[13px] hover:underline"
+                  className={`block truncate text-[13px] hover:underline ${isDrawerPlanned ? 'font-medium' : ''}`}
                   style={{ color: 'var(--text-primary)', textDecoration: isDone ? 'line-through' : 'none' }}
                 >
                   {item.title}
@@ -189,7 +193,7 @@ export function TrackerItemRow({
               </button>
             ) : (
               <span
-                className="block truncate text-[13px]"
+                className={`block truncate text-[13px] ${isDrawerPlanned ? 'font-medium' : ''}`}
                 style={{ color: isDone ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: isDone ? 'line-through' : 'none' }}
                 title={item.title}
               >

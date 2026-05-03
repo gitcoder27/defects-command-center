@@ -162,7 +162,10 @@ function metric(
 }
 
 function buildDeveloperActions(board: TeamTrackerBoardResponse, date: string): TodayActionItem[] {
+  const dayByDeveloper = new Map(board.developers.map((day) => [day.developer.accountId, day]));
+
   return board.attentionQueue.map((item) => {
+    const day = dayByDeveloper.get(item.developer.accountId);
     const reasons = item.reasons.map((reason) => reason.label);
     const leadReason = item.reasons[0]?.code;
     const severity: TodayActionSeverity = item.status === "blocked" || item.signals.risk.openRisk ? "critical" : "warning";
@@ -170,7 +173,7 @@ function buildDeveloperActions(board: TeamTrackerBoardResponse, date: string): T
     const currentWork = item.currentItem?.jiraKey
       ? `${item.currentItem.jiraKey} ${item.currentItem.title}`
       : item.currentItem?.title ?? "No current work";
-    const primary = getDeveloperAttentionPrimary(item, date);
+    const primary = getDeveloperAttentionPrimary(item, date, day);
     const actionTarget = primary.target;
 
     return action({
@@ -186,7 +189,7 @@ function buildDeveloperActions(board: TeamTrackerBoardResponse, date: string): T
       primaryKind: primary.kind,
       primaryLabel: primary.label,
       secondaryKinds: primary.secondaryKinds,
-      freshness: formatFreshness(item.lastCheckInAt),
+      freshness: formatFreshness(day?.lastCheckInAt ?? item.lastCheckInAt),
     });
   });
 }
@@ -194,6 +197,7 @@ function buildDeveloperActions(board: TeamTrackerBoardResponse, date: string): T
 function getDeveloperAttentionPrimary(
   item: TrackerAttentionItem,
   date: string,
+  day?: TrackerDeveloperDay,
 ): {
   kind: TodayActionCommand["kind"];
   label: string;
@@ -220,7 +224,13 @@ function getDeveloperAttentionPrimary(
     };
   }
 
-  if (item.isStale || item.status === "blocked" || item.status === "at_risk" || item.status === "waiting") {
+  if (shouldRequestDeveloperCheckIn({
+    date,
+    day,
+    lastCheckInAt: day?.lastCheckInAt ?? item.lastCheckInAt,
+    isStale: item.isStale,
+    status: item.status,
+  })) {
     return {
       kind: "add_check_in",
       label: "Add check-in",
@@ -267,7 +277,13 @@ function getDeveloperPulsePrimary(
     };
   }
 
-  if (day.isStale || attentionItem?.isStale || day.status === "blocked" || day.status === "at_risk" || day.status === "waiting") {
+  if (shouldRequestDeveloperCheckIn({
+    date,
+    day,
+    lastCheckInAt: day.lastCheckInAt,
+    isStale: day.isStale || Boolean(attentionItem?.isStale),
+    status: day.status,
+  })) {
     return {
       kind: "add_check_in",
       label: "Check-in",
@@ -498,14 +514,20 @@ function buildStandupPrompts(
   followUps: ManagerDeskItem[],
   date: string,
 ): TodayStandupPrompt[] {
-  const peoplePrompts = board.attentionQueue.slice(0, 3).map((item) => ({
-    id: `standup-dev-${item.developer.accountId}`,
-    title: item.developer.displayName,
-    detail: item.reasons[0]?.label ?? "Needs manager attention",
-    severity: item.status === "blocked" ? "critical" as const : "warning" as const,
-    target: target("developer", "team", { developerAccountId: item.developer.accountId, date }),
-    primaryAction: command("add_check_in", "Check-in", target("developer", "team", { developerAccountId: item.developer.accountId, date })),
-  }));
+  const dayByDeveloper = new Map(board.developers.map((day) => [day.developer.accountId, day]));
+  const peoplePrompts = board.attentionQueue.slice(0, 3).map((item) => {
+    const day = dayByDeveloper.get(item.developer.accountId);
+    const primary = getDeveloperAttentionPrimary(item, date, day);
+
+    return {
+      id: `standup-dev-${item.developer.accountId}`,
+      title: item.developer.displayName,
+      detail: item.reasons[0]?.label ?? "Needs manager attention",
+      severity: item.status === "blocked" ? "critical" as const : "warning" as const,
+      target: primary.target,
+      primaryAction: command(primary.kind, primary.label, primary.target),
+    };
+  });
   const issuePrompts = issues
     .filter((issue) => isOverdue(issueDueDate(issue), date) || isDueToday(issueDueDate(issue), date))
     .slice(0, 3)
@@ -690,6 +712,28 @@ function isBeforeDay(value: string | undefined, date: string): boolean {
 function isAfterDay(value: string | undefined, date: string): boolean {
   const day = toIsoDay(value);
   return Boolean(day && day > date);
+}
+
+function shouldRequestDeveloperCheckIn(params: {
+  date: string;
+  day?: TrackerDeveloperDay;
+  lastCheckInAt?: string;
+  isStale: boolean;
+  status: TrackerDeveloperDay["status"];
+}): boolean {
+  if (hasTrackerCheckInForDate(params.day, params.lastCheckInAt, params.date)) {
+    return false;
+  }
+
+  return params.isStale || params.status === "blocked" || params.status === "at_risk" || params.status === "waiting";
+}
+
+function hasTrackerCheckInForDate(day: TrackerDeveloperDay | undefined, lastCheckInAt: string | undefined, date: string): boolean {
+  if ((day?.checkIns.length ?? 0) > 0) {
+    return true;
+  }
+
+  return isDueToday(lastCheckInAt, date);
 }
 
 function toIsoDay(value?: string): string | undefined {

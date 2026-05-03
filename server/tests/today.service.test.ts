@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { and, eq } from "drizzle-orm";
 import { db, resetDatabase } from "./helpers/db";
-import { developers, issues } from "../src/db/schema";
+import { developers, issues, teamTrackerDays } from "../src/db/schema";
 import { IssueService } from "../src/services/issue.service";
 import { ManagerDeskService } from "../src/services/manager-desk.service";
 import { TeamTrackerService } from "../src/services/team-tracker.service";
@@ -164,6 +165,60 @@ describe("TodayService", () => {
       kind: "set_current_work",
       label: "Set current",
       target: expect.objectContaining({ trackerItemId: planned.id }),
+    });
+  });
+
+  it("stops asking for another check-in once a no-current developer has a same-day check-in", async () => {
+    const before = await todayService().getToday("manager-1", "2026-03-08");
+    const beforeDeveloperAction = before.actionItems.find((item) => item.target.developerAccountId === "dev-1");
+
+    expect(beforeDeveloperAction).toMatchObject({
+      title: "Alice Smith",
+      context: "No current work",
+      primaryAction: expect.objectContaining({ kind: "add_check_in", label: "Add check-in" }),
+    });
+    expect(before.teamPulse.find((item) => item.accountId === "dev-1")?.primaryAction).toMatchObject({
+      kind: "add_check_in",
+    });
+
+    await trackerService.addCheckIn("dev-1", "2026-03-08", {
+      summary: "Asked about next work",
+    });
+
+    const after = await todayService().getToday("manager-1", "2026-03-08");
+    const afterDeveloperAction = after.actionItems.find((item) => item.target.developerAccountId === "dev-1");
+
+    expect(afterDeveloperAction).toMatchObject({
+      title: "Alice Smith",
+      context: "No current work",
+      primaryAction: expect.objectContaining({ kind: "open", label: "Open developer" }),
+    });
+    expect(after.teamPulse.find((item) => item.accountId === "dev-1")?.primaryAction).toMatchObject({
+      kind: "open",
+      label: "Open",
+    });
+    expect(after.standupPrompts.find((item) => item.id === "standup-dev-dev-1")?.primaryAction).toMatchObject({
+      kind: "open",
+      label: "Open developer",
+    });
+  });
+
+  it("uses exact day check-ins as the source of truth when lastCheckInAt is missing", async () => {
+    await trackerService.addCheckIn("dev-1", "2026-03-08", {
+      summary: "Asked about next work",
+    });
+    await db
+      .update(teamTrackerDays)
+      .set({ lastCheckInAt: null })
+      .where(and(eq(teamTrackerDays.date, "2026-03-08"), eq(teamTrackerDays.developerAccountId, "dev-1")));
+
+    const response = await todayService().getToday("manager-1", "2026-03-08");
+    const developerAction = response.actionItems.find((item) => item.target.developerAccountId === "dev-1");
+
+    expect(developerAction).toMatchObject({
+      title: "Alice Smith",
+      context: "No current work",
+      primaryAction: expect.objectContaining({ kind: "open", label: "Open developer" }),
     });
   });
 });

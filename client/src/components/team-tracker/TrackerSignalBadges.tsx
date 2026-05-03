@@ -95,7 +95,7 @@ export function TrackerSignalBadges({
       {badges.map((badge) => (
         <span
           key={badge.key}
-          className={`rounded-full border font-medium ${compact ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-[12px]'}`}
+          className={`rounded-lg font-medium ${compact ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-[12px]'}`}
           style={toneStyles[badge.tone]}
         >
           {badge.label}

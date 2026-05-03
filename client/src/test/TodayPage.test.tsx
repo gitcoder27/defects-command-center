@@ -188,6 +188,73 @@ describe('TodayPage V2', () => {
     });
   });
 
+  it('shows Open developer after a same-day check-in clears the check-in action', async () => {
+    const devTarget = target({ type: 'developer', view: 'team', developerAccountId: 'dev-1', date: '2026-03-08' });
+    const beforeAction = actionItem(1, {
+      id: 'dev-no-current',
+      type: 'developer_attention',
+      title: 'Alice Smith',
+      context: 'No current work',
+      signal: 'No current item',
+      target: devTarget,
+      primaryAction: command('add_check_in', 'Add check-in', devTarget),
+      secondaryActions: [],
+    });
+    const afterAction = {
+      ...beforeAction,
+      primaryAction: command('open', 'Open developer', devTarget),
+    };
+    let response = todayResponse({
+      currentPriority: beforeAction,
+      actionItems: [beforeAction],
+      teamPulse: [
+        {
+          accountId: 'dev-1',
+          displayName: 'Alice Smith',
+          initials: 'AS',
+          status: 'On track',
+          tone: 'info',
+          detail: 'No current item',
+          currentWork: 'No current work',
+          lastUpdate: 'No check-in',
+          target: devTarget,
+          primaryAction: command('add_check_in', 'Check-in', devTarget),
+          secondaryActions: [],
+        },
+      ],
+    });
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/today')) {
+        return new Response(JSON.stringify(response), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      if (url.includes('/api/team-tracker/dev-1/checkins')) {
+        response = {
+          ...response,
+          currentPriority: afterAction,
+          actionItems: [afterAction],
+          teamPulse: response.teamPulse.map((person) => ({
+            ...person,
+            lastUpdate: 'Just now',
+            primaryAction: command('open', 'Open', devTarget),
+          })),
+        };
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }));
+    renderToday();
+
+    fireEvent.click((await screen.findAllByRole('button', { name: /^Add check-in$/i }))[0]!);
+    fireEvent.change(screen.getByLabelText('Check-in note'), { target: { value: 'Asked about next work' } });
+    fireEvent.click(screen.getByRole('button', { name: /save check-in/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /^Add check-in$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Check-in$/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Open developer$/i })).toBeInTheDocument();
+    });
+  });
+
   it('sets planned work current when Today chooses Set current for a developer', async () => {
     const setCurrentTarget = target({
       type: 'tracker_item',

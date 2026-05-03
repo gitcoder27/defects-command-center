@@ -58,32 +58,40 @@ export function DrawerHeader({
     .toUpperCase();
 
   return (
-    <div className="shrink-0 px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
+    <div
+      className="shrink-0 px-6 py-5"
+      style={{ borderBottom: '1px solid color-mix(in srgb, var(--border) 58%, transparent)' }}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-4">
           <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[13px] font-bold"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[13px] font-semibold"
             style={{
-              background: 'linear-gradient(135deg, var(--accent-glow), var(--bg-tertiary))',
+              background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--bg-tertiary)), color-mix(in srgb, var(--bg-elevated) 45%, var(--bg-secondary)))',
               color: 'var(--accent)',
-              border: '1px solid var(--border)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
             }}
           >
             {initials}
           </div>
           <div className="min-w-0">
-            <div className="truncate text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <div className="truncate text-[18px] font-semibold leading-6" style={{ color: 'var(--text-primary)' }}>
               {day.developer.displayName}
             </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+            <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
               <StatusPillSelect day={day} readOnly={readOnly} onUpdateDay={onUpdateDay} />
-              <span>
-                Load{' '}
-                <span className="font-mono font-semibold" style={{ color: isOverCapacity ? 'var(--danger)' : 'var(--text-primary)' }}>
+              <span className="inline-flex items-center gap-1">
+                <span>Load</span>
+                <span className="font-mono font-semibold tabular-nums" style={{ color: isOverCapacity ? 'var(--danger)' : 'var(--text-primary)' }}>
                   {loadLabel}
                 </span>
               </span>
-              <span>Done {day.completedItems.length}</span>
+              <span className="inline-flex items-center gap-1">
+                <span>Done</span>
+                <span className="font-mono font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                  {day.completedItems.length}
+                </span>
+              </span>
               {day.lastCheckInAt ? (
                 <span
                   style={{ color: day.signals.freshness.staleByTime ? 'var(--warning)' : 'var(--text-muted)' }}
@@ -104,9 +112,8 @@ export function DrawerHeader({
               onClick={() => onMarkInactive(day)}
               className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
               style={{
-                background: 'color-mix(in srgb, var(--warning) 10%, transparent)',
+                background: 'color-mix(in srgb, var(--warning) 9%, transparent)',
                 color: 'var(--warning)',
-                border: '1px solid color-mix(in srgb, var(--warning) 28%, var(--border))',
               }}
               aria-label={`Mark ${day.developer.displayName} inactive`}
               title={`Mark ${day.developer.displayName} inactive`}
@@ -117,7 +124,7 @@ export function DrawerHeader({
           <button
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-active)]"
-            style={{ background: 'var(--bg-tertiary)' }}
+            style={{ background: 'color-mix(in srgb, var(--bg-tertiary) 72%, transparent)' }}
             aria-label="Close developer details"
             title="Close"
           >
@@ -147,12 +154,11 @@ function StatusPillSelect({ day, readOnly, onUpdateDay }: StatusPillSelectProps)
       <select
         value={day.status}
         onChange={(event) => onUpdateDay({ accountId: day.developer.accountId, status: event.target.value as TrackerDeveloperStatus })}
-        className="h-[24px] appearance-none rounded-full py-0 pl-2.5 pr-6 text-[11px] font-semibold uppercase outline-none transition-colors focus:ring-2 focus:ring-[var(--border-active)]"
+        className="h-7 appearance-none rounded-lg py-0 pl-2.5 pr-6 text-[12px] font-semibold outline-none transition-colors focus:ring-2 focus:ring-[var(--border-active)]"
         style={{
           color: style.color,
           background: style.background,
-          border: `1px solid color-mix(in srgb, ${style.color} 30%, transparent)`,
-          letterSpacing: '0.06em',
+          border: '1px solid transparent',
         }}
         aria-label="Change developer status"
         title="Change developer status"
@@ -190,13 +196,22 @@ export function StatusSummary({
   onSaveCapacity,
 }: StatusSummaryProps) {
   return (
-    <div className="shrink-0 px-4 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0 flex-1">
+    <div className="shrink-0 px-6 pb-4">
+      <div
+        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3"
+        style={{
+          background: 'color-mix(in srgb, var(--bg-tertiary) 48%, transparent)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+        }}
+      >
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+            Attention signals
+          </div>
           <TrackerSignalBadges day={day} compact maxItems={3} />
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Cap</span>
+        <div className="flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-1" style={{ background: 'color-mix(in srgb, var(--bg-primary) 42%, transparent)' }}>
+          <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Capacity</span>
           <input
             type="number"
             min={1}
@@ -205,19 +220,19 @@ export function StatusSummary({
             onChange={(event) => setCapacityText(event.target.value)}
             disabled={readOnly}
             placeholder="-"
-            className="w-10 rounded-md px-1.5 py-0.5 text-center text-[13px] font-mono outline-none"
+            className="w-11 rounded-lg px-1.5 py-1 text-center text-[13px] font-mono outline-none"
             style={{
-              background: 'var(--bg-tertiary)',
+              background: 'color-mix(in srgb, var(--bg-elevated) 52%, var(--bg-tertiary))',
               color: 'var(--text-primary)',
-              border: '1px solid var(--border)',
+              border: '1px solid color-mix(in srgb, var(--border) 55%, transparent)',
             }}
           />
           <button
             type="button"
             onClick={onSaveCapacity}
             disabled={readOnly}
-            className="rounded-md px-1.5 py-0.5 text-[12px] font-medium disabled:opacity-40"
-            style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
+            className="rounded-lg px-2 py-1 text-[12px] font-medium transition-colors disabled:opacity-40"
+            style={{ background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)' }}
           >
             Save
           </button>
@@ -228,7 +243,7 @@ export function StatusSummary({
                 setCapacityText('');
                 onUpdateDay({ accountId: day.developer.accountId, capacityUnits: null });
               }}
-              className="text-[12px]"
+              className="px-1 text-[12px]"
               style={{ color: 'var(--text-muted)' }}
             >
               Clear
@@ -249,12 +264,20 @@ interface DrawerSectionProps {
 
 export function DrawerSection({ title, count, action, children }: DrawerSectionProps) {
   return (
-    <section className="mb-3">
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+    <section className="mb-5">
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-[13px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
           <span>{title}</span>
           {typeof count === 'number' && (
-            <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{count}</span>
+            <span
+              className="rounded-md px-1.5 py-0.5 font-mono text-[11px] tabular-nums"
+              style={{
+                color: 'var(--text-muted)',
+                background: 'color-mix(in srgb, var(--bg-tertiary) 54%, transparent)',
+              }}
+            >
+              {count}
+            </span>
           )}
         </div>
         {action}
@@ -275,24 +298,30 @@ export function HistorySection({ title, items, open, onToggle }: HistorySectionP
   const hasItems = items.length > 0;
 
   return (
-    <section className="mb-2">
+    <section className="mb-2.5">
       <button
         type="button"
         onClick={hasItems ? onToggle : undefined}
         disabled={!hasItems}
-        className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left transition-colors disabled:cursor-default"
-        style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+        className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition-colors disabled:cursor-default"
+        style={{
+          background: hasItems ? 'color-mix(in srgb, var(--bg-tertiary) 46%, transparent)' : 'transparent',
+          color: hasItems ? 'var(--text-secondary)' : 'var(--text-muted)',
+        }}
         aria-expanded={hasItems ? open : undefined}
       >
-        <span className="text-[12px] font-semibold uppercase" style={{ letterSpacing: '0.06em' }}>
-          {title} <span className="font-mono">{items.length}</span>
+        <span className="text-[13px] font-semibold">
+          {title} <span className="font-mono text-[12px] tabular-nums" style={{ color: 'var(--text-muted)' }}>{items.length}</span>
         </span>
         {hasItems && (
           open ? <ChevronDown size={14} /> : <ChevronRight size={14} />
         )}
       </button>
       {hasItems && open && (
-        <div className="mt-1.5 space-y-0.5">
+        <div
+          className="mt-2 overflow-hidden rounded-xl"
+          style={{ background: 'color-mix(in srgb, var(--bg-tertiary) 28%, transparent)' }}
+        >
           {items.map((item) => (
             <TrackerItemRow key={item.id} item={item} compact hideActions onOpen={undefined} />
           ))}

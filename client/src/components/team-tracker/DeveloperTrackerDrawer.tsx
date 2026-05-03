@@ -197,7 +197,7 @@ export function DeveloperTrackerDrawer({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             className="workspace-shell-backdrop fixed inset-x-0 bottom-0 z-[60]"
-            style={{ background: 'rgba(0, 0, 0, 0.4)', backdropFilter: 'blur(2px)' }}
+            style={{ background: 'rgba(0, 0, 0, 0.34)', backdropFilter: 'blur(3px)' }}
             onClick={onClose}
           />
           <motion.div
@@ -205,12 +205,15 @@ export function DeveloperTrackerDrawer({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="workspace-shell-drawer fixed right-0 z-[61] flex w-full max-w-[480px] flex-col overflow-hidden"
+            className="workspace-shell-drawer fixed right-0 z-[61] flex w-full max-w-[660px] flex-col overflow-hidden"
             style={{
-              background: 'linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)',
-              borderLeft: '1px solid var(--border-strong)',
-              boxShadow: '-20px 0 60px rgba(0, 0, 0, 0.3)',
+              background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-elevated) 8%) 0%, var(--bg-primary) 100%)',
+              borderLeft: '1px solid color-mix(in srgb, var(--border-strong) 58%, transparent)',
+              boxShadow: '-28px 0 70px rgba(0, 0, 0, 0.28)',
             }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${day.developer.displayName} developer details`}
           >
             <DrawerHeader
               day={day}
@@ -231,14 +234,14 @@ export function DeveloperTrackerDrawer({
               onSaveCapacity={handleSaveCapacity}
             />
 
-            <div className="flex-1 overflow-y-auto px-4 py-3">
+            <div className="flex-1 overflow-y-auto px-6 py-4">
               <DrawerSection title="Current work">
                 {day.currentItem ? (
                   <div
-                    className="rounded-xl p-1"
+                    className="rounded-2xl p-2"
                     style={{
-                      background: 'color-mix(in srgb, var(--accent-glow) 48%, transparent)',
-                      border: '1px solid color-mix(in srgb, var(--accent) 22%, var(--border))',
+                      background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 13%, transparent), color-mix(in srgb, var(--bg-tertiary) 45%, transparent))',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
                     }}
                   >
                     <TrackerItemRow
@@ -253,7 +256,13 @@ export function DeveloperTrackerDrawer({
                     />
                   </div>
                 ) : (
-                  <div className="rounded-xl px-3 py-2 text-[13px]" style={{ color: 'var(--text-muted)', background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+                  <div
+                    className="rounded-2xl px-4 py-3 text-[13px] leading-5"
+                    style={{
+                      color: 'var(--text-muted)',
+                      background: 'color-mix(in srgb, var(--bg-tertiary) 38%, transparent)',
+                    }}
+                  >
                     {readOnly ? 'No active item in this historical snapshot.' : 'No active item. Set one from the planned list.'}
                   </div>
                 )}
@@ -264,7 +273,7 @@ export function DeveloperTrackerDrawer({
                 count={day.plannedItems.length}
               >
                 {!readOnly && (
-                  <div className="mb-2">
+                  <div className="mb-3">
                     <AddTrackerItemForm
                       onAdd={(params) => onAddItem({ accountId: day.developer.accountId, ...params })}
                       date={date}
@@ -277,7 +286,10 @@ export function DeveloperTrackerDrawer({
                 )}
                 {localPlannedItems.length > 0 ? (
                   readOnly ? (
-                    <div className="space-y-0.5">
+                    <div
+                      className="overflow-hidden rounded-2xl"
+                      style={{ background: 'color-mix(in srgb, var(--bg-tertiary) 30%, transparent)' }}
+                    >
                       {localPlannedItems.map((item) => (
                         <TrackerItemRow
                           key={item.id}
@@ -293,7 +305,7 @@ export function DeveloperTrackerDrawer({
                     axis="y"
                     values={localPlannedItems}
                     onReorder={handleDragReorder}
-                    className="space-y-0.5"
+                    className="space-y-1"
                     as="div"
                   >
                     {localPlannedItems.map((item) => (
@@ -308,9 +320,9 @@ export function DeveloperTrackerDrawer({
                         as="div"
                         whileDrag={{
                           scale: 1.02,
-                          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
-                          borderRadius: '8px',
-                          background: 'var(--bg-secondary)',
+                          boxShadow: '0 16px 40px rgba(0, 0, 0, 0.26)',
+                          borderRadius: '14px',
+                          background: 'color-mix(in srgb, var(--bg-secondary) 96%, var(--bg-elevated) 4%)',
                           zIndex: 50,
                         }}
                         style={{ position: 'relative', cursor: 'grab' }}
@@ -332,7 +344,13 @@ export function DeveloperTrackerDrawer({
                   </Reorder.Group>
                   )
                 ) : (
-                  <div className="rounded-xl px-3 py-2 text-[13px]" style={{ color: 'var(--text-muted)', background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+                  <div
+                    className="rounded-2xl px-4 py-3 text-[13px] leading-5"
+                    style={{
+                      color: 'var(--text-muted)',
+                      background: 'color-mix(in srgb, var(--bg-tertiary) 34%, transparent)',
+                    }}
+                  >
                     Nothing planned.
                   </div>
                 )}
@@ -368,22 +386,24 @@ export function DeveloperTrackerDrawer({
                       value={notesText}
                       onChange={(e) => setNotesText(e.target.value)}
                       rows={3}
-                      className="w-full rounded-lg px-2 py-1.5 text-[13px] outline-none resize-none"
+                      className="w-full resize-none rounded-xl px-3 py-2 text-[13px] leading-5 outline-none"
                       style={{
-                        background: 'var(--bg-tertiary)',
+                        background: 'color-mix(in srgb, var(--bg-tertiary) 58%, transparent)',
                         color: 'var(--text-primary)',
-                        border: '1px solid var(--border-active)',
+                        border: '1px solid color-mix(in srgb, var(--border-active) 72%, transparent)',
                       }}
                     />
                     <div className="flex items-center gap-1">
                       <button
+                        type="button"
                         onClick={handleSaveNotes}
-                        className="flex items-center gap-1 rounded-lg px-2 py-1 text-[13px]"
-                        style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
+                        className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[13px] font-medium"
+                        style={{ background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)' }}
                       >
                         <Save size={11} /> Save
                       </button>
                       <button
+                        type="button"
                         onClick={() => setNotesEditing(false)}
                         className="text-[13px] px-1"
                         style={{ color: 'var(--text-muted)' }}
@@ -393,7 +413,13 @@ export function DeveloperTrackerDrawer({
                     </div>
                   </div>
                 ) : (
-                  <div className="text-[13px] leading-5" style={{ color: day.managerNotes ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                  <div
+                    className="rounded-2xl px-4 py-3 text-[13px] leading-5"
+                    style={{
+                      color: day.managerNotes ? 'var(--text-secondary)' : 'var(--text-muted)',
+                      background: day.managerNotes ? 'color-mix(in srgb, var(--bg-tertiary) 24%, transparent)' : 'transparent',
+                    }}
+                  >
                     {day.managerNotes || 'No notes yet.'}
                   </div>
                 )}
@@ -412,36 +438,42 @@ export function DeveloperTrackerDrawer({
                 onToggle={() => setDroppedOpen((current) => !current)}
               />
 
-              {/* Check-in history */}
               <DrawerSection title="Check-ins" count={day.checkIns.length}>
-                <div className="space-y-1.5 mb-2">
+                <div className="space-y-0">
                   {day.checkIns.length === 0 && (
-                    <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+                    <div className="rounded-2xl px-4 py-3 text-[13px]" style={{ color: 'var(--text-muted)' }}>
                       {readOnly ? 'No check-ins recorded for this date.' : 'No check-ins today.'}
                     </div>
                   )}
                   {[...day.checkIns].reverse().map((ci) => (
-                    <div key={ci.id} className="rounded-lg px-2.5 py-2" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+                    <div key={ci.id} className="flex gap-3 px-1 py-3">
                       {(() => {
                         const badge = getCheckInAuthorBadge(ci.authorType);
                         const absoluteCreatedAt = formatAbsoluteDateTime(ci.createdAt);
 
                         return (
                           <>
-                            <div className="text-[13px] leading-5" style={{ color: 'var(--text-primary)' }}>{ci.summary}</div>
-                            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                            <div className="flex w-4 shrink-0 justify-center pt-1">
                               <span
-                                className="rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.05em]"
-                                style={{
-                                  color: badge.color,
-                                  background: badge.background,
-                                  borderColor: badge.border,
-                                }}
-                              >
-                                {badge.label}
-                              </span>
-                              <span title={absoluteCreatedAt}>{formatRelativeTime(ci.createdAt)}</span>
-                              <span>{absoluteCreatedAt}</span>
+                                className="h-2 w-2 rounded-full"
+                                style={{ background: badge.color, boxShadow: `0 0 0 4px ${badge.background}` }}
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[13px] leading-5" style={{ color: 'var(--text-primary)' }}>{ci.summary}</div>
+                              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                                <span
+                                  className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.05em]"
+                                  style={{
+                                    color: badge.color,
+                                    background: badge.background,
+                                  }}
+                                >
+                                  {badge.label}
+                                </span>
+                                <span title={absoluteCreatedAt}>{formatRelativeTime(ci.createdAt)}</span>
+                                <span>{absoluteCreatedAt}</span>
+                              </div>
                             </div>
                           </>
                         );
@@ -449,38 +481,50 @@ export function DeveloperTrackerDrawer({
                     </div>
                   ))}
                 </div>
-
-                {/* New check-in input */}
-                {!readOnly && (
-                  <div className="flex items-center gap-1.5">
-                    <MessageSquare size={12} style={{ color: 'var(--text-muted)' }} />
-                    <input
-                      type="text"
-                      value={checkInText}
-                      onChange={(e) => setCheckInText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleCheckIn();
-                      }}
-                      placeholder="Add a check-in note..."
-                      className="flex-1 rounded-lg px-2 py-1.5 text-[13px] outline-none"
-                      style={{
-                        background: 'var(--bg-tertiary)',
-                        color: 'var(--text-primary)',
-                        border: '1px solid var(--border)',
-                      }}
-                    />
-                    <button
-                      onClick={handleCheckIn}
-                      disabled={!checkInText.trim()}
-                      className="shrink-0 h-7 rounded-lg px-2 text-[13px] font-medium disabled:opacity-40 transition-colors"
-                      style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
-                    >
-                      Save
-                    </button>
-                  </div>
-                )}
               </DrawerSection>
             </div>
+            {!readOnly && (
+              <div
+                className="shrink-0 px-6 py-4"
+                style={{
+                  background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 12%, transparent), var(--bg-primary))',
+                  borderTop: '1px solid color-mix(in srgb, var(--border) 45%, transparent)',
+                }}
+              >
+                <div
+                  className="flex items-center gap-2 rounded-2xl px-3 py-2"
+                  style={{
+                    background: 'color-mix(in srgb, var(--bg-tertiary) 48%, transparent)',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+                  }}
+                >
+                  <MessageSquare size={14} className="shrink-0" style={{ color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    value={checkInText}
+                    onChange={(e) => setCheckInText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCheckIn();
+                    }}
+                    placeholder="Add a check-in note..."
+                    className="min-w-0 flex-1 rounded-xl px-2 py-1.5 text-[13px] outline-none"
+                    style={{
+                      background: 'transparent',
+                      color: 'var(--text-primary)',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCheckIn}
+                    disabled={!checkInText.trim()}
+                    className="h-8 shrink-0 rounded-xl px-3 text-[13px] font-medium transition-colors disabled:opacity-40"
+                    style={{ background: 'color-mix(in srgb, var(--accent) 14%, transparent)', color: 'var(--accent)' }}
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            )}
           </motion.div>
         </>
       )}

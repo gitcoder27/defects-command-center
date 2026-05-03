@@ -18,7 +18,7 @@ export function TodayRhythmHeader({ today, isFetching, onRefresh, onOpenMetric }
   return (
     <section className="shrink-0 border-b px-2 py-1.5" style={{ borderColor: 'var(--today-line)' }}>
       <div
-        className="grid gap-1.5 border-b border-t py-1.5 lg:grid-cols-[190px_repeat(6,minmax(0,1fr))_160px]"
+        className="grid gap-1.5 border-b border-t py-1.5 lg:grid-cols-[190px_repeat(6,minmax(0,1fr))_126px]"
         style={{
           background: 'linear-gradient(90deg, color-mix(in srgb, var(--bg-secondary) 20%, transparent), color-mix(in srgb, var(--bg-secondary) 8%, transparent))',
           borderColor: 'color-mix(in srgb, var(--border) 24%, transparent)',
@@ -75,10 +75,13 @@ export function TodayRhythmHeader({ today, isFetching, onRefresh, onOpenMetric }
           );
         })}
 
-        <div className="hidden min-h-[58px] items-center rounded-lg px-3 lg:flex" style={{ background: 'color-mix(in srgb, var(--bg-secondary) 14%, transparent)' }}>
-          <div>
-            <p className="text-[13px] font-medium" style={{ color: 'var(--accent)' }}>{today.rhythm.label}</p>
-            <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>{today.rhythm.detail}</p>
+        <div className="hidden min-h-[58px] items-center justify-end px-2 lg:flex">
+          <div className="min-w-0 border-l pl-3" style={{ borderColor: 'var(--today-line)' }}>
+            <p className="flex min-w-0 items-center gap-1.5 truncate text-[12px] font-medium" style={{ color: 'var(--accent)' }}>
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: 'var(--accent)' }} />
+              <span className="truncate">{today.rhythm.label}</span>
+            </p>
+            <p className="mt-1 truncate text-[11px] leading-4" style={{ color: 'var(--text-muted)' }}>{today.rhythm.detail}</p>
           </div>
         </div>
       </div>

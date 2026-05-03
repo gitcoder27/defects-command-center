@@ -61,6 +61,67 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
     });
   };
 
+  const completeDeveloperCheckInOptimistically = (target: TodayActionTarget) => {
+    if (!target.developerAccountId) {
+      return;
+    }
+
+    qc.setQueryData<TodayResponse>(['today', date], (current) => {
+      if (!current) {
+        return current;
+      }
+
+      const matchesDeveloper = (itemTarget: TodayActionTarget) =>
+        itemTarget.developerAccountId === target.developerAccountId;
+      const openCommand = (label: string): TodayActionCommand => ({
+        kind: 'open',
+        label,
+        target: {
+          ...target,
+          type: 'developer',
+          view: 'team',
+        },
+      });
+      const updateActionItem = (item: TodayResponse['actionItems'][number]) => {
+        if (!matchesDeveloper(item.target) || item.primaryAction.kind !== 'add_check_in') {
+          return item;
+        }
+        return {
+          ...item,
+          target: openCommand('Open developer').target,
+          primaryAction: openCommand('Open developer'),
+        };
+      };
+
+      return {
+        ...current,
+        currentPriority: current.currentPriority ? updateActionItem(current.currentPriority) : current.currentPriority,
+        actionItems: current.actionItems.map(updateActionItem),
+        teamPulse: current.teamPulse.map((person) => {
+          if (person.accountId !== target.developerAccountId || person.primaryAction.kind !== 'add_check_in') {
+            return person;
+          }
+          return {
+            ...person,
+            target: openCommand('Open').target,
+            primaryAction: openCommand('Open'),
+            lastUpdate: 'Just now',
+          };
+        }),
+        standupPrompts: current.standupPrompts.map((prompt) => {
+          if (!matchesDeveloper(prompt.target) || prompt.primaryAction.kind !== 'add_check_in') {
+            return prompt;
+          }
+          return {
+            ...prompt,
+            target: openCommand('Open developer').target,
+            primaryAction: openCommand('Open developer'),
+          };
+        }),
+      };
+    });
+  };
+
   const mutation = useMutation({
     mutationFn: async ({ command, preset, summary }: TodayActionVariables) => {
       const { target } = command;
@@ -124,7 +185,10 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
       onOpenTarget(target);
       return { label: command.label, skipToast: true };
     },
-    onMutate: ({ command }) => {
+    onMutate: async ({ command, summary }) => {
+      if (command.kind === 'add_check_in') {
+        await qc.cancelQueries({ queryKey: ['today', date] });
+      }
       if (
         command.kind === 'mark_done' ||
         command.kind === 'snooze' ||
@@ -133,6 +197,9 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
         command.kind === 'set_current_work'
       ) {
         removeTargetOptimistically(command.target);
+      }
+      if (command.kind === 'add_check_in' && summary?.trim()) {
+        completeDeveloperCheckInOptimistically(command.target);
       }
     },
     onSuccess: (result, variables) => {
