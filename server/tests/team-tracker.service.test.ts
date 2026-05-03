@@ -520,6 +520,27 @@ describe("TeamTrackerService", () => {
 
       expect(rows[0]?.state).toBe("in_progress");
     });
+
+    it("rejects guarded stale set-current when another item is already current", async () => {
+      const staleCandidate = await service.addItem("dev-1", "2026-03-07", {
+        title: "Stale Today action candidate",
+      });
+      const developerChoice = await service.addItem("dev-1", "2026-03-07", {
+        title: "Developer selected task",
+      });
+
+      await service.setCurrentItem(developerChoice.id);
+
+      await expect(service.setCurrentItem(staleCandidate.id, { ifNoCurrent: true })).rejects.toMatchObject({
+        status: 409,
+        message: "Current work changed. Refresh Today before setting current work.",
+      });
+
+      const board = await service.getBoard("2026-03-07");
+      const devDay = board.developers.find((day) => day.developer.accountId === "dev-1")!;
+      expect(devDay.currentItem?.id).toBe(developerChoice.id);
+      expect(devDay.plannedItems.some((item) => item.id === staleCandidate.id)).toBe(true);
+    });
   });
 
   describe("updateItem", () => {

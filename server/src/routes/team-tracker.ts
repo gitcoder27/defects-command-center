@@ -182,7 +182,9 @@ const setCurrentSchema = z.object({
   params: z.object({
     itemId: z.string().regex(/^\d+$/, "Invalid item id"),
   }),
-  body: z.any().optional(),
+  body: z.object({
+    ifNoCurrent: z.boolean().optional(),
+  }).optional(),
   query: z.any().optional(),
 });
 
@@ -438,7 +440,9 @@ export function createTeamTrackerRouter(
     async (req, res, next) => {
       try {
         const itemId = parseInt(req.params.itemId as string, 10);
-        const item = await trackerService.setCurrentItem(itemId);
+        const item = await trackerService.setCurrentItem(itemId, {
+          ifNoCurrent: req.body?.ifNoCurrent,
+        });
         res.json(item);
       } catch (error) {
         next(error);

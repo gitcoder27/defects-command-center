@@ -83,7 +83,17 @@ function PeoplePulseRow({
       </span>
       <span className="hidden min-w-0 md:block">
         <span className="block truncate text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>{person.currentWork}</span>
-        <span className="mt-0.5 block truncate text-[12px] leading-5" style={{ color: 'var(--text-muted)' }}>{person.detail}</span>
+        <span
+          className="mt-0.5 block truncate text-[12px] leading-5"
+          style={{ color: 'var(--text-muted)' }}
+          title={person.actionPreview ? `Will set: ${person.actionPreview}` : person.detail}
+        >
+          {person.actionPreview ? (
+            <>
+              <span style={{ color: 'var(--accent)' }}>Will set:</span> {person.actionPreview}
+            </>
+          ) : person.detail}
+        </span>
       </span>
       <button
         type="button"

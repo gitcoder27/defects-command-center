@@ -74,15 +74,24 @@ export function TodayActionRow({ item, featured = false, isPending = false, onRu
           </span>
         </span>
         <span className="mt-1 block truncate text-[12px] leading-5 md:hidden" style={{ color: 'var(--text-secondary)' }}>{item.context}</span>
+        {item.actionPreview ? (
+          <span className="block truncate text-[12px] leading-5 md:hidden" style={{ color: 'var(--text-muted)' }} title={`Will set: ${item.actionPreview}`}>
+            <span style={{ color: 'var(--accent)' }}>Will set:</span> {item.actionPreview}
+          </span>
+        ) : null}
       </button>
 
       <button
         type="button"
         onClick={() => onRunCommand({ kind: 'open', label: 'Open', target: item.target })}
-        className="hidden min-w-0 truncate text-left text-[13px] leading-6 md:block"
-        style={{ color: 'var(--text-secondary)' }}
+        className="hidden min-w-0 text-left md:block"
       >
-        {item.context}
+        <span className="block truncate text-[13px] leading-5" style={{ color: 'var(--text-secondary)' }}>{item.context}</span>
+        {item.actionPreview ? (
+          <span className="mt-0.5 block truncate text-[12px] leading-5" style={{ color: 'var(--text-muted)' }} title={`Will set: ${item.actionPreview}`}>
+            <span style={{ color: 'var(--accent)' }}>Will set:</span> {item.actionPreview}
+          </span>
+        ) : null}
       </button>
 
       <span className="hidden md:block">

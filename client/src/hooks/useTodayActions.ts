@@ -152,7 +152,7 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
       }
 
       if (command.kind === 'set_current_work' && target.trackerItemId) {
-        return api.post(`/team-tracker/items/${target.trackerItemId}/set-current`);
+        return api.post(`/team-tracker/items/${target.trackerItemId}/set-current`, { ifNoCurrent: true });
       }
 
       if (command.kind === 'capture_follow_up') {

@@ -152,6 +152,7 @@ describe("TodayService", () => {
 
     expect(developerAction).toMatchObject({
       title: "Alice Smith",
+      actionPreview: "BE modernization",
       primaryAction: {
         kind: "set_current_work",
         label: "Set current",
@@ -166,6 +167,7 @@ describe("TodayService", () => {
       label: "Set current",
       target: expect.objectContaining({ trackerItemId: planned.id }),
     });
+    expect(pulseItem?.actionPreview).toBe("BE modernization");
   });
 
   it("stops asking for another check-in once a no-current developer has a same-day check-in", async () => {

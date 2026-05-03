@@ -271,6 +271,7 @@ describe('TodayPage V2', () => {
           title: 'Alice Smith',
           context: 'No current work',
           signal: 'No current item',
+          actionPreview: 'AM-77 Checkout retry fix',
           target: setCurrentTarget,
           primaryAction: command('set_current_work', 'Set current', setCurrentTarget),
           secondaryActions: [],
@@ -279,10 +280,14 @@ describe('TodayPage V2', () => {
     }));
     renderToday();
 
+    expect(await screen.findAllByText('AM-77 Checkout retry fix')).not.toHaveLength(0);
     fireEvent.click(await screen.findByRole('button', { name: /^Set current$/i }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/team-tracker/items/77/set-current', expect.objectContaining({ method: 'POST' }));
+      expect(fetchMock).toHaveBeenCalledWith('/api/team-tracker/items/77/set-current', expect.objectContaining({
+        body: JSON.stringify({ ifNoCurrent: true }),
+        method: 'POST',
+      }));
     });
   });
 

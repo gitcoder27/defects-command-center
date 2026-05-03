@@ -17,8 +17,10 @@ import type {
   TodayStandupPrompt,
   TodaySummaryMetric,
   TodayTeamPulseItem,
+  TrackerAttentionActionItem,
   TrackerAttentionItem,
   TrackerDeveloperDay,
+  TrackerWorkItem,
 } from "shared/types";
 import { IssueService } from "./issue.service";
 import { ManagerDeskService } from "./manager-desk.service";
@@ -190,6 +192,7 @@ function buildDeveloperActions(board: TeamTrackerBoardResponse, date: string): T
       primaryLabel: primary.label,
       secondaryKinds: primary.secondaryKinds,
       freshness: formatFreshness(day?.lastCheckInAt ?? item.lastCheckInAt),
+      actionPreview: primary.actionPreview,
     });
   });
 }
@@ -203,6 +206,7 @@ function getDeveloperAttentionPrimary(
   label: string;
   target: TodayActionTarget;
   secondaryKinds: TodayActionCommand["kind"][];
+  actionPreview?: string;
 } {
   const currentTarget = target("developer", "team", {
     developerAccountId: item.developer.accountId,
@@ -221,6 +225,7 @@ function getDeveloperAttentionPrimary(
         date,
       }),
       secondaryKinds: ["open", "capture_follow_up"],
+      actionPreview: formatSetCurrentPreview(setCurrentCandidate),
     };
   }
 
@@ -256,6 +261,7 @@ function getDeveloperPulsePrimary(
   label: string;
   target: TodayActionTarget;
   secondaryKinds: TodayActionCommand["kind"][];
+  actionPreview?: string;
 } {
   const openTarget = target("developer", "team", {
     developerAccountId: day.developer.accountId,
@@ -274,6 +280,7 @@ function getDeveloperPulsePrimary(
         date,
       }),
       secondaryKinds: ["open", "capture_follow_up"],
+      actionPreview: formatSetCurrentPreview(setCurrentCandidate),
     };
   }
 
@@ -470,6 +477,7 @@ function buildTeamPulse(board: TeamTrackerBoardResponse, date: string): TodayTea
         target: primary.target,
         primaryAction: command(primary.kind, primary.label, primary.target),
         secondaryActions: primary.secondaryKinds.map((kind) => command(kind, commandLabel(kind), pulseTarget)),
+        actionPreview: primary.actionPreview,
       };
     });
 }
@@ -588,6 +596,7 @@ function action(params: {
   primaryLabel: string;
   secondaryKinds: TodayActionCommand["kind"][];
   freshness?: string;
+  actionPreview?: string;
 }): TodayActionItem {
   return {
     id: params.id,
@@ -602,7 +611,12 @@ function action(params: {
     primaryAction: command(params.primaryKind, params.primaryLabel, params.target),
     secondaryActions: params.secondaryKinds.map((kind) => command(kind, commandLabel(kind), params.target)),
     freshness: params.freshness,
+    actionPreview: params.actionPreview ? compactText(params.actionPreview, 140) : undefined,
   };
+}
+
+function formatSetCurrentPreview(item: TrackerAttentionActionItem | TrackerWorkItem): string {
+  return item.jiraKey ? `${item.jiraKey} ${item.title}` : item.title;
 }
 
 function command(kind: TodayActionCommand["kind"], label: string, actionTarget: TodayActionTarget): TodayActionCommand {

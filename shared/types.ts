@@ -266,6 +266,7 @@ export interface TodayActionItem {
   primaryAction: TodayActionCommand;
   secondaryActions: TodayActionCommand[];
   freshness?: string;
+  actionPreview?: string;
 }
 
 export interface TodayRhythmState {
@@ -295,6 +296,7 @@ export interface TodayTeamPulseItem {
   target: TodayActionTarget;
   primaryAction: TodayActionCommand;
   secondaryActions: TodayActionCommand[];
+  actionPreview?: string;
 }
 
 export interface TodayPromiseItem {

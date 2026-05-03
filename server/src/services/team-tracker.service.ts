@@ -1364,7 +1364,7 @@ export class TeamTrackerService {
     });
   }
 
-  async setCurrentItem(itemId: number): Promise<TrackerWorkItem> {
+  async setCurrentItem(itemId: number, options: { ifNoCurrent?: boolean } = {}): Promise<TrackerWorkItem> {
     return runInTransaction(async () => {
     const item = await this.getItemRow(itemId);
     const day = await this.getDayById(item.dayId);
@@ -1377,7 +1377,8 @@ export class TeamTrackerService {
       day.developerAccountId,
       day.id,
       itemId,
-      now
+      now,
+      options
     );
     if (linkedManagerDeskItemIds.length > 0) {
       await this.touchManagerDeskItems(linkedManagerDeskItemIds, now);
@@ -2661,7 +2662,8 @@ export class TeamTrackerService {
     developerAccountId: string,
     dayId: number,
     itemId: number,
-    now: string
+    now: string,
+    options: { ifNoCurrent?: boolean } = {}
   ): Promise<number[]> {
     const dayRows = await db
       .select({ id: teamTrackerDays.id })
@@ -2691,6 +2693,7 @@ export class TeamTrackerService {
       );
     const currentRows = await db
       .select({
+        id: teamTrackerItems.id,
         managerDeskItemId: teamTrackerItems.managerDeskItemId,
       })
       .from(teamTrackerItems)
@@ -2700,6 +2703,9 @@ export class TeamTrackerService {
           eq(teamTrackerItems.state, "in_progress")
         )
       );
+    if (options.ifNoCurrent && currentRows.some((row) => row.id !== itemId)) {
+      throw new HttpError(409, "Current work changed. Refresh Today before setting current work.");
+    }
 
     await db
       .update(teamTrackerItems)
