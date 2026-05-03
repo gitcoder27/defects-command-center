@@ -59,7 +59,7 @@ export function DeskRhythmList({
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 md:px-4">
-        <div className="grid gap-7 xl:grid-cols-[minmax(0,980px)_260px] xl:items-start 2xl:grid-cols-[minmax(0,1040px)_280px]">
+        <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0 space-y-5">
             {items.length === 0 ? (
               <UnifiedEmptyState quickFilter="all" message="No desk work matches this view." />

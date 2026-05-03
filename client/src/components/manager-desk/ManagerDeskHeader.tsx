@@ -29,7 +29,7 @@ export function ManagerDeskHeader({
       : 'Live';
 
   return (
-    <div className="sticky top-0 z-20 px-2 pt-2 md:px-3">
+    <div className="sticky top-0 z-20 mx-auto w-full max-w-[1480px] px-2 pt-2 md:px-3">
       <div className="md-header-panel rounded-xl px-3 py-2">
         <div className="flex items-center gap-2">
           <div
