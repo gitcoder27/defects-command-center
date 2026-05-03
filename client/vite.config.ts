@@ -24,17 +24,20 @@ export default defineConfig(({ command, mode }) => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks: {
-            react: ['react', 'react-dom', 'react/jsx-runtime'],
-            query: ['@tanstack/react-query', '@tanstack/react-table'],
-            motion: ['framer-motion', 'lucide-react'],
-            radix: [
-              '@radix-ui/react-dialog',
-              '@radix-ui/react-popover',
-              '@radix-ui/react-select',
-              '@radix-ui/react-switch',
-              '@radix-ui/react-tooltip',
-            ],
+          manualChunks(id: string) {
+            if (id.includes('/node_modules/react/') || id.includes('/node_modules/react-dom/')) {
+              return 'react';
+            }
+            if (id.includes('/node_modules/@tanstack/react-query/') || id.includes('/node_modules/@tanstack/react-table/')) {
+              return 'query';
+            }
+            if (id.includes('/node_modules/framer-motion/') || id.includes('/node_modules/lucide-react/')) {
+              return 'motion';
+            }
+            if (id.includes('/node_modules/@radix-ui/')) {
+              return 'radix';
+            }
+            return undefined;
           },
         },
       },

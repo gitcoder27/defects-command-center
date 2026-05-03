@@ -44,10 +44,10 @@ describe('Header', () => {
     resizeObserverDisconnect.mockReset();
     resizeObserverObserve.mockReset();
     document.documentElement.style.removeProperty('--app-header-height');
-    global.ResizeObserver = vi.fn().mockImplementation(() => ({
-      observe: resizeObserverObserve,
-      disconnect: resizeObserverDisconnect,
-    })) as unknown as typeof ResizeObserver;
+    globalThis.ResizeObserver = class {
+      observe = resizeObserverObserve;
+      disconnect = resizeObserverDisconnect;
+    } as unknown as typeof ResizeObserver;
     useThemeMock.mockReturnValue({
       theme: 'dark',
       toggleTheme: vi.fn(),
