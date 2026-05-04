@@ -7,6 +7,7 @@ interface Props {
   isTodayDate: boolean;
   isFetching: boolean;
   viewMode: ManagerDeskViewMode;
+  commandBar?: ReactNode;
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
@@ -18,6 +19,7 @@ export function ManagerDeskHeader({
   isTodayDate,
   isFetching,
   viewMode,
+  commandBar,
   onPrev,
   onNext,
   onToday,
@@ -31,58 +33,66 @@ export function ManagerDeskHeader({
   return (
     <div className="sticky top-0 z-20 mx-auto w-full max-w-[1480px] px-2 pt-1.5 md:px-3">
       <div className="md-header-panel rounded-xl px-3 py-1.5">
-        <div className="flex items-center gap-2">
-          <div
-            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md"
-            style={{ background: 'var(--md-accent-glow)', color: 'var(--md-accent)' }}
-          >
-            <Briefcase size={13} />
-          </div>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 2xl:grid-cols-[auto_minmax(0,1fr)_auto] 2xl:items-center">
+          <div className="flex min-w-0 items-center gap-2">
+            <div
+              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md"
+              style={{ background: 'var(--md-accent-glow)', color: 'var(--md-accent)' }}
+            >
+              <Briefcase size={13} />
+            </div>
 
-          <h1 className="hidden truncate text-[13px] font-semibold tracking-[-0.01em] sm:block" style={{ color: 'var(--text-primary)' }}>
-            Desk
-          </h1>
+            <h1 className="hidden truncate text-[13px] font-semibold tracking-[-0.01em] sm:block" style={{ color: 'var(--text-primary)' }}>
+              Desk
+            </h1>
 
-          <div className="h-4 w-px flex-shrink-0 hidden sm:block" style={{ background: 'var(--border)' }} />
+            <div className="h-4 w-px flex-shrink-0 hidden sm:block" style={{ background: 'var(--border)' }} />
 
-          <div
-            className="flex items-center rounded-lg border px-0.5 py-0.5"
-            style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border)' }}
-          >
-            <NavBtn label="Previous day" onClick={onPrev}>
-              <ChevronLeft size={13} />
-            </NavBtn>
-            <button
-              type="button"
-              onClick={onToday}
-              className="rounded-md px-2 py-1 text-[11px] font-bold uppercase tracking-[0.12em]"
+            <div
+              className="flex items-center rounded-lg border px-0.5 py-0.5"
+              style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border)' }}
+            >
+              <NavBtn label="Previous day" onClick={onPrev}>
+                <ChevronLeft size={13} />
+              </NavBtn>
+              <button
+                type="button"
+                onClick={onToday}
+                className="rounded-md px-2 py-1 text-[11px] font-bold uppercase tracking-[0.12em]"
+                style={{
+                  background: isTodayDate ? 'var(--md-accent-glow)' : 'transparent',
+                  color: isTodayDate ? 'var(--md-accent)' : 'var(--text-secondary)',
+                }}
+              >
+                Today
+              </button>
+              <NavBtn label="Next day" onClick={onNext}>
+                <ChevronRight size={13} />
+              </NavBtn>
+            </div>
+
+            <span className="text-[12px] font-medium tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+              {displayDate}
+            </span>
+
+            <span
+              className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em]"
               style={{
-                background: isTodayDate ? 'var(--md-accent-glow)' : 'transparent',
-                color: isTodayDate ? 'var(--md-accent)' : 'var(--text-secondary)',
+                background: viewMode === 'history' ? 'rgba(59,130,246,0.10)' : viewMode === 'planning' ? 'rgba(6,182,212,0.10)' : 'var(--md-accent-glow)',
+                color: viewMode === 'history' ? 'var(--info)' : viewMode === 'planning' ? 'var(--accent)' : 'var(--md-accent)',
               }}
             >
-              Today
-            </button>
-            <NavBtn label="Next day" onClick={onNext}>
-              <ChevronRight size={13} />
-            </NavBtn>
+              {modeLabel}
+            </span>
           </div>
 
-          <span className="text-[12px] font-medium tabular-nums" style={{ color: 'var(--text-secondary)' }}>
-            {displayDate}
-          </span>
+          {commandBar && (
+            <div className="col-span-2 min-w-0 2xl:col-span-1 2xl:col-start-2 2xl:row-start-1">
+              {commandBar}
+            </div>
+          )}
 
-          <span
-            className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em]"
-            style={{
-              background: viewMode === 'history' ? 'rgba(59,130,246,0.10)' : viewMode === 'planning' ? 'rgba(6,182,212,0.10)' : 'var(--md-accent-glow)',
-              color: viewMode === 'history' ? 'var(--info)' : viewMode === 'planning' ? 'var(--accent)' : 'var(--md-accent)',
-            }}
-          >
-            {modeLabel}
-          </span>
-
-          <div className="ml-auto flex items-center gap-1">
+          <div className="col-start-2 row-start-1 flex items-center justify-end gap-1 2xl:col-start-3">
             <ActionBtn onClick={onRefresh} label="Refresh" disabled={isFetching}>
               <RefreshCw size={11} className={isFetching ? 'animate-spin' : ''} />
             </ActionBtn>

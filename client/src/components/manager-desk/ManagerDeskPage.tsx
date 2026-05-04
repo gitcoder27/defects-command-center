@@ -81,6 +81,10 @@ export function ManagerDeskPage({
     [sourceItems, searchQuery, quickFilter, filters],
   );
   const listItems = useMemo(() => sortForWorkbench(filteredItems), [filteredItems]);
+  const pulseItems = useMemo(
+    () => sortForWorkbench(filterItems(sourceItems, searchQuery, getDefaultQuickFilter(), filters)),
+    [filters, searchQuery, sourceItems],
+  );
   const continuedOpenItems = useMemo(() => getContinuedOpenItems(sourceItems, date), [date, sourceItems]);
   const selectedItem = useMemo(
     () => sourceItems.find((item) => item.id === selectedItemId) ?? null,
@@ -235,6 +239,28 @@ export function ManagerDeskPage({
         isTodayDate={isToday(dateObj)}
         isFetching={isFetching}
         viewMode={viewMode}
+        commandBar={
+          <ManagerDeskCommandBar
+            items={sourceItems}
+            searchQuery={searchQuery}
+            quickFilter={quickFilter}
+            defaultQuickFilter={getDefaultQuickFilter()}
+            filters={filters}
+            showFilters={showFilters}
+            isCreatePending={createItem.isPending}
+            variant="inline"
+            captureDisabled={readOnly}
+            captureDisabledLabel="Historical views are review-only. Open today or a future date to add work."
+            onSearchChange={setSearchQuery}
+            onQuickFilterChange={setQuickFilter}
+            onToggleFilters={() => setShowFilters((current) => !current)}
+            onClearSearch={() => setSearchQuery('')}
+            onClearFilters={() => setFilters(defaultFilters)}
+            onResetView={resetDeskView}
+            onChangeFilters={setFilters}
+            onCapture={handleQuickCapture}
+          />
+        }
         onPrev={goPrev}
         onNext={goNext}
         onToday={goToday}
@@ -252,28 +278,6 @@ export function ManagerDeskPage({
           />
         </ManagerDeskWorkspace>
       )}
-
-      <ManagerDeskWorkspace className="sticky top-[42px] z-10">
-        <ManagerDeskCommandBar
-          items={sourceItems}
-          searchQuery={searchQuery}
-          quickFilter={quickFilter}
-          defaultQuickFilter={getDefaultQuickFilter()}
-          filters={filters}
-          showFilters={showFilters}
-          isCreatePending={createItem.isPending}
-          captureDisabled={readOnly}
-          captureDisabledLabel="Historical views are review-only. Open today or a future date to add work."
-          onSearchChange={setSearchQuery}
-          onQuickFilterChange={setQuickFilter}
-          onToggleFilters={() => setShowFilters((current) => !current)}
-          onClearSearch={() => setSearchQuery('')}
-          onClearFilters={() => setFilters(defaultFilters)}
-          onResetView={resetDeskView}
-          onChangeFilters={setFilters}
-          onCapture={handleQuickCapture}
-        />
-      </ManagerDeskWorkspace>
 
       <ManagerDeskWorkspace className="min-h-0 flex-1 overflow-hidden py-1.5">
         {isLoading ? (
@@ -297,6 +301,7 @@ export function ManagerDeskPage({
                 >
                   <UnifiedDeskList
                     items={listItems}
+                    pulseItems={pulseItems}
                     continuedOpenCount={continuedOpenItems.length}
                     quickFilter={quickFilter}
                     selectedItemId={selectedItemId}

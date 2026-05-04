@@ -31,11 +31,7 @@ export function DeskRhythmList({
   const activeSections = sections.filter((section) => !section.quiet && section.items.length > 0);
   const quietSections = sections.filter((section) => section.quiet);
   const title = viewMode === 'planning' ? 'Scheduled work' : viewMode === 'history' ? 'Desk snapshot' : 'Today';
-  const metrics = [
-    { label: 'Now', value: sections.find((section) => section.key === 'now')?.items.length ?? 0, tone: 'active' as const },
-    { label: 'Triage', value: sections.find((section) => section.key === 'triage')?.items.length ?? 0, tone: 'decision' as const },
-    { label: 'Planned', value: sections.find((section) => section.key === 'planned')?.items.length ?? 0, tone: 'calm' as const },
-  ];
+  const metrics = buildDeskSignalMetrics(sections);
 
   return (
     <section
@@ -167,7 +163,7 @@ function QuietDeskStrip({ sections }: { sections: DeskRhythmSection[] }) {
   );
 }
 
-function DeskSignalRail({
+export function DeskSignalRail({
   metrics,
   sections,
   continuedOpenCount,
@@ -277,7 +273,15 @@ function getNextDeskPrompt(sections: DeskRhythmSection[], viewMode: 'live' | 'hi
     : { title: 'Desk is clear', subtitle: 'Capture only what needs a manager decision or action.' };
 }
 
-function buildDeskRhythmSections(items: ManagerDeskItem[]): DeskRhythmSection[] {
+export function buildDeskSignalMetrics(sections: DeskRhythmSection[]) {
+  return [
+    { label: 'Now', value: sections.find((section) => section.key === 'now')?.items.length ?? 0, tone: 'active' as const },
+    { label: 'Triage', value: sections.find((section) => section.key === 'triage')?.items.length ?? 0, tone: 'decision' as const },
+    { label: 'Planned', value: sections.find((section) => section.key === 'planned')?.items.length ?? 0, tone: 'calm' as const },
+  ];
+}
+
+export function buildDeskRhythmSections(items: ManagerDeskItem[]): DeskRhythmSection[] {
   return [
     { key: 'now', title: 'Now', subtitle: 'The work already in motion.', icon: <Play size={12} />, items: items.filter((item) => item.status === 'in_progress'), tone: 'active' },
     { key: 'triage', title: 'Needs triage', subtitle: 'Fresh captures waiting for a decision.', icon: <Inbox size={12} />, items: items.filter((item) => item.status === 'inbox'), tone: 'decision' },

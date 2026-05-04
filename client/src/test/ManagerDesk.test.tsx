@@ -995,6 +995,26 @@ describe('ManagerDeskPage', () => {
     expect(screen.queryByText(/A new day changes the lens/i)).not.toBeInTheDocument();
   });
 
+  it('keeps the desk pulse rail visible in filtered desk lenses', () => {
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /triage 1/i }));
+
+    expect(screen.getByRole('heading', { name: 'Needs triage' })).toBeInTheDocument();
+    const triageRail = screen.getByLabelText('Desk pulse');
+    expect(within(triageRail).getByText('Pulse')).toBeInTheDocument();
+    expect(within(triageRail).getByText('Planned')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /now 0/i }));
+
+    expect(screen.getByText('Nothing is in motion right now.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Desk pulse')).toBeInTheDocument();
+  });
+
   it('shows filter button and toggles filter bar', () => {
     render(
       <TestWrapper>

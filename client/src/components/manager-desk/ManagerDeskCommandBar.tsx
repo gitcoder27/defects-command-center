@@ -21,6 +21,7 @@ interface Props {
   filters: ManagerDeskFilterState;
   showFilters: boolean;
   isCreatePending: boolean;
+  variant?: 'panel' | 'inline';
   captureDisabled?: boolean;
   captureDisabledLabel?: string;
   onSearchChange: (value: string) => void;
@@ -41,6 +42,7 @@ export function ManagerDeskCommandBar({
   filters,
   showFilters,
   isCreatePending,
+  variant = 'panel',
   captureDisabled = false,
   captureDisabledLabel,
   onSearchChange,
@@ -55,19 +57,22 @@ export function ManagerDeskCommandBar({
   const hasStructuredFilters = filters.kind !== null || filters.category !== null || filters.status !== null;
   const hasSearch = searchQuery.trim().length > 0;
   const hasCustomView = quickFilter !== defaultQuickFilter || hasSearch || hasStructuredFilters;
+  const isInline = variant === 'inline';
 
   return (
-    <div className="pt-1.5">
+    <div className={isInline ? 'min-w-0' : 'pt-1.5'}>
       <div
-        className="rounded-xl border p-1.5"
-        style={{
-          background: 'color-mix(in srgb, var(--bg-primary) 86%, transparent)',
-          borderColor: 'color-mix(in srgb, var(--border) 68%, transparent)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.025)',
-        }}
+        className={isInline ? 'min-w-0' : 'rounded-xl border p-1.5'}
+        style={isInline
+          ? undefined
+          : {
+              background: 'color-mix(in srgb, var(--bg-primary) 86%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--border) 68%, transparent)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.025)',
+            }}
       >
-        <div className="flex flex-col gap-1.5 xl:flex-row xl:items-center">
-          <div className="min-w-0 flex-1">
+        <div className={`flex flex-col gap-1.5 ${isInline ? 'lg:flex-row lg:items-center 2xl:justify-end' : 'xl:flex-row xl:items-center'}`}>
+          <div className={isInline ? 'min-w-[220px] flex-1 2xl:max-w-[360px]' : 'min-w-0 flex-1'}>
             <QuickCapture
               onCapture={onCapture}
               isPending={isCreatePending}
@@ -76,7 +81,7 @@ export function ManagerDeskCommandBar({
             />
           </div>
 
-          <div className="flex min-w-0 flex-wrap items-center gap-1" aria-label="Manager Desk map">
+          <div className="flex min-w-0 flex-wrap items-center gap-1 lg:shrink-0" aria-label="Manager Desk map">
             {quickFilters.map(({ key, label }) => (
               <button
                 key={key}
@@ -98,7 +103,7 @@ export function ManagerDeskCommandBar({
             ))}
           </div>
 
-          <div className="flex items-stretch gap-1.5">
+          <div className="flex items-stretch gap-1.5 lg:shrink-0">
             <div className="flex min-w-[136px] items-center gap-1.5 rounded-lg border px-2" style={{ borderColor: 'color-mix(in srgb, var(--border) 66%, transparent)', background: 'color-mix(in srgb, var(--bg-secondary) 58%, transparent)' }}>
               <Search size={12} style={{ color: 'var(--text-muted)' }} />
               <input

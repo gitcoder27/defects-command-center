@@ -1,11 +1,17 @@
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
-import { DeskRhythmList } from './DeskRhythmList';
+import {
+  buildDeskRhythmSections,
+  buildDeskSignalMetrics,
+  DeskRhythmList,
+  DeskSignalRail,
+} from './DeskRhythmList';
 import { DeskCardRow, DeskRhythmHeader } from './DeskRhythmListPrimitives';
 import { lensCopy, UnifiedEmptyState } from './UnifiedDeskListPrimitives';
 import type { ManagerDeskQuickFilter } from './workbench-utils';
 
 interface Props {
   items: ManagerDeskItem[];
+  pulseItems: ManagerDeskItem[];
   continuedOpenCount: number;
   quickFilter: ManagerDeskQuickFilter;
   selectedItemId: number | null;
@@ -17,6 +23,7 @@ interface Props {
 
 export function UnifiedDeskList({
   items,
+  pulseItems,
   continuedOpenCount,
   quickFilter,
   selectedItemId,
@@ -42,6 +49,8 @@ export function UnifiedDeskList({
   return (
     <SingleLensList
       items={items}
+      pulseItems={pulseItems}
+      continuedOpenCount={continuedOpenCount}
       quickFilter={quickFilter}
       selectedItemId={selectedItemId}
       readOnly={readOnly}
@@ -54,38 +63,57 @@ export function UnifiedDeskList({
 
 function SingleLensList({
   items,
+  pulseItems,
+  continuedOpenCount,
   quickFilter,
   selectedItemId,
   readOnly,
   viewMode,
   onSelect,
   onStatusChange,
-}: Omit<Props, 'continuedOpenCount'>) {
+}: Props) {
   const copy = lensCopy[quickFilter];
   const visibleTitle = viewMode === 'planning' && quickFilter === 'planned' ? 'Scheduled work' : copy.title;
+  const pulseSections = buildDeskRhythmSections(pulseItems);
+  const pulseMetrics = buildDeskSignalMetrics(pulseSections);
 
   return (
-    <section className="md-glass-panel flex min-h-full flex-col overflow-hidden rounded-xl">
-      <DeskRhythmHeader title={visibleTitle} subtitle={copy.subtitle} count={items.length} />
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {items.length === 0 ? (
-          <div className="max-w-[980px] 2xl:max-w-[1040px]">
-            <UnifiedEmptyState quickFilter={quickFilter} message={copy.empty} />
+    <section
+      className="flex min-h-full flex-col overflow-hidden rounded-xl border"
+      style={{
+        background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 92%, transparent), color-mix(in srgb, var(--bg-primary) 98%, transparent))',
+        borderColor: 'color-mix(in srgb, var(--border) 82%, transparent)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.025)',
+      }}
+    >
+      <DeskRhythmHeader title={visibleTitle} count={items.length} />
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 md:px-4">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_224px] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_240px]">
+          <div className="min-w-0">
+            {items.length === 0 ? (
+              <UnifiedEmptyState quickFilter={quickFilter} message={copy.empty} />
+            ) : (
+              <div className="space-y-1.5">
+                {items.map((item) => (
+                  <DeskCardRow
+                    key={item.id}
+                    item={item}
+                    selected={item.id === selectedItemId}
+                    readOnly={readOnly ?? false}
+                    onSelect={onSelect}
+                    onStatusChange={onStatusChange}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="max-w-[980px] space-y-1.5 2xl:max-w-[1040px]">
-            {items.map((item) => (
-              <DeskCardRow
-                key={item.id}
-                item={item}
-                selected={item.id === selectedItemId}
-                readOnly={readOnly ?? false}
-                onSelect={onSelect}
-                onStatusChange={onStatusChange}
-              />
-            ))}
-          </div>
-        )}
+          <DeskSignalRail
+            metrics={pulseMetrics}
+            sections={pulseSections}
+            continuedOpenCount={continuedOpenCount}
+            viewMode={viewMode}
+          />
+        </div>
       </div>
     </section>
   );
