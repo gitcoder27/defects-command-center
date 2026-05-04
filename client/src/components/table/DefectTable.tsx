@@ -43,6 +43,7 @@ const INITIAL_ROW_STAGGER_CAP = 12;
 const ROW_HOVER_BACKGROUND = 'color-mix(in srgb, var(--bg-tertiary) 72%, transparent)';
 const ROW_DEFAULT_BACKGROUND = 'color-mix(in srgb, var(--bg-secondary) 42%, transparent)';
 const STATUS_FILTER_STORAGE_KEY = 'dcc:defect-table:excluded-statuses';
+const EMPTY_ISSUES: Issue[] = [];
 
 const columnHelper = createColumnHelper<Issue>();
 
@@ -83,6 +84,20 @@ function persistExcludedStatuses(excludedStatuses: string[]) {
   } catch {
     // Ignore storage failures and continue with in-memory state.
   }
+}
+
+function areStringArraysEqual(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function useStableStringArray(values: string[]): string[] {
+  const previousValuesRef = useRef(values);
+
+  if (!areStringArraysEqual(previousValuesRef.current, values)) {
+    previousValuesRef.current = values;
+  }
+
+  return previousValuesRef.current;
 }
 
 function hasAnalysisNotes(issue: Issue): boolean {
@@ -136,10 +151,11 @@ function useDefectTableModel({
     getSortedRowModel: getSortedRowModel(),
   });
 
-  const visibleIssueKeys = useMemo(
+  const rawVisibleIssueKeys = useMemo(
     () => table.getRowModel().rows.map((row) => row.original.jiraKey),
     [table, filteredIssues, sorting]
   );
+  const visibleIssueKeys = useStableStringArray(rawVisibleIssueKeys);
 
   return { filteredIssues, table, visibleIssueKeys };
 }
@@ -179,6 +195,7 @@ export function DefectTable({
   const { data: syncStatus } = useSyncStatus();
   const { exclude, restore } = useExcludeIssue();
   const { addToast } = useToast();
+
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'aspenSeverity', desc: false },
     { id: 'developmentDueDate', desc: false },
@@ -245,8 +262,7 @@ export function DefectTable({
   }, [lastVisitedKey, scheduleVisitedHighlightClear]);
 
   // Expose issue keys for parent keyboard nav
-  const rowCount = issues?.length ?? 0;
-  const baseIssues = issues ?? [];
+  const baseIssues = issues ?? EMPTY_ISSUES;
   const syncErrorMessage = syncStatus?.status === 'error' ? syncStatus.errorMessage : undefined;
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const allStatuses = useMemo(() => {

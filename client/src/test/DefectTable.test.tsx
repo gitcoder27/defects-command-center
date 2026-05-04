@@ -90,8 +90,9 @@ const mockIssues: Issue[] = [
 const mockCreateTagMutate = vi.fn();
 const mockSetIssueTagsMutate = vi.fn();
 const mockUpdateIssueMutate = vi.fn();
-let currentIssues = mockIssues;
+let currentIssues: Issue[] | undefined = mockIssues;
 let issueQueryState = {
+  isLoading: false,
   isError: false,
   error: null as Error | null,
   isFetching: false,
@@ -131,7 +132,7 @@ const animatedRows: Issue[] = Array.from({ length: 14 }, (_, index) => ({
 vi.mock('@/hooks/useIssues', () => ({
   useIssues: () => ({
     data: currentIssues,
-    isLoading: false,
+    isLoading: issueQueryState.isLoading,
     isError: issueQueryState.isError,
     error: issueQueryState.error,
     isFetching: issueQueryState.isFetching,
@@ -169,6 +170,7 @@ describe('DefectTable', () => {
   beforeEach(() => {
     currentIssues = mockIssues;
     issueQueryState = {
+      isLoading: false,
       isError: false,
       error: null,
       isFetching: false,
@@ -530,6 +532,88 @@ describe('DefectTable', () => {
     expect(onClearFilters).toHaveBeenCalled();
     expect(screen.queryByLabelText('Search defects by ID or title')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Open defect search')).toBeInTheDocument();
+  });
+
+  it('reports zero visible issue keys once when a filter has no matches', async () => {
+    currentIssues = [];
+    const visibleKeysChange = vi.fn();
+
+    function VisibleIssueKeysHarness() {
+      const [reportedKeys, setReportedKeys] = React.useState<string[]>(['PROJ-101']);
+      const handleVisibleIssueKeysChange = React.useCallback((keys: string[]) => {
+        visibleKeysChange(keys);
+        setReportedKeys(keys);
+      }, []);
+
+      return (
+        <>
+          <div data-testid="reported-visible-keys">
+            {reportedKeys.length > 0 ? reportedKeys.join(',') : 'empty'}
+          </div>
+          <DefectTable
+            {...defaultProps}
+            filter="overdue"
+            onVisibleIssueKeysChange={handleVisibleIssueKeysChange}
+          />
+        </>
+      );
+    }
+
+    render(
+      <TestWrapper>
+        <VisibleIssueKeysHarness />
+      </TestWrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('reported-visible-keys')).toHaveTextContent('empty');
+    });
+    expect(visibleKeysChange).toHaveBeenCalledTimes(1);
+    expect(visibleKeysChange).toHaveBeenCalledWith([]);
+  });
+
+  it('keeps visible issue keys stable while a filtered issue query is loading', async () => {
+    currentIssues = undefined;
+    issueQueryState = {
+      ...issueQueryState,
+      isLoading: true,
+      isFetching: true,
+    };
+    const visibleKeysChange = vi.fn();
+
+    function LoadingFilterHarness() {
+      const [reportedKeys, setReportedKeys] = React.useState<string[]>(['PROJ-101']);
+      const handleVisibleIssueKeysChange = React.useCallback((keys: string[]) => {
+        visibleKeysChange(keys);
+        setReportedKeys(keys);
+      }, []);
+
+      return (
+        <>
+          <div data-testid="reported-visible-keys">
+            {reportedKeys.length > 0 ? reportedKeys.join(',') : 'empty'}
+          </div>
+          <DefectTable
+            {...defaultProps}
+            filter="overdue"
+            onVisibleIssueKeysChange={handleVisibleIssueKeysChange}
+          />
+        </>
+      );
+    }
+
+    render(
+      <TestWrapper>
+        <LoadingFilterHarness />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText('Loading defects')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('reported-visible-keys')).toHaveTextContent('empty');
+    });
+    expect(visibleKeysChange).toHaveBeenCalledTimes(1);
+    expect(visibleKeysChange).toHaveBeenCalledWith([]);
   });
 
   it('auto-hides search on blur when query is empty', () => {

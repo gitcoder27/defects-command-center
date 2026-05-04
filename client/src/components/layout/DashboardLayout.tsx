@@ -51,6 +51,15 @@ function hasShortcutModifier(event: KeyboardEvent): boolean {
   return event.ctrlKey || event.metaKey || event.altKey || event.isComposing;
 }
 
+function areDashboardFilterStatesEqual(left: DashboardFilterState, right: DashboardFilterState): boolean {
+  return (
+    left.activeFilter === right.activeFilter &&
+    left.activeDeveloper === right.activeDeveloper &&
+    left.selectedTagId === right.selectedTagId &&
+    left.noTagsFilter === right.noTagsFilter
+  );
+}
+
 interface DashboardLayoutProps {
   activeView?: AppView;
   onViewChange?: (view: AppView) => void;
@@ -192,14 +201,18 @@ export function DashboardLayout({
   const { activeFilter, activeDeveloper, selectedTagId, noTagsFilter } = resolvedFilterState;
 
   const setFilterState = useCallback((updater: DashboardFilterState | ((prev: DashboardFilterState) => DashboardFilterState)) => {
-    const nextState = typeof updater === 'function' ? updater(resolvedFilterState) : updater;
-
     if (isControlled) {
-      onFilterStateChange(nextState);
+      const nextState = typeof updater === 'function' ? updater(resolvedFilterState) : updater;
+      if (!areDashboardFilterStatesEqual(resolvedFilterState, nextState)) {
+        onFilterStateChange(nextState);
+      }
       return;
     }
 
-    setInternalFilterState(nextState);
+    setInternalFilterState((previous) => {
+      const nextState = typeof updater === 'function' ? updater(previous) : updater;
+      return areDashboardFilterStatesEqual(previous, nextState) ? previous : nextState;
+    });
   }, [isControlled, onFilterStateChange, resolvedFilterState]);
 
   selectedIssueKeyRef.current = selectedIssueKey;
