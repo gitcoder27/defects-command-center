@@ -126,7 +126,12 @@ export class SyncEngine {
       return { status: "success", issuesSynced: jiraIssues.length + reconciledCount, startedAt, completedAt };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown sync error";
-      logger.error({ err: error }, "Sync failed");
+      if (this.isNonRetryableJiraConfigurationError(message)) {
+        this.stop();
+        logger.warn({ err: error }, "Jira sync paused until credentials are updated");
+      } else {
+        logger.error({ err: error }, "Sync failed");
+      }
       const completedAt = new Date().toISOString();
       if (logId !== undefined) {
         await db.update(syncLog).set({ status: "error", errorMessage: message, completedAt }).where(eq(syncLog.id, logId));
@@ -137,6 +142,13 @@ export class SyncEngine {
     } finally {
       this.syncing = false;
     }
+  }
+
+  private isNonRetryableJiraConfigurationError(message: string): boolean {
+    return message === "Missing Jira credentials" ||
+      message === "Missing jira_project_key in config" ||
+      message === "Jira authentication failed (401)" ||
+      message === "Jira access denied (403)";
   }
 
   private toIssueRow(

@@ -38,6 +38,11 @@ export function errorHandler(error: unknown, _req: Request, res: Response, _next
     return;
   }
 
+  if (isJiraDependencyError(error)) {
+    res.status(424).json({ error: error.message, status: 424 });
+    return;
+  }
+
   const message = error instanceof Error ? error.message : "Internal Server Error";
   logger.error({ err: error }, "Unhandled error");
 
@@ -63,4 +68,17 @@ function normalizeHttpStatus(status: unknown): number {
   return typeof status === "number" && Number.isInteger(status) && status >= 400 && status < 600
     ? status
     : 500;
+}
+
+function isJiraDependencyError(error: unknown): error is Error {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.message === "Missing Jira credentials" ||
+    error.message === "Jira authentication failed (401)" ||
+    error.message === "Jira access denied (403)" ||
+    error.message.startsWith("Jira base URL is not configured") ||
+    error.message.startsWith("Jira request timed out") ||
+    error.message.startsWith("Jira request was aborted");
 }

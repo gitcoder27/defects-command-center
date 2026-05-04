@@ -103,6 +103,7 @@ describe("SyncEngine", () => {
       ]),
     };
     const settings = {
+      getSyncIntervalMs: vi.fn(async () => 60_000),
       getJiraProjectKey: vi.fn(async () => "AM"),
       getJiraSyncJql: vi.fn(async () => "project = AM"),
       getManagerJiraAccountId: vi.fn(async () => ""),
@@ -131,6 +132,7 @@ describe("SyncEngine", () => {
       searchIssues: vi.fn(async () => []),
     };
     const settings = {
+      getSyncIntervalMs: vi.fn(async () => 60_000),
       getJiraProjectKey: vi.fn(async () => "AM"),
       getJiraSyncJql: vi.fn(async () => "project = AM"),
       getManagerJiraAccountId: vi.fn(async () => ""),
@@ -140,7 +142,9 @@ describe("SyncEngine", () => {
     };
     const engine = new SyncEngine(settings as any);
 
+    await engine.start();
     const result = await engine.syncNow();
+    await vi.advanceTimersByTimeAsync(60_000);
     const log = rawDb.prepare("SELECT status, issues_synced, error_message FROM sync_log ORDER BY id DESC LIMIT 1").get() as {
       status: string;
       issues_synced: number;
@@ -149,6 +153,7 @@ describe("SyncEngine", () => {
 
     expect(result.status).toBe("error");
     expect(result.errorMessage).toBe("Jira authentication failed (401)");
+    expect(jiraClient.getCurrentUser).toHaveBeenCalledTimes(1);
     expect(jiraClient.searchIssues).not.toHaveBeenCalled();
     expect(log).toEqual({
       status: "error",

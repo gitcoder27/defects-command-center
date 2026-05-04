@@ -21,4 +21,17 @@ describe("errorHandler", () => {
     expect(res.status).toBe(413);
     expect(res.body).toEqual({ error: "payload too large", status: 413 });
   });
+
+  it("reports Jira auth failures as dependency failures instead of generic server errors", async () => {
+    const app = express();
+    app.get("/jira-error", (_req, _res, next) => {
+      next(new Error("Jira authentication failed (401)"));
+    });
+    app.use(errorHandler);
+
+    const res = await invoke(app, { method: "GET", url: "/jira-error" });
+
+    expect(res.status).toBe(424);
+    expect(res.body).toEqual({ error: "Jira authentication failed (401)", status: 424 });
+  });
 });

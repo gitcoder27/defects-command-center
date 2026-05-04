@@ -328,6 +328,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
 
   router.put("/settings", validate(settingsSchema), async (req, res, next) => {
     try {
+      let shouldRestartSync = false;
       if (req.body.jiraSyncJql !== undefined) {
         await upsertConfig("jira_sync_jql", stripManagedAssigneeClause(req.body.jiraSyncJql));
       }
@@ -341,6 +342,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
         const trimmedToken = req.body.jiraApiToken.trim();
         if (trimmedToken) {
           await storeJiraApiToken(trimmedToken);
+          shouldRestartSync = true;
         }
       }
       if ("managerJiraAccountId" in req.body) {
@@ -351,6 +353,10 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
           await deleteConfigValue("manager_jira_account_id");
         }
         await deleteConfigValue("jira_lead_account_id");
+      }
+      if (syncEngine && shouldRestartSync) {
+        await syncEngine.start();
+        void syncEngine.syncNow();
       }
       res.json({ success: true });
     } catch (error) {

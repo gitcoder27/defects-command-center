@@ -14,6 +14,7 @@ Options:
 
 Environment overrides:
   DEPLOY_SERVICE_NAME   systemd service to restart (default: lead-os)
+  DEPLOY_NPM_BIN        npm binary used for install, validation, and build (default: /usr/bin/npm)
   DEPLOY_MANAGER_URL    manager URL for health checks (default: https://lead.daycommand.online)
   DEPLOY_DEVELOPER_URL  developer URL for route checks (default: https://developer.daycommand.online)
   DEPLOY_HEALTH_TIMEOUT_SECONDS   total time to wait for health checks (default: 30)
@@ -32,6 +33,45 @@ run_cmd() {
   fi
 
   "$@"
+}
+
+run_npm() {
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    printf '[dry-run] %s %s\n' "${NPM_BIN}" "$*"
+    return 0
+  fi
+
+  env PATH="${NPM_PATH}" "${NPM_BIN}" "$@"
+}
+
+has_configured_secret() {
+  if [[ -n "${JIRA_TOKEN_ENCRYPTION_KEY:-}" || -n "${LEADOS_SECRET_KEY:-}" ]]; then
+    return 0
+  fi
+
+  if [[ ! -f ".env" ]]; then
+    return 1
+  fi
+
+  grep -Eq '^[[:space:]]*(export[[:space:]]+)?(JIRA_TOKEN_ENCRYPTION_KEY|LEADOS_SECRET_KEY)[[:space:]]*=[[:space:]]*[^[:space:]#]+' .env
+}
+
+require_production_secret() {
+  if has_configured_secret; then
+    return 0
+  fi
+
+  cat >&2 <<'EOF'
+Missing production secret: set JIRA_TOKEN_ENCRYPTION_KEY or LEADOS_SECRET_KEY before deploying.
+
+This key is not the Jira API token. It is the stable app-side encryption key used
+to encrypt stored Jira API tokens in SQLite. Generate one with:
+
+  openssl rand -base64 32
+
+Then add it to the production .env file and keep it backed up outside the repo.
+EOF
+  return 1
 }
 
 wait_for_check() {
@@ -99,10 +139,17 @@ fi
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 EXPECTED_BASENAME="lead-os-prod"
 SERVICE_NAME="${DEPLOY_SERVICE_NAME:-lead-os}"
+NPM_BIN="${DEPLOY_NPM_BIN:-/usr/bin/npm}"
 MANAGER_URL="${DEPLOY_MANAGER_URL:-https://lead.daycommand.online}"
 DEVELOPER_URL="${DEPLOY_DEVELOPER_URL:-https://developer.daycommand.online}"
 HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-30}"
 HEALTH_RETRY_DELAY_SECONDS="${DEPLOY_HEALTH_RETRY_DELAY_SECONDS:-2}"
+
+if [[ ! -x "${NPM_BIN}" ]]; then
+  NPM_BIN="$(command -v npm)"
+fi
+
+NPM_PATH="$(dirname "${NPM_BIN}"):/usr/bin:/bin:${PATH}"
 
 if [[ "$(basename "${ROOT_DIR}")" != "${EXPECTED_BASENAME}" ]]; then
   ROOT_DIR="/home/ubuntu/apps/${EXPECTED_BASENAME}"
@@ -127,6 +174,8 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   exit 1
 fi
 
+require_production_secret
+
 log "Fetching latest production target"
 run_cmd git fetch origin main
 
@@ -141,18 +190,18 @@ else
 fi
 
 log "Installing dependencies from lockfile"
-run_cmd npm ci
+run_npm ci
 
 log "Running production validation gate"
-run_cmd npm run guard:data
-run_cmd npm run typecheck
-run_cmd npm test
-run_cmd npm run lint
-run_cmd npm run format:check
-run_cmd npm run build:check
+run_npm run guard:data
+run_npm run typecheck
+run_npm test
+run_npm run lint
+run_npm run format:check
+run_npm run build:check
 
 log "Building client and server"
-run_cmd npm run build
+run_npm run build
 
 log "Restarting ${SERVICE_NAME}"
 run_cmd sudo systemctl restart "${SERVICE_NAME}"
