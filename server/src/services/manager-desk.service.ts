@@ -1005,7 +1005,11 @@ export class ManagerDeskService {
     }));
   }
 
-  async lookupDevelopers(query: string, date?: string): Promise<ManagerDeskDeveloperLookupItem[]> {
+  async lookupDevelopers(
+    query: string,
+    date?: string,
+    options?: { includeUnavailable?: boolean }
+  ): Promise<ManagerDeskDeveloperLookupItem[]> {
     const normalizedQuery = query.trim();
     const pattern = `%${normalizedQuery}%`;
     const rows = await db
@@ -1045,6 +1049,7 @@ export class ManagerDeskService {
         avatarUrl: row.avatarUrl ?? undefined,
         availability: availabilityByAccountId.get(row.accountId),
       }))
+      .filter((item) => options?.includeUnavailable || item.availability?.state !== "inactive")
       .sort((left, right) => {
         const leftInactive = left.availability?.state === "inactive" ? 1 : 0;
         const rightInactive = right.availability?.state === "inactive" ? 1 : 0;

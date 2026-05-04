@@ -9,9 +9,12 @@ interface AssigneeFieldProps {
 }
 
 export function AssigneeField({ item, date, onChange }: AssigneeFieldProps) {
-  const { data: developers } = useDevelopers(date);
+  const { data: developers } = useDevelopers(date, { includeUnavailable: true });
   const assigneeId = item.assignee?.accountId ?? '';
   const selectedDeveloper = developers?.find((developer) => developer.accountId === assigneeId);
+  const assigneeOptions = (developers ?? []).filter(
+    (developer) => developer.availability?.state !== 'inactive' || developer.accountId === assigneeId
+  );
 
   return (
     <div className="rounded-[20px] border p-3.5" style={{ borderColor: 'var(--border)', background: 'rgba(217, 169, 78, 0.06)' }}>
@@ -46,8 +49,12 @@ export function AssigneeField({ item, date, onChange }: AssigneeFieldProps) {
         }}
       >
         <option value="">Unassigned</option>
-        {(developers ?? []).map((developer) => (
-          <option key={developer.accountId} value={developer.accountId}>
+        {assigneeOptions.map((developer) => (
+          <option
+            key={developer.accountId}
+            value={developer.accountId}
+            disabled={developer.availability?.state === 'inactive'}
+          >
             {developer.availability?.state === 'inactive'
               ? `${developer.displayName} (inactive)`
               : developer.displayName}

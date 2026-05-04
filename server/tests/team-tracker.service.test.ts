@@ -428,6 +428,20 @@ describe("TeamTrackerService", () => {
       ).rejects.toThrow("Jira issue AM-999 is not available in synced issues");
     });
 
+    it("rejects new work for an inactive developer", async () => {
+      await service.updateAvailability("dev-2", {
+        effectiveDate: "2026-03-07",
+        state: "inactive",
+        note: "PTO today",
+      });
+
+      await expect(
+        service.addItem("dev-2", "2026-03-07", {
+          title: "Should wait",
+        })
+      ).rejects.toThrow("Developer is inactive on 2026-03-07");
+    });
+
     it("allows multiple descriptive tasks to link the same Jira issue", async () => {
       await seedIssue();
 
@@ -836,6 +850,20 @@ describe("TeamTrackerService", () => {
       expect(devDay.status).toBe("on_track");
       expect(devDay.nextFollowUpAt).toBeUndefined();
     });
+
+    it("rejects check-ins for an inactive developer", async () => {
+      await service.updateAvailability("dev-2", {
+        effectiveDate: "2026-03-07",
+        state: "inactive",
+        note: "PTO today",
+      });
+
+      await expect(
+        service.addCheckIn("dev-2", "2026-03-07", {
+          summary: "Trying to check in",
+        })
+      ).rejects.toThrow("Developer is inactive on 2026-03-07");
+    });
   });
 
   describe("recordStatusUpdate", () => {
@@ -915,6 +943,20 @@ describe("TeamTrackerService", () => {
       )!;
 
       expect(devDay.capacityUnits).toBe(5);
+    });
+
+    it("rejects day updates for an inactive developer", async () => {
+      await service.updateAvailability("dev-2", {
+        effectiveDate: "2026-03-07",
+        state: "inactive",
+        note: "PTO today",
+      });
+
+      await expect(
+        service.updateDay("dev-2", "2026-03-07", {
+          status: "waiting",
+        })
+      ).rejects.toThrow("Developer is inactive on 2026-03-07");
     });
   });
 

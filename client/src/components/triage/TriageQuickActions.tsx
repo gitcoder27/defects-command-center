@@ -12,6 +12,17 @@ interface TriageQuickActionsProps {
 
 export function TriageQuickActions({ issue, developers, editingField, onEditField, onUpdate }: TriageQuickActionsProps) {
   const dueValue = issue.developmentDueDate ?? issue.dueDate;
+  const assigneeOptions = (developers ?? [])
+    .filter((developer) => Boolean(developer.jiraAccountId) || developer.source !== 'manual')
+    .map((developer) => ({
+      developer,
+      value: developer.jiraAccountId ?? developer.accountId,
+    }))
+    .filter(({ developer, value }) =>
+      developer.availability?.state !== 'inactive' ||
+      value === issue.assigneeId ||
+      developer.accountId === issue.assigneeId
+    );
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 px-5 pb-3">
@@ -54,7 +65,17 @@ export function TriageQuickActions({ issue, developers, editingField, onEditFiel
             style={{ color: 'var(--text-primary)' }}
           >
             <option value="">Unassigned</option>
-            {developers?.map((d) => <option key={d.accountId} value={d.accountId}>{d.displayName}</option>)}
+            {assigneeOptions.map(({ developer, value }) => (
+              <option
+                key={developer.accountId}
+                value={value}
+                disabled={developer.availability?.state === 'inactive'}
+              >
+                {developer.availability?.state === 'inactive'
+                  ? `${developer.displayName} (inactive)`
+                  : developer.displayName}
+              </option>
+            ))}
           </select>
         ) : (
           <span

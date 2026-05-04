@@ -133,24 +133,26 @@ describe('GlobalCaptureDialog', () => {
     });
   });
 
-  it('shows developer roster immediately in Team mode', async () => {
+  it('shows available developer roster immediately in Team mode', async () => {
     renderDialog();
     fireEvent.click(screen.getByText('Team'));
 
     await waitFor(() => {
       expect(screen.getByText('Alice Smith')).toBeInTheDocument();
     });
-    expect(screen.getByText('Bob Jones')).toBeInTheDocument();
+    expect(screen.queryByText('Bob Jones')).not.toBeInTheDocument();
     expect(screen.getByText('Carol Davis')).toBeInTheDocument();
   });
 
-  it('marks unavailable developers with availability note', async () => {
+  it('hides unavailable developers from the Team capture picker', async () => {
     renderDialog();
     fireEvent.click(screen.getByText('Team'));
 
     await waitFor(() => {
-      expect(screen.getByText('PTO')).toBeInTheDocument();
+      expect(screen.getByText('Alice Smith')).toBeInTheDocument();
     });
+    expect(screen.queryByText('Bob Jones')).not.toBeInTheDocument();
+    expect(screen.queryByText('PTO')).not.toBeInTheDocument();
   });
 
   it('selects a developer and shows the task input', async () => {

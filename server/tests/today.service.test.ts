@@ -170,6 +170,42 @@ describe("TodayService", () => {
     expect(pulseItem?.actionPreview).toBe("BE modernization");
   });
 
+  it("does not turn Later desk items into Today carry-forward actions", async () => {
+    const planned = await managerDeskService.createItem("manager-1", {
+      date: "2026-03-07",
+      title: "Carry the planned task",
+      kind: "action",
+      category: "planning",
+      status: "planned",
+    });
+    const later = await managerDeskService.createItem("manager-1", {
+      date: "2026-03-07",
+      title: "Parked later task",
+      kind: "action",
+      category: "planning",
+      status: "backlog",
+    });
+
+    const response = await todayService().getToday("manager-1", "2026-03-08");
+
+    expect(response.actionItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: `today-desk-carry-${planned.id}`,
+          title: "Carry the planned task",
+          type: "desk_carry_forward",
+        }),
+      ])
+    );
+    expect(response.actionItems).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: `today-desk-carry-${later.id}`,
+        }),
+      ])
+    );
+  });
+
   it("stops asking for another check-in once a no-current developer has a same-day check-in", async () => {
     const before = await todayService().getToday("manager-1", "2026-03-08");
     const beforeDeveloperAction = before.actionItems.find((item) => item.target.developerAccountId === "dev-1");

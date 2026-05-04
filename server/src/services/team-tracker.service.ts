@@ -1097,6 +1097,7 @@ export class TeamTrackerService {
       managerNotes?: string;
     }
   ): Promise<typeof teamTrackerDays.$inferSelect> {
+    await this.availability.assertAvailableForDate(accountId, date);
     const day = await this.ensureDay(date, accountId);
     const now = nowIso();
     const nextStatus = updates.status;
@@ -1136,6 +1137,7 @@ export class TeamTrackerService {
       managerDeskItemId?: number;
     }
   ): Promise<TrackerWorkItem> {
+    await this.availability.assertAvailableForDate(accountId, date);
     const day = await this.ensureDay(date, accountId);
     const normalizedJiraKey = params.jiraKey?.trim();
 
@@ -1409,6 +1411,7 @@ export class TeamTrackerService {
       accountId?: string;
     }
   ): Promise<TrackerCheckIn> {
+    await this.availability.assertAvailableForDate(accountId, date);
     const day = await this.ensureDay(date, accountId);
     const now = nowIso();
     const summary = params.summary.trim();

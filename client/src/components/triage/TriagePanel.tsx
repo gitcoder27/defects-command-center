@@ -31,9 +31,9 @@ interface TriagePanelProps {
 
 export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePanelProps) {
   const { data: issue, isLoading } = useIssueDetail(issueKey);
-  const { data: developers } = useDevelopers();
   const { data: config } = useConfig();
   const trackerDate = getLocalIsoDate();
+  const { data: developers } = useDevelopers(trackerDate, { includeUnavailable: true });
   const addTrackerItem = useAddTrackerItem(trackerDate);
   const trackerAssignments = useTrackerIssueAssignments(issue?.jiraKey, trackerDate);
   const tagActions = useIssueTagActions({ issueKey: issue?.jiraKey, localTags: issue?.localTags ?? [] });
@@ -44,6 +44,10 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
   const [deskCaptureOpen, setDeskCaptureOpen] = useState(false);
   const description = useMemo(() => formatIssueDescription(issue?.description), [issue?.description]);
   const assignments = trackerAssignments.data ?? [];
+  const availableDevelopers = useMemo(
+    () => developers?.filter((developer) => developer.availability?.state !== 'inactive'),
+    [developers]
+  );
 
   useEffect(() => {
     if (!issueKey) return;
@@ -125,9 +129,9 @@ export function TriagePanel({ issueKey, onClose, onOpenManagerDesk }: TriagePane
 
               <TriageNotesEditor value={notes.notesValue} onChange={notes.handleChange} onBlurSave={notes.handleBlurSave} isSaved={notes.notesSaved} />
               <TriageTagBar tags={issue.localTags} allTags={tagActions.allTags} assignedTagIds={tagActions.assignedTagIds} isPending={tagActions.isPending} onToggle={tagActions.toggleTag} onCreate={tagActions.createOrAssignTag} />
-              {developers && (
+              {availableDevelopers && (
                 <TriageTrackerSection
-                  issueKey={issue.jiraKey} issueAssigneeId={issue.assigneeId} developers={developers}
+                  issueKey={issue.jiraKey} issueAssigneeId={issue.assigneeId} developers={availableDevelopers}
                   assignments={assignments} trackerDate={trackerDate}
                   firstLinkedAccountId={assignments[0]?.developer.accountId}
                   onAdd={handleAddToTracker} isAdding={addTrackerItem.isPending}

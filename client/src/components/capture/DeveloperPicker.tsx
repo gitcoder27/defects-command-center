@@ -38,14 +38,18 @@ export function DeveloperPicker({ date, selected, onSelect, onClear }: Developer
 
   const { data: roster, isLoading } = useManagerDeskDeveloperLookup('', date);
 
+  const availableRoster = useMemo(
+    () => roster?.filter((dev) => dev.availability?.state !== 'inactive') ?? [],
+    [roster]
+  );
+
   const filtered = useMemo(() => {
-    if (!roster) return [];
-    if (!search.trim()) return roster;
+    if (!search.trim()) return availableRoster;
     const q = search.toLowerCase();
-    return roster.filter(
+    return availableRoster.filter(
       (d) => d.displayName.toLowerCase().includes(q) || d.email?.toLowerCase().includes(q),
     );
-  }, [roster, search]);
+  }, [availableRoster, search]);
 
   useEffect(() => {
     if (open) {

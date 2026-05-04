@@ -41,7 +41,7 @@ describe("ManagerDeskService", () => {
     vi.useRealTimers();
   });
 
-  it("returns the active developer roster for blank quick-capture search and sorts unavailable developers last", async () => {
+  it("returns only available developers for blank quick-capture search", async () => {
     await trackerService.updateAvailability("dev-2", {
       effectiveDate: "2026-03-08",
       state: "inactive",
@@ -57,17 +57,6 @@ describe("ManagerDeskService", () => {
         email: "alice@example.com",
         avatarUrl: undefined,
         availability: undefined,
-      },
-      {
-        accountId: "dev-2",
-        displayName: "Rahul Sharma",
-        email: "rahul@example.com",
-        avatarUrl: "https://example.com/rahul.png",
-        availability: {
-          state: "inactive",
-          note: "PTO today",
-          startDate: "2026-03-08",
-        },
       },
     ]);
   });

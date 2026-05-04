@@ -57,7 +57,10 @@ export function useUpdateAvailability(date: string) {
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
       qc.invalidateQueries({ queryKey: ['alerts'] });
+      qc.invalidateQueries({ queryKey: ['today'] });
+      qc.invalidateQueries({ queryKey: ['developers'] });
       qc.invalidateQueries({ queryKey: ['manager-desk'] });
+      qc.invalidateQueries({ queryKey: ['manager-desk', 'lookup-developers'] });
       qc.invalidateQueries({ queryKey: ['my-day', date] });
     },
   });

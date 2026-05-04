@@ -15,6 +15,14 @@ import type {
   TrackerSharedTaskDetailResponse,
 } from '@/types/manager-desk';
 
+function invalidateDeskDependentViews(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['today'] });
+  qc.invalidateQueries({ queryKey: ['manager-desk'] });
+  qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
+  qc.invalidateQueries({ queryKey: ['team-tracker'] });
+  qc.invalidateQueries({ queryKey: ['workload'] });
+}
+
 // ── Day query ───────────────────────────────────────────
 
 export function useManagerDesk(date: string, enabled = true) {
@@ -55,10 +63,7 @@ export function usePromoteTrackerItem() {
         `/manager-desk/tracker-items/${trackerItemId}/promote`
       ),
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ['team-tracker'] });
-      qc.invalidateQueries({ queryKey: ['manager-desk'] });
-      qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
-      qc.invalidateQueries({ queryKey: ['workload'] });
+      invalidateDeskDependentViews(qc);
       if (data) {
         qc.setQueriesData<TrackerSharedTaskDetailResponse>(
           { queryKey: ['manager-desk', 'task-detail'] },
@@ -82,9 +87,7 @@ export function useCreateManagerDeskItem(date: string) {
     mutationFn: (payload: ManagerDeskCreateItemPayload) =>
       api.post<ManagerDeskItem>('/manager-desk/items', payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['manager-desk'] });
-      qc.invalidateQueries({ queryKey: ['team-tracker'] });
-      qc.invalidateQueries({ queryKey: ['workload'] });
+      invalidateDeskDependentViews(qc);
     },
   });
 }
@@ -119,10 +122,7 @@ export function useUpdateManagerDeskItem(date: string) {
           };
         }
       );
-      qc.invalidateQueries({ queryKey: ['manager-desk'] });
-      qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
-      qc.invalidateQueries({ queryKey: ['team-tracker'] });
-      qc.invalidateQueries({ queryKey: ['workload'] });
+      invalidateDeskDependentViews(qc);
     },
   });
 }
@@ -135,10 +135,7 @@ export function useDeleteManagerDeskItem(date: string) {
     mutationFn: (itemId: number) =>
       api.delete<{ deleted: boolean }>(`/manager-desk/items/${itemId}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['manager-desk'] });
-      qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
-      qc.invalidateQueries({ queryKey: ['team-tracker'] });
-      qc.invalidateQueries({ queryKey: ['workload'] });
+      invalidateDeskDependentViews(qc);
     },
   });
 }
@@ -160,10 +157,7 @@ export function useCancelDelegatedManagerDeskTask(date: string) {
           return { ...existing, managerDeskItem: item, trackerItem: undefined as never };
         },
       );
-      qc.invalidateQueries({ queryKey: ['manager-desk'] });
-      qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
-      qc.invalidateQueries({ queryKey: ['team-tracker'] });
-      qc.invalidateQueries({ queryKey: ['workload'] });
+      invalidateDeskDependentViews(qc);
     },
   });
 }
@@ -176,10 +170,7 @@ export function useAddManagerDeskLink(date: string) {
     mutationFn: ({ itemId, ...body }: ManagerDeskAddLinkPayload & { itemId: number }) =>
       api.post<ManagerDeskLink>(`/manager-desk/items/${itemId}/links`, body),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['manager-desk'] });
-      qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
-      qc.invalidateQueries({ queryKey: ['team-tracker'] });
-      qc.invalidateQueries({ queryKey: ['workload'] });
+      invalidateDeskDependentViews(qc);
     },
   });
 }
@@ -192,10 +183,7 @@ export function useRemoveManagerDeskLink(date: string) {
     mutationFn: ({ itemId, linkId }: { itemId: number; linkId: number }) =>
       api.delete<{ deleted: boolean }>(`/manager-desk/items/${itemId}/links/${linkId}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['manager-desk'] });
-      qc.invalidateQueries({ queryKey: ['manager-desk', 'task-detail'] });
-      qc.invalidateQueries({ queryKey: ['team-tracker'] });
-      qc.invalidateQueries({ queryKey: ['workload'] });
+      invalidateDeskDependentViews(qc);
     },
   });
 }
@@ -242,6 +230,7 @@ export function useCarryForwardManagerDesk(date: string) {
       qc.invalidateQueries({ queryKey: ['manager-desk', variables.toDate] });
       qc.invalidateQueries({ queryKey: ['manager-desk', 'carry-forward-context', date] });
       qc.invalidateQueries({ queryKey: ['manager-desk', 'carry-forward-context', variables.toDate] });
+      qc.invalidateQueries({ queryKey: ['today'] });
       qc.invalidateQueries({ queryKey: ['team-tracker'] });
       qc.invalidateQueries({ queryKey: ['workload'] });
     },

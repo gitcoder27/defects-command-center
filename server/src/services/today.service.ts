@@ -38,6 +38,12 @@ const openDeskStatuses = new Set<ManagerDeskItem["status"]>([
   "waiting",
   "backlog",
 ]);
+const carryForwardDeskStatuses = new Set<ManagerDeskItem["status"]>([
+  "inbox",
+  "planned",
+  "in_progress",
+  "waiting",
+]);
 
 const severityWeight: Record<TodayActionSeverity, number> = {
   critical: 5,
@@ -395,7 +401,7 @@ function buildMeetingActions(items: ManagerDeskItem[]): TodayActionItem[] {
 
 function buildDeskCarryForwardActions(items: ManagerDeskItem[], date: string): TodayActionItem[] {
   return items
-    .filter((item) => isOpenDeskItem(item))
+    .filter((item) => isCarryForwardDeskItem(item))
     .filter((item) => item.kind !== "meeting" && item.category !== "follow_up")
     .filter((item) => isBeforeDay(item.originDate, date) || isBeforeDay(item.plannedEndAt, date) || isBeforeDay(item.plannedStartAt, date))
     .map((item) => {
@@ -707,6 +713,10 @@ function isHighPriority(issue: Issue): boolean {
 
 function isOpenDeskItem(item: ManagerDeskItem): boolean {
   return openDeskStatuses.has(item.status);
+}
+
+function isCarryForwardDeskItem(item: ManagerDeskItem): boolean {
+  return carryForwardDeskStatuses.has(item.status);
 }
 
 function isDueToday(value: string | undefined, date: string): boolean {

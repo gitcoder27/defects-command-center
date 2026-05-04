@@ -19,9 +19,12 @@ export function DrawerPrimaryFields({
   onFieldChange,
   onAssigneeChange,
 }: DrawerPrimaryFieldsProps) {
-  const { data: developers } = useDevelopers(date);
+  const { data: developers } = useDevelopers(date, { includeUnavailable: true });
   const assigneeId = item.assignee?.accountId ?? '';
   const selectedDev = developers?.find((d) => d.accountId === assigneeId);
+  const assigneeOptions = (developers ?? []).filter(
+    (developer) => developer.availability?.state !== 'inactive' || developer.accountId === assigneeId
+  );
   const hasLinkedWork = !!item.delegatedExecution;
   const nextAction = useDraftField({
     value: item.nextAction ?? '',
@@ -47,11 +50,12 @@ export function DrawerPrimaryFields({
           <InlineSelect
             label="Assignee"
             value={assigneeId}
-            options={(developers ?? []).map((developer) => ({
+            options={assigneeOptions.map((developer) => ({
               value: developer.accountId,
               label: developer.availability?.state === 'inactive'
                 ? `${developer.displayName} (inactive)`
                 : developer.displayName,
+              disabled: developer.availability?.state === 'inactive',
             }))}
             onChange={(value) => onAssigneeChange(value || null)}
             disabled={readOnly || hasLinkedWork}
@@ -110,7 +114,7 @@ function InlineSelect<T extends string>({
 }: {
   label: string;
   value: T | '';
-  options: Array<{ value: T; label: string }>;
+  options: Array<{ value: T; label: string; disabled?: boolean }>;
   onChange: (value: string) => void;
   emptyLabel?: string;
   disabled?: boolean;
@@ -131,7 +135,7 @@ function InlineSelect<T extends string>({
       >
         {emptyLabel && <option value="">{emptyLabel}</option>}
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option key={option.value} value={option.value} disabled={option.disabled}>
             {option.label}
           </option>
         ))}

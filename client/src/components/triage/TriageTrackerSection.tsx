@@ -49,7 +49,10 @@ export function TriageTrackerSection({
   const [taskTitle, setTaskTitle] = useState('');
 
   const selectedAccountId = useMemo(() => {
-    if (issueAssigneeId && developers.some((d) => d.accountId === issueAssigneeId)) return issueAssigneeId;
+    if (issueAssigneeId) {
+      const issueAssignee = developers.find((d) => d.accountId === issueAssigneeId || d.jiraAccountId === issueAssigneeId);
+      if (issueAssignee) return issueAssignee.accountId;
+    }
     if (firstLinkedAccountId && developers.some((d) => d.accountId === firstLinkedAccountId)) return firstLinkedAccountId;
     return developers[0]?.accountId;
   }, [developers, issueAssigneeId, firstLinkedAccountId]);
@@ -129,7 +132,7 @@ export function TriageTrackerSection({
                   }}
                 >
                   {dev.displayName}
-                  {issueAssigneeId === dev.accountId && <span className="text-[10px] opacity-60 ml-0.5">●</span>}
+                  {(issueAssigneeId === dev.accountId || issueAssigneeId === dev.jiraAccountId) && <span className="text-[10px] opacity-60 ml-0.5">●</span>}
                 </button>
               );
             })}

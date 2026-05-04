@@ -230,6 +230,7 @@ const lookupSchema = z.object({
   query: z.object({
     q: z.string().max(200),
     date: z.string().regex(dateRegex, "date must be YYYY-MM-DD").optional(),
+    includeUnavailable: z.enum(["true", "false"]).optional(),
   }),
   params: z.any().optional(),
   body: z.any().optional(),
@@ -436,7 +437,8 @@ export function createManagerDeskRouter(
     try {
       const items = await managerDeskService.lookupDevelopers(
         req.query.q as string,
-        req.query.date as string | undefined
+        req.query.date as string | undefined,
+        { includeUnavailable: req.query.includeUnavailable === "true" }
       );
       res.json({ items });
     } catch (error) {

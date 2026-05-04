@@ -1286,7 +1286,7 @@ describe("manager desk routes", () => {
     ]);
   });
 
-  it("GET /api/manager-desk/lookups/developers includes inactive metadata when a date is provided", async () => {
+  it("GET /api/manager-desk/lookups/developers filters inactive people when a date is provided", async () => {
     await trackerService.updateAvailability("dev-2", {
       effectiveDate: "2026-03-08",
       state: "inactive",
@@ -1298,6 +1298,27 @@ describe("manager desk routes", () => {
     const developerLookup = await invoke(app, {
       method: "GET",
       url: "/api/manager-desk/lookups/developers?q=rahul&date=2026-03-08",
+      headers: {
+        cookie,
+      },
+    });
+
+    expect(developerLookup.status).toBe(200);
+    expect(developerLookup.body?.items).toEqual([]);
+  });
+
+  it("GET /api/manager-desk/lookups/developers can include inactive metadata when requested", async () => {
+    await trackerService.updateAvailability("dev-2", {
+      effectiveDate: "2026-03-08",
+      state: "inactive",
+      note: "PTO today",
+    });
+
+    const app = createTestApp();
+    const cookie = await loginCookie("manager", "secret123");
+    const developerLookup = await invoke(app, {
+      method: "GET",
+      url: "/api/manager-desk/lookups/developers?q=rahul&date=2026-03-08&includeUnavailable=true",
       headers: {
         cookie,
       },
@@ -1349,17 +1370,6 @@ describe("manager desk routes", () => {
         accountId: "dev-1",
         displayName: "Alice Smith",
         email: "alice@example.com",
-      },
-      {
-        accountId: "dev-2",
-        displayName: "Rahul Sharma",
-        email: "rahul@example.com",
-        avatarUrl: "https://example.com/rahul.png",
-        availability: {
-          state: "inactive",
-          note: "PTO today",
-          startDate: "2026-03-08",
-        },
       },
     ]);
   });
