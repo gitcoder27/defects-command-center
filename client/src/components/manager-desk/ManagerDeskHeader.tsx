@@ -29,17 +29,17 @@ export function ManagerDeskHeader({
       : 'Live';
 
   return (
-    <div className="sticky top-0 z-20 mx-auto w-full max-w-[1480px] px-2 pt-2 md:px-3">
-      <div className="md-header-panel rounded-xl px-3 py-2">
+    <div className="sticky top-0 z-20 mx-auto w-full max-w-[1480px] px-2 pt-1.5 md:px-3">
+      <div className="md-header-panel rounded-xl px-3 py-1.5">
         <div className="flex items-center gap-2">
           <div
-            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"
+            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md"
             style={{ background: 'var(--md-accent-glow)', color: 'var(--md-accent)' }}
           >
-            <Briefcase size={14} />
+            <Briefcase size={13} />
           </div>
 
-          <h1 className="hidden truncate text-[14px] font-semibold tracking-[-0.02em] sm:block" style={{ color: 'var(--text-primary)' }}>
+          <h1 className="hidden truncate text-[13px] font-semibold tracking-[-0.01em] sm:block" style={{ color: 'var(--text-primary)' }}>
             Desk
           </h1>
 
@@ -68,12 +68,12 @@ export function ManagerDeskHeader({
             </NavBtn>
           </div>
 
-          <span className="text-[13px] font-medium tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+          <span className="text-[12px] font-medium tabular-nums" style={{ color: 'var(--text-secondary)' }}>
             {displayDate}
           </span>
 
           <span
-            className="rounded-md px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.1em]"
+            className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em]"
             style={{
               background: viewMode === 'history' ? 'rgba(59,130,246,0.10)' : viewMode === 'planning' ? 'rgba(6,182,212,0.10)' : 'var(--md-accent-glow)',
               color: viewMode === 'history' ? 'var(--info)' : viewMode === 'planning' ? 'var(--accent)' : 'var(--md-accent)',
@@ -114,7 +114,7 @@ function ActionBtn({ children, label, disabled = false, onClick }: { children: R
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] transition-colors disabled:opacity-50"
+      className="flex h-6 items-center gap-1 rounded-md border px-2 text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors disabled:opacity-50"
       style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
       aria-label={label}
       title={label}

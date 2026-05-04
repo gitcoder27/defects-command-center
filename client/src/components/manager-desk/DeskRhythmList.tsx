@@ -31,11 +31,6 @@ export function DeskRhythmList({
   const activeSections = sections.filter((section) => !section.quiet && section.items.length > 0);
   const quietSections = sections.filter((section) => section.quiet);
   const title = viewMode === 'planning' ? 'Scheduled work' : viewMode === 'history' ? 'Desk snapshot' : 'Today';
-  const subtitle = viewMode === 'planning'
-    ? 'Future work grouped by the decisions that need attention.'
-    : viewMode === 'history'
-    ? 'A read-only record of how the desk looked for this date.'
-    : 'Act on what is moving, clear new captures, then work the plan.';
   const metrics = [
     { label: 'Now', value: sections.find((section) => section.key === 'now')?.items.length ?? 0, tone: 'active' as const },
     { label: 'Triage', value: sections.find((section) => section.key === 'triage')?.items.length ?? 0, tone: 'decision' as const },
@@ -53,14 +48,14 @@ export function DeskRhythmList({
     >
       <DeskRhythmHeader
         title={title}
-        subtitle={subtitle}
         count={items.length}
         continuedOpenCount={continuedOpenCount}
+        showCount={false}
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 md:px-4">
-        <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="min-w-0 space-y-5">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_224px] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_240px]">
+          <div className="min-w-0 space-y-4">
             {items.length === 0 ? (
               <UnifiedEmptyState quickFilter="all" message="No desk work matches this view." />
             ) : (
@@ -110,7 +105,7 @@ function DeskRhythmSectionView({
 
   return (
     <section>
-      <div className="pb-2">
+      <div className="pb-1.5">
         <SectionTitle section={section} />
       </div>
       <SectionItems section={section} selectedItemId={selectedItemId} readOnly={readOnly} onSelect={onSelect} onStatusChange={onStatusChange} />
@@ -132,7 +127,7 @@ function SectionItems({
   onStatusChange?: (itemId: number, status: ManagerDeskStatus) => void;
 }) {
   return (
-    <div className={section.tone === 'active' ? 'space-y-2' : 'space-y-1.5'}>
+    <div className="space-y-1.5">
       {section.items.map((item) => (
         <DeskCardRow
           key={item.id}
@@ -150,7 +145,7 @@ function SectionItems({
 function QuietDeskStrip({ sections }: { sections: DeskRhythmSection[] }) {
   return (
     <div
-      className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2"
+      className="flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2"
       style={{
         background: 'color-mix(in srgb, var(--bg-secondary) 42%, transparent)',
         borderColor: 'color-mix(in srgb, var(--border) 72%, transparent)',
@@ -187,36 +182,36 @@ function DeskSignalRail({
 
   return (
     <aside
-      className="hidden min-w-0 border-l pl-5 xl:block"
+      className="hidden min-w-0 border-l pl-4 xl:block"
       style={{ borderColor: 'color-mix(in srgb, var(--border) 60%, transparent)' }}
       aria-label="Desk pulse"
     >
-      <div className="sticky top-3 space-y-5 py-1">
+      <div className="sticky top-2 space-y-3 py-1">
         <div>
           <div className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
-            Desk pulse
+            Pulse
           </div>
-          <div className="mt-3 space-y-2">
+          <div className="mt-2 space-y-1.5">
             {metrics.map((metric) => (
               <RailMetric key={metric.label} {...metric} />
             ))}
           </div>
         </div>
 
-        <div className="border-t pt-4" style={{ borderColor: 'color-mix(in srgb, var(--border) 52%, transparent)' }}>
+        <div className="border-t pt-3" style={{ borderColor: 'color-mix(in srgb, var(--border) 52%, transparent)' }}>
           <div className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
             Next
           </div>
           <div className="mt-2 text-[12px] font-semibold leading-5" style={{ color: 'var(--text-primary)' }}>
             {nextPrompt.title}
           </div>
-          <p className="mt-1 text-[11px] leading-4" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-0.5 text-[11px] leading-4" style={{ color: 'var(--text-muted)' }}>
             {nextPrompt.subtitle}
           </p>
         </div>
 
         {continuedOpenCount > 0 && (
-          <div className="border-t pt-4" style={{ borderColor: 'color-mix(in srgb, var(--border) 52%, transparent)' }}>
+          <div className="border-t pt-3" style={{ borderColor: 'color-mix(in srgb, var(--border) 52%, transparent)' }}>
             <div className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
               Carried
             </div>

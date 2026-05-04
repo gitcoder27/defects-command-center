@@ -253,7 +253,7 @@ export function ManagerDeskPage({
         </ManagerDeskWorkspace>
       )}
 
-      <ManagerDeskWorkspace className="sticky top-[52px] z-10">
+      <ManagerDeskWorkspace className="sticky top-[42px] z-10">
         <ManagerDeskCommandBar
           items={sourceItems}
           searchQuery={searchQuery}
@@ -275,7 +275,7 @@ export function ManagerDeskPage({
         />
       </ManagerDeskWorkspace>
 
-      <ManagerDeskWorkspace className="min-h-0 flex-1 overflow-hidden py-2">
+      <ManagerDeskWorkspace className="min-h-0 flex-1 overflow-hidden py-1.5">
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
             <div

@@ -69,9 +69,9 @@ export function QuickCapture({ onCapture, isPending, disabled = false, disabledL
           : undefined,
       }}
     >
-      <div className="flex items-center gap-1.5 px-2 py-1.5">
+      <div className="flex items-center gap-1.5 px-2 py-1">
         <div
-          className="h-5 w-5 rounded flex items-center justify-center flex-shrink-0"
+          className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded"
           style={{ background: 'var(--md-accent-glow)', color: 'var(--md-accent)' }}
         >
           <Plus size={11} />
@@ -93,7 +93,7 @@ export function QuickCapture({ onCapture, isPending, disabled = false, disabledL
           }}
           onBlur={() => setIsFocused(false)}
           onKeyDown={handleKeyDown}
-          placeholder="Quick capture — Enter to add…"
+          placeholder="Quick capture..."
           aria-label="Quick capture title"
           className="flex-1 bg-transparent outline-none text-[12px] font-medium placeholder:font-normal"
           style={{
@@ -108,7 +108,7 @@ export function QuickCapture({ onCapture, isPending, disabled = false, disabledL
         <button
           onClick={handleSubmit}
           disabled={!title.trim() || isPending || disabled}
-          className="h-5 px-2 rounded text-[10px] font-bold uppercase tracking-wide transition-all disabled:opacity-30"
+          className="h-5 rounded px-2 text-[10px] font-bold uppercase tracking-wide transition-all disabled:opacity-30"
           style={{
             background: 'var(--md-accent)',
             color: '#000',
@@ -160,9 +160,7 @@ export function QuickCapture({ onCapture, isPending, disabled = false, disabledL
             </select>
           </div>
 
-          <span className="ml-auto text-[10px]" style={{ color: 'var(--text-muted)' }}>
-            ↵ Enter
-          </span>
+          <span className="ml-auto" aria-hidden="true" />
         </motion.div>
       )}
 

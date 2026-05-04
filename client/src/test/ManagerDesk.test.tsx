@@ -438,12 +438,12 @@ describe('ManagerDeskPage', () => {
     const input = screen.getByPlaceholderText(/Quick capture/);
     fireEvent.change(input, { target: { value: 'Mouse-added task' } });
 
-    expect(screen.getByText('↵ Enter')).toBeInTheDocument();
+    expect(screen.getByLabelText('Quick capture kind')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /^add$/i }));
 
     expect(input).toHaveValue('');
-    expect(screen.queryByText('↵ Enter')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Quick capture kind')).not.toBeInTheDocument();
     expect(input).toHaveFocus();
   });
 

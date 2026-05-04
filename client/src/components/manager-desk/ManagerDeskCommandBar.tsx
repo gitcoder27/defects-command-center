@@ -57,17 +57,17 @@ export function ManagerDeskCommandBar({
   const hasCustomView = quickFilter !== defaultQuickFilter || hasSearch || hasStructuredFilters;
 
   return (
-    <div className="pt-2">
+    <div className="pt-1.5">
       <div
-        className="rounded-xl border p-2"
+        className="rounded-xl border p-1.5"
         style={{
-          background: 'color-mix(in srgb, var(--bg-primary) 78%, transparent)',
-          borderColor: 'color-mix(in srgb, var(--border) 76%, transparent)',
+          background: 'color-mix(in srgb, var(--bg-primary) 86%, transparent)',
+          borderColor: 'color-mix(in srgb, var(--border) 68%, transparent)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.025)',
         }}
       >
-        <div className="flex gap-2 items-stretch">
-          <div className="flex-1 min-w-0">
+        <div className="flex flex-col gap-1.5 xl:flex-row xl:items-center">
+          <div className="min-w-0 flex-1">
             <QuickCapture
               onCapture={onCapture}
               isPending={isCreatePending}
@@ -76,74 +76,76 @@ export function ManagerDeskCommandBar({
             />
           </div>
 
-          <div className="flex items-center gap-1.5 rounded-lg border px-2 py-1" style={{ borderColor: 'color-mix(in srgb, var(--border) 76%, transparent)', background: 'color-mix(in srgb, var(--bg-secondary) 70%, transparent)' }}>
-            <Search size={12} style={{ color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder="Search…"
-              className="w-[120px] lg:w-[180px] bg-transparent text-[12px] outline-none placeholder:text-placeholder"
-              style={{ color: 'var(--text-primary)' }}
-              aria-label="Search manager desk tasks"
-            />
-            {searchQuery && (
-              <button type="button" onClick={onClearSearch} aria-label="Clear task search" style={{ color: 'var(--text-muted)' }}>
-                <X size={12} />
+          <div className="flex min-w-0 flex-wrap items-center gap-1" aria-label="Manager Desk map">
+            {quickFilters.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onQuickFilterChange(key)}
+                className="flex h-7 items-center gap-1 rounded-md border px-2 text-[10px] font-semibold uppercase tracking-[0.08em] transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]"
+                style={{
+                  background: quickFilter === key ? 'var(--md-accent-glow)' : 'transparent',
+                  borderColor: quickFilter === key ? 'color-mix(in srgb, var(--md-accent) 52%, transparent)' : 'color-mix(in srgb, var(--border) 54%, transparent)',
+                  color: quickFilter === key ? 'var(--md-accent)' : 'var(--text-secondary)',
+                }}
+                aria-pressed={quickFilter === key}
+              >
+                <span>{label}</span>
+                <span className="font-mono tabular-nums" style={{ opacity: 0.76 }}>
+                  {getQuickFilterCount(items, key)}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-stretch gap-1.5">
+            <div className="flex min-w-[136px] items-center gap-1.5 rounded-lg border px-2" style={{ borderColor: 'color-mix(in srgb, var(--border) 66%, transparent)', background: 'color-mix(in srgb, var(--bg-secondary) 58%, transparent)' }}>
+              <Search size={12} style={{ color: 'var(--text-muted)' }} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder="Search…"
+                className="h-7 w-[104px] bg-transparent text-[12px] outline-none placeholder:text-placeholder lg:w-[144px]"
+                style={{ color: 'var(--text-primary)' }}
+                aria-label="Search manager desk tasks"
+              />
+              {searchQuery && (
+                <button type="button" onClick={onClearSearch} aria-label="Clear task search" style={{ color: 'var(--text-muted)' }}>
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={onToggleFilters}
+              className="flex h-7 items-center gap-1 rounded-lg border px-2 text-[10px] font-semibold uppercase tracking-[0.1em] transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]"
+              style={{
+                background: hasStructuredFilters ? 'var(--md-accent-glow)' : 'color-mix(in srgb, var(--bg-secondary) 58%, transparent)',
+                borderColor: hasStructuredFilters ? 'color-mix(in srgb, var(--md-accent) 52%, transparent)' : 'color-mix(in srgb, var(--border) 66%, transparent)',
+                color: hasStructuredFilters ? 'var(--md-accent)' : 'var(--text-secondary)',
+              }}
+            >
+              <Filter size={10} />
+              <span className="hidden sm:inline">{hasStructuredFilters ? 'Filtered' : 'Filters'}</span>
+            </button>
+
+            {hasCustomView && (
+              <button
+                type="button"
+                onClick={onResetView}
+                className="h-7 rounded-lg border px-2 text-[10px] font-semibold uppercase tracking-[0.1em] transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]"
+                style={{
+                  background: 'color-mix(in srgb, var(--bg-secondary) 58%, transparent)',
+                  borderColor: 'color-mix(in srgb, var(--border) 66%, transparent)',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                Reset
               </button>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={onToggleFilters}
-            className="flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.1em]"
-            style={{
-              background: hasStructuredFilters ? 'var(--md-accent-glow)' : 'color-mix(in srgb, var(--bg-secondary) 70%, transparent)',
-              borderColor: hasStructuredFilters ? 'var(--md-accent)' : 'color-mix(in srgb, var(--border) 76%, transparent)',
-              color: hasStructuredFilters ? 'var(--md-accent)' : 'var(--text-secondary)',
-            }}
-          >
-            <Filter size={10} />
-            <span className="hidden sm:inline">{hasStructuredFilters ? 'Filtered' : 'Filters'}</span>
-          </button>
-
-          {hasCustomView && (
-            <button
-              type="button"
-              onClick={onResetView}
-              className="rounded-lg border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.1em]"
-              style={{
-                background: 'color-mix(in srgb, var(--bg-secondary) 70%, transparent)',
-                borderColor: 'color-mix(in srgb, var(--border) 76%, transparent)',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              Reset
-            </button>
-          )}
-        </div>
-
-        <div className="mt-1.5 flex flex-wrap gap-1" aria-label="Manager Desk map">
-          {quickFilters.map(({ key, label }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => onQuickFilterChange(key)}
-              className="flex h-6 items-center gap-1 rounded-md border px-2 text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors"
-              style={{
-                background: quickFilter === key ? 'var(--md-accent-glow)' : 'transparent',
-                borderColor: quickFilter === key ? 'var(--md-accent)' : 'color-mix(in srgb, var(--border) 58%, transparent)',
-                color: quickFilter === key ? 'var(--md-accent)' : 'var(--text-secondary)',
-              }}
-              aria-pressed={quickFilter === key}
-            >
-              <span>{label}</span>
-              <span className="tabular-nums" style={{ opacity: 0.7 }}>
-                {getQuickFilterCount(items, key)}
-              </span>
-            </button>
-          ))}
         </div>
 
         {showFilters && (
