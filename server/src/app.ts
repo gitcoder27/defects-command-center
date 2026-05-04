@@ -1,6 +1,8 @@
 import express from "express";
 import path from "node:path";
 import { existsSync } from "node:fs";
+import type { SendFileOptions } from "express-serve-static-core";
+import type { ServeStaticOptions } from "serve-static";
 import { createIssuesRouter } from "./routes/issues";
 import { createOverviewRouter } from "./routes/overview";
 import { createTeamRouter } from "./routes/team";
@@ -30,6 +32,41 @@ import { TeamTrackerService } from "./services/team-tracker.service";
 import { TodayService } from "./services/today.service";
 import { SyncEngine } from "./sync/engine";
 import { resolveWorkspaceRoot } from "./db/paths";
+
+const cacheSensitiveAssetPattern = /\.(?:css|html|js|mjs)$/i;
+const executableAssetPattern = /\.(?:css|js|mjs)$/i;
+
+export const productionStaticOptions: ServeStaticOptions = {
+  acceptRanges: false,
+  cacheControl: false,
+  etag: false,
+  lastModified: false,
+  setHeaders: (res, filePath) => {
+    res.removeHeader("Accept-Ranges");
+
+    if (cacheSensitiveAssetPattern.test(filePath)) {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+    }
+
+    if (executableAssetPattern.test(filePath)) {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+    }
+  },
+};
+
+const indexHtmlSendFileOptions: SendFileOptions = {
+  acceptRanges: false,
+  cacheControl: false,
+  etag: false,
+  lastModified: false,
+  headers: {
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+  },
+};
 
 export interface AppServices {
   issueService: IssueService;
@@ -91,9 +128,9 @@ export function createApp(services: AppServices) {
   if (process.env.NODE_ENV === "production") {
     const clientDistPath = path.resolve(resolveWorkspaceRoot(), "client", "dist");
     if (existsSync(clientDistPath)) {
-      app.use(express.static(clientDistPath));
+      app.use(express.static(clientDistPath, productionStaticOptions));
       app.get(/^\/(?!api).*/, (_req, res) => {
-        res.sendFile(path.join(clientDistPath, "index.html"));
+        res.sendFile(path.join(clientDistPath, "index.html"), indexHtmlSendFileOptions);
       });
     }
   }
