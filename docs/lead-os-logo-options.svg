@@ -1,0 +1,237 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 840" fill="none">
+  <rect width="1200" height="840" fill="#080A0F"/>
+  <style>
+    text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .title { fill: #F6F7F9; font-size: 34px; font-weight: 720; letter-spacing: 0; }
+    .subtitle { fill: #94A3B8; font-size: 15px; font-weight: 450; letter-spacing: 0; }
+    .label { fill: #F6F7F9; font-size: 17px; font-weight: 700; letter-spacing: 0; }
+    .meta { fill: #94A3B8; font-size: 12px; font-weight: 520; letter-spacing: 0.04em; text-transform: uppercase; }
+    .copy { fill: #CBD5E1; font-size: 13px; font-weight: 450; letter-spacing: 0; }
+  </style>
+  <defs>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#06B6D4" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <text x="56" y="62" class="title">LeadOS logo directions</text>
+  <text x="56" y="91" class="subtitle">Six vector marks aimed at daily command, team visibility, attention signals, and small-size app use.</text>
+
+  <g transform="translate(56 130)">
+    <rect width="340" height="300" rx="16" fill="#101722" stroke="#243244"/>
+    <g transform="translate(32 40)" filter="url(#softGlow)">
+      <rect width="122" height="122" rx="30" fill="#0B0F14" stroke="#263647"/>
+      <path d="M35 27V77C35 91.359 46.641 103 61 103H91" stroke="#06B6D4" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M35 56H76C92.016 56 105 68.984 105 85" stroke="#06B6D4" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="91" cy="103" r="16" fill="#0B0F14" stroke="#06B6D4" stroke-width="8"/>
+      <circle cx="91" cy="103" r="5.5" fill="#F59E0B"/>
+      <circle cx="35" cy="56" r="9" fill="#F59E0B"/>
+      <circle cx="35" cy="27" r="8" fill="#06B6D4"/>
+    </g>
+    <text x="174" y="70" class="meta">Option A</text>
+    <text x="174" y="100" class="label">Focus Rail</text>
+    <text x="174" y="130" class="copy">Current path idea,</text>
+    <text x="174" y="150" class="copy">one live target,</text>
+    <text x="174" y="170" class="copy">cleaner at 22px.</text>
+    <rect x="32" y="204" width="42" height="42" rx="12" fill="#EAFBFF"/>
+    <g transform="translate(40 212) scale(.215)">
+      <path d="M35 27V77C35 91.359 46.641 103 61 103H91" stroke="#0891B2" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M35 56H76C92.016 56 105 68.984 105 85" stroke="#0891B2" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="91" cy="103" r="16" fill="#EAFBFF" stroke="#0891B2" stroke-width="8"/>
+      <circle cx="91" cy="103" r="5.5" fill="#F59E0B"/>
+      <circle cx="35" cy="56" r="9" fill="#F59E0B"/>
+      <circle cx="35" cy="27" r="8" fill="#0891B2"/>
+    </g>
+    <rect x="86" y="204" width="42" height="42" rx="12" fill="#09090B"/>
+    <g transform="translate(94 212) scale(.215)">
+      <path d="M35 27V77C35 91.359 46.641 103 61 103H91" stroke="#06B6D4" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M35 56H76C92.016 56 105 68.984 105 85" stroke="#06B6D4" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="91" cy="103" r="16" fill="#09090B" stroke="#06B6D4" stroke-width="8"/>
+      <circle cx="91" cy="103" r="5.5" fill="#F59E0B"/>
+      <circle cx="35" cy="56" r="9" fill="#F59E0B"/>
+      <circle cx="35" cy="27" r="8" fill="#06B6D4"/>
+    </g>
+  </g>
+
+  <g transform="translate(430 130)">
+    <rect width="340" height="300" rx="16" fill="#101722" stroke="#243244"/>
+    <g transform="translate(32 40)" filter="url(#softGlow)">
+      <rect width="122" height="122" rx="30" fill="#0B0F14" stroke="#263647"/>
+      <circle cx="61" cy="61" r="39" stroke="#06B6D4" stroke-width="10"/>
+      <path d="M61 18V32M61 90V104M18 61H32M90 61H104" stroke="#475569" stroke-width="7" stroke-linecap="round"/>
+      <path d="M61 61L85 37" stroke="#F59E0B" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="61" cy="61" r="7" fill="#F6F7F9"/>
+      <circle cx="85" cy="37" r="8.5" fill="#F59E0B"/>
+      <path d="M42 80L50 88L66 72" stroke="#06B6D4" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="174" y="70" class="meta">Option B</text>
+    <text x="174" y="98" class="label">Attention</text>
+    <text x="174" y="120" class="label">Compass</text>
+    <text x="174" y="150" class="copy">Executive and calm:</text>
+    <text x="174" y="170" class="copy">a signal finder for</text>
+    <text x="174" y="190" class="copy">the manager's day.</text>
+    <rect x="32" y="204" width="42" height="42" rx="12" fill="#EAFBFF"/>
+    <g transform="translate(40 212) scale(.215)">
+      <circle cx="61" cy="61" r="39" stroke="#0891B2" stroke-width="10"/>
+      <path d="M61 18V32M61 90V104M18 61H32M90 61H104" stroke="#94A3B8" stroke-width="7" stroke-linecap="round"/>
+      <path d="M61 61L85 37" stroke="#F59E0B" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="61" cy="61" r="7" fill="#111827"/>
+      <circle cx="85" cy="37" r="8.5" fill="#F59E0B"/>
+      <path d="M42 80L50 88L66 72" stroke="#0891B2" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <rect x="86" y="204" width="42" height="42" rx="12" fill="#09090B"/>
+    <g transform="translate(94 212) scale(.215)">
+      <circle cx="61" cy="61" r="39" stroke="#06B6D4" stroke-width="10"/>
+      <path d="M61 18V32M61 90V104M18 61H32M90 61H104" stroke="#475569" stroke-width="7" stroke-linecap="round"/>
+      <path d="M61 61L85 37" stroke="#F59E0B" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="61" cy="61" r="7" fill="#F6F7F9"/>
+      <circle cx="85" cy="37" r="8.5" fill="#F59E0B"/>
+      <path d="M42 80L50 88L66 72" stroke="#06B6D4" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <g transform="translate(804 130)">
+    <rect width="340" height="300" rx="16" fill="#101722" stroke="#243244"/>
+    <g transform="translate(32 40)" filter="url(#softGlow)">
+      <rect width="122" height="122" rx="30" fill="#0B0F14" stroke="#263647"/>
+      <path d="M61 63L34 36M61 63L88 36M61 63L91 90M61 63L32 91" stroke="#06B6D4" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="61" cy="63" r="17" fill="#0B0F14" stroke="#F6F7F9" stroke-width="7"/>
+      <circle cx="34" cy="36" r="11" fill="#06B6D4"/>
+      <circle cx="88" cy="36" r="11" fill="#06B6D4"/>
+      <circle cx="91" cy="90" r="11" fill="#F59E0B"/>
+      <circle cx="32" cy="91" r="11" fill="#10B981"/>
+      <circle cx="61" cy="63" r="5" fill="#F59E0B"/>
+    </g>
+    <text x="174" y="70" class="meta">Option C</text>
+    <text x="174" y="100" class="label">Team Signal</text>
+    <text x="174" y="130" class="copy">Manager at center,</text>
+    <text x="174" y="150" class="copy">team signals around,</text>
+    <text x="174" y="170" class="copy">amber means attention.</text>
+    <rect x="32" y="204" width="42" height="42" rx="12" fill="#EAFBFF"/>
+    <g transform="translate(40 212) scale(.215)">
+      <path d="M61 63L34 36M61 63L88 36M61 63L91 90M61 63L32 91" stroke="#0891B2" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="61" cy="63" r="17" fill="#EAFBFF" stroke="#111827" stroke-width="7"/>
+      <circle cx="34" cy="36" r="11" fill="#0891B2"/>
+      <circle cx="88" cy="36" r="11" fill="#0891B2"/>
+      <circle cx="91" cy="90" r="11" fill="#F59E0B"/>
+      <circle cx="32" cy="91" r="11" fill="#10B981"/>
+      <circle cx="61" cy="63" r="5" fill="#F59E0B"/>
+    </g>
+    <rect x="86" y="204" width="42" height="42" rx="12" fill="#09090B"/>
+    <g transform="translate(94 212) scale(.215)">
+      <path d="M61 63L34 36M61 63L88 36M61 63L91 90M61 63L32 91" stroke="#06B6D4" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="61" cy="63" r="17" fill="#09090B" stroke="#F6F7F9" stroke-width="7"/>
+      <circle cx="34" cy="36" r="11" fill="#06B6D4"/>
+      <circle cx="88" cy="36" r="11" fill="#06B6D4"/>
+      <circle cx="91" cy="90" r="11" fill="#F59E0B"/>
+      <circle cx="32" cy="91" r="11" fill="#10B981"/>
+      <circle cx="61" cy="63" r="5" fill="#F59E0B"/>
+    </g>
+  </g>
+
+  <g transform="translate(56 466)">
+    <rect width="340" height="300" rx="16" fill="#101722" stroke="#243244"/>
+    <g transform="translate(32 40)" filter="url(#softGlow)">
+      <rect width="122" height="122" rx="30" fill="#0B0F14" stroke="#263647"/>
+      <path d="M30 35H92M30 61H67M30 87H92" stroke="#06B6D4" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="30" cy="35" r="9" fill="#06B6D4"/>
+      <circle cx="30" cy="61" r="9" fill="#F59E0B"/>
+      <circle cx="30" cy="87" r="9" fill="#06B6D4"/>
+      <circle cx="89" cy="61" r="18" fill="#0B0F14" stroke="#F59E0B" stroke-width="8"/>
+      <path d="M80 61L87 68L100 53" stroke="#F6F7F9" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="174" y="70" class="meta">Option D</text>
+    <text x="174" y="100" class="label">Daily Lanes</text>
+    <text x="174" y="130" class="copy">Today's work lanes,</text>
+    <text x="174" y="150" class="copy">follow-through, and</text>
+    <text x="174" y="170" class="copy">approved action.</text>
+    <rect x="32" y="204" width="42" height="42" rx="12" fill="#EAFBFF"/>
+    <g transform="translate(40 212) scale(.215)">
+      <path d="M30 35H92M30 61H67M30 87H92" stroke="#0891B2" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="30" cy="35" r="9" fill="#0891B2"/>
+      <circle cx="30" cy="61" r="9" fill="#F59E0B"/>
+      <circle cx="30" cy="87" r="9" fill="#0891B2"/>
+      <circle cx="89" cy="61" r="18" fill="#EAFBFF" stroke="#F59E0B" stroke-width="8"/>
+      <path d="M80 61L87 68L100 53" stroke="#111827" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <rect x="86" y="204" width="42" height="42" rx="12" fill="#09090B"/>
+    <g transform="translate(94 212) scale(.215)">
+      <path d="M30 35H92M30 61H67M30 87H92" stroke="#06B6D4" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="30" cy="35" r="9" fill="#06B6D4"/>
+      <circle cx="30" cy="61" r="9" fill="#F59E0B"/>
+      <circle cx="30" cy="87" r="9" fill="#06B6D4"/>
+      <circle cx="89" cy="61" r="18" fill="#09090B" stroke="#F59E0B" stroke-width="8"/>
+      <path d="M80 61L87 68L100 53" stroke="#F6F7F9" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <g transform="translate(430 466)">
+    <rect width="340" height="300" rx="16" fill="#101722" stroke="#243244"/>
+    <g transform="translate(32 40)" filter="url(#softGlow)">
+      <rect width="122" height="122" rx="30" fill="#0B0F14" stroke="#263647"/>
+      <rect x="25" y="25" width="72" height="72" rx="17" stroke="#06B6D4" stroke-width="9"/>
+      <path d="M61 26V96M26 61H96" stroke="#334155" stroke-width="7" stroke-linecap="round"/>
+      <rect x="32" y="32" width="22" height="22" rx="7" fill="#06B6D4"/>
+      <rect x="68" y="68" width="22" height="22" rx="7" fill="#F59E0B"/>
+      <path d="M69 40H84M84 40V55" stroke="#F59E0B" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="47" cy="77" r="6" fill="#10B981"/>
+    </g>
+    <text x="174" y="70" class="meta">Option E</text>
+    <text x="174" y="98" class="label">Workspace</text>
+    <text x="174" y="120" class="label">Window</text>
+    <text x="174" y="150" class="copy">OS cue: panes,</text>
+    <text x="174" y="170" class="copy">state, and motion.</text>
+    <text x="174" y="190" class="copy">App-icon friendly.</text>
+    <rect x="32" y="204" width="42" height="42" rx="12" fill="#EAFBFF"/>
+    <g transform="translate(40 212) scale(.215)">
+      <rect x="25" y="25" width="72" height="72" rx="17" stroke="#0891B2" stroke-width="9"/>
+      <path d="M61 26V96M26 61H96" stroke="#CBD5E1" stroke-width="7" stroke-linecap="round"/>
+      <rect x="32" y="32" width="22" height="22" rx="7" fill="#0891B2"/>
+      <rect x="68" y="68" width="22" height="22" rx="7" fill="#F59E0B"/>
+      <path d="M69 40H84M84 40V55" stroke="#F59E0B" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="47" cy="77" r="6" fill="#10B981"/>
+    </g>
+    <rect x="86" y="204" width="42" height="42" rx="12" fill="#09090B"/>
+    <g transform="translate(94 212) scale(.215)">
+      <rect x="25" y="25" width="72" height="72" rx="17" stroke="#06B6D4" stroke-width="9"/>
+      <path d="M61 26V96M26 61H96" stroke="#334155" stroke-width="7" stroke-linecap="round"/>
+      <rect x="32" y="32" width="22" height="22" rx="7" fill="#06B6D4"/>
+      <rect x="68" y="68" width="22" height="22" rx="7" fill="#F59E0B"/>
+      <path d="M69 40H84M84 40V55" stroke="#F59E0B" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="47" cy="77" r="6" fill="#10B981"/>
+    </g>
+  </g>
+
+  <g transform="translate(804 466)">
+    <rect width="340" height="300" rx="16" fill="#101722" stroke="#243244"/>
+    <g transform="translate(32 40)" filter="url(#softGlow)">
+      <rect width="122" height="122" rx="30" fill="#0B0F14" stroke="#263647"/>
+      <path d="M35 26V74C35 90.016 47.984 103 64 103H76C91.464 103 104 90.464 104 75C104 59.536 91.464 47 76 47H55" stroke="#06B6D4" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M35 26H71" stroke="#06B6D4" stroke-width="10" stroke-linecap="round"/>
+      <path d="M31 97H57" stroke="#F59E0B" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="76" cy="75" r="13" fill="#0B0F14" stroke="#F59E0B" stroke-width="7"/>
+      <circle cx="35" cy="26" r="8" fill="#06B6D4"/>
+    </g>
+    <text x="174" y="70" class="meta">Option F</text>
+    <text x="174" y="100" class="label">Lead Loop</text>
+    <text x="174" y="130" class="copy">Monogram-like:</text>
+    <text x="174" y="150" class="copy">an L resolving</text>
+    <text x="174" y="170" class="copy">into an OS loop.</text>
+    <rect x="32" y="204" width="42" height="42" rx="12" fill="#EAFBFF"/>
+    <g transform="translate(40 212) scale(.215)">
+      <path d="M35 26V74C35 90.016 47.984 103 64 103H76C91.464 103 104 90.464 104 75C104 59.536 91.464 47 76 47H55" stroke="#0891B2" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M35 26H71" stroke="#0891B2" stroke-width="10" stroke-linecap="round"/>
+      <path d="M31 97H57" stroke="#F59E0B" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="76" cy="75" r="13" fill="#EAFBFF" stroke="#F59E0B" stroke-width="7"/>
+      <circle cx="35" cy="26" r="8" fill="#0891B2"/>
+    </g>
+    <rect x="86" y="204" width="42" height="42" rx="12" fill="#09090B"/>
+    <g transform="translate(94 212) scale(.215)">
+      <path d="M35 26V74C35 90.016 47.984 103 64 103H76C91.464 103 104 90.464 104 75C104 59.536 91.464 47 76 47H55" stroke="#06B6D4" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M35 26H71" stroke="#06B6D4" stroke-width="10" stroke-linecap="round"/>
+      <path d="M31 97H57" stroke="#F59E0B" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="76" cy="75" r="13" fill="#09090B" stroke="#F59E0B" stroke-width="7"/>
+      <circle cx="35" cy="26" r="8" fill="#06B6D4"/>
+    </g>
+  </g>
+</svg>

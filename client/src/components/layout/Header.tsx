@@ -104,8 +104,8 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
                   <PanelLeftOpen size={16} style={{ color: 'var(--text-secondary)' }} />
                 </button>
               )}
-              <div className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
-                <LeadOSMark size={22} />
+              <div className="h-11 w-11 rounded-[16px] flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
+                <LeadOSMark size={32} />
               </div>
               <div className="min-w-[148px]">
                 <h1

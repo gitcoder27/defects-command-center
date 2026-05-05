@@ -5,43 +5,33 @@ interface LeadOSMarkProps {
 }
 
 export function LeadOSMark({ size = 24, className, monochrome = false }: LeadOSMarkProps) {
-  const cyan = monochrome ? 'currentColor' : 'var(--accent)';
-  const amber = monochrome ? 'currentColor' : 'var(--warning)';
+  const accent = monochrome ? 'currentColor' : 'var(--accent)';
+  const warning = monochrome ? 'currentColor' : 'var(--warning)';
+  const success = monochrome ? 'currentColor' : 'var(--success)';
+  const divider = monochrome ? 'currentColor' : 'var(--text-muted)';
 
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 216 216"
+      viewBox="32 32 152 152"
       fill="none"
       className={className}
       aria-hidden="true"
       focusable="false"
     >
+      <rect x="44" y="44" width="128" height="128" rx="31" stroke={accent} strokeWidth="16" />
       <path
-        d="M66 42V96C66 112.569 79.4315 126 96 126H136C152.569 126 166 139.431 166 156C166 172.569 152.569 186 136 186H64"
-        stroke={cyan}
-        strokeWidth="13"
+        d="M108 46V170M46 108H170"
+        stroke={divider}
+        strokeWidth="12"
         strokeLinecap="round"
-        strokeLinejoin="round"
+        opacity={monochrome ? 0.42 : 0.58}
       />
-      <path
-        d="M66 82H136C166.928 82 192 107.072 192 138C192 168.928 166.928 194 136 194H96"
-        stroke={cyan}
-        strokeWidth="13"
-        strokeLinecap="round"
-      />
-      <path
-        d="M44 154H132"
-        stroke={cyan}
-        strokeWidth="13"
-        strokeLinecap="round"
-      />
-      <circle cx="136" cy="154" r="26" fill="var(--bg-primary)" stroke={cyan} strokeWidth="12" />
-      <circle cx="136" cy="154" r="9" fill={amber} />
-      <circle cx="66" cy="82" r="15" fill={cyan} />
-      <circle cx="66" cy="126" r="15" fill={amber} />
-      <circle cx="44" cy="154" r="15" fill={cyan} />
+      <rect x="57" y="57" width="39" height="39" rx="12" fill={accent} />
+      <rect x="120" y="120" width="39" height="39" rx="12" fill={warning} />
+      <path d="M122 71H149M149 71V97" stroke={warning} strokeWidth="12" strokeLinecap="round" />
+      <circle cx="83" cy="136" r="11" fill={success} />
     </svg>
   );
 }
