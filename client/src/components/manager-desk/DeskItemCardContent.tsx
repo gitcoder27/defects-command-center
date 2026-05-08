@@ -33,13 +33,14 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
   const KindIcon = kindIcons[item.kind];
   const dateSignal = useMemo(() => getDateSignal(item, isOverdue), [item, isOverdue]);
   const sourceSignal = useMemo(() => getSourceSignal(item), [item]);
-  const statusLabel = STATUS_LABELS[item.status];
   const execChip = useExecutionChip(item);
   const primaryAction = getPrimaryQuickAction(item);
   const secondaryActions = getSecondaryQuickActions(item);
+  const statusSignal = item.status === 'in_progress' ? STATUS_LABELS[item.status] : null;
   const showSource = sourceSignal.type !== 'manual';
   const showPriority = !isDone && (item.priority === 'high' || item.priority === 'critical');
   const metaItems = [
+    statusSignal,
     showPriority ? PRIORITY_LABELS[item.priority] : null,
     dateSignal?.label,
     showSource ? sourceSignal.label : null,
@@ -49,10 +50,10 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
   ].filter(isPresent);
 
   return (
-    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+    <div className="flex min-w-0 flex-col gap-2.5 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-1 items-center gap-3.5">
         <span
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
+          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
           style={{ background: getKindBackground(variant), color: getKindColor(variant, item.status) }}
           title={KIND_LABELS[item.kind]}
         >
@@ -72,20 +73,25 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
             </span>
           </div>
 
-          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] leading-4">
-            <span
-              className="font-semibold uppercase tracking-[0.08em]"
-              style={{ color: getStatusColor(item.status, isDone) }}
-            >
-              {statusLabel}
-            </span>
-            {metaItems.map((meta, index) => (
-              <span key={`${meta}-${index}`} className="inline-flex min-w-0 items-center gap-2" style={{ color: getMetaColor(meta, item, dateSignal?.label) }}>
-                <span className="h-1 w-1 rounded-full" style={{ background: 'color-mix(in srgb, var(--text-muted) 68%, transparent)' }} />
-                <span className="truncate">{meta}</span>
-              </span>
-            ))}
-          </div>
+          {metaItems.length > 0 ? (
+            <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] leading-5">
+              {metaItems.map((meta, index) => (
+                <span
+                  key={`${meta}-${index}`}
+                  className="inline-flex min-w-0 items-center gap-2"
+                  style={{ color: getMetaColor(meta, item, dateSignal?.label) }}
+                >
+                  {index > 0 ? (
+                    <span
+                      className="h-1 w-1 rounded-full"
+                      style={{ background: 'color-mix(in srgb, var(--text-muted) 70%, transparent)' }}
+                    />
+                  ) : null}
+                  <span className="truncate">{meta}</span>
+                </span>
+              ))}
+            </div>
+          ) : null}
 
           <RowContext item={item} isDone={isDone} />
         </div>
@@ -155,23 +161,17 @@ function isPresent(value: string | null | undefined): value is string {
   return Boolean(value);
 }
 
-function getStatusColor(status: ManagerDeskStatus, isDone: boolean) {
-  if (isDone) return 'var(--text-muted)';
-  if (status === 'inbox' || status === 'planned') return 'var(--md-accent)';
-  if (status === 'in_progress') return 'var(--accent)';
-  if (status === 'waiting') return 'var(--warning)';
-  if (status === 'backlog') return 'var(--text-secondary)';
-  return 'var(--text-muted)';
-}
-
 function getMetaColor(meta: string, item: ManagerDeskItem, dateLabel?: string) {
+  if (meta === STATUS_LABELS.in_progress) {
+    return 'var(--accent)';
+  }
   if (meta === PRIORITY_LABELS.critical || meta === PRIORITY_LABELS.high) {
     return priorityColors[item.priority];
   }
   if (dateLabel === meta && meta.startsWith('Overdue')) {
     return 'var(--danger)';
   }
-  return 'var(--text-muted)';
+  return 'var(--text-secondary)';
 }
 
 function RowActionButton({
@@ -190,7 +190,7 @@ function RowActionButton({
         event.stopPropagation();
         onStatusChange(action.status);
       }}
-      className="inline-flex h-8 items-center gap-1 rounded-md border px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]"
+      className="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-semibold transition-[background-color,border-color,color,transform] duration-150 hover:-translate-y-px active:scale-[0.98]"
       style={action.style}
       aria-label={`${action.label} ${itemTitle}`}
       title={action.label}
@@ -217,7 +217,7 @@ function RowMenuAction({
         event.stopPropagation();
         onStatusChange(action.status);
       }}
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] transition-colors hover:bg-white/5"
+      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-colors hover:bg-white/5"
       style={{ color: action.status === 'cancelled' ? 'var(--text-muted)' : 'var(--text-secondary)' }}
       aria-label={`${action.label} ${itemTitle}`}
       title={action.label}
@@ -233,10 +233,10 @@ function RowContext({ item, isDone }: { item: ManagerDeskItem; isDone: boolean }
   if (!context) return null;
 
   return (
-    <div className="mt-0.5 min-w-0">
+    <div className="mt-1 min-w-0">
       <span
-        className="block max-w-[520px] truncate text-[11px]"
-        style={{ color: isDone ? 'var(--success)' : 'var(--text-muted)' }}
+        className="block max-w-[620px] truncate text-[12px] leading-5"
+        style={{ color: isDone ? 'var(--success)' : 'var(--text-secondary)' }}
       >
         {isDone ? 'Outcome: ' : 'Next: '}
         {context}

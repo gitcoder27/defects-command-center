@@ -93,7 +93,7 @@ function SingleLensList({
             {items.length === 0 ? (
               <UnifiedEmptyState quickFilter={quickFilter} message={copy.empty} />
             ) : (
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {items.map((item) => (
                   <DeskCardRow
                     key={item.id}

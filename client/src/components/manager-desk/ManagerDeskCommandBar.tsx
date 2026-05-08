@@ -71,8 +71,8 @@ export function ManagerDeskCommandBar({
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.025)',
             }}
       >
-        <div className={`flex flex-col gap-1.5 ${isInline ? 'lg:flex-row lg:items-center 2xl:justify-end' : 'xl:flex-row xl:items-center'}`}>
-          <div className={isInline ? 'min-w-[220px] flex-1 2xl:max-w-[360px]' : 'min-w-0 flex-1'}>
+        <div className={`flex flex-col gap-1.5 ${isInline ? 'lg:flex-row lg:items-center' : 'xl:flex-row xl:items-center'}`}>
+          <div className={isInline ? 'min-w-[240px] flex-[1_1_300px] 2xl:max-w-[420px]' : 'min-w-0 flex-1'}>
             <QuickCapture
               onCapture={onCapture}
               isPending={isCreatePending}
@@ -81,37 +81,51 @@ export function ManagerDeskCommandBar({
             />
           </div>
 
-          <div className="flex min-w-0 flex-wrap items-center gap-1 lg:shrink-0" aria-label="Manager Desk map">
+          <div
+            className="flex min-w-0 flex-[0_1_auto] flex-wrap items-center gap-0.5 rounded-lg border p-0.5"
+            style={{
+              background: 'color-mix(in srgb, var(--bg-secondary) 46%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--border) 62%, transparent)',
+            }}
+            role="group"
+            aria-label="Manager Desk map"
+          >
             {quickFilters.map(({ key, label }) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => onQuickFilterChange(key)}
-                className="flex h-7 items-center gap-1 rounded-md border px-2 text-[10px] font-semibold uppercase tracking-[0.08em] transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]"
+                className="flex h-7 items-center gap-1.5 rounded-md border px-2 text-[12px] font-medium transition-[background-color,border-color,color,transform] duration-150 hover:-translate-y-px active:scale-[0.98]"
                 style={{
-                  background: quickFilter === key ? 'var(--md-accent-glow)' : 'transparent',
-                  borderColor: quickFilter === key ? 'color-mix(in srgb, var(--md-accent) 52%, transparent)' : 'color-mix(in srgb, var(--border) 54%, transparent)',
+                  background: quickFilter === key ? 'color-mix(in srgb, var(--md-accent-glow) 82%, var(--bg-tertiary) 18%)' : 'transparent',
+                  borderColor: quickFilter === key ? 'color-mix(in srgb, var(--md-accent) 46%, transparent)' : 'transparent',
                   color: quickFilter === key ? 'var(--md-accent)' : 'var(--text-secondary)',
                 }}
                 aria-pressed={quickFilter === key}
               >
                 <span>{label}</span>
-                <span className="font-mono tabular-nums" style={{ opacity: 0.76 }}>
+                <span
+                  className="rounded px-1 font-mono text-[11px] font-semibold tabular-nums"
+                  style={{
+                    background: quickFilter === key ? 'color-mix(in srgb, var(--md-accent) 14%, transparent)' : 'color-mix(in srgb, var(--bg-tertiary) 72%, transparent)',
+                    color: quickFilter === key ? 'var(--md-accent)' : 'var(--text-muted)',
+                  }}
+                >
                   {getQuickFilterCount(items, key)}
                 </span>
               </button>
             ))}
           </div>
 
-          <div className="flex items-stretch gap-1.5 lg:shrink-0">
-            <div className="flex min-w-[136px] items-center gap-1.5 rounded-lg border px-2" style={{ borderColor: 'color-mix(in srgb, var(--border) 66%, transparent)', background: 'color-mix(in srgb, var(--bg-secondary) 58%, transparent)' }}>
+          <div className="flex min-w-0 flex-[1_1_230px] items-stretch gap-1.5 lg:max-w-[340px]">
+            <div className="flex min-w-[150px] flex-1 items-center gap-1.5 rounded-lg border px-2" style={{ borderColor: 'color-mix(in srgb, var(--border) 66%, transparent)', background: 'color-mix(in srgb, var(--bg-secondary) 58%, transparent)' }}>
               <Search size={12} style={{ color: 'var(--text-muted)' }} />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(event) => onSearchChange(event.target.value)}
                 placeholder="Search…"
-                className="h-7 w-[104px] bg-transparent text-[12px] outline-none placeholder:text-placeholder lg:w-[144px]"
+                className="h-7 min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-placeholder"
                 style={{ color: 'var(--text-primary)' }}
                 aria-label="Search manager desk tasks"
               />
@@ -125,7 +139,8 @@ export function ManagerDeskCommandBar({
             <button
               type="button"
               onClick={onToggleFilters}
-              className="flex h-7 items-center gap-1 rounded-lg border px-2 text-[10px] font-semibold uppercase tracking-[0.1em] transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]"
+              aria-label={hasStructuredFilters ? 'Filtered' : 'Filters'}
+              className="flex h-7 items-center gap-1 rounded-lg border px-2 text-[11px] font-semibold transition-[background-color,border-color,color,transform] duration-150 hover:-translate-y-px active:scale-[0.98]"
               style={{
                 background: hasStructuredFilters ? 'var(--md-accent-glow)' : 'color-mix(in srgb, var(--bg-secondary) 58%, transparent)',
                 borderColor: hasStructuredFilters ? 'color-mix(in srgb, var(--md-accent) 52%, transparent)' : 'color-mix(in srgb, var(--border) 66%, transparent)',
@@ -140,7 +155,7 @@ export function ManagerDeskCommandBar({
               <button
                 type="button"
                 onClick={onResetView}
-                className="h-7 rounded-lg border px-2 text-[10px] font-semibold uppercase tracking-[0.1em] transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]"
+                className="h-7 rounded-lg border px-2 text-[11px] font-semibold transition-[background-color,border-color,color,transform] duration-150 hover:-translate-y-px active:scale-[0.98]"
                 style={{
                   background: 'color-mix(in srgb, var(--bg-secondary) 58%, transparent)',
                   borderColor: 'color-mix(in srgb, var(--border) 66%, transparent)',

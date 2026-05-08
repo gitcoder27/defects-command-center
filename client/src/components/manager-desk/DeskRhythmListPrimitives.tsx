@@ -36,7 +36,7 @@ export function DeskRhythmHeader({
       <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-[14px] font-semibold leading-none tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>
+            <h2 className="text-[15px] font-semibold leading-none tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>
               {title}
             </h2>
             {showCount && typeof count === 'number' ? <CountPill value={count} /> : null}
@@ -95,7 +95,7 @@ export function SectionTitle({ section }: { section: DeskRhythmSection }) {
       </span>
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <h3 className="text-[13px] font-semibold leading-none tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>
+          <h3 className="text-[14px] font-semibold leading-none tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>
             {section.title}
           </h3>
           <CountPill value={section.items.length} subtle={section.quiet} />

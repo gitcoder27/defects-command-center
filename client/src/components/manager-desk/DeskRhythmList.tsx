@@ -101,7 +101,7 @@ function DeskRhythmSectionView({
 
   return (
     <section>
-      <div className="pb-1.5">
+      <div className="pb-2">
         <SectionTitle section={section} />
       </div>
       <SectionItems section={section} selectedItemId={selectedItemId} readOnly={readOnly} onSelect={onSelect} onStatusChange={onStatusChange} />
@@ -123,7 +123,7 @@ function SectionItems({
   onStatusChange?: (itemId: number, status: ManagerDeskStatus) => void;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {section.items.map((item) => (
         <DeskCardRow
           key={item.id}
@@ -201,7 +201,7 @@ export function DeskSignalRail({
           <div className="mt-2 text-[12px] font-semibold leading-5" style={{ color: 'var(--text-primary)' }}>
             {nextPrompt.title}
           </div>
-          <p className="mt-0.5 text-[11px] leading-4" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
             {nextPrompt.subtitle}
           </p>
         </div>
