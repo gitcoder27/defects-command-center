@@ -345,6 +345,11 @@ describe('ManagerDeskPage', () => {
             avatarUrl: 'https://example.com/alice.png',
           },
           nextAction: 'Keep the validation fix moving',
+          delegatedExecution: {
+            trackerItemId: 88,
+            state: 'planned',
+            updatedAt: '2026-03-08T09:15:00Z',
+          },
         }),
         mockItem({
           id: 6,
@@ -367,8 +372,51 @@ describe('ManagerDeskPage', () => {
       </TestWrapper>,
     );
 
-    expect(screen.getByText('Doing')).toBeInTheDocument();
+    const startedRow = screen.getByRole('button', { name: /^Open Started incident review$/i });
+    expect(within(startedRow).getByText('Doing')).toBeInTheDocument();
+    expect(within(startedRow).getByText('Alice Smith')).toBeInTheDocument();
+    expect(within(startedRow).queryByText('Planned')).not.toBeInTheDocument();
     expect(screen.getAllByText('Planned').length).toBeGreaterThan(0);
+  });
+
+  it('labels active delegated work as a developer signal on desk rows', () => {
+    currentMockDay = {
+      ...mockDayResponse,
+      items: [
+        mockItem({
+          id: 7,
+          title: 'Delegate rollout validation',
+          status: 'planned',
+          priority: 'medium',
+          assignee: {
+            accountId: 'alice-1',
+            displayName: 'Alice Smith',
+            avatarUrl: 'https://example.com/alice.png',
+          },
+          delegatedExecution: {
+            trackerItemId: 99,
+            state: 'in_progress',
+            updatedAt: '2026-03-08T09:20:00Z',
+          },
+        }),
+      ],
+      summary: {
+        ...mockDayResponse.summary,
+        planned: 1,
+        inProgress: 0,
+      },
+    };
+
+    render(
+      <TestWrapper>
+        <ManagerDeskPage />
+      </TestWrapper>,
+    );
+
+    const delegatedRow = screen.getByRole('button', { name: /^Open Delegate rollout validation$/i });
+    expect(within(delegatedRow).getByText('Dev active')).toBeInTheDocument();
+    expect(within(delegatedRow).getByText('Alice Smith')).toBeInTheDocument();
+    expect(within(delegatedRow).queryByText('In Progress')).not.toBeInTheDocument();
   });
 
   it('calls create mutation when quick capture is submitted', () => {

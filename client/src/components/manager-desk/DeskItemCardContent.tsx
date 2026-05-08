@@ -3,7 +3,6 @@ import * as Popover from '@radix-ui/react-popover';
 import { CheckCircle2, MoreHorizontal, XCircle } from 'lucide-react';
 import type { ManagerDeskItem, ManagerDeskStatus } from '@/types/manager-desk';
 import {
-  EXECUTION_STATE_LABELS,
   KIND_LABELS,
   PRIORITY_LABELS,
   STATUS_LABELS,
@@ -33,7 +32,7 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
   const KindIcon = kindIcons[item.kind];
   const dateSignal = useMemo(() => getDateSignal(item, isOverdue), [item, isOverdue]);
   const sourceSignal = useMemo(() => getSourceSignal(item), [item]);
-  const execChip = useExecutionChip(item);
+  const executionSignal = useExecutionSignal(item);
   const primaryAction = getPrimaryQuickAction(item);
   const secondaryActions = getSecondaryQuickActions(item);
   const statusSignal = item.status === 'in_progress' ? STATUS_LABELS[item.status] : null;
@@ -44,7 +43,7 @@ export function DeskItemCardContent({ item, variant, isDone, isOverdue, readOnly
     showPriority ? PRIORITY_LABELS[item.priority] : null,
     dateSignal?.label,
     showSource ? sourceSignal.label : null,
-    execChip?.label,
+    executionSignal,
     item.assignee?.displayName,
     !item.assignee && item.participants ? item.participants : null,
   ].filter(isPresent);
@@ -165,6 +164,15 @@ function getMetaColor(meta: string, item: ManagerDeskItem, dateLabel?: string) {
   if (meta === STATUS_LABELS.in_progress) {
     return 'var(--accent)';
   }
+  if (meta === 'Dev active') {
+    return 'var(--accent)';
+  }
+  if (meta === 'Dev done') {
+    return 'var(--success)';
+  }
+  if (meta === 'Dev dropped') {
+    return 'var(--danger)';
+  }
   if (meta === PRIORITY_LABELS.critical || meta === PRIORITY_LABELS.high) {
     return priorityColors[item.priority];
   }
@@ -245,14 +253,14 @@ function RowContext({ item, isDone }: { item: ManagerDeskItem; isDone: boolean }
   );
 }
 
-function useExecutionChip(item: ManagerDeskItem) {
+function useExecutionSignal(item: ManagerDeskItem) {
   const exec = item.delegatedExecution;
   return useMemo(() => {
     if (!exec) return null;
-    if (exec.state === 'done') return { label: EXECUTION_STATE_LABELS.done, style: { background: 'rgba(16,185,129,0.10)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.22)' } };
-    if (exec.state === 'in_progress') return { label: EXECUTION_STATE_LABELS.in_progress, style: { background: 'rgba(6,182,212,0.10)', color: 'var(--accent)', border: '1px solid rgba(6,182,212,0.22)' } };
-    if (exec.state === 'dropped') return { label: EXECUTION_STATE_LABELS.dropped, style: { background: 'rgba(239,68,68,0.08)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.16)' } };
-    return { label: EXECUTION_STATE_LABELS.planned, style: { background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border)' } };
+    if (exec.state === 'in_progress') return 'Dev active';
+    if (exec.state === 'done') return 'Dev done';
+    if (exec.state === 'dropped') return 'Dev dropped';
+    return null;
   }, [exec]);
 }
 

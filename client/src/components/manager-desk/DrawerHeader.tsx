@@ -5,7 +5,7 @@ import {
   MoreVertical, FolderMinus, Ban, AlertTriangle, ChevronRight,
 } from 'lucide-react';
 import type { ManagerDeskItem } from '@/types/manager-desk';
-import { KIND_LABELS, STATUS_LABELS, CATEGORY_LABELS, PRIORITY_LABELS, EXECUTION_STATE_LABELS } from '@/types/manager-desk';
+import { KIND_LABELS, STATUS_LABELS, CATEGORY_LABELS, PRIORITY_LABELS } from '@/types/manager-desk';
 import { AssigneePill } from './AssigneePill';
 import { DrawerWorkflowActions } from './DrawerWorkflowActions';
 
@@ -43,6 +43,13 @@ function execTone(state: string): CSSProperties {
   if (state === 'in_progress') return { background: 'rgba(6,182,212,0.10)', color: 'var(--accent)', border: '1px solid rgba(6,182,212,0.22)' };
   if (state === 'dropped') return { background: 'rgba(239,68,68,0.08)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.16)' };
   return { background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border)' };
+}
+
+function executionLabel(state: string) {
+  if (state === 'in_progress') return 'Dev active';
+  if (state === 'done') return 'Dev done';
+  if (state === 'dropped') return 'Dev dropped';
+  return 'Dev planned';
 }
 
 export function DrawerHeader({
@@ -171,7 +178,7 @@ export function DrawerHeader({
             style={execTone(exec.state)}
           >
             <Users size={9} />
-            {EXECUTION_STATE_LABELS[exec.state]}
+            {executionLabel(exec.state)}
           </span>
           {exec.note && (
             <span className="text-[11px] truncate max-w-[260px]" style={{ color: 'var(--text-secondary)' }} title={exec.note}>
