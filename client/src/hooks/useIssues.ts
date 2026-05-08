@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAuthScopeKey } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import type { Issue, FilterType } from '@/types';
 import { getLocalIsoDate } from '@/lib/utils';
@@ -19,6 +20,7 @@ export function useIssuesWithOptions(
   enabled = true,
   trackerDate = getLocalIsoDate()
 ) {
+  const authScopeKey = useAuthScopeKey();
   const params = new URLSearchParams();
   if (filter && filter !== 'all') params.set('filter', filter);
   if (assignee) params.set('assignee', assignee);
@@ -31,7 +33,7 @@ export function useIssuesWithOptions(
   const qs = params.toString();
 
   return useQuery<Issue[]>({
-    queryKey: ['issues', filter, assignee, tagId, noTags, trackerDate],
+    queryKey: ['issues', filter, assignee, tagId, noTags, trackerDate, authScopeKey],
     queryFn: async () => {
       const res = await api.get<IssuesResponse>(`/issues${qs ? `?${qs}` : ''}`);
       return res.issues;
@@ -42,8 +44,10 @@ export function useIssuesWithOptions(
 }
 
 export function useMyDayIssues(enabled = true) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<Issue[]>({
-    queryKey: ['my-day-issues'],
+    queryKey: ['my-day-issues', authScopeKey],
     queryFn: async () => {
       const res = await api.get<IssuesResponse>('/my-day/issues');
       return res.issues;

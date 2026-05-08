@@ -18,6 +18,7 @@ vi.mock('@/hooks/useConfig', () => ({
 vi.mock('@/context/AuthContext', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useAuth: () => useAuthMock(),
+  useAuthScopeKey: () => 'test-workspace:test-user:manager:',
 }));
 
 vi.mock('@/components/layout/DashboardLayout', () => ({

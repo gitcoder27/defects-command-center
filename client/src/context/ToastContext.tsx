@@ -19,11 +19,13 @@ interface ToastContextValue {
     (title: string, type?: ToastType, message?: string): void;
   };
   removeToast: (id: string) => void;
+  clearToasts: () => void;
 }
 
 const ToastContext = createContext<ToastContextValue>({
   addToast: () => {},
   removeToast: () => {},
+  clearToasts: () => {},
 });
 
 let toastCounter = 0;
@@ -33,6 +35,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const clearToasts = useCallback(() => {
+    setToasts([]);
   }, []);
 
   const addToast = useCallback(
@@ -49,7 +55,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <ToastContext.Provider value={{ addToast, removeToast }}>
+    <ToastContext.Provider value={{ addToast, removeToast, clearToasts }}>
       {children}
       <div className="fixed top-4 right-4 z-[10000] flex flex-col gap-2 max-w-sm" role="status" aria-live="polite" aria-atomic="false">
         <AnimatePresence>

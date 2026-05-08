@@ -6,6 +6,7 @@ import { isOlderThanHours, todayIsoDate } from "../utils/date";
 import { getEffectiveDueDate, isActiveTeamIssue, isStaleIssue } from "./issue-rules";
 import { SettingsService } from "./settings.service";
 import { WorkloadService } from "./workload.service";
+import { normalizeWorkspaceId } from "./workspace.service";
 
 export class AlertService {
   constructor(
@@ -13,13 +14,14 @@ export class AlertService {
     private readonly settings = new SettingsService(),
   ) {}
 
-  async listAlertsForManager(managerAccountId: string, now = new Date()): Promise<Alert[]> {
-    const alerts = await this.computeAlerts(now);
+  async listAlertsForManager(managerAccountId: string, workspaceId?: string, now = new Date()): Promise<Alert[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const alerts = await this.computeAlerts(now, normalizedWorkspaceId);
     const activeAlertIds = new Set(alerts.map((alert) => alert.id));
     const dismissalRows = await db
       .select()
       .from(alertDismissals)
-      .where(eq(alertDismissals.managerAccountId, managerAccountId));
+      .where(and(eq(alertDismissals.workspaceId, normalizedWorkspaceId), eq(alertDismissals.managerAccountId, managerAccountId)));
 
     const staleDismissalIds = dismissalRows
       .map((row) => row.alertId)
@@ -31,6 +33,7 @@ export class AlertService {
         .where(
           and(
             eq(alertDismissals.managerAccountId, managerAccountId),
+            eq(alertDismissals.workspaceId, normalizedWorkspaceId),
             inArray(alertDismissals.alertId, staleDismissalIds),
           ),
         );
@@ -45,7 +48,8 @@ export class AlertService {
     return alerts.filter((alert) => !dismissedIds.has(alert.id));
   }
 
-  async dismissAlerts(managerAccountId: string, alertIds: string[], now = new Date()): Promise<string[]> {
+  async dismissAlerts(managerAccountId: string, alertIds: string[], workspaceId?: string, now = new Date()): Promise<string[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const uniqueAlertIds = Array.from(new Set(alertIds.map((alertId) => alertId.trim()).filter(Boolean)));
 
     if (uniqueAlertIds.length === 0) {
@@ -57,12 +61,14 @@ export class AlertService {
       .where(
         and(
           eq(alertDismissals.managerAccountId, managerAccountId),
+          eq(alertDismissals.workspaceId, normalizedWorkspaceId),
           inArray(alertDismissals.alertId, uniqueAlertIds),
         ),
       );
 
     await db.insert(alertDismissals).values(
       uniqueAlertIds.map((alertId) => ({
+        workspaceId: normalizedWorkspaceId,
         managerAccountId,
         alertId,
         dismissedAt: now.toISOString(),
@@ -72,9 +78,10 @@ export class AlertService {
     return uniqueAlertIds;
   }
 
-  async computeAlerts(now = new Date()): Promise<Alert[]> {
-    const rows = await db.select().from(issues);
-    const staleThresholdHours = await this.settings.getStaleThresholdHours();
+  async computeAlerts(now = new Date(), workspaceId?: string): Promise<Alert[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const rows = await db.select().from(issues).where(eq(issues.workspaceId, normalizedWorkspaceId));
+    const staleThresholdHours = await this.settings.getStaleThresholdHours(normalizedWorkspaceId);
     const today = todayIsoDate(now);
     const alerts: Alert[] = [];
 
@@ -110,7 +117,7 @@ export class AlertService {
       }
     }
 
-    const idleDevelopers = await this.workloadService.getIdleDevelopers(today);
+    const idleDevelopers = await this.workloadService.getIdleDevelopers(today, normalizedWorkspaceId);
     for (const dev of idleDevelopers) {
       alerts.push({
         id: `idle_developer:${dev.accountId}`,

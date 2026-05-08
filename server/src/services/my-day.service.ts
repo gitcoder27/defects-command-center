@@ -24,10 +24,10 @@ interface UpdateMyDayItemParams {
 export class MyDayService {
   constructor(private readonly trackerService: TeamTrackerService) {}
 
-  async getMyDay(accountId: string, date: string): Promise<MyDayResponse> {
+  async getMyDay(accountId: string, date: string, workspaceId?: string): Promise<MyDayResponse> {
     const day = await this.trackerService.getDeveloperDay(date, accountId, {
       includeManagerNotes: false,
-    });
+    }, workspaceId);
 
     return {
       date: day.date,
@@ -49,42 +49,44 @@ export class MyDayService {
   async updateStatus(
     accountId: string,
     date: string,
-    status?: TrackerDeveloperStatus
+    status?: TrackerDeveloperStatus,
+    workspaceId?: string
   ): Promise<MyDayResponse> {
-    await this.assertAvailable(accountId, date);
-    await this.trackerService.updateDay(accountId, date, { status });
-    return this.getMyDay(accountId, date);
+    await this.assertAvailable(accountId, date, workspaceId);
+    await this.trackerService.updateDay(accountId, date, { status }, workspaceId);
+    return this.getMyDay(accountId, date, workspaceId);
   }
 
-  async addItem(accountId: string, params: AddMyDayItemParams): Promise<TrackerWorkItem> {
-    await this.assertAvailable(accountId, params.date);
+  async addItem(accountId: string, params: AddMyDayItemParams, workspaceId?: string): Promise<TrackerWorkItem> {
+    await this.assertAvailable(accountId, params.date, workspaceId);
     return this.trackerService.addItem(accountId, params.date, {
       jiraKey: params.jiraKey,
       title: params.title,
       note: params.note,
-    });
+    }, workspaceId);
   }
 
   async updateItem(
     accountId: string,
     itemId: number,
-    updates: UpdateMyDayItemParams
+    updates: UpdateMyDayItemParams,
+    workspaceId?: string
   ): Promise<TrackerWorkItem> {
-    const ownership = await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId);
-    await this.assertAvailable(accountId, ownership.date);
-    return this.trackerService.updateItem(itemId, updates);
+    const ownership = await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId, workspaceId);
+    await this.assertAvailable(accountId, ownership.date, workspaceId);
+    return this.trackerService.updateItem(itemId, updates, workspaceId);
   }
 
-  async deleteItem(accountId: string, itemId: number): Promise<void> {
-    const ownership = await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId);
-    await this.assertAvailable(accountId, ownership.date);
-    await this.trackerService.deleteItem(itemId);
+  async deleteItem(accountId: string, itemId: number, workspaceId?: string): Promise<void> {
+    const ownership = await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId, workspaceId);
+    await this.assertAvailable(accountId, ownership.date, workspaceId);
+    await this.trackerService.deleteItem(itemId, undefined, workspaceId);
   }
 
-  async setCurrentItem(accountId: string, itemId: number): Promise<TrackerWorkItem> {
-    const ownership = await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId);
-    await this.assertAvailable(accountId, ownership.date);
-    return this.trackerService.setCurrentItem(itemId);
+  async setCurrentItem(accountId: string, itemId: number, workspaceId?: string): Promise<TrackerWorkItem> {
+    const ownership = await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId, workspaceId);
+    await this.assertAvailable(accountId, ownership.date, workspaceId);
+    return this.trackerService.setCurrentItem(itemId, undefined, workspaceId);
   }
 
   async addCheckIn(
@@ -93,9 +95,10 @@ export class MyDayService {
     params: {
       summary: string;
       status?: TrackerDeveloperStatus;
-    }
+    },
+    workspaceId?: string
   ): Promise<TrackerCheckIn> {
-    await this.assertAvailable(accountId, date);
+    await this.assertAvailable(accountId, date, workspaceId);
     return this.trackerService.addCheckIn(
       accountId,
       date,
@@ -106,12 +109,13 @@ export class MyDayService {
       {
         type: "developer",
         accountId,
-      }
+      },
+      workspaceId
     );
   }
 
-  private async assertAvailable(accountId: string, date: string): Promise<void> {
-    const availability = await this.trackerService.getAvailabilityForDate(accountId, date);
+  private async assertAvailable(accountId: string, date: string, workspaceId?: string): Promise<void> {
+    const availability = await this.trackerService.getAvailabilityForDate(accountId, date, workspaceId);
     if (availability.state === "inactive") {
       throw new HttpError(409, `Developer is inactive on ${date}`);
     }

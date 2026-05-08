@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/connection";
 import { appUsers, configTable, developers as developersTable, issues, syncLog, componentMap, issueScopeHistory, issueTags, localTags } from "../db/schema";
@@ -16,6 +16,7 @@ import { SyncEngine } from "../sync/engine";
 import { logger } from "../utils/logger";
 import { HttpError } from "../middleware/errorHandler";
 import { runInTransaction } from "../db/transaction";
+import { DEFAULT_WORKSPACE_ID } from "../services/workspace.service";
 
 const configSchema = z.object({
   body: z.object({
@@ -53,22 +54,40 @@ const testSchema = z.object({
   query: z.any().optional(),
 });
 
-async function upsertConfig(key: string, value: string): Promise<void> {
-  await db.insert(configTable).values({ key, value }).onConflictDoUpdate({ target: configTable.key, set: { value } });
+async function upsertConfig(workspaceId: string, key: string, value: string): Promise<void> {
+  await db
+    .insert(configTable)
+    .values({ workspaceId, key, value })
+    .onConflictDoUpdate({ target: [configTable.workspaceId, configTable.key], set: { value } });
 }
 
-async function deleteConfigValue(key: string): Promise<void> {
-  await db.delete(configTable).where(eq(configTable.key, key));
+async function deleteConfigValue(workspaceId: string, key: string): Promise<void> {
+  await db.delete(configTable).where(and(eq(configTable.workspaceId, workspaceId), eq(configTable.key, key)));
 }
 
-async function getConfigValue(key: string): Promise<string | undefined> {
-  const rows = await db.select().from(configTable).where(eq(configTable.key, key)).limit(1);
+async function getConfigValue(workspaceId: string, key: string): Promise<string | undefined> {
+  const rows = await db
+    .select()
+    .from(configTable)
+    .where(and(eq(configTable.workspaceId, workspaceId), eq(configTable.key, key)))
+    .limit(1);
   return rows[0]?.value;
 }
 
-async function getStoredManagerJiraAccountId(): Promise<string> {
-  return (await getConfigValue("manager_jira_account_id")) ??
-    (await getConfigValue("jira_lead_account_id")) ??
+async function getStoredManagerJiraAccountId(workspaceId: string): Promise<string> {
+  return (await getConfigValue(workspaceId, "manager_jira_account_id")) ??
+    (await getConfigValue(workspaceId, "jira_lead_account_id")) ??
+    "";
+}
+
+function defaultWorkspaceFallback<T>(workspaceId: string, value: T): T | undefined {
+  return workspaceId === DEFAULT_WORKSPACE_ID ? value : undefined;
+}
+
+async function getConfiguredJiraToken(workspaceId: string): Promise<string> {
+  return (await getPersistedJiraApiToken(workspaceId)) ||
+    getJiraApiToken(workspaceId) ||
+    defaultWorkspaceFallback(workspaceId, config.JIRA_API_TOKEN) ||
     "";
 }
 
@@ -133,30 +152,31 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
     workspace: "CLEAR EVERYTHING",
   };
 
-  router.get("/", async (_req, res, next) => {
+  router.get("/", async (req, res, next) => {
     try {
-      const jiraBaseUrl = (await getConfigValue("jira_base_url")) ?? config.JIRA_BASE_URL ?? "";
-      const jiraEmail = (await getConfigValue("jira_email")) ?? config.JIRA_EMAIL ?? "";
-      const jiraProjectKey = (await getConfigValue("jira_project_key")) ?? config.JIRA_PROJECT_KEY ?? "";
-      const managerJiraAccountId = await getStoredManagerJiraAccountId();
-      const jiraApiToken = (await getPersistedJiraApiToken()) || getJiraApiToken() || config.JIRA_API_TOKEN || "";
-      const syncIntervalMs = Number((await getConfigValue("sync_interval_ms")) ?? "300000");
-      const staleThresholdHours = Number((await getConfigValue("stale_threshold_hours")) ?? "48");
-      const backupEnabled = await settings.getBackupEnabled();
-      const backupIntervalMinutes = await settings.getBackupIntervalMinutes();
-      const backupRetentionDays = await settings.getBackupRetentionDays();
-      const backupMaxScheduledSnapshots = await settings.getBackupMaxScheduledSnapshots();
-      const backupDirectory = await settings.getBackupDirectory();
-      const backupOnStartup = await settings.getBackupOnStartup();
-      const backupStartupMaxAgeHours = await settings.getBackupStartupMaxAgeHours();
-      const backupBeforeReset = await settings.getBackupBeforeReset();
-      const jiraSyncJql = stripManagedAssigneeClause((await getConfigValue("jira_sync_jql")) ?? config.JIRA_SYNC_JQL ?? "");
-      const jiraDevDueDateField = (await getConfigValue("jira_dev_due_date_field")) ?? config.JIRA_DEV_DUE_DATE_FIELD ?? "customfield_10128";
-      const jiraAspenSeverityField = (await getConfigValue("jira_aspen_severity_field")) ?? config.JIRA_ASPEN_SEVERITY_FIELD ?? "";
+      const workspaceId = req.auth!.user.workspaceId;
+      const jiraBaseUrl = (await getConfigValue(workspaceId, "jira_base_url")) ?? defaultWorkspaceFallback(workspaceId, config.JIRA_BASE_URL) ?? "";
+      const jiraEmail = (await getConfigValue(workspaceId, "jira_email")) ?? defaultWorkspaceFallback(workspaceId, config.JIRA_EMAIL) ?? "";
+      const jiraProjectKey = (await getConfigValue(workspaceId, "jira_project_key")) ?? defaultWorkspaceFallback(workspaceId, config.JIRA_PROJECT_KEY) ?? "";
+      const managerJiraAccountId = await getStoredManagerJiraAccountId(workspaceId);
+      const jiraApiToken = await getConfiguredJiraToken(workspaceId);
+      const syncIntervalMs = Number((await getConfigValue(workspaceId, "sync_interval_ms")) ?? "300000");
+      const staleThresholdHours = Number((await getConfigValue(workspaceId, "stale_threshold_hours")) ?? "48");
+      const backupEnabled = await settings.getBackupEnabled(workspaceId);
+      const backupIntervalMinutes = await settings.getBackupIntervalMinutes(workspaceId);
+      const backupRetentionDays = await settings.getBackupRetentionDays(workspaceId);
+      const backupMaxScheduledSnapshots = await settings.getBackupMaxScheduledSnapshots(workspaceId);
+      const backupDirectory = await settings.getBackupDirectory(workspaceId);
+      const backupOnStartup = await settings.getBackupOnStartup(workspaceId);
+      const backupStartupMaxAgeHours = await settings.getBackupStartupMaxAgeHours(workspaceId);
+      const backupBeforeReset = await settings.getBackupBeforeReset(workspaceId);
+      const jiraSyncJql = stripManagedAssigneeClause((await getConfigValue(workspaceId, "jira_sync_jql")) ?? defaultWorkspaceFallback(workspaceId, config.JIRA_SYNC_JQL) ?? "");
+      const jiraDevDueDateField = (await getConfigValue(workspaceId, "jira_dev_due_date_field")) ?? defaultWorkspaceFallback(workspaceId, config.JIRA_DEV_DUE_DATE_FIELD) ?? "customfield_10128";
+      const jiraAspenSeverityField = (await getConfigValue(workspaceId, "jira_aspen_severity_field")) ?? defaultWorkspaceFallback(workspaceId, config.JIRA_ASPEN_SEVERITY_FIELD) ?? "";
       const managerRows = await db
         .select({ id: appUsers.id })
         .from(appUsers)
-        .where(eq(appUsers.role, "manager"))
+        .where(and(eq(appUsers.workspaceId, workspaceId), eq(appUsers.role, "manager")))
         .limit(1);
       const hasManagerWorkspace = Boolean(managerRows[0]);
       const hasJiraConnection = Boolean(jiraBaseUrl && jiraEmail && jiraProjectKey && jiraApiToken);
@@ -189,68 +209,69 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
 
   router.put("/", validate(configSchema), async (req, res, next) => {
     try {
+      const workspaceId = req.auth!.user.workspaceId;
       const syncIntervalMs = req.body.syncIntervalMs ?? 300000;
       const staleThresholdHours = req.body.staleThresholdHours ?? 48;
       validateJiraBaseUrl(req.body.jiraBaseUrl);
-      const tokenForLookup = req.body.jiraApiToken ?? (await getPersistedJiraApiToken()) ?? getJiraApiToken() ?? config.JIRA_API_TOKEN;
+      const tokenForLookup = req.body.jiraApiToken ?? await getConfiguredJiraToken(workspaceId);
       const managerJiraAccountId = normalizeManagerJiraAccountId(req.body.managerJiraAccountId);
 
       if (req.body.jiraApiToken) {
-        await storeJiraApiToken(req.body.jiraApiToken);
+        await storeJiraApiToken(req.body.jiraApiToken, workspaceId);
       }
 
-      await upsertConfig("jira_base_url", req.body.jiraBaseUrl);
-      await upsertConfig("jira_email", req.body.jiraEmail);
-      await upsertConfig("jira_project_key", req.body.jiraProjectKey);
+      await upsertConfig(workspaceId, "jira_base_url", req.body.jiraBaseUrl);
+      await upsertConfig(workspaceId, "jira_email", req.body.jiraEmail);
+      await upsertConfig(workspaceId, "jira_project_key", req.body.jiraProjectKey);
       if ("managerJiraAccountId" in req.body) {
         if (managerJiraAccountId) {
-          await upsertConfig("manager_jira_account_id", managerJiraAccountId);
+          await upsertConfig(workspaceId, "manager_jira_account_id", managerJiraAccountId);
         } else {
-          await deleteConfigValue("manager_jira_account_id");
+          await deleteConfigValue(workspaceId, "manager_jira_account_id");
         }
-        await deleteConfigValue("jira_lead_account_id");
+        await deleteConfigValue(workspaceId, "jira_lead_account_id");
       }
-      await upsertConfig("sync_interval_ms", String(syncIntervalMs));
-      await upsertConfig("stale_threshold_hours", String(staleThresholdHours));
+      await upsertConfig(workspaceId, "sync_interval_ms", String(syncIntervalMs));
+      await upsertConfig(workspaceId, "stale_threshold_hours", String(staleThresholdHours));
       if (req.body.jiraSyncJql !== undefined) {
-        await upsertConfig("jira_sync_jql", stripManagedAssigneeClause(req.body.jiraSyncJql));
+        await upsertConfig(workspaceId, "jira_sync_jql", stripManagedAssigneeClause(req.body.jiraSyncJql));
       }
       if (req.body.jiraDevDueDateField !== undefined) {
-        await upsertConfig("jira_dev_due_date_field", req.body.jiraDevDueDateField);
+        await upsertConfig(workspaceId, "jira_dev_due_date_field", req.body.jiraDevDueDateField);
       }
       if (req.body.jiraAspenSeverityField !== undefined) {
-        await upsertConfig("jira_aspen_severity_field", req.body.jiraAspenSeverityField);
+        await upsertConfig(workspaceId, "jira_aspen_severity_field", req.body.jiraAspenSeverityField);
       }
       if (req.body.backupEnabled !== undefined) {
-        await upsertConfig("backup_enabled", String(req.body.backupEnabled));
+        await upsertConfig(workspaceId, "backup_enabled", String(req.body.backupEnabled));
       }
       if (req.body.backupIntervalMinutes !== undefined) {
-        await upsertConfig("backup_interval_minutes", String(req.body.backupIntervalMinutes));
+        await upsertConfig(workspaceId, "backup_interval_minutes", String(req.body.backupIntervalMinutes));
       }
       if (req.body.backupRetentionDays !== undefined) {
-        await upsertConfig("backup_retention_days", String(req.body.backupRetentionDays));
+        await upsertConfig(workspaceId, "backup_retention_days", String(req.body.backupRetentionDays));
       }
       if (req.body.backupMaxScheduledSnapshots !== undefined) {
-        await upsertConfig("backup_max_scheduled_snapshots", String(req.body.backupMaxScheduledSnapshots));
+        await upsertConfig(workspaceId, "backup_max_scheduled_snapshots", String(req.body.backupMaxScheduledSnapshots));
       }
       if (req.body.backupDirectory !== undefined) {
         await settings.validateBackupDirectory(req.body.backupDirectory);
-        await upsertConfig("backup_directory", req.body.backupDirectory);
+        await upsertConfig(workspaceId, "backup_directory", req.body.backupDirectory);
       }
       if (req.body.backupOnStartup !== undefined) {
-        await upsertConfig("backup_on_startup", String(req.body.backupOnStartup));
+        await upsertConfig(workspaceId, "backup_on_startup", String(req.body.backupOnStartup));
       }
       if (req.body.backupStartupMaxAgeHours !== undefined) {
-        await upsertConfig("backup_startup_max_age_hours", String(req.body.backupStartupMaxAgeHours));
+        await upsertConfig(workspaceId, "backup_startup_max_age_hours", String(req.body.backupStartupMaxAgeHours));
       }
       if (req.body.backupBeforeReset !== undefined) {
-        await upsertConfig("backup_before_reset", String(req.body.backupBeforeReset));
+        await upsertConfig(workspaceId, "backup_before_reset", String(req.body.backupBeforeReset));
       }
 
       const token = req.body.jiraApiToken ?? tokenForLookup;
       if (syncEngine && req.body.jiraBaseUrl && req.body.jiraEmail && req.body.jiraProjectKey && token) {
         await syncEngine.start();
-        void syncEngine.syncNow();
+        void syncEngine.syncNow(workspaceId);
       }
       if (backupService) {
         await backupService.start();
@@ -264,8 +285,9 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
 
   router.post("/test", validate(testSchema), async (req, res, next) => {
     try {
+      const workspaceId = req.auth!.user.workspaceId;
       validateJiraBaseUrl(req.body.jiraBaseUrl);
-      const token = req.body.jiraApiToken ?? (await getPersistedJiraApiToken()) ?? getJiraApiToken() ?? config.JIRA_API_TOKEN;
+      const token = req.body.jiraApiToken ?? await getConfiguredJiraToken(workspaceId);
       if (!token) {
         throw new HttpError(400, "Jira API token is required");
       }
@@ -277,11 +299,12 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
     }
   });
 
-  router.get("/connection-health", async (_req, res, next) => {
+  router.get("/connection-health", async (req, res, next) => {
     try {
-      const baseUrl = (await getConfigValue("jira_base_url")) ?? config.JIRA_BASE_URL;
-      const email = (await getConfigValue("jira_email")) ?? config.JIRA_EMAIL;
-      const token = (await getPersistedJiraApiToken()) || getJiraApiToken() || config.JIRA_API_TOKEN;
+      const workspaceId = req.auth!.user.workspaceId;
+      const baseUrl = (await getConfigValue(workspaceId, "jira_base_url")) ?? defaultWorkspaceFallback(workspaceId, config.JIRA_BASE_URL);
+      const email = (await getConfigValue(workspaceId, "jira_email")) ?? defaultWorkspaceFallback(workspaceId, config.JIRA_EMAIL);
+      const token = await getConfiguredJiraToken(workspaceId);
       if (!baseUrl || !email || !token) {
         res.status(400).json({ error: "Jira credentials not configured", status: 400 });
         return;
@@ -296,11 +319,12 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
   });
 
   // Discover custom fields from Jira (for settings page)
-  router.get("/fields", async (_req, res, next) => {
+  router.get("/fields", async (req, res, next) => {
     try {
-      const baseUrl = (await getConfigValue("jira_base_url")) ?? config.JIRA_BASE_URL;
-      const email = (await getConfigValue("jira_email")) ?? config.JIRA_EMAIL;
-      const token = (await getPersistedJiraApiToken()) || getJiraApiToken() || config.JIRA_API_TOKEN;
+      const workspaceId = req.auth!.user.workspaceId;
+      const baseUrl = (await getConfigValue(workspaceId, "jira_base_url")) ?? defaultWorkspaceFallback(workspaceId, config.JIRA_BASE_URL);
+      const email = (await getConfigValue(workspaceId, "jira_email")) ?? defaultWorkspaceFallback(workspaceId, config.JIRA_EMAIL);
+      const token = await getConfiguredJiraToken(workspaceId);
       if (!baseUrl || !email || !token) {
         res.status(400).json({ error: "Jira credentials not configured", status: 400 });
         return;
@@ -328,35 +352,36 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
 
   router.put("/settings", validate(settingsSchema), async (req, res, next) => {
     try {
+      const workspaceId = req.auth!.user.workspaceId;
       let shouldRestartSync = false;
       if (req.body.jiraSyncJql !== undefined) {
-        await upsertConfig("jira_sync_jql", stripManagedAssigneeClause(req.body.jiraSyncJql));
+        await upsertConfig(workspaceId, "jira_sync_jql", stripManagedAssigneeClause(req.body.jiraSyncJql));
       }
       if (req.body.jiraDevDueDateField !== undefined) {
-        await upsertConfig("jira_dev_due_date_field", req.body.jiraDevDueDateField);
+        await upsertConfig(workspaceId, "jira_dev_due_date_field", req.body.jiraDevDueDateField);
       }
       if (req.body.jiraAspenSeverityField !== undefined) {
-        await upsertConfig("jira_aspen_severity_field", req.body.jiraAspenSeverityField);
+        await upsertConfig(workspaceId, "jira_aspen_severity_field", req.body.jiraAspenSeverityField);
       }
       if (req.body.jiraApiToken !== undefined) {
         const trimmedToken = req.body.jiraApiToken.trim();
         if (trimmedToken) {
-          await storeJiraApiToken(trimmedToken);
+          await storeJiraApiToken(trimmedToken, workspaceId);
           shouldRestartSync = true;
         }
       }
       if ("managerJiraAccountId" in req.body) {
         const managerJiraAccountId = normalizeManagerJiraAccountId(req.body.managerJiraAccountId);
         if (managerJiraAccountId) {
-          await upsertConfig("manager_jira_account_id", managerJiraAccountId);
+          await upsertConfig(workspaceId, "manager_jira_account_id", managerJiraAccountId);
         } else {
-          await deleteConfigValue("manager_jira_account_id");
+          await deleteConfigValue(workspaceId, "manager_jira_account_id");
         }
-        await deleteConfigValue("jira_lead_account_id");
+        await deleteConfigValue(workspaceId, "jira_lead_account_id");
       }
       if (syncEngine && shouldRestartSync) {
         await syncEngine.start();
-        void syncEngine.syncNow();
+        void syncEngine.syncNow(workspaceId);
       }
       res.json({ success: true });
     } catch (error) {
@@ -366,7 +391,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
 
   router.get("/maintenance/reset-preview", async (req, res, next) => {
     try {
-      const preview = await maintenance.getResetPreview(req.auth!.user.accountId);
+      const preview = await maintenance.getResetPreview(req.auth!.user.accountId, req.auth!.user.workspaceId);
       res.json(preview);
     } catch (error) {
       next(error);
@@ -386,7 +411,8 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
 
         const result = await maintenance.reset(
           req.auth!.user.accountId,
-          target
+          target,
+          req.auth!.user.workspaceId
         );
         logger.info(
           {
@@ -402,24 +428,27 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
     }
   );
 
-  router.post("/reset", async (_req, res, next) => {
+  router.post("/reset", async (req, res, next) => {
     try {
-      const backup = await backupService?.createPreResetBackup();
-      syncEngine?.stop();
+      const workspaceId = req.auth!.user.workspaceId;
       await runInTransaction(async () => {
-        await db.delete(issueScopeHistory);
-        await db.delete(issueTags);
-        await db.delete(localTags);
-        await db.delete(componentMap);
-        await db.delete(issues);
-        await db.delete(developersTable);
-        await db.delete(syncLog);
-        await db.delete(configTable);
+        const tagRows = await db.select({ id: localTags.id }).from(localTags).where(eq(localTags.workspaceId, workspaceId));
+        const tagIds = tagRows.map((row) => row.id);
+        await db.delete(issueScopeHistory).where(eq(issueScopeHistory.workspaceId, workspaceId));
+        await db.delete(issueTags).where(eq(issueTags.workspaceId, workspaceId));
+        if (tagIds.length > 0) {
+          await db.delete(localTags).where(inArray(localTags.id, tagIds));
+        }
+        await db.delete(componentMap).where(eq(componentMap.workspaceId, workspaceId));
+        await db.delete(issues).where(eq(issues.workspaceId, workspaceId));
+        await db.delete(developersTable).where(eq(developersTable.workspaceId, workspaceId));
+        await db.delete(syncLog).where(eq(syncLog.workspaceId, workspaceId));
+        await db.delete(configTable).where(eq(configTable.workspaceId, workspaceId));
       });
 
-      clearJiraApiToken();
-      logger.info("Jira configuration reset via API");
-      res.json({ success: true, message: "Configuration reset successfully", backup });
+      clearJiraApiToken(workspaceId);
+      logger.info({ workspaceId }, "Workspace Jira configuration reset via API");
+      res.json({ success: true, message: "Configuration reset successfully" });
     } catch (error) {
       next(error);
     }

@@ -18,14 +18,13 @@ describe("SyncEngine", () => {
   it("schedules syncs using the persisted interval", async () => {
     const settings = {
       getSyncIntervalMs: vi.fn(async () => 120_000),
+      getJiraBaseUrl: vi.fn(async () => undefined),
+      getJiraEmail: vi.fn(async () => undefined),
+      getJiraProjectKey: vi.fn(async () => undefined),
+      getJiraToken: vi.fn(async () => undefined),
     };
     const engine = new SyncEngine(settings as any);
-    const syncSpy = vi.spyOn(engine, "syncNow").mockResolvedValue({
-      status: "success",
-      issuesSynced: 0,
-      startedAt: "2026-03-07T00:00:00.000Z",
-      completedAt: "2026-03-07T00:00:00.000Z",
-    });
+    const syncSpy = vi.spyOn(engine, "syncAllWorkspaces").mockResolvedValue([]);
 
     await engine.start();
     await vi.advanceTimersByTimeAsync(119_999);
@@ -104,7 +103,10 @@ describe("SyncEngine", () => {
     };
     const settings = {
       getSyncIntervalMs: vi.fn(async () => 60_000),
+      getJiraBaseUrl: vi.fn(async () => "https://example.atlassian.net"),
+      getJiraEmail: vi.fn(async () => "lead@example.com"),
       getJiraProjectKey: vi.fn(async () => "AM"),
+      getJiraToken: vi.fn(async () => "token"),
       getJiraSyncJql: vi.fn(async () => "project = AM"),
       getManagerJiraAccountId: vi.fn(async () => ""),
       getJiraDevDueDateField: vi.fn(async () => undefined),
@@ -133,7 +135,10 @@ describe("SyncEngine", () => {
     };
     const settings = {
       getSyncIntervalMs: vi.fn(async () => 60_000),
+      getJiraBaseUrl: vi.fn(async () => "https://example.atlassian.net"),
+      getJiraEmail: vi.fn(async () => "lead@example.com"),
       getJiraProjectKey: vi.fn(async () => "AM"),
+      getJiraToken: vi.fn(async () => "token"),
       getJiraSyncJql: vi.fn(async () => "project = AM"),
       getManagerJiraAccountId: vi.fn(async () => ""),
       getJiraDevDueDateField: vi.fn(async () => undefined),
@@ -153,12 +158,76 @@ describe("SyncEngine", () => {
 
     expect(result.status).toBe("error");
     expect(result.errorMessage).toBe("Jira authentication failed (401)");
-    expect(jiraClient.getCurrentUser).toHaveBeenCalledTimes(1);
+    expect(jiraClient.getCurrentUser).toHaveBeenCalledTimes(2);
     expect(jiraClient.searchIssues).not.toHaveBeenCalled();
     expect(log).toEqual({
       status: "error",
       issues_synced: 0,
       error_message: "Jira authentication failed (401)",
     });
+  });
+
+  it("syncs every workspace that has its own Jira connection", async () => {
+    rawDb.exec(`
+      INSERT INTO workspaces (id, name, owner_account_id, created_at, updated_at)
+      VALUES
+        ('workspace-a', 'Workspace A', 'manager-a', '2026-03-12T00:00:00.000Z', '2026-03-12T00:00:00.000Z'),
+        ('workspace-b', 'Workspace B', 'manager-b', '2026-03-12T00:00:00.000Z', '2026-03-12T00:00:00.000Z');
+    `);
+
+    const jiraIssue = {
+      id: "1",
+      key: "AM-1",
+      fields: {
+        summary: "Shared Jira key",
+        description: "",
+        priority: { id: "1", name: "High" },
+        status: { name: "In Progress", statusCategory: { key: "indeterminate" } },
+        assignee: null,
+        reporter: { displayName: "Reporter" },
+        components: [],
+        labels: [],
+        duedate: null,
+        created: "2026-03-10T00:00:00.000Z",
+        updated: "2026-03-12T09:00:00.000Z",
+        customfield_10021: null,
+      },
+    };
+    const createClient = (workspaceId: string) => ({
+      getCurrentUser: vi.fn(async () => ({ accountId: `sync-${workspaceId}`, displayName: `Sync ${workspaceId}` })),
+      searchIssues: vi.fn(async () => [jiraIssue]),
+    });
+    const clients = new Map<string, ReturnType<typeof createClient>>();
+    const configured = new Set(["workspace-a", "workspace-b"]);
+    const settings = {
+      getSyncIntervalMs: vi.fn(async () => 60_000),
+      getJiraBaseUrl: vi.fn(async (workspaceId: string) => configured.has(workspaceId) ? "https://example.atlassian.net" : undefined),
+      getJiraEmail: vi.fn(async (workspaceId: string) => configured.has(workspaceId) ? `${workspaceId}@example.com` : undefined),
+      getJiraProjectKey: vi.fn(async (workspaceId: string) => configured.has(workspaceId) ? "AM" : undefined),
+      getJiraToken: vi.fn(async (workspaceId: string) => configured.has(workspaceId) ? `token-${workspaceId}` : undefined),
+      getJiraSyncJql: vi.fn(async () => "project = AM"),
+      getManagerJiraAccountId: vi.fn(async () => ""),
+      getJiraDevDueDateField: vi.fn(async () => undefined),
+      getJiraAspenSeverityField: vi.fn(async () => undefined),
+      createJiraClient: vi.fn(async (workspaceId: string) => {
+        const client = createClient(workspaceId);
+        clients.set(workspaceId, client);
+        return client;
+      }),
+    };
+    const engine = new SyncEngine(settings as any);
+
+    const results = await engine.syncAllWorkspaces();
+    const rows = rawDb
+      .prepare("SELECT workspace_id, jira_key FROM issues WHERE jira_key = ? ORDER BY workspace_id")
+      .all("AM-1") as Array<{ workspace_id: string; jira_key: string }>;
+
+    expect(results.map((result) => result.status)).toEqual(["success", "success"]);
+    expect(settings.createJiraClient).toHaveBeenCalledWith("workspace-a");
+    expect(settings.createJiraClient).toHaveBeenCalledWith("workspace-b");
+    expect(rows).toEqual([
+      { workspace_id: "workspace-a", jira_key: "AM-1" },
+      { workspace_id: "workspace-b", jira_key: "AM-1" },
+    ]);
   });
 });

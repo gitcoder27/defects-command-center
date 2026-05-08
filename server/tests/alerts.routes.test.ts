@@ -58,12 +58,13 @@ async function seedOverdueIssue(jiraKey = "PROJ-101") {
   });
 }
 
-async function createManagerSession(authService: AuthService, username: string) {
+async function createManagerSession(authService: AuthService, username: string, workspaceId?: string) {
   await authService.createUser({
     username,
     displayName: username,
     password: "secret123",
     role: "manager",
+    workspaceId,
   });
 
   return authService.authenticate(username, "secret123");
@@ -88,7 +89,7 @@ describe("alerts routes", () => {
     await seedOverdueIssue();
     const app = createTestApp(authService, alertService);
     const managerOne = await createManagerSession(authService, "manager-one");
-    const managerTwo = await createManagerSession(authService, "manager-two");
+    const managerTwo = await createManagerSession(authService, "manager-two", managerOne.user.workspaceId);
 
     const initial = await invoke(app, {
       method: "GET",

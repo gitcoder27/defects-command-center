@@ -46,7 +46,7 @@ export class AutomationService {
     return { suggested: suggestedDate.toISOString().slice(0, 10), reason };
   }
 
-  async suggestAssignee() {
-    return this.workloadService.suggestAssignee();
+  async suggestAssignee(workspaceId?: string) {
+    return this.workloadService.suggestAssignee(workspaceId);
   }
 }

@@ -13,6 +13,7 @@ import { getLocalIsoDate } from '@/lib/utils';
 import type { Issue, SyncStatus } from '@/types';
 
 const mockGet = vi.fn();
+const SYNC_STATUS_SCOPED_QUERY_KEY = [...SYNC_STATUS_QUERY_KEY, 'anonymous'] as const;
 
 vi.mock('@/lib/api', () => ({
   api: {
@@ -71,7 +72,7 @@ function expectSyncDependentQueriesInvalidated(queryClient: QueryClient) {
 async function waitForInitialSyncStatus(queryClient: QueryClient, lastSyncedAt: string) {
   await waitFor(() => {
     expect(
-      queryClient.getQueryData<SyncStatus>(SYNC_STATUS_QUERY_KEY)?.lastSyncedAt
+      queryClient.getQueryData<SyncStatus>(SYNC_STATUS_SCOPED_QUERY_KEY)?.lastSyncedAt
     ).toBe(lastSyncedAt);
   });
 

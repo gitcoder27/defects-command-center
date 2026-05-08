@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type {
   ManagerDeskMaintenancePreview,
   TeamTrackerMaintenancePreview,
@@ -19,8 +19,9 @@ import {
   teamTrackerItems,
   teamTrackerSavedViews,
 } from "../db/schema";
-import { type BackupRecord, BackupService } from "./backup.service";
+import { BackupService } from "./backup.service";
 import { SettingsService } from "./settings.service";
+import { normalizeWorkspaceId } from "./workspace.service";
 
 interface ManagerDeskResetScope {
   preview: ManagerDeskMaintenancePreview;
@@ -33,17 +34,6 @@ interface TeamTrackerResetScope {
   preview: TeamTrackerMaintenancePreview;
 }
 
-const toBackupSummary = (
-  backup: BackupRecord | null
-): WorkspaceMaintenanceResetResponse["backup"] =>
-  backup
-    ? {
-        name: backup.name,
-        createdAt: backup.createdAt,
-        reason: backup.reason,
-      }
-    : undefined;
-
 export class WorkspaceMaintenanceService {
   constructor(
     private readonly settings = new SettingsService(),
@@ -51,16 +41,17 @@ export class WorkspaceMaintenanceService {
   ) {}
 
   async getResetPreview(
-    managerAccountId: string
+    managerAccountId: string,
+    workspaceId?: string
   ): Promise<WorkspaceMaintenancePreviewResponse> {
-    const [backupBeforeReset, managerDesk, teamTracker] = await Promise.all([
-      this.settings.getBackupBeforeReset(),
-      this.buildManagerDeskScope(managerAccountId),
-      this.buildTeamTrackerScope(managerAccountId),
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const [managerDesk, teamTracker] = await Promise.all([
+      this.buildManagerDeskScope(managerAccountId, normalizedWorkspaceId),
+      this.buildTeamTrackerScope(managerAccountId, normalizedWorkspaceId),
     ]);
 
     return {
-      backupBeforeReset,
+      backupBeforeReset: false,
       managerDesk: managerDesk.preview,
       teamTracker: teamTracker.preview,
     };
@@ -68,18 +59,19 @@ export class WorkspaceMaintenanceService {
 
   async reset(
     managerAccountId: string,
-    target: WorkspaceMaintenanceResetTarget
+    target: WorkspaceMaintenanceResetTarget,
+    workspaceId?: string
   ): Promise<WorkspaceMaintenanceResetResponse> {
-    const backup = await this.backupService?.createPreResetBackup();
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
 
     await runInTransaction(async () => {
       if (target === "team_tracker" || target === "workspace") {
-        const teamTrackerScope = await this.buildTeamTrackerScope(managerAccountId);
-        await this.clearTeamTracker(managerAccountId, teamTrackerScope);
+        const teamTrackerScope = await this.buildTeamTrackerScope(managerAccountId, normalizedWorkspaceId);
+        await this.clearTeamTracker(managerAccountId, teamTrackerScope, normalizedWorkspaceId);
       }
 
       if (target === "manager_desk" || target === "workspace") {
-        const managerDeskScope = await this.buildManagerDeskScope(managerAccountId);
+        const managerDeskScope = await this.buildManagerDeskScope(managerAccountId, normalizedWorkspaceId);
         await this.clearManagerDesk(managerDeskScope, {
           deleteLinkedTrackerItems: target === "manager_desk",
         });
@@ -89,17 +81,18 @@ export class WorkspaceMaintenanceService {
     return {
       success: true,
       target,
-      backup: toBackupSummary(backup ?? null),
     };
   }
 
   private async buildManagerDeskScope(
-    managerAccountId: string
+    managerAccountId: string,
+    workspaceId?: string
   ): Promise<ManagerDeskResetScope> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const dayRows = await db
       .select({ id: managerDeskDays.id })
       .from(managerDeskDays)
-      .where(eq(managerDeskDays.managerAccountId, managerAccountId));
+      .where(and(eq(managerDeskDays.workspaceId, normalizedWorkspaceId), eq(managerDeskDays.managerAccountId, managerAccountId)));
     const dayIds = dayRows.map((row) => row.id);
 
     if (dayIds.length === 0) {
@@ -159,8 +152,10 @@ export class WorkspaceMaintenanceService {
   }
 
   private async buildTeamTrackerScope(
-    managerAccountId: string
+    managerAccountId: string,
+    workspaceId?: string
   ): Promise<TeamTrackerResetScope> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const [
       dayRows,
       itemRows,
@@ -168,21 +163,23 @@ export class WorkspaceMaintenanceService {
       availabilityRows,
       savedViewRows,
     ] = await Promise.all([
-      db.select({ id: teamTrackerDays.id }).from(teamTrackerDays),
+      db.select({ id: teamTrackerDays.id }).from(teamTrackerDays).where(eq(teamTrackerDays.workspaceId, normalizedWorkspaceId)),
       db
         .select({
           id: teamTrackerItems.id,
           managerDeskItemId: teamTrackerItems.managerDeskItemId,
         })
-        .from(teamTrackerItems),
-      db.select({ id: teamTrackerCheckIns.id }).from(teamTrackerCheckIns),
+        .from(teamTrackerItems)
+        .where(eq(teamTrackerItems.workspaceId, normalizedWorkspaceId)),
+      db.select({ id: teamTrackerCheckIns.id }).from(teamTrackerCheckIns).where(eq(teamTrackerCheckIns.workspaceId, normalizedWorkspaceId)),
       db
         .select({ id: developerAvailabilityPeriods.id })
-        .from(developerAvailabilityPeriods),
+        .from(developerAvailabilityPeriods)
+        .where(eq(developerAvailabilityPeriods.workspaceId, normalizedWorkspaceId)),
       db
         .select({ id: teamTrackerSavedViews.id })
         .from(teamTrackerSavedViews)
-        .where(eq(teamTrackerSavedViews.managerAccountId, managerAccountId)),
+        .where(and(eq(teamTrackerSavedViews.workspaceId, normalizedWorkspaceId), eq(teamTrackerSavedViews.managerAccountId, managerAccountId))),
     ]);
 
     return {
@@ -230,24 +227,26 @@ export class WorkspaceMaintenanceService {
 
   private async clearTeamTracker(
     managerAccountId: string,
-    scope: TeamTrackerResetScope
+    scope: TeamTrackerResetScope,
+    workspaceId?: string
   ): Promise<void> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     if (scope.preview.checkInCount > 0) {
-      await db.delete(teamTrackerCheckIns);
+      await db.delete(teamTrackerCheckIns).where(eq(teamTrackerCheckIns.workspaceId, normalizedWorkspaceId));
     }
     if (scope.preview.itemCount > 0) {
-      await db.delete(teamTrackerItems);
+      await db.delete(teamTrackerItems).where(eq(teamTrackerItems.workspaceId, normalizedWorkspaceId));
     }
     if (scope.preview.dayCount > 0) {
-      await db.delete(teamTrackerDays);
+      await db.delete(teamTrackerDays).where(eq(teamTrackerDays.workspaceId, normalizedWorkspaceId));
     }
     if (scope.preview.availabilityPeriodCount > 0) {
-      await db.delete(developerAvailabilityPeriods);
+      await db.delete(developerAvailabilityPeriods).where(eq(developerAvailabilityPeriods.workspaceId, normalizedWorkspaceId));
     }
     if (scope.preview.savedViewCount > 0) {
       await db
         .delete(teamTrackerSavedViews)
-        .where(eq(teamTrackerSavedViews.managerAccountId, managerAccountId));
+        .where(and(eq(teamTrackerSavedViews.workspaceId, normalizedWorkspaceId), eq(teamTrackerSavedViews.managerAccountId, managerAccountId)));
     }
   }
 }

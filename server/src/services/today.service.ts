@@ -27,8 +27,8 @@ import { ManagerDeskService } from "./manager-desk.service";
 import { TeamTrackerService } from "./team-tracker.service";
 
 type SyncStatusSource = {
-  getLastSyncLog: () => Promise<{ completedAt: string | null; status: string; issuesSynced: number; errorMessage: string | null } | undefined>;
-  getRuntimeStatus: () => { status: "idle" | "syncing" | "error"; errorMessage?: string };
+  getLastSyncLog: (workspaceId?: string) => Promise<{ completedAt: string | null; status: string; issuesSynced: number; errorMessage: string | null } | undefined>;
+  getRuntimeStatus: (workspaceId?: string) => { status: "idle" | "syncing" | "error"; errorMessage?: string };
 };
 
 const openDeskStatuses = new Set<ManagerDeskItem["status"]>([
@@ -69,13 +69,13 @@ export class TodayService {
     private readonly syncStatusSource?: SyncStatusSource,
   ) {}
 
-  async getToday(managerAccountId: string, date: string): Promise<TodayResponse> {
+  async getToday(managerAccountId: string, date: string, workspaceId?: string): Promise<TodayResponse> {
     const [overview, issues, teamBoard, deskDay, syncStatus] = await Promise.all([
-      this.issueService.getOverviewCounts(),
-      this.issueService.getAll({ filter: "all", trackerDate: date }),
-      this.teamTrackerService.getBoard(date, { managerAccountId }),
-      this.managerDeskService.getDay(managerAccountId, date),
-      this.getSyncStatus(),
+      this.issueService.getOverviewCounts(workspaceId),
+      this.issueService.getAll({ filter: "all", trackerDate: date }, workspaceId),
+      this.teamTrackerService.getBoard(date, { managerAccountId, workspaceId }),
+      this.managerDeskService.getDay(managerAccountId, date, workspaceId),
+      this.getSyncStatus(workspaceId),
     ]);
 
     const followUps = getDueFollowUps(deskDay.items, date);
@@ -113,14 +113,14 @@ export class TodayService {
     };
   }
 
-  private async getSyncStatus(): Promise<SyncStatus | undefined> {
+  private async getSyncStatus(workspaceId?: string): Promise<SyncStatus | undefined> {
     if (!this.syncStatusSource) {
       return undefined;
     }
 
     const [latest, runtime] = await Promise.all([
-      this.syncStatusSource.getLastSyncLog(),
-      Promise.resolve(this.syncStatusSource.getRuntimeStatus()),
+      this.syncStatusSource.getLastSyncLog(workspaceId),
+      Promise.resolve(this.syncStatusSource.getRuntimeStatus(workspaceId)),
     ]);
     const status = runtime.status === "syncing" || runtime.status === "error"
       ? runtime.status

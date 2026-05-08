@@ -81,7 +81,7 @@ export function createMyDayRouter(
   router.get("/issues", async (req, res, next) => {
     try {
       const accountId = req.auth!.user.developerAccountId!;
-      const issues = await issueService.getAll({ assignee: accountId });
+      const issues = await issueService.getAll({ assignee: accountId }, req.auth!.user.workspaceId);
       res.json({ issues });
     } catch (error) {
       next(error);
@@ -92,7 +92,7 @@ export function createMyDayRouter(
     try {
       const date = req.query.date as string;
       const accountId = req.auth!.user.developerAccountId!;
-      const day = await myDayService.getMyDay(accountId, date);
+      const day = await myDayService.getMyDay(accountId, date, req.auth!.user.workspaceId);
       res.json(day);
     } catch (error) {
       next(error);
@@ -103,7 +103,7 @@ export function createMyDayRouter(
     try {
       const accountId = req.auth!.user.developerAccountId!;
       const { date, status } = req.body;
-      const day = await myDayService.updateStatus(accountId, date, status);
+      const day = await myDayService.updateStatus(accountId, date, status, req.auth!.user.workspaceId);
       res.json(day);
     } catch (error) {
       next(error);
@@ -113,7 +113,7 @@ export function createMyDayRouter(
   router.post("/items", validate(addItemSchema), async (req, res, next) => {
     try {
       const accountId = req.auth!.user.developerAccountId!;
-      const item = await myDayService.addItem(accountId, req.body);
+      const item = await myDayService.addItem(accountId, req.body, req.auth!.user.workspaceId);
       res.status(201).json(item);
     } catch (error) {
       next(error);
@@ -124,7 +124,7 @@ export function createMyDayRouter(
     try {
       const accountId = req.auth!.user.developerAccountId!;
       const itemId = parseInt(req.params.itemId as string, 10);
-      const item = await myDayService.updateItem(accountId, itemId, req.body);
+      const item = await myDayService.updateItem(accountId, itemId, req.body, req.auth!.user.workspaceId);
       res.json(item);
     } catch (error) {
       next(error);
@@ -135,7 +135,7 @@ export function createMyDayRouter(
     try {
       const accountId = req.auth!.user.developerAccountId!;
       const itemId = parseInt(req.params.itemId as string, 10);
-      await myDayService.deleteItem(accountId, itemId);
+      await myDayService.deleteItem(accountId, itemId, req.auth!.user.workspaceId);
       res.json({ deleted: true });
     } catch (error) {
       next(error);
@@ -149,7 +149,7 @@ export function createMyDayRouter(
       try {
         const accountId = req.auth!.user.developerAccountId!;
         const itemId = parseInt(req.params.itemId as string, 10);
-        const item = await myDayService.setCurrentItem(accountId, itemId);
+        const item = await myDayService.setCurrentItem(accountId, itemId, req.auth!.user.workspaceId);
         res.json(item);
       } catch (error) {
         next(error);
@@ -164,7 +164,7 @@ export function createMyDayRouter(
       const checkIn = await myDayService.addCheckIn(accountId, date, {
         summary,
         status,
-      });
+      }, req.auth!.user.workspaceId);
       res.status(201).json(checkIn);
     } catch (error) {
       next(error);

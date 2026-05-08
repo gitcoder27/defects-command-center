@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
+import { useAuthScopeKey } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import type { Issue, LocalTag, TagDeleteResponse, TagUsageResponse } from '@/types';
 
@@ -73,8 +74,10 @@ function appendTag(tags: LocalTag[] | undefined, createdTag: LocalTag): LocalTag
 }
 
 export function useTags() {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<LocalTag[]>({
-    queryKey: ['tags'],
+    queryKey: ['tags', authScopeKey],
     queryFn: async () => {
       const res = await api.get<TagsResponse>('/tags');
       return res.tags;
@@ -83,8 +86,10 @@ export function useTags() {
 }
 
 export function useTagUsage(tagId?: number, enabled = true) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<TagUsageResponse>({
-    queryKey: ['tagUsage', tagId],
+    queryKey: ['tagUsage', tagId, authScopeKey],
     enabled: enabled && tagId !== undefined,
     queryFn: async () => api.get<TagUsageResponse>(`/tags/${tagId}/usage`),
   });
@@ -92,11 +97,15 @@ export function useTagUsage(tagId?: number, enabled = true) {
 
 export function useCreateTag() {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (data: { name: string; color: string }) =>
       api.post<LocalTag>('/tags', data),
     onSuccess: (createdTag) => {
-      queryClient.setQueryData<LocalTag[]>(['tags'], (old) => appendTag(old, createdTag));
+      queryClient.setQueriesData<LocalTag[]>(
+        { queryKey: ['tags'] },
+        (old) => appendTag(old, createdTag)
+      );
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['tags'] });
@@ -119,6 +128,8 @@ export function useDeleteTag() {
 
 export function useSetIssueTags() {
   const queryClient = useQueryClient();
+  const authScopeKey = useAuthScopeKey();
+
   return useMutation({
     mutationFn: ({ key, tagIds }: { key: string; tagIds: number[] }) =>
       api.put<{ tags: LocalTag[] }>(`/tags/issue/${key}`, { tagIds }),
@@ -133,7 +144,10 @@ export function useSetIssueTags() {
         previousIssues
           .flatMap(([, issues]) => issues ?? [])
           .find((issue) => issue.jiraKey === key);
-      const availableTags = queryClient.getQueryData<LocalTag[]>(['tags']) ?? [];
+      const availableTags =
+        queryClient.getQueryData<LocalTag[]>(['tags', authScopeKey]) ??
+        queryClient.getQueryData<LocalTag[]>(['tags']) ??
+        [];
       const optimisticTags = resolveLocalTags(tagIds, availableTags, cachedIssue?.localTags);
 
       for (const [queryKey, issues] of previousIssues) {

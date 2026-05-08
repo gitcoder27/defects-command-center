@@ -37,7 +37,7 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
   };
 
   const removeTargetOptimistically = (target: TodayActionTarget) => {
-    qc.setQueryData<TodayResponse>(['today', date], (current) => {
+    qc.setQueriesData<TodayResponse>({ queryKey: ['today', date] }, (current) => {
       if (!current) {
         return current;
       }
@@ -67,7 +67,7 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
       return;
     }
 
-    qc.setQueryData<TodayResponse>(['today', date], (current) => {
+    qc.setQueriesData<TodayResponse>({ queryKey: ['today', date] }, (current) => {
       if (!current) {
         return current;
       }

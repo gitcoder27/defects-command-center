@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ThemeProvider } from '@/context/ThemeContext';
-import { ToastProvider } from '@/context/ToastContext';
-import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { ToastProvider, useToast } from '@/context/ToastContext';
+import { AuthProvider, useAuth, useAuthScopeKey } from '@/context/AuthContext';
 import { useBootstrapState } from '@/hooks/useBootstrapState';
 import { useConfig } from '@/hooks/useConfig';
 import { useSyncRefreshCoordinator } from '@/hooks/useSyncRefreshCoordinator';
@@ -127,6 +127,26 @@ function preloadView(view: AppView) {
     default:
       break;
   }
+}
+
+function AuthSessionBoundary({ children }: { children: ReactNode }) {
+  const authScopeKey = useAuthScopeKey();
+  const { clearToasts } = useToast();
+  const previousAuthScopeKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (previousAuthScopeKeyRef.current === null) {
+      previousAuthScopeKeyRef.current = authScopeKey;
+      return;
+    }
+
+    if (previousAuthScopeKeyRef.current !== authScopeKey) {
+      clearToasts();
+      previousAuthScopeKeyRef.current = authScopeKey;
+    }
+  }, [authScopeKey, clearToasts]);
+
+  return <>{children}</>;
 }
 
 function navigateToView(view: AppView, replace = false) {
@@ -574,11 +594,13 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <ToastProvider>
-          <AuthProvider>
-            <AppContent />
-          </AuthProvider>
-        </ToastProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <AuthSessionBoundary>
+              <AppContent />
+            </AuthSessionBoundary>
+          </ToastProvider>
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

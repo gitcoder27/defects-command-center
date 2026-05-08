@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Briefcase, CalendarDays, Users, X, Zap } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { getLocalIsoDate } from '@/lib/utils';
+import { useScopedStorageKey } from '@/lib/scoped-storage';
 import { DeskCaptureForm } from './DeskCaptureForm';
 import { TrackerCaptureForm } from './TrackerCaptureForm';
 
@@ -16,9 +17,9 @@ const TARGETS: { id: CaptureTarget; label: string; Icon: typeof Briefcase }[] = 
   { id: 'team-tracker', label: 'Team', Icon: Users },
 ];
 
-function loadTarget(): CaptureTarget {
+function loadTarget(storageKey: string): CaptureTarget {
   try {
-    const v = localStorage.getItem(STORAGE_KEY);
+    const v = localStorage.getItem(storageKey);
     if (v === 'team-tracker') return 'team-tracker';
   } catch {
     /* ignore */
@@ -37,20 +38,27 @@ export function GlobalCaptureDialog({
   onOpenManagerDesk,
   onOpenTeamTracker,
 }: GlobalCaptureDialogProps) {
-  const [target, setTarget] = useState<CaptureTarget>(loadTarget);
+  const storageKey = useScopedStorageKey(STORAGE_KEY);
+  const [target, setTarget] = useState<CaptureTarget>(() => loadTarget(storageKey));
+  const storageKeyRef = useRef(storageKey);
   const date = useMemo(() => getLocalIsoDate(), []);
   const formattedDate = useMemo(() => format(parseISO(date), 'EEEE, MMM d'), [date]);
 
   const isDesk = target === 'manager-desk';
 
-  // Persist last-used target
   useEffect(() => {
+    if (storageKeyRef.current !== storageKey) {
+      storageKeyRef.current = storageKey;
+      setTarget(loadTarget(storageKey));
+      return;
+    }
+
     try {
-      localStorage.setItem(STORAGE_KEY, target);
+      localStorage.setItem(storageKey, target);
     } catch {
       /* ignore */
     }
-  }, [target]);
+  }, [storageKey, target]);
 
   // Escape to close + lock body scroll
   useEffect(() => {

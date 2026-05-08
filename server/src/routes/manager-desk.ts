@@ -246,7 +246,7 @@ export function createManagerDeskRouter(
 
   router.get("/", validate(dateQuerySchema), async (req, res, next) => {
     try {
-      const day = await managerDeskService.getDay(req.auth!.user.accountId, req.query.date as string);
+      const day = await managerDeskService.getDay(req.auth!.user.accountId, req.query.date as string, req.auth!.user.workspaceId);
       res.json(day);
     } catch (error) {
       next(error);
@@ -260,7 +260,8 @@ export function createManagerDeskRouter(
       try {
         const detail = await managerDeskService.getTrackerTaskDetail(
           req.auth!.user.accountId,
-          parseInt(req.params.trackerItemId as string, 10)
+          parseInt(req.params.trackerItemId as string, 10),
+          req.auth!.user.workspaceId
         );
         res.json(detail);
       } catch (error) {
@@ -276,7 +277,8 @@ export function createManagerDeskRouter(
       try {
         const detail = await managerDeskService.promoteTrackerTask(
           req.auth!.user.accountId,
-          parseInt(req.params.trackerItemId as string, 10)
+          parseInt(req.params.trackerItemId as string, 10),
+          req.auth!.user.workspaceId
         );
         res.json(detail);
       } catch (error) {
@@ -289,7 +291,8 @@ export function createManagerDeskRouter(
     try {
       const detail = await managerDeskService.getTaskDetailByItemId(
         req.auth!.user.accountId,
-        parseInt(req.params.itemId as string, 10)
+        parseInt(req.params.itemId as string, 10),
+        req.auth!.user.workspaceId
       );
       res.json(detail);
     } catch (error) {
@@ -299,7 +302,7 @@ export function createManagerDeskRouter(
 
   router.post("/items", validate(createItemSchema), async (req, res, next) => {
     try {
-      const item = await managerDeskService.createItem(req.auth!.user.accountId, req.body);
+      const item = await managerDeskService.createItem(req.auth!.user.accountId, req.body, req.auth!.user.workspaceId);
       res.status(201).json(item);
     } catch (error) {
       next(error);
@@ -311,7 +314,8 @@ export function createManagerDeskRouter(
       const item = await managerDeskService.updateItem(
         req.auth!.user.accountId,
         parseInt(req.params.itemId as string, 10),
-        req.body
+        req.body,
+        req.auth!.user.workspaceId
       );
       res.json(item);
     } catch (error) {
@@ -323,7 +327,8 @@ export function createManagerDeskRouter(
     try {
       await managerDeskService.deleteItem(
         req.auth!.user.accountId,
-        parseInt(req.params.itemId as string, 10)
+        parseInt(req.params.itemId as string, 10),
+        req.auth!.user.workspaceId
       );
       res.json({ deleted: true });
     } catch (error) {
@@ -338,7 +343,8 @@ export function createManagerDeskRouter(
       try {
         const item = await managerDeskService.cancelDelegatedTask(
           req.auth!.user.accountId,
-          parseInt(req.params.itemId as string, 10)
+          parseInt(req.params.itemId as string, 10),
+          req.auth!.user.workspaceId
         );
         res.json(item);
       } catch (error) {
@@ -352,7 +358,8 @@ export function createManagerDeskRouter(
       const link = await managerDeskService.addLink(
         req.auth!.user.accountId,
         parseInt(req.params.itemId as string, 10),
-        req.body
+        req.body,
+        req.auth!.user.workspaceId
       );
       res.status(201).json(link);
     } catch (error) {
@@ -368,7 +375,8 @@ export function createManagerDeskRouter(
         await managerDeskService.deleteLink(
           req.auth!.user.accountId,
           parseInt(req.params.itemId as string, 10),
-          parseInt(req.params.linkId as string, 10)
+          parseInt(req.params.linkId as string, 10),
+          req.auth!.user.workspaceId
         );
         res.json({ deleted: true });
       } catch (error) {
@@ -385,7 +393,8 @@ export function createManagerDeskRouter(
         const preview = await managerDeskService.getCarryForwardContext(
           req.auth!.user.accountId,
           req.query.toDate as string,
-          req.query.lookbackDays as number | undefined
+          req.query.lookbackDays as number | undefined,
+          req.auth!.user.workspaceId
         );
         res.json(preview);
       } catch (error) {
@@ -406,7 +415,8 @@ export function createManagerDeskRouter(
         const preview = await managerDeskService.previewCarryForward(
           req.auth!.user.accountId,
           fromDate,
-          toDate
+          toDate,
+          req.auth!.user.workspaceId
         );
         res.json(preview);
       } catch (error) {
@@ -417,7 +427,7 @@ export function createManagerDeskRouter(
 
   router.post("/carry-forward", validate(carryForwardSchema), async (req, res, next) => {
     try {
-      const created = await managerDeskService.carryForward(req.auth!.user.accountId, req.body);
+    const created = await managerDeskService.carryForward(req.auth!.user.accountId, req.body, req.auth!.user.workspaceId);
       res.json({ created });
     } catch (error) {
       next(error);
@@ -426,7 +436,7 @@ export function createManagerDeskRouter(
 
   router.get("/lookups/issues", validate(lookupSchema), async (req, res, next) => {
     try {
-      const items = await managerDeskService.lookupIssues(req.query.q as string);
+      const items = await managerDeskService.lookupIssues(req.query.q as string, req.auth!.user.workspaceId);
       res.json({ items });
     } catch (error) {
       next(error);
@@ -438,7 +448,8 @@ export function createManagerDeskRouter(
       const items = await managerDeskService.lookupDevelopers(
         req.query.q as string,
         req.query.date as string | undefined,
-        { includeUnavailable: req.query.includeUnavailable === "true" }
+        { includeUnavailable: req.query.includeUnavailable === "true" },
+        req.auth!.user.workspaceId
       );
       res.json({ items });
     } catch (error) {

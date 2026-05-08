@@ -27,6 +27,7 @@ import { useExcludeIssue } from '@/hooks/useExcludeIssue';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { JiraIssueLink } from '@/components/JiraIssueLink';
+import { useScopedStorageKey } from '@/lib/scoped-storage';
 import { isOverdue, isDueToday, isStale } from '@/lib/utils';
 import type { Issue, FilterType } from '@/types';
 
@@ -47,13 +48,13 @@ const EMPTY_ISSUES: Issue[] = [];
 
 const columnHelper = createColumnHelper<Issue>();
 
-function readPersistedExcludedStatuses(): string[] {
+function readPersistedExcludedStatuses(storageKey: string): string[] {
   if (typeof window === 'undefined') {
     return [];
   }
 
   try {
-    const raw = window.localStorage.getItem(STATUS_FILTER_STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) {
       return [];
     }
@@ -69,18 +70,18 @@ function readPersistedExcludedStatuses(): string[] {
   }
 }
 
-function persistExcludedStatuses(excludedStatuses: string[]) {
+function persistExcludedStatuses(storageKey: string, excludedStatuses: string[]) {
   if (typeof window === 'undefined') {
     return;
   }
 
   try {
     if (excludedStatuses.length === 0) {
-      window.localStorage.removeItem(STATUS_FILTER_STORAGE_KEY);
+      window.localStorage.removeItem(storageKey);
       return;
     }
 
-    window.localStorage.setItem(STATUS_FILTER_STORAGE_KEY, JSON.stringify(excludedStatuses));
+    window.localStorage.setItem(storageKey, JSON.stringify(excludedStatuses));
   } catch {
     // Ignore storage failures and continue with in-memory state.
   }
@@ -195,6 +196,7 @@ export function DefectTable({
   const { data: syncStatus } = useSyncStatus();
   const { exclude, restore } = useExcludeIssue();
   const { addToast } = useToast();
+  const statusStorageKey = useScopedStorageKey(STATUS_FILTER_STORAGE_KEY);
 
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'aspenSeverity', desc: false },
@@ -207,13 +209,14 @@ export function DefectTable({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilterOpen, setStatusFilterOpen] = useState(false);
-  const [excludedStatuses, setExcludedStatuses] = useState<string[]>(() => readPersistedExcludedStatuses());
+  const [excludedStatuses, setExcludedStatuses] = useState<string[]>(() => readPersistedExcludedStatuses(statusStorageKey));
 
   const tableRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const statusFilterRef = useRef<HTMLDivElement>(null);
   const statusFilterButtonRef = useRef<HTMLButtonElement>(null);
+  const statusStorageKeyRef = useRef(statusStorageKey);
   const clearVisitedHighlightTimeoutRef = useRef<number | null>(null);
   const [lastVisitedKey, setLastVisitedKey] = useState<string | null>(null);
 
@@ -327,8 +330,15 @@ export function DefectTable({
   }, [statusFilterOpen]);
 
   useEffect(() => {
-    persistExcludedStatuses(excludedStatuses);
-  }, [excludedStatuses]);
+    if (statusStorageKeyRef.current !== statusStorageKey) {
+      statusStorageKeyRef.current = statusStorageKey;
+      setExcludedStatuses(readPersistedExcludedStatuses(statusStorageKey));
+      setStatusFilterOpen(false);
+      return;
+    }
+
+    persistExcludedStatuses(statusStorageKey, excludedStatuses);
+  }, [excludedStatuses, statusStorageKey]);
 
   // Auto-scroll to focused row
   useEffect(() => {

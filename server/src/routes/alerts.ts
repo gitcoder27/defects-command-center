@@ -18,7 +18,7 @@ export function createAlertsRouter(alertService: AlertService): Router {
   router.get("/", async (req, res, next) => {
     try {
       const managerAccountId = req.auth?.user.accountId;
-      const alerts = await alertService.listAlertsForManager(managerAccountId ?? "");
+      const alerts = await alertService.listAlertsForManager(managerAccountId ?? "", req.auth!.user.workspaceId);
       res.json({ alerts });
     } catch (error) {
       next(error);
@@ -28,7 +28,7 @@ export function createAlertsRouter(alertService: AlertService): Router {
   router.post("/dismiss", validate(dismissAlertsSchema), async (req, res, next) => {
     try {
       const managerAccountId = req.auth?.user.accountId;
-      const dismissedIds = await alertService.dismissAlerts(managerAccountId ?? "", req.body.alertIds);
+      const dismissedIds = await alertService.dismissAlerts(managerAccountId ?? "", req.body.alertIds, req.auth!.user.workspaceId);
       const response: AlertDismissResponse = { success: true, dismissedIds };
       res.json(response);
     } catch (error) {

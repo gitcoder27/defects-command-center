@@ -1,9 +1,20 @@
 import BetterSqlite3 from "better-sqlite3";
 import { encryptSecretIfNeeded, isEncryptedSecret } from "../services/secret-crypto";
 
+const DEFAULT_WORKSPACE_ID = "default";
+
 const ddl = `
+CREATE TABLE IF NOT EXISTS workspaces (
+  id               TEXT PRIMARY KEY,
+  name             TEXT NOT NULL,
+  owner_account_id TEXT,
+  created_at       TEXT NOT NULL,
+  updated_at       TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS issues (
-  jira_key        TEXT PRIMARY KEY,
+  workspace_id    TEXT NOT NULL DEFAULT 'default',
+  jira_key        TEXT NOT NULL,
   summary         TEXT NOT NULL,
   description     TEXT,
   aspen_severity  TEXT,
@@ -25,21 +36,25 @@ CREATE TABLE IF NOT EXISTS issues (
   synced_at       TEXT NOT NULL,
   last_seen_in_scoped_sync_at TEXT,
   last_reconciled_at TEXT,
-  scope_changed_at TEXT
+  scope_changed_at TEXT,
+  PRIMARY KEY (workspace_id, jira_key)
 );
 
 CREATE TABLE IF NOT EXISTS developers (
-  account_id   TEXT PRIMARY KEY,
+  workspace_id  TEXT NOT NULL DEFAULT 'default',
+  account_id   TEXT NOT NULL,
   display_name TEXT NOT NULL,
   email        TEXT,
   avatar_url   TEXT,
   source       TEXT NOT NULL DEFAULT 'jira',
   jira_account_id TEXT,
-  is_active    INTEGER DEFAULT 1
+  is_active    INTEGER DEFAULT 1,
+  PRIMARY KEY (workspace_id, account_id)
 );
 
 CREATE TABLE IF NOT EXISTS app_users (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id         TEXT NOT NULL DEFAULT 'default',
   username             TEXT NOT NULL UNIQUE,
   display_name         TEXT NOT NULL,
   password_hash        TEXT NOT NULL,
@@ -60,21 +75,23 @@ CREATE TABLE IF NOT EXISTS app_sessions (
 );
 
 CREATE TABLE IF NOT EXISTS alert_dismissals (
+  workspace_id        TEXT NOT NULL DEFAULT 'default',
   manager_account_id TEXT NOT NULL,
   alert_id           TEXT NOT NULL,
   dismissed_at       TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS component_map (
+  workspace_id    TEXT NOT NULL DEFAULT 'default',
   component_name TEXT NOT NULL,
   account_id     TEXT NOT NULL,
   fix_count      INTEGER DEFAULT 0,
-  PRIMARY KEY (component_name, account_id),
-  FOREIGN KEY (account_id) REFERENCES developers(account_id)
+  PRIMARY KEY (workspace_id, component_name, account_id)
 );
 
 CREATE TABLE IF NOT EXISTS sync_log (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id  TEXT NOT NULL DEFAULT 'default',
   started_at    TEXT NOT NULL,
   completed_at  TEXT,
   status        TEXT NOT NULL,
@@ -83,33 +100,38 @@ CREATE TABLE IF NOT EXISTS sync_log (
 );
 
 CREATE TABLE IF NOT EXISTS config (
-  key   TEXT PRIMARY KEY,
-  value TEXT NOT NULL
+  workspace_id TEXT NOT NULL DEFAULT 'default',
+  key          TEXT NOT NULL,
+  value        TEXT NOT NULL,
+  PRIMARY KEY (workspace_id, key)
 );
 
-CREATE INDEX IF NOT EXISTS idx_issues_assignee ON issues(assignee_id);
-CREATE INDEX IF NOT EXISTS idx_issues_status ON issues(status_category);
-CREATE INDEX IF NOT EXISTS idx_issues_priority ON issues(priority_name);
-CREATE INDEX IF NOT EXISTS idx_issues_due_date ON issues(due_date);
-CREATE INDEX IF NOT EXISTS idx_issues_updated ON issues(updated_at);
-CREATE INDEX IF NOT EXISTS idx_issues_flagged ON issues(flagged);
+CREATE INDEX IF NOT EXISTS idx_issues_workspace_assignee ON issues(workspace_id, assignee_id);
+CREATE INDEX IF NOT EXISTS idx_issues_workspace_status ON issues(workspace_id, status_category);
+CREATE INDEX IF NOT EXISTS idx_issues_workspace_priority ON issues(workspace_id, priority_name);
+CREATE INDEX IF NOT EXISTS idx_issues_workspace_due_date ON issues(workspace_id, due_date);
+CREATE INDEX IF NOT EXISTS idx_issues_workspace_updated ON issues(workspace_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_issues_workspace_flagged ON issues(workspace_id, flagged);
 
 CREATE TABLE IF NOT EXISTS local_tags (
-  id    INTEGER PRIMARY KEY AUTOINCREMENT,
-  name  TEXT NOT NULL UNIQUE,
-  color TEXT NOT NULL DEFAULT '#6366f1'
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id TEXT NOT NULL DEFAULT 'default',
+  name         TEXT NOT NULL,
+  color        TEXT NOT NULL DEFAULT '#6366f1',
+  UNIQUE(workspace_id, name)
 );
 
 CREATE TABLE IF NOT EXISTS issue_tags (
-  jira_key TEXT NOT NULL,
-  tag_id   INTEGER NOT NULL,
-  PRIMARY KEY (jira_key, tag_id),
-  FOREIGN KEY (jira_key) REFERENCES issues(jira_key),
-  FOREIGN KEY (tag_id)   REFERENCES local_tags(id)
+  workspace_id TEXT NOT NULL DEFAULT 'default',
+  jira_key     TEXT NOT NULL,
+  tag_id       INTEGER NOT NULL,
+  PRIMARY KEY (workspace_id, jira_key, tag_id),
+  FOREIGN KEY (tag_id) REFERENCES local_tags(id)
 );
 
 CREATE TABLE IF NOT EXISTS issue_scope_history (
   id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id          TEXT NOT NULL DEFAULT 'default',
   jira_key              TEXT NOT NULL,
   observed_at           TEXT NOT NULL,
   change_type           TEXT NOT NULL,
@@ -120,12 +142,12 @@ CREATE TABLE IF NOT EXISTS issue_scope_history (
   from_sync_scope_state TEXT,
   to_sync_scope_state   TEXT,
   from_status_category  TEXT,
-  to_status_category    TEXT,
-  FOREIGN KEY (jira_key) REFERENCES issues(jira_key)
+  to_status_category    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS team_tracker_days (
   id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id          TEXT NOT NULL DEFAULT 'default',
   date                  TEXT NOT NULL,
   developer_account_id  TEXT NOT NULL,
   status                TEXT NOT NULL DEFAULT 'on_track',
@@ -136,11 +158,12 @@ CREATE TABLE IF NOT EXISTS team_tracker_days (
   status_updated_at     TEXT,
   created_at            TEXT NOT NULL,
   updated_at            TEXT NOT NULL,
-  UNIQUE(date, developer_account_id)
+  UNIQUE(workspace_id, date, developer_account_id)
 );
 
 CREATE TABLE IF NOT EXISTS developer_availability_periods (
   id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id          TEXT NOT NULL DEFAULT 'default',
   developer_account_id  TEXT NOT NULL,
   start_date            TEXT NOT NULL,
   end_date              TEXT,
@@ -151,6 +174,7 @@ CREATE TABLE IF NOT EXISTS developer_availability_periods (
 
 CREATE TABLE IF NOT EXISTS team_tracker_items (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id  TEXT NOT NULL DEFAULT 'default',
   day_id        INTEGER NOT NULL,
   manager_desk_item_id INTEGER,
   item_type     TEXT NOT NULL,
@@ -167,6 +191,7 @@ CREATE TABLE IF NOT EXISTS team_tracker_items (
 
 CREATE TABLE IF NOT EXISTS team_tracker_checkins (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id TEXT NOT NULL DEFAULT 'default',
   day_id      INTEGER NOT NULL,
   summary     TEXT NOT NULL,
   status      TEXT,
@@ -180,6 +205,7 @@ CREATE TABLE IF NOT EXISTS team_tracker_checkins (
 
 CREATE TABLE IF NOT EXISTS team_tracker_saved_views (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id       TEXT NOT NULL DEFAULT 'default',
   manager_account_id TEXT NOT NULL,
   name               TEXT NOT NULL,
   search_query       TEXT,
@@ -192,15 +218,17 @@ CREATE TABLE IF NOT EXISTS team_tracker_saved_views (
 
 CREATE TABLE IF NOT EXISTS manager_desk_days (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id       TEXT NOT NULL DEFAULT 'default',
   date               TEXT NOT NULL,
   manager_account_id TEXT NOT NULL,
   created_at         TEXT NOT NULL,
   updated_at         TEXT NOT NULL,
-  UNIQUE(date, manager_account_id)
+  UNIQUE(workspace_id, date, manager_account_id)
 );
 
 CREATE TABLE IF NOT EXISTS manager_desk_items (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id     TEXT NOT NULL DEFAULT 'default',
   day_id           INTEGER NOT NULL,
   source_item_id   INTEGER,
   assignee_developer_account_id TEXT,
@@ -225,6 +253,7 @@ CREATE TABLE IF NOT EXISTS manager_desk_items (
 
 CREATE TABLE IF NOT EXISTS manager_desk_links (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id         TEXT NOT NULL DEFAULT 'default',
   item_id              INTEGER NOT NULL,
   link_type            TEXT NOT NULL,
   issue_key            TEXT,
@@ -236,6 +265,7 @@ CREATE TABLE IF NOT EXISTS manager_desk_links (
 
 CREATE TABLE IF NOT EXISTS manager_desk_item_history (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id       TEXT NOT NULL DEFAULT 'default',
   item_id            INTEGER NOT NULL,
   manager_account_id TEXT NOT NULL,
   event_type         TEXT NOT NULL,
@@ -244,28 +274,29 @@ CREATE TABLE IF NOT EXISTS manager_desk_item_history (
 );
 
 CREATE INDEX IF NOT EXISTS idx_app_users_username ON app_users(username);
-CREATE INDEX IF NOT EXISTS idx_app_users_dev_account ON app_users(developer_account_id);
+CREATE INDEX IF NOT EXISTS idx_app_users_workspace ON app_users(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_app_users_workspace_dev_account ON app_users(workspace_id, developer_account_id);
 CREATE INDEX IF NOT EXISTS idx_app_sessions_user ON app_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_app_sessions_expires ON app_sessions(expires_at);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_alert_dismissals_manager_alert ON alert_dismissals(manager_account_id, alert_id);
-CREATE INDEX IF NOT EXISTS idx_alert_dismissals_manager ON alert_dismissals(manager_account_id);
-CREATE INDEX IF NOT EXISTS idx_tracker_days_date ON team_tracker_days(date);
-CREATE INDEX IF NOT EXISTS idx_tracker_days_dev ON team_tracker_days(developer_account_id);
-CREATE INDEX IF NOT EXISTS idx_dev_availability_dev_dates ON developer_availability_periods(developer_account_id, start_date, end_date);
-CREATE INDEX IF NOT EXISTS idx_tracker_items_day ON team_tracker_items(day_id);
-CREATE INDEX IF NOT EXISTS idx_tracker_checkins_day ON team_tracker_checkins(day_id);
-CREATE INDEX IF NOT EXISTS idx_tracker_saved_views_manager ON team_tracker_saved_views(manager_account_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_tracker_saved_views_manager_name ON team_tracker_saved_views(manager_account_id, name);
-CREATE INDEX IF NOT EXISTS idx_manager_desk_days_manager_date ON manager_desk_days(manager_account_id, date);
-CREATE INDEX IF NOT EXISTS idx_manager_desk_items_day ON manager_desk_items(day_id);
-CREATE INDEX IF NOT EXISTS idx_manager_desk_items_status ON manager_desk_items(status);
-CREATE INDEX IF NOT EXISTS idx_manager_desk_items_follow_up_at ON manager_desk_items(follow_up_at);
-CREATE INDEX IF NOT EXISTS idx_manager_desk_items_source_item_id ON manager_desk_items(source_item_id);
-CREATE INDEX IF NOT EXISTS idx_manager_desk_links_item ON manager_desk_links(item_id);
-CREATE INDEX IF NOT EXISTS idx_manager_desk_links_issue_key ON manager_desk_links(issue_key);
-CREATE INDEX IF NOT EXISTS idx_manager_desk_links_developer_account_id ON manager_desk_links(developer_account_id);
-CREATE INDEX IF NOT EXISTS idx_manager_desk_item_history_item_recorded ON manager_desk_item_history(item_id, recorded_at);
-CREATE INDEX IF NOT EXISTS idx_manager_desk_item_history_manager_recorded ON manager_desk_item_history(manager_account_id, recorded_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_alert_dismissals_workspace_manager_alert ON alert_dismissals(workspace_id, manager_account_id, alert_id);
+CREATE INDEX IF NOT EXISTS idx_alert_dismissals_workspace_manager ON alert_dismissals(workspace_id, manager_account_id);
+CREATE INDEX IF NOT EXISTS idx_tracker_days_workspace_date ON team_tracker_days(workspace_id, date);
+CREATE INDEX IF NOT EXISTS idx_tracker_days_workspace_dev ON team_tracker_days(workspace_id, developer_account_id);
+CREATE INDEX IF NOT EXISTS idx_dev_availability_workspace_dev_dates ON developer_availability_periods(workspace_id, developer_account_id, start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_tracker_items_workspace_day ON team_tracker_items(workspace_id, day_id);
+CREATE INDEX IF NOT EXISTS idx_tracker_checkins_workspace_day ON team_tracker_checkins(workspace_id, day_id);
+CREATE INDEX IF NOT EXISTS idx_tracker_saved_views_workspace_manager ON team_tracker_saved_views(workspace_id, manager_account_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tracker_saved_views_workspace_manager_name ON team_tracker_saved_views(workspace_id, manager_account_id, name);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_days_workspace_manager_date ON manager_desk_days(workspace_id, manager_account_id, date);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_items_workspace_day ON manager_desk_items(workspace_id, day_id);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_items_workspace_status ON manager_desk_items(workspace_id, status);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_items_workspace_follow_up_at ON manager_desk_items(workspace_id, follow_up_at);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_items_workspace_source_item_id ON manager_desk_items(workspace_id, source_item_id);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_links_workspace_item ON manager_desk_links(workspace_id, item_id);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_links_workspace_issue_key ON manager_desk_links(workspace_id, issue_key);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_links_workspace_developer_account_id ON manager_desk_links(workspace_id, developer_account_id);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_item_history_workspace_item_recorded ON manager_desk_item_history(workspace_id, item_id, recorded_at);
+CREATE INDEX IF NOT EXISTS idx_manager_desk_item_history_workspace_manager_recorded ON manager_desk_item_history(workspace_id, manager_account_id, recorded_at);
 `;
 
 const alterStatements = [
@@ -329,6 +360,7 @@ const constraintRepairStatements = [
      FROM team_tracker_days keeper
      JOIN team_tracker_days duplicate ON duplicate.date = keeper.date
        AND duplicate.developer_account_id = keeper.developer_account_id
+       AND duplicate.workspace_id = keeper.workspace_id
      WHERE duplicate.id = team_tracker_items.day_id
    )
    WHERE day_id IN (
@@ -339,6 +371,7 @@ const constraintRepairStatements = [
        FROM team_tracker_days keeper
        WHERE keeper.date = duplicate.date
          AND keeper.developer_account_id = duplicate.developer_account_id
+         AND keeper.workspace_id = duplicate.workspace_id
      )
    )`,
   `UPDATE team_tracker_checkins
@@ -347,6 +380,7 @@ const constraintRepairStatements = [
      FROM team_tracker_days keeper
      JOIN team_tracker_days duplicate ON duplicate.date = keeper.date
        AND duplicate.developer_account_id = keeper.developer_account_id
+       AND duplicate.workspace_id = keeper.workspace_id
      WHERE duplicate.id = team_tracker_checkins.day_id
    )
    WHERE day_id IN (
@@ -357,6 +391,7 @@ const constraintRepairStatements = [
        FROM team_tracker_days keeper
        WHERE keeper.date = duplicate.date
          AND keeper.developer_account_id = duplicate.developer_account_id
+         AND keeper.workspace_id = duplicate.workspace_id
      )
    )`,
   `DELETE FROM team_tracker_days
@@ -365,6 +400,7 @@ const constraintRepairStatements = [
      FROM team_tracker_days keeper
      WHERE keeper.date = team_tracker_days.date
        AND keeper.developer_account_id = team_tracker_days.developer_account_id
+       AND keeper.workspace_id = team_tracker_days.workspace_id
    )`,
   `UPDATE manager_desk_items
    SET day_id = (
@@ -372,6 +408,7 @@ const constraintRepairStatements = [
      FROM manager_desk_days keeper
      JOIN manager_desk_days duplicate ON duplicate.date = keeper.date
        AND duplicate.manager_account_id = keeper.manager_account_id
+       AND duplicate.workspace_id = keeper.workspace_id
      WHERE duplicate.id = manager_desk_items.day_id
    )
    WHERE day_id IN (
@@ -382,6 +419,7 @@ const constraintRepairStatements = [
        FROM manager_desk_days keeper
        WHERE keeper.date = duplicate.date
          AND keeper.manager_account_id = duplicate.manager_account_id
+         AND keeper.workspace_id = duplicate.workspace_id
      )
    )`,
   `DELETE FROM manager_desk_days
@@ -390,18 +428,507 @@ const constraintRepairStatements = [
      FROM manager_desk_days keeper
      WHERE keeper.date = manager_desk_days.date
        AND keeper.manager_account_id = manager_desk_days.manager_account_id
+       AND keeper.workspace_id = manager_desk_days.workspace_id
    )`,
-  "CREATE UNIQUE INDEX IF NOT EXISTS idx_tracker_days_unique_date_developer ON team_tracker_days(date, developer_account_id)",
-  "CREATE UNIQUE INDEX IF NOT EXISTS idx_manager_desk_days_unique_date_manager ON manager_desk_days(date, manager_account_id)",
+  "DROP INDEX IF EXISTS idx_tracker_days_unique_date_developer",
+  "DROP INDEX IF EXISTS idx_manager_desk_days_unique_date_manager",
+  "DROP INDEX IF EXISTS idx_alert_dismissals_manager_alert",
+  "DROP INDEX IF EXISTS idx_alert_dismissals_manager",
+  "DROP INDEX IF EXISTS idx_tracker_saved_views_manager_name",
+  "DROP INDEX IF EXISTS idx_tracker_saved_views_manager",
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_tracker_days_unique_workspace_date_developer ON team_tracker_days(workspace_id, date, developer_account_id)",
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_manager_desk_days_unique_workspace_date_manager ON manager_desk_days(workspace_id, date, manager_account_id)",
 ];
+
+function runConstraintRepairStatements(sqlite: BetterSqlite3.Database, tolerateMissingTables = false): void {
+  for (const stmt of constraintRepairStatements) {
+    try {
+      sqlite.exec(stmt);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (tolerateMissingTables && /no such (table|column)/i.test(message)) {
+        continue;
+      }
+      throw error;
+    }
+  }
+}
 
 function isExpectedMigrationError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /duplicate column name/i.test(message);
 }
 
+const workspaceOwnedTables = [
+  "issues",
+  "developers",
+  "app_users",
+  "alert_dismissals",
+  "component_map",
+  "sync_log",
+  "config",
+  "local_tags",
+  "issue_tags",
+  "issue_scope_history",
+  "team_tracker_days",
+  "developer_availability_periods",
+  "team_tracker_items",
+  "team_tracker_checkins",
+  "team_tracker_saved_views",
+  "manager_desk_days",
+  "manager_desk_items",
+  "manager_desk_links",
+  "manager_desk_item_history",
+];
+
+function tableExists(sqlite: BetterSqlite3.Database, tableName: string): boolean {
+  const row = sqlite
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+    .get(tableName) as { name?: string } | undefined;
+  return Boolean(row?.name);
+}
+
+function columnExists(sqlite: BetterSqlite3.Database, tableName: string, columnName: string): boolean {
+  const rows = sqlite.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
+  return rows.some((row) => row.name === columnName);
+}
+
+function tableSql(sqlite: BetterSqlite3.Database, tableName: string): string {
+  const row = sqlite
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?")
+    .get(tableName) as { sql?: string } | undefined;
+  return row?.sql ?? "";
+}
+
+function quoteIdentifier(identifier: string): string {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(identifier)) {
+    throw new Error(`Unsafe SQLite identifier: ${identifier}`);
+  }
+  return `"${identifier}"`;
+}
+
+function ensureWorkspaceColumns(sqlite: BetterSqlite3.Database): void {
+  for (const tableName of workspaceOwnedTables) {
+    if (!tableExists(sqlite, tableName) || columnExists(sqlite, tableName, "workspace_id")) {
+      continue;
+    }
+
+    sqlite.exec(`ALTER TABLE ${tableName} ADD COLUMN workspace_id TEXT NOT NULL DEFAULT '${DEFAULT_WORKSPACE_ID}'`);
+  }
+}
+
+type RebuildSpec = {
+  tableName: string;
+  expectedSqlFragment: string;
+  blockedSqlFragment?: string;
+  columns: string[];
+  createSql: (tableName: string) => string;
+  defaults?: Record<string, string>;
+};
+
+const workspaceKeyRebuilds: RebuildSpec[] = [
+  {
+    tableName: "issues",
+    expectedSqlFragment: "PRIMARY KEY (workspace_id, jira_key)",
+    columns: [
+      "workspace_id",
+      "jira_key",
+      "summary",
+      "description",
+      "aspen_severity",
+      "priority_name",
+      "priority_id",
+      "status_name",
+      "status_category",
+      "assignee_id",
+      "assignee_name",
+      "team_scope_state",
+      "sync_scope_state",
+      "reporter_name",
+      "component",
+      "labels",
+      "due_date",
+      "development_due_date",
+      "flagged",
+      "created_at",
+      "updated_at",
+      "synced_at",
+      "last_seen_in_scoped_sync_at",
+      "last_reconciled_at",
+      "scope_changed_at",
+      "analysis_notes",
+      "excluded",
+    ],
+    defaults: {
+      workspace_id: `'${DEFAULT_WORKSPACE_ID}'`,
+      summary: "''",
+      priority_name: "'Medium'",
+      priority_id: "''",
+      status_name: "''",
+      status_category: "'new'",
+      team_scope_state: "'in_team'",
+      sync_scope_state: "'active'",
+      flagged: "0",
+      created_at: "datetime('now')",
+      updated_at: "datetime('now')",
+      synced_at: "datetime('now')",
+      excluded: "0",
+    },
+    createSql: (tableName) => `
+      CREATE TABLE ${quoteIdentifier(tableName)} (
+        workspace_id    TEXT NOT NULL DEFAULT '${DEFAULT_WORKSPACE_ID}',
+        jira_key        TEXT NOT NULL,
+        summary         TEXT NOT NULL,
+        description     TEXT,
+        aspen_severity  TEXT,
+        priority_name   TEXT NOT NULL,
+        priority_id     TEXT NOT NULL,
+        status_name     TEXT NOT NULL,
+        status_category TEXT NOT NULL,
+        assignee_id     TEXT,
+        assignee_name   TEXT,
+        team_scope_state TEXT NOT NULL DEFAULT 'in_team',
+        sync_scope_state TEXT NOT NULL DEFAULT 'active',
+        reporter_name   TEXT,
+        component       TEXT,
+        labels          TEXT,
+        due_date        TEXT,
+        development_due_date TEXT,
+        flagged         INTEGER NOT NULL DEFAULT 0,
+        created_at      TEXT NOT NULL,
+        updated_at      TEXT NOT NULL,
+        synced_at       TEXT NOT NULL,
+        last_seen_in_scoped_sync_at TEXT,
+        last_reconciled_at TEXT,
+        scope_changed_at TEXT,
+        analysis_notes  TEXT,
+        excluded        INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (workspace_id, jira_key)
+      )
+    `,
+  },
+  {
+    tableName: "developers",
+    expectedSqlFragment: "PRIMARY KEY (workspace_id, account_id)",
+    columns: ["workspace_id", "account_id", "display_name", "email", "avatar_url", "source", "jira_account_id", "is_active"],
+    defaults: {
+      workspace_id: `'${DEFAULT_WORKSPACE_ID}'`,
+      display_name: "''",
+      source: "'jira'",
+      is_active: "1",
+    },
+    createSql: (tableName) => `
+      CREATE TABLE ${quoteIdentifier(tableName)} (
+        workspace_id  TEXT NOT NULL DEFAULT '${DEFAULT_WORKSPACE_ID}',
+        account_id   TEXT NOT NULL,
+        display_name TEXT NOT NULL,
+        email        TEXT,
+        avatar_url   TEXT,
+        source       TEXT NOT NULL DEFAULT 'jira',
+        jira_account_id TEXT,
+        is_active    INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (workspace_id, account_id)
+      )
+    `,
+  },
+  {
+    tableName: "config",
+    expectedSqlFragment: "PRIMARY KEY (workspace_id, key)",
+    columns: ["workspace_id", "key", "value"],
+    defaults: {
+      workspace_id: `'${DEFAULT_WORKSPACE_ID}'`,
+      value: "''",
+    },
+    createSql: (tableName) => `
+      CREATE TABLE ${quoteIdentifier(tableName)} (
+        workspace_id TEXT NOT NULL DEFAULT '${DEFAULT_WORKSPACE_ID}',
+        key          TEXT NOT NULL,
+        value        TEXT NOT NULL,
+        PRIMARY KEY (workspace_id, key)
+      )
+    `,
+  },
+  {
+    tableName: "component_map",
+    expectedSqlFragment: "PRIMARY KEY (workspace_id, component_name, account_id)",
+    columns: ["workspace_id", "component_name", "account_id", "fix_count"],
+    defaults: {
+      workspace_id: `'${DEFAULT_WORKSPACE_ID}'`,
+      fix_count: "0",
+    },
+    createSql: (tableName) => `
+      CREATE TABLE ${quoteIdentifier(tableName)} (
+        workspace_id    TEXT NOT NULL DEFAULT '${DEFAULT_WORKSPACE_ID}',
+        component_name TEXT NOT NULL,
+        account_id     TEXT NOT NULL,
+        fix_count      INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (workspace_id, component_name, account_id)
+      )
+    `,
+  },
+  {
+    tableName: "local_tags",
+    expectedSqlFragment: "UNIQUE(workspace_id, name)",
+    columns: ["id", "workspace_id", "name", "color"],
+    defaults: {
+      workspace_id: `'${DEFAULT_WORKSPACE_ID}'`,
+      color: "'#6366f1'",
+    },
+    createSql: (tableName) => `
+      CREATE TABLE ${quoteIdentifier(tableName)} (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        workspace_id TEXT NOT NULL DEFAULT '${DEFAULT_WORKSPACE_ID}',
+        name         TEXT NOT NULL,
+        color        TEXT NOT NULL DEFAULT '#6366f1',
+        UNIQUE(workspace_id, name)
+      )
+    `,
+  },
+  {
+    tableName: "issue_tags",
+    expectedSqlFragment: "PRIMARY KEY (workspace_id, jira_key, tag_id)",
+    columns: ["workspace_id", "jira_key", "tag_id"],
+    defaults: {
+      workspace_id: `'${DEFAULT_WORKSPACE_ID}'`,
+    },
+    createSql: (tableName) => `
+      CREATE TABLE ${quoteIdentifier(tableName)} (
+        workspace_id TEXT NOT NULL DEFAULT '${DEFAULT_WORKSPACE_ID}',
+        jira_key     TEXT NOT NULL,
+        tag_id       INTEGER NOT NULL,
+        PRIMARY KEY (workspace_id, jira_key, tag_id),
+        FOREIGN KEY (tag_id) REFERENCES local_tags(id)
+      )
+    `,
+  },
+  {
+    tableName: "issue_scope_history",
+    expectedSqlFragment: "workspace_id",
+    blockedSqlFragment: "references issues",
+    columns: [
+      "id",
+      "workspace_id",
+      "jira_key",
+      "observed_at",
+      "change_type",
+      "from_assignee_id",
+      "to_assignee_id",
+      "from_team_scope_state",
+      "to_team_scope_state",
+      "from_sync_scope_state",
+      "to_sync_scope_state",
+      "from_status_category",
+      "to_status_category",
+    ],
+    defaults: {
+      workspace_id: `'${DEFAULT_WORKSPACE_ID}'`,
+      observed_at: "datetime('now')",
+      change_type: "'issue_updated'",
+    },
+    createSql: (tableName) => `
+      CREATE TABLE ${quoteIdentifier(tableName)} (
+        id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+        workspace_id          TEXT NOT NULL DEFAULT '${DEFAULT_WORKSPACE_ID}',
+        jira_key              TEXT NOT NULL,
+        observed_at           TEXT NOT NULL,
+        change_type           TEXT NOT NULL,
+        from_assignee_id      TEXT,
+        to_assignee_id        TEXT,
+        from_team_scope_state TEXT,
+        to_team_scope_state   TEXT,
+        from_sync_scope_state TEXT,
+        to_sync_scope_state   TEXT,
+        from_status_category  TEXT,
+        to_status_category    TEXT
+      )
+    `,
+  },
+  {
+    tableName: "team_tracker_days",
+    expectedSqlFragment: "UNIQUE(workspace_id, date, developer_account_id)",
+    columns: [
+      "id",
+      "workspace_id",
+      "date",
+      "developer_account_id",
+      "status",
+      "capacity_units",
+      "manager_notes",
+      "last_check_in_at",
+      "next_follow_up_at",
+      "status_updated_at",
+      "created_at",
+      "updated_at",
+    ],
+    defaults: {
+      workspace_id: `'${DEFAULT_WORKSPACE_ID}'`,
+      status: "'on_track'",
+      created_at: "datetime('now')",
+      updated_at: "datetime('now')",
+    },
+    createSql: (tableName) => `
+      CREATE TABLE ${quoteIdentifier(tableName)} (
+        id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+        workspace_id          TEXT NOT NULL DEFAULT '${DEFAULT_WORKSPACE_ID}',
+        date                  TEXT NOT NULL,
+        developer_account_id  TEXT NOT NULL,
+        status                TEXT NOT NULL DEFAULT 'on_track',
+        capacity_units        INTEGER,
+        manager_notes         TEXT,
+        last_check_in_at      TEXT,
+        next_follow_up_at     TEXT,
+        status_updated_at     TEXT,
+        created_at            TEXT NOT NULL,
+        updated_at            TEXT NOT NULL,
+        UNIQUE(workspace_id, date, developer_account_id)
+      )
+    `,
+  },
+  {
+    tableName: "team_tracker_saved_views",
+    expectedSqlFragment: "UNIQUE(workspace_id, manager_account_id, name)",
+    columns: [
+      "id",
+      "workspace_id",
+      "manager_account_id",
+      "name",
+      "search_query",
+      "summary_filter",
+      "sort_by",
+      "group_by",
+      "created_at",
+      "updated_at",
+    ],
+    defaults: {
+      workspace_id: `'${DEFAULT_WORKSPACE_ID}'`,
+      summary_filter: "'all'",
+      sort_by: "'name'",
+      group_by: "'none'",
+      created_at: "datetime('now')",
+      updated_at: "datetime('now')",
+    },
+    createSql: (tableName) => `
+      CREATE TABLE ${quoteIdentifier(tableName)} (
+        id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+        workspace_id       TEXT NOT NULL DEFAULT '${DEFAULT_WORKSPACE_ID}',
+        manager_account_id TEXT NOT NULL,
+        name               TEXT NOT NULL,
+        search_query       TEXT,
+        summary_filter     TEXT NOT NULL DEFAULT 'all',
+        sort_by            TEXT NOT NULL DEFAULT 'name',
+        group_by           TEXT NOT NULL DEFAULT 'none',
+        created_at         TEXT NOT NULL,
+        updated_at         TEXT NOT NULL,
+        UNIQUE(workspace_id, manager_account_id, name)
+      )
+    `,
+  },
+  {
+    tableName: "manager_desk_days",
+    expectedSqlFragment: "UNIQUE(workspace_id, date, manager_account_id)",
+    columns: ["id", "workspace_id", "date", "manager_account_id", "created_at", "updated_at"],
+    defaults: {
+      workspace_id: `'${DEFAULT_WORKSPACE_ID}'`,
+      created_at: "datetime('now')",
+      updated_at: "datetime('now')",
+    },
+    createSql: (tableName) => `
+      CREATE TABLE ${quoteIdentifier(tableName)} (
+        id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+        workspace_id       TEXT NOT NULL DEFAULT '${DEFAULT_WORKSPACE_ID}',
+        date               TEXT NOT NULL,
+        manager_account_id TEXT NOT NULL,
+        created_at         TEXT NOT NULL,
+        updated_at         TEXT NOT NULL,
+        UNIQUE(workspace_id, date, manager_account_id)
+      )
+    `,
+  },
+];
+
+function selectExpressionForColumn(currentColumns: Set<string>, column: string, defaults: Record<string, string>): string {
+  if (currentColumns.has(column)) {
+    if (defaults[column]) {
+      return `COALESCE(${quoteIdentifier(column)}, ${defaults[column]})`;
+    }
+    return quoteIdentifier(column);
+  }
+
+  return defaults[column] ?? "NULL";
+}
+
+function rebuildTable(sqlite: BetterSqlite3.Database, spec: RebuildSpec): void {
+  if (!tableExists(sqlite, spec.tableName)) {
+    return;
+  }
+
+  const normalizedSql = tableSql(sqlite, spec.tableName).replace(/\s+/g, " ").toLowerCase();
+  const hasExpectedSchema = normalizedSql.includes(spec.expectedSqlFragment.toLowerCase());
+  const hasBlockedSchema = spec.blockedSqlFragment
+    ? normalizedSql.includes(spec.blockedSqlFragment.toLowerCase())
+    : false;
+  if (hasExpectedSchema && !hasBlockedSchema) {
+    return;
+  }
+
+  const tempTableName = `__workspace_migration_${spec.tableName}`;
+  const currentColumns = new Set(
+    (sqlite.prepare(`PRAGMA table_info(${quoteIdentifier(spec.tableName)})`).all() as Array<{ name: string }>).map((row) => row.name)
+  );
+  const columns = spec.columns.map(quoteIdentifier).join(", ");
+  const selectExpressions = spec.columns
+    .map((column) => selectExpressionForColumn(currentColumns, column, spec.defaults ?? {}))
+    .join(", ");
+
+  sqlite.exec(`DROP TABLE IF EXISTS ${quoteIdentifier(tempTableName)}`);
+  sqlite.exec(spec.createSql(tempTableName));
+  sqlite.exec(`INSERT INTO ${quoteIdentifier(tempTableName)} (${columns}) SELECT ${selectExpressions} FROM ${quoteIdentifier(spec.tableName)}`);
+  sqlite.exec(`DROP TABLE ${quoteIdentifier(spec.tableName)}`);
+  sqlite.exec(`ALTER TABLE ${quoteIdentifier(tempTableName)} RENAME TO ${quoteIdentifier(spec.tableName)}`);
+}
+
+function rebuildWorkspaceKeyTables(sqlite: BetterSqlite3.Database): void {
+  sqlite.exec("PRAGMA foreign_keys = OFF");
+  try {
+    for (const spec of workspaceKeyRebuilds) {
+      rebuildTable(sqlite, spec);
+    }
+  } finally {
+    sqlite.exec("PRAGMA foreign_keys = ON");
+  }
+}
+
+function ensureDefaultWorkspace(sqlite: BetterSqlite3.Database): void {
+  const now = new Date().toISOString();
+  sqlite
+    .prepare(
+      `INSERT INTO workspaces (id, name, owner_account_id, created_at, updated_at)
+       VALUES (?, ?, NULL, ?, ?)
+       ON CONFLICT(id) DO NOTHING`
+    )
+    .run(DEFAULT_WORKSPACE_ID, "Default Workspace", now, now);
+
+  sqlite.exec(`
+    UPDATE workspaces
+    SET owner_account_id = (
+      SELECT username
+      FROM app_users
+      WHERE role = 'manager' AND workspace_id = '${DEFAULT_WORKSPACE_ID}' AND is_active = 1
+      ORDER BY id
+      LIMIT 1
+    ),
+    updated_at = '${now}'
+    WHERE id = '${DEFAULT_WORKSPACE_ID}'
+      AND (owner_account_id IS NULL OR owner_account_id = '')
+  `);
+}
+
 export function migrate(sqlite: BetterSqlite3.Database): void {
+  ensureWorkspaceColumns(sqlite);
+  runConstraintRepairStatements(sqlite, true);
+  rebuildWorkspaceKeyTables(sqlite);
   sqlite.exec(ddl);
+  ensureDefaultWorkspace(sqlite);
   for (const stmt of alterStatements) {
     try {
       sqlite.exec(stmt);
@@ -411,22 +938,20 @@ export function migrate(sqlite: BetterSqlite3.Database): void {
       }
     }
   }
-  for (const stmt of constraintRepairStatements) {
-    sqlite.exec(stmt);
-  }
+  runConstraintRepairStatements(sqlite);
   migrateSecretConfigValues(sqlite);
 }
 
 function migrateSecretConfigValues(sqlite: BetterSqlite3.Database): void {
   const row = sqlite
-    .prepare("SELECT value FROM config WHERE key = ?")
-    .get("jira_api_token") as { value?: string } | undefined;
+    .prepare("SELECT value FROM config WHERE workspace_id = ? AND key = ?")
+    .get(DEFAULT_WORKSPACE_ID, "jira_api_token") as { value?: string } | undefined;
   const value = row?.value;
   if (!value || isEncryptedSecret(value)) {
     return;
   }
 
   sqlite
-    .prepare("UPDATE config SET value = ? WHERE key = ?")
-    .run(encryptSecretIfNeeded(value), "jira_api_token");
+    .prepare("UPDATE config SET value = ? WHERE workspace_id = ? AND key = ?")
+    .run(encryptSecretIfNeeded(value), DEFAULT_WORKSPACE_ID, "jira_api_token");
 }

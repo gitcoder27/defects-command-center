@@ -76,4 +76,101 @@ describe("database migrations", () => {
     expect(isEncryptedSecret(row.value)).toBe(true);
     expect(await getPersistedJiraApiToken()).toBe("legacy-token");
   });
+
+  it("rebuilds legacy natural keys so duplicate Jira keys can exist in separate workspaces", () => {
+    const oldDb = new Database(":memory:");
+    try {
+      oldDb.exec(`
+        CREATE TABLE issues (
+          jira_key TEXT PRIMARY KEY,
+          summary TEXT NOT NULL,
+          description TEXT,
+          priority_name TEXT NOT NULL,
+          priority_id TEXT NOT NULL,
+          status_name TEXT NOT NULL,
+          status_category TEXT NOT NULL,
+          assignee_id TEXT,
+          assignee_name TEXT,
+          reporter_name TEXT,
+          component TEXT,
+          labels TEXT,
+          due_date TEXT,
+          flagged INTEGER DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          synced_at TEXT NOT NULL
+        );
+        CREATE TABLE config (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
+
+        INSERT INTO issues (
+          jira_key,
+          summary,
+          priority_name,
+          priority_id,
+          status_name,
+          status_category,
+          created_at,
+          updated_at,
+          synced_at
+        ) VALUES (
+          'AM-1',
+          'Default workspace issue',
+          'High',
+          '1',
+          'Open',
+          'new',
+          '2026-03-01T00:00:00.000Z',
+          '2026-03-01T00:00:00.000Z',
+          '2026-03-01T00:00:00.000Z'
+        );
+        INSERT INTO config (key, value) VALUES ('jira_project_key', 'AM');
+      `);
+
+      migrate(oldDb);
+
+      expect(() => {
+        oldDb
+          .prepare(
+            `INSERT INTO issues (
+              workspace_id,
+              jira_key,
+              summary,
+              priority_name,
+              priority_id,
+              status_name,
+              status_category,
+              created_at,
+              updated_at,
+              synced_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .run(
+            "workspace-b",
+            "AM-1",
+            "Second workspace issue",
+            "Medium",
+            "2",
+            "Open",
+            "new",
+            "2026-03-02T00:00:00.000Z",
+            "2026-03-02T00:00:00.000Z",
+            "2026-03-02T00:00:00.000Z"
+          );
+      }).not.toThrow();
+
+      expect(() => {
+        oldDb
+          .prepare("INSERT INTO config (workspace_id, key, value) VALUES (?, ?, ?)")
+          .run("workspace-b", "jira_project_key", "AM2");
+      }).not.toThrow();
+
+      const count = oldDb.prepare("SELECT COUNT(*) AS count FROM issues WHERE jira_key = ?").get("AM-1") as { count: number };
+      expect(count.count).toBe(2);
+    } finally {
+      oldDb.close();
+    }
+  });
 });

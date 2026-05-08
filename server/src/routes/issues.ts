@@ -92,7 +92,7 @@ export function createIssuesRouter(issueService: IssueService): Router {
         order: query.order,
         tagIds,
         noTags,
-      });
+      }, req.auth!.user.workspaceId);
       res.json({ issues });
     } catch (error) {
       next(error);
@@ -103,7 +103,7 @@ export function createIssuesRouter(issueService: IssueService): Router {
     try {
       const key = req.params.key as string;
       const trackerDate = typeof req.query.trackerDate === 'string' ? req.query.trackerDate : undefined;
-      const issue = await issueService.getById(key, trackerDate);
+      const issue = await issueService.getById(key, trackerDate, req.auth!.user.workspaceId);
       if (!issue) {
         throw new HttpError(404, "Issue not found");
       }
@@ -116,7 +116,7 @@ export function createIssuesRouter(issueService: IssueService): Router {
   router.patch("/:key", validate(updateSchema), async (req, res, next) => {
     try {
       const key = req.params.key as string;
-      const issue = await issueService.update(key, req.body);
+      const issue = await issueService.update(key, req.body, req.auth!.user.workspaceId);
       res.json(issue);
     } catch (error) {
       next(error);
@@ -126,7 +126,7 @@ export function createIssuesRouter(issueService: IssueService): Router {
   router.post("/:key/comments", validate(commentSchema), async (req, res, next) => {
     try {
       const key = req.params.key as string;
-      await issueService.addComment(key, req.body.text);
+      await issueService.addComment(key, req.body.text, req.auth!.user.workspaceId);
       const response: IssueCommentResponse = { ok: true };
       res.status(201).json(response);
     } catch (error) {
@@ -137,7 +137,7 @@ export function createIssuesRouter(issueService: IssueService): Router {
   router.post("/:key/exclude", validate(paramsSchema), async (req, res, next) => {
     try {
       const key = req.params.key as string;
-      await issueService.excludeIssue(key);
+      await issueService.excludeIssue(key, req.auth!.user.workspaceId);
       res.json({ success: true });
     } catch (error) {
       next(error);
@@ -147,7 +147,7 @@ export function createIssuesRouter(issueService: IssueService): Router {
   router.post("/:key/restore", validate(paramsSchema), async (req, res, next) => {
     try {
       const key = req.params.key as string;
-      await issueService.restoreIssue(key);
+      await issueService.restoreIssue(key, req.auth!.user.workspaceId);
       res.json({ success: true });
     } catch (error) {
       next(error);

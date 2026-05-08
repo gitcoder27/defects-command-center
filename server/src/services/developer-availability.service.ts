@@ -9,6 +9,7 @@ import { db } from "../db/connection";
 import { developerAvailabilityPeriods, developers } from "../db/schema";
 import { HttpError } from "../middleware/errorHandler";
 import { addDays } from "../utils/date";
+import { normalizeWorkspaceId } from "./workspace.service";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -47,15 +48,17 @@ function isAvailabilityPeriodRow(
 }
 
 export class DeveloperAvailabilityService {
-  async getAvailabilityForDate(accountId: string, date: string): Promise<DeveloperAvailability> {
-    const row = await this.findCoveringPeriod(accountId, date);
+  async getAvailabilityForDate(accountId: string, date: string, workspaceId?: string): Promise<DeveloperAvailability> {
+    const row = await this.findCoveringPeriod(accountId, date, workspaceId);
     return mapAvailability(row);
   }
 
   async getAvailabilityMapForDate(
     accountIds: string[],
-    date: string
+    date: string,
+    workspaceId?: string
   ): Promise<Map<string, DeveloperAvailability>> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const availabilityByAccountId = new Map<string, DeveloperAvailability>();
     if (accountIds.length === 0) {
       return availabilityByAccountId;
@@ -67,6 +70,7 @@ export class DeveloperAvailabilityService {
       .where(
         and(
           inArray(developerAvailabilityPeriods.developerAccountId, accountIds),
+          eq(developerAvailabilityPeriods.workspaceId, normalizedWorkspaceId),
           lte(developerAvailabilityPeriods.startDate, date),
           or(isNull(developerAvailabilityPeriods.endDate), gte(developerAvailabilityPeriods.endDate, date))
         )
@@ -91,11 +95,13 @@ export class DeveloperAvailabilityService {
 
   async listInactiveDevelopersForDate(
     developersForDate: Developer[],
-    date: string
+    date: string,
+    workspaceId?: string
   ): Promise<InactiveDeveloperListItem[]> {
     const availabilityByAccountId = await this.getAvailabilityMapForDate(
       developersForDate.map((developer) => developer.accountId),
-      date
+      date,
+      workspaceId
     );
 
     return developersForDate
@@ -109,21 +115,22 @@ export class DeveloperAvailabilityService {
 
   async setAvailability(params: {
     accountId: string;
+    workspaceId?: string;
     effectiveDate: string;
     state: DeveloperAvailabilityState;
     note?: string;
   }): Promise<DeveloperAvailability> {
-    await this.assertDeveloperExists(params.accountId);
+    await this.assertDeveloperExists(params.accountId, params.workspaceId);
 
     if (params.state === "inactive") {
-      return this.markInactive(params.accountId, params.effectiveDate, params.note);
+      return this.markInactive(params.accountId, params.effectiveDate, params.note, params.workspaceId);
     }
 
-    return this.markActive(params.accountId, params.effectiveDate);
+    return this.markActive(params.accountId, params.effectiveDate, params.workspaceId);
   }
 
-  async assertAvailableForDate(accountId: string, date: string): Promise<void> {
-    const availability = await this.getAvailabilityForDate(accountId, date);
+  async assertAvailableForDate(accountId: string, date: string, workspaceId?: string): Promise<void> {
+    const availability = await this.getAvailabilityForDate(accountId, date, workspaceId);
     if (availability.state === "inactive") {
       throw new HttpError(409, `Developer is inactive on ${date}`);
     }
@@ -132,11 +139,13 @@ export class DeveloperAvailabilityService {
   private async markInactive(
     accountId: string,
     effectiveDate: string,
-    note?: string
+    note?: string,
+    workspaceId?: string
   ): Promise<DeveloperAvailability> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const normalizedNote = note?.trim() || null;
     const now = nowIso();
-    const existing = await this.findOpenPeriod(accountId);
+    const existing = await this.findOpenPeriod(accountId, normalizedWorkspaceId);
 
     if (existing) {
       await db
@@ -149,6 +158,7 @@ export class DeveloperAvailabilityService {
         .where(eq(developerAvailabilityPeriods.id, existing.id));
     } else {
       await db.insert(developerAvailabilityPeriods).values({
+        workspaceId: normalizedWorkspaceId,
         developerAccountId: accountId,
         startDate: effectiveDate,
         endDate: null,
@@ -158,11 +168,12 @@ export class DeveloperAvailabilityService {
       });
     }
 
-    return this.getAvailabilityForDate(accountId, effectiveDate);
+    return this.getAvailabilityForDate(accountId, effectiveDate, normalizedWorkspaceId);
   }
 
-  private async markActive(accountId: string, effectiveDate: string): Promise<DeveloperAvailability> {
-    const existing = await this.findCoveringPeriod(accountId, effectiveDate);
+  private async markActive(accountId: string, effectiveDate: string, workspaceId?: string): Promise<DeveloperAvailability> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const existing = await this.findCoveringPeriod(accountId, effectiveDate, normalizedWorkspaceId);
     if (!existing) {
       return { state: "active" };
     }
@@ -185,13 +196,15 @@ export class DeveloperAvailabilityService {
     return { state: "active" };
   }
 
-  private async findOpenPeriod(accountId: string) {
+  private async findOpenPeriod(accountId: string, workspaceId?: string) {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(developerAvailabilityPeriods)
       .where(
         and(
           eq(developerAvailabilityPeriods.developerAccountId, accountId),
+          eq(developerAvailabilityPeriods.workspaceId, normalizedWorkspaceId),
           isNull(developerAvailabilityPeriods.endDate)
         )
       )
@@ -206,13 +219,15 @@ export class DeveloperAvailabilityService {
     return rows[0];
   }
 
-  private async findCoveringPeriod(accountId: string, date: string) {
+  private async findCoveringPeriod(accountId: string, date: string, workspaceId?: string) {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(developerAvailabilityPeriods)
       .where(
         and(
           eq(developerAvailabilityPeriods.developerAccountId, accountId),
+          eq(developerAvailabilityPeriods.workspaceId, normalizedWorkspaceId),
           lte(developerAvailabilityPeriods.startDate, date),
           or(isNull(developerAvailabilityPeriods.endDate), gte(developerAvailabilityPeriods.endDate, date))
         )
@@ -228,11 +243,12 @@ export class DeveloperAvailabilityService {
     return rows[0];
   }
 
-  private async assertDeveloperExists(accountId: string): Promise<void> {
+  private async assertDeveloperExists(accountId: string, workspaceId?: string): Promise<void> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select({ accountId: developers.accountId, isActive: developers.isActive })
       .from(developers)
-      .where(eq(developers.accountId, accountId))
+      .where(and(eq(developers.workspaceId, normalizedWorkspaceId), eq(developers.accountId, accountId)))
       .limit(1);
 
     const row = rows[0];

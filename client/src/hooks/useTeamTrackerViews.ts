@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthScopeKey } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import type {
   TeamTrackerSavedView,
@@ -12,8 +13,10 @@ interface SavedViewsResponse {
 }
 
 export function useTeamTrackerViews() {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<TeamTrackerSavedView[]>({
-    queryKey: ['team-tracker', 'views'],
+    queryKey: ['team-tracker', 'views', authScopeKey],
     queryFn: async () => {
       const res = await api.get<SavedViewsResponse>('/team-tracker/views');
       return res.views;

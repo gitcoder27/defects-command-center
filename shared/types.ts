@@ -466,6 +466,7 @@ export type UserRole = "manager" | "developer";
 export interface AuthUser {
   username: string;
   accountId: string;
+  workspaceId: string;
   displayName: string;
   role: UserRole;
   developerAccountId?: string;

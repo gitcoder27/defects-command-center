@@ -1,10 +1,11 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { AssignmentSuggestion, Developer, DeveloperWorkload, WorkloadLevel } from "shared/types";
 import { db } from "../db/connection";
 import { developers, issues, teamTrackerDays, teamTrackerItems } from "../db/schema";
 import { todayIsoDate } from "../utils/date";
 import { getEffectiveDueDate, isActiveTeamIssue } from "./issue-rules";
 import { DeveloperAvailabilityService } from "./developer-availability.service";
+import { normalizeWorkspaceId } from "./workspace.service";
 
 const PRIORITY_WEIGHTS: Record<string, number> = {
   Highest: 5,
@@ -63,8 +64,12 @@ export class WorkloadService {
     private readonly availability = new DeveloperAvailabilityService()
   ) {}
 
-  async getDevelopers(date?: string): Promise<Developer[]> {
-    const rows = await db.select().from(developers).where(eq(developers.isActive, 1));
+  async getDevelopers(date?: string, workspaceId?: string): Promise<Developer[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const rows = await db
+      .select()
+      .from(developers)
+      .where(and(eq(developers.workspaceId, normalizedWorkspaceId), eq(developers.isActive, 1)));
     const mapped = rows.map((row) => ({
       accountId: row.accountId,
       displayName: row.displayName,
@@ -81,7 +86,8 @@ export class WorkloadService {
 
     const availabilityByAccountId = await this.availability.getAvailabilityMapForDate(
       mapped.map((developer) => developer.accountId),
-      date
+      date,
+      normalizedWorkspaceId
     );
     return mapped.map((developer) => ({
       ...developer,
@@ -89,15 +95,16 @@ export class WorkloadService {
     }));
   }
 
-  async getTeamWorkload(date = todayIsoDate()): Promise<DeveloperWorkload[]> {
-    const devs = (await this.getDevelopers(date)).filter(
+  async getTeamWorkload(date = todayIsoDate(), workspaceId?: string): Promise<DeveloperWorkload[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const devs = (await this.getDevelopers(date, normalizedWorkspaceId)).filter(
       (developer) => developer.availability?.state !== "inactive"
     );
-    const issueRows = await db.select().from(issues);
+    const issueRows = await db.select().from(issues).where(eq(issues.workspaceId, normalizedWorkspaceId));
     const dayRows = await db
       .select()
       .from(teamTrackerDays)
-      .where(eq(teamTrackerDays.date, date));
+      .where(and(eq(teamTrackerDays.workspaceId, normalizedWorkspaceId), eq(teamTrackerDays.date, date)));
     const trackerItems = dayRows.length > 0
       ? await db
         .select()
@@ -174,18 +181,22 @@ export class WorkloadService {
     });
   }
 
-  async getDeveloperIssues(accountId: string): Promise<Array<typeof issues.$inferSelect>> {
-    const rows = await db.select().from(issues).where(eq(issues.assigneeId, accountId));
+  async getDeveloperIssues(accountId: string, workspaceId?: string): Promise<Array<typeof issues.$inferSelect>> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const rows = await db
+      .select()
+      .from(issues)
+      .where(and(eq(issues.workspaceId, normalizedWorkspaceId), eq(issues.assigneeId, accountId)));
     return rows.filter((issue) => isActiveTeamIssue(issue));
   }
 
-  async getIdleDevelopers(date = todayIsoDate()): Promise<Developer[]> {
-    const team = await this.getTeamWorkload(date);
+  async getIdleDevelopers(date = todayIsoDate(), workspaceId?: string): Promise<Developer[]> {
+    const team = await this.getTeamWorkload(date, workspaceId);
     return team.filter((entry) => entry.signals?.idle === true).map((entry) => entry.developer);
   }
 
-  async suggestAssignee(): Promise<AssignmentSuggestion[]> {
-    const team = await this.getTeamWorkload();
+  async suggestAssignee(workspaceId?: string): Promise<AssignmentSuggestion[]> {
+    const team = await this.getTeamWorkload(todayIsoDate(), workspaceId);
     return [...team]
       .filter((entry) => Boolean(entry.developer.jiraAccountId ?? (entry.developer.source === "manual" ? undefined : entry.developer.accountId)))
       .sort((a, b) => {

@@ -6,7 +6,7 @@ import { WorkloadService } from "../services/workload.service";
 import { JiraClient } from "../jira/client";
 import { db } from "../db/connection";
 import { configTable, developers as developersTable, issues } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { config } from "../config";
 import { getJiraApiToken } from "../runtime-credentials";
 import { getPersistedJiraApiToken } from "../services/jira-credentials.service";
@@ -128,8 +128,12 @@ const discoverSchema = z.object({
   query: z.any().optional(),
 });
 
-async function getConfigValue(key: string): Promise<string | undefined> {
-  const rows = await db.select().from(configTable).where(eq(configTable.key, key)).limit(1);
+async function getConfigValue(key: string, workspaceId: string): Promise<string | undefined> {
+  const rows = await db
+    .select()
+    .from(configTable)
+    .where(and(eq(configTable.workspaceId, workspaceId), eq(configTable.key, key)))
+    .limit(1);
   return rows[0]?.value;
 }
 
@@ -148,7 +152,10 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
 
   router.get("/workload", validate(workloadQuerySchema), async (req, res, next) => {
     try {
-      const workloads = await workloadService.getTeamWorkload(req.query.date as string | undefined);
+      const workloads = await workloadService.getTeamWorkload(
+        req.query.date as string | undefined,
+        req.auth!.user.workspaceId
+      );
       res.json({ developers: workloads });
     } catch (error) {
       next(error);
@@ -157,7 +164,10 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
 
   router.get("/developers", validate(developersQuerySchema), async (req, res, next) => {
     try {
-      const developers = await workloadService.getDevelopers(req.query.date as string | undefined);
+      const developers = await workloadService.getDevelopers(
+        req.query.date as string | undefined,
+        req.auth!.user.workspaceId
+      );
       res.json({ developers });
     } catch (error) {
       next(error);
@@ -166,10 +176,11 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
 
   router.post("/discover", validate(discoverSchema), async (req, res, next) => {
     try {
-      const jiraBaseUrl = (await getConfigValue("jira_base_url")) ?? config.JIRA_BASE_URL ?? "";
-      const jiraEmail = (await getConfigValue("jira_email")) ?? config.JIRA_EMAIL ?? "";
-      const projectKey = (await getConfigValue("jira_project_key")) ?? config.JIRA_PROJECT_KEY ?? "";
-      const token = req.body.jiraApiToken ?? (await getPersistedJiraApiToken()) ?? getJiraApiToken() ?? config.JIRA_API_TOKEN ?? "";
+      const workspaceId = req.auth!.user.workspaceId;
+      const jiraBaseUrl = (await getConfigValue("jira_base_url", workspaceId)) ?? config.JIRA_BASE_URL ?? "";
+      const jiraEmail = (await getConfigValue("jira_email", workspaceId)) ?? config.JIRA_EMAIL ?? "";
+      const projectKey = (await getConfigValue("jira_project_key", workspaceId)) ?? config.JIRA_PROJECT_KEY ?? "";
+      const token = req.body.jiraApiToken ?? (await getPersistedJiraApiToken(workspaceId)) ?? getJiraApiToken(workspaceId) ?? config.JIRA_API_TOKEN ?? "";
       const query = (req.body.query as string | undefined)?.trim() || undefined;
       const startAt = (req.body.startAt as number | undefined) ?? 0;
       const maxResults = (req.body.maxResults as number | undefined) ?? 50;
@@ -229,6 +240,7 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
         source?: "jira" | "manual";
         jiraAccountId?: string;
       }>;
+      const workspaceId = req.auth!.user.workspaceId;
 
       for (const dev of devs) {
         const source = dev.source ?? "jira";
@@ -238,6 +250,7 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
         await db
           .insert(developersTable)
           .values({
+            workspaceId,
             accountId: dev.accountId,
             displayName: dev.displayName,
             email: dev.email ?? null,
@@ -247,7 +260,7 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
             isActive: 1,
           })
           .onConflictDoUpdate({
-            target: developersTable.accountId,
+            target: [developersTable.workspaceId, developersTable.accountId],
             set: {
               displayName: dev.displayName,
               email: dev.email ?? null,
@@ -271,10 +284,12 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
       const email = req.body.email?.trim() || null;
       const jiraAccountId = req.body.jiraAccountId?.trim() || null;
       const accountId = makeManualAccountId(displayName);
+      const workspaceId = req.auth!.user.workspaceId;
 
       const rows = await db
         .insert(developersTable)
         .values({
+          workspaceId,
           accountId,
           displayName,
           email,
@@ -305,7 +320,7 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
       const rows = await db
         .update(developersTable)
         .set(updates)
-        .where(eq(developersTable.accountId, accountId))
+        .where(and(eq(developersTable.workspaceId, req.auth!.user.workspaceId), eq(developersTable.accountId, accountId)))
         .returning();
 
       const updated = rows[0];
@@ -327,7 +342,7 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
       await db
         .update(developersTable)
         .set({ isActive: 0 })
-        .where(eq(developersTable.accountId, accountId));
+        .where(and(eq(developersTable.workspaceId, req.auth!.user.workspaceId), eq(developersTable.accountId, accountId)));
 
       res.json({ success: true, accountId });
     } catch (error) {
@@ -338,7 +353,7 @@ export function createTeamRouter(workloadService: WorkloadService): Router {
   router.get("/:accountId/issues", validate(paramsSchema), async (req, res, next) => {
     try {
       const accountId = req.params.accountId as string;
-      const issues = await workloadService.getDeveloperIssues(accountId);
+      const issues = await workloadService.getDeveloperIssues(accountId, req.auth!.user.workspaceId);
       res.json({ issues });
     } catch (error) {
       next(error);

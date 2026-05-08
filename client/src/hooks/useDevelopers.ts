@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAuthScopeKey } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import type { Developer } from '@/types';
 
@@ -17,8 +18,10 @@ function isLegacyPlaceholder(dev: Developer): boolean {
 }
 
 export function useDevelopers(date?: string, options: UseDevelopersOptions = {}) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<Developer[]>({
-    queryKey: ['developers', date],
+    queryKey: ['developers', date, authScopeKey],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (date) {

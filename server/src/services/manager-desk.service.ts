@@ -36,6 +36,7 @@ import { HttpError } from "../middleware/errorHandler";
 import { TeamTrackerService } from "./team-tracker.service";
 import { DeveloperAvailabilityService } from "./developer-availability.service";
 import { runInTransaction } from "../db/transaction";
+import { normalizeWorkspaceId } from "./workspace.service";
 
 interface ManagerDeskLinkInput {
   linkType: ManagerDeskLinkType;
@@ -371,25 +372,28 @@ export class ManagerDeskService {
     private readonly availability = new DeveloperAvailabilityService()
   ) {}
 
-  async getDay(managerAccountId: string, date: string): Promise<ManagerDeskDayResponse> {
-    await this.ensureDay(managerAccountId, date);
+  async getDay(managerAccountId: string, date: string, workspaceId?: string): Promise<ManagerDeskDayResponse> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    await this.ensureDay(managerAccountId, date, normalizedWorkspaceId);
 
     const viewMode = getViewMode(date);
     if (viewMode === "history") {
-      return this.buildHistoricalDayView(managerAccountId, date);
+      return this.buildHistoricalDayView(managerAccountId, date, normalizedWorkspaceId);
     }
     if (viewMode === "planning") {
-      return this.buildPlanningDayView(managerAccountId, date);
+      return this.buildPlanningDayView(managerAccountId, date, normalizedWorkspaceId);
     }
-    return this.buildLiveDayView(managerAccountId, date);
+    return this.buildLiveDayView(managerAccountId, date, normalizedWorkspaceId);
   }
 
   async createItem(
     managerAccountId: string,
-    params: CreateManagerDeskItemParams
+    params: CreateManagerDeskItemParams,
+    workspaceId?: string
   ): Promise<ManagerDeskItem> {
     return runInTransaction(async () => {
-    const day = await this.ensureDay(managerAccountId, params.date);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const day = await this.ensureDay(managerAccountId, params.date, normalizedWorkspaceId);
     const title = normalizeRequiredTitle(params.title);
     const plannedStartAt = params.plannedStartAt ?? null;
     const plannedEndAt = params.plannedEndAt ?? null;
@@ -397,16 +401,18 @@ export class ManagerDeskService {
 
     this.assertTimeRange(plannedStartAt, plannedEndAt);
 
-    const normalizedLinks = await this.normalizeLinkInputs(params.links ?? []);
+    const normalizedLinks = await this.normalizeLinkInputs(params.links ?? [], normalizedWorkspaceId);
     this.assertNoDuplicateLinks(normalizedLinks);
     const assigneeDeveloperAccountId = await this.normalizeAssigneeAccountId(
-      params.assigneeDeveloperAccountId
+      params.assigneeDeveloperAccountId,
+      normalizedWorkspaceId
     );
 
     const now = nowIso();
     const inserted = await db
       .insert(managerDeskItems)
       .values({
+        workspaceId: normalizedWorkspaceId,
         dayId: day.id,
         sourceItemId: null,
         title,
@@ -438,6 +444,7 @@ export class ManagerDeskService {
 
     for (const link of normalizedLinks) {
       await db.insert(managerDeskLinks).values({
+        workspaceId: normalizedWorkspaceId,
         itemId: item.id,
         linkType: link.linkType,
         issueKey: link.issueKey ?? null,
@@ -454,21 +461,26 @@ export class ManagerDeskService {
       title,
       normalizedLinks,
       item.status as ManagerDeskStatus
+      ,
+      undefined,
+      normalizedWorkspaceId
     );
-    await this.recordHistorySnapshotForItem(managerAccountId, item.id);
-    return this.getItemById(managerAccountId, item.id);
+    await this.recordHistorySnapshotForItem(managerAccountId, item.id, "upsert", normalizedWorkspaceId);
+    return this.getItemById(managerAccountId, item.id, normalizedWorkspaceId);
     });
   }
 
   async updateItem(
     managerAccountId: string,
     itemId: number,
-    updates: UpdateManagerDeskItemParams
+    updates: UpdateManagerDeskItemParams,
+    workspaceId?: string
   ): Promise<ManagerDeskItem> {
     return runInTransaction(async () => {
-    const existing = await this.getOwnedItemRow(managerAccountId, itemId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const existing = await this.getOwnedItemRow(managerAccountId, itemId, normalizedWorkspaceId);
     const linkedTrackerContext =
-      await this.trackerService.getItemDetailContextForManagerDeskItem(itemId);
+      await this.trackerService.getItemDetailContextForManagerDeskItem(itemId, normalizedWorkspaceId);
 
     if (linkedTrackerContext && updates.status === "backlog") {
       throw new HttpError(
@@ -518,7 +530,8 @@ export class ManagerDeskService {
     }
     if (updates.assigneeDeveloperAccountId !== undefined) {
       setFields.assigneeDeveloperAccountId = await this.normalizeAssigneeAccountId(
-        updates.assigneeDeveloperAccountId
+        updates.assigneeDeveloperAccountId,
+        normalizedWorkspaceId
       );
     }
     if (updates.participants !== undefined) {
@@ -556,9 +569,9 @@ export class ManagerDeskService {
       .set(setFields)
       .where(eq(managerDeskItems.id, itemId));
 
-    const updatedItem = await this.getOwnedItemRow(managerAccountId, itemId);
-    const updatedLinks = await this.getNormalizedLinksByItemId(itemId);
-    const day = await this.getDayById(updatedItem.dayId);
+    const updatedItem = await this.getOwnedItemRow(managerAccountId, itemId, normalizedWorkspaceId);
+    const updatedLinks = await this.getNormalizedLinksByItemId(itemId, normalizedWorkspaceId);
+    const day = await this.getDayById(updatedItem.dayId, normalizedWorkspaceId);
     if (!day) {
       throw new Error(`Manager desk day ${updatedItem.dayId} was not found`);
     }
@@ -569,19 +582,22 @@ export class ManagerDeskService {
       day.date,
       updatedItem.title,
       updatedLinks,
-      updatedItem.status as ManagerDeskStatus
+      updatedItem.status as ManagerDeskStatus,
+      undefined,
+      normalizedWorkspaceId
     );
-    await this.recordHistorySnapshotForItem(managerAccountId, itemId);
-    return this.getItemById(managerAccountId, itemId);
+    await this.recordHistorySnapshotForItem(managerAccountId, itemId, "upsert", normalizedWorkspaceId);
+    return this.getItemById(managerAccountId, itemId, normalizedWorkspaceId);
     });
   }
 
-  async deleteItem(managerAccountId: string, itemId: number): Promise<void> {
+  async deleteItem(managerAccountId: string, itemId: number, workspaceId?: string): Promise<void> {
     return runInTransaction(async () => {
-    const existing = await this.getOwnedItemRow(managerAccountId, itemId);
-    const snapshot = await this.getItemById(managerAccountId, itemId);
-    await this.insertHistoryRow(managerAccountId, existing.id, snapshot, "deleted");
-    await this.trackerService.unlinkManagerDeskItem(itemId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const existing = await this.getOwnedItemRow(managerAccountId, itemId, normalizedWorkspaceId);
+    const snapshot = await this.getItemById(managerAccountId, itemId, normalizedWorkspaceId);
+    await this.insertHistoryRow(managerAccountId, existing.id, snapshot, "deleted", normalizedWorkspaceId);
+    await this.trackerService.unlinkManagerDeskItem(itemId, normalizedWorkspaceId);
     await db.delete(managerDeskLinks).where(eq(managerDeskLinks.itemId, itemId));
     await db.delete(managerDeskItems).where(eq(managerDeskItems.id, itemId));
     });
@@ -589,11 +605,13 @@ export class ManagerDeskService {
 
   async cancelDelegatedTask(
     managerAccountId: string,
-    itemId: number
+    itemId: number,
+    workspaceId?: string
   ): Promise<ManagerDeskItem> {
     return runInTransaction(async () => {
-    const existing = await this.getOwnedItemRow(managerAccountId, itemId);
-    const cancelled = await this.trackerService.cancelManagerDeskItem(itemId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const existing = await this.getOwnedItemRow(managerAccountId, itemId, normalizedWorkspaceId);
+    const cancelled = await this.trackerService.cancelManagerDeskItem(itemId, normalizedWorkspaceId);
 
     if (!cancelled) {
       throw new HttpError(409, "Task has no linked delegated work to cancel");
@@ -609,25 +627,28 @@ export class ManagerDeskService {
       })
       .where(eq(managerDeskItems.id, itemId));
 
-    await this.recordHistorySnapshotForItem(managerAccountId, itemId);
-    return this.getItemById(managerAccountId, itemId);
+    await this.recordHistorySnapshotForItem(managerAccountId, itemId, "upsert", normalizedWorkspaceId);
+    return this.getItemById(managerAccountId, itemId, normalizedWorkspaceId);
     });
   }
 
   async addLink(
     managerAccountId: string,
     itemId: number,
-    payload: ManagerDeskLinkInput
+    payload: ManagerDeskLinkInput,
+    workspaceId?: string
   ): Promise<ManagerDeskLink> {
     return runInTransaction(async () => {
-    await this.getOwnedItemRow(managerAccountId, itemId);
-    const normalizedLink = await this.normalizeLinkInput(payload);
-    await this.assertItemDoesNotAlreadyHaveLink(itemId, normalizedLink);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    await this.getOwnedItemRow(managerAccountId, itemId, normalizedWorkspaceId);
+    const normalizedLink = await this.normalizeLinkInput(payload, normalizedWorkspaceId);
+    await this.assertItemDoesNotAlreadyHaveLink(itemId, normalizedLink, normalizedWorkspaceId);
 
     const now = nowIso();
     const inserted = await db
       .insert(managerDeskLinks)
       .values({
+        workspaceId: normalizedWorkspaceId,
         itemId,
         linkType: normalizedLink.linkType,
         issueKey: normalizedLink.issueKey ?? null,
@@ -642,7 +663,7 @@ export class ManagerDeskService {
       throw new Error("Failed to create manager desk link");
     }
 
-    const linksByItemId = await this.getLinksByItemIds([itemId]);
+    const linksByItemId = await this.getLinksByItemIds([itemId], normalizedWorkspaceId);
     const createdLink = (linksByItemId.get(itemId) ?? []).find(
       (link) => link.id === insertedLink.id
     );
@@ -650,20 +671,22 @@ export class ManagerDeskService {
       throw new Error("Failed to load manager desk link after insert");
     }
 
-    const item = await this.getOwnedItemRow(managerAccountId, itemId);
-    const day = await this.getDayById(item.dayId);
+    const item = await this.getOwnedItemRow(managerAccountId, itemId, normalizedWorkspaceId);
+    const day = await this.getDayById(item.dayId, normalizedWorkspaceId);
     if (day) {
       await this.syncTrackerAssignment(
         itemId,
         item.assigneeDeveloperAccountId,
         day.date,
         item.title,
-        await this.getNormalizedLinksByItemId(itemId),
-        item.status as ManagerDeskStatus
+        await this.getNormalizedLinksByItemId(itemId, normalizedWorkspaceId),
+        item.status as ManagerDeskStatus,
+        undefined,
+        normalizedWorkspaceId
       );
     }
 
-    await this.recordHistorySnapshotForItem(managerAccountId, itemId);
+    await this.recordHistorySnapshotForItem(managerAccountId, itemId, "upsert", normalizedWorkspaceId);
     return createdLink;
     });
   }
@@ -671,14 +694,16 @@ export class ManagerDeskService {
   async deleteLink(
     managerAccountId: string,
     itemId: number,
-    linkId: number
+    linkId: number,
+    workspaceId?: string
   ): Promise<void> {
     return runInTransaction(async () => {
-    await this.getOwnedItemRow(managerAccountId, itemId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    await this.getOwnedItemRow(managerAccountId, itemId, normalizedWorkspaceId);
     const rows = await db
       .select()
       .from(managerDeskLinks)
-      .where(and(eq(managerDeskLinks.id, linkId), eq(managerDeskLinks.itemId, itemId)))
+      .where(and(eq(managerDeskLinks.workspaceId, normalizedWorkspaceId), eq(managerDeskLinks.id, linkId), eq(managerDeskLinks.itemId, itemId)))
       .limit(1);
 
     if (!rows[0]) {
@@ -687,34 +712,38 @@ export class ManagerDeskService {
 
     await db.delete(managerDeskLinks).where(eq(managerDeskLinks.id, linkId));
 
-    const item = await this.getOwnedItemRow(managerAccountId, itemId);
-    const day = await this.getDayById(item.dayId);
+    const item = await this.getOwnedItemRow(managerAccountId, itemId, normalizedWorkspaceId);
+    const day = await this.getDayById(item.dayId, normalizedWorkspaceId);
     if (day) {
       await this.syncTrackerAssignment(
         itemId,
         item.assigneeDeveloperAccountId,
         day.date,
         item.title,
-        await this.getNormalizedLinksByItemId(itemId),
-        item.status as ManagerDeskStatus
+        await this.getNormalizedLinksByItemId(itemId, normalizedWorkspaceId),
+        item.status as ManagerDeskStatus,
+        undefined,
+        normalizedWorkspaceId
       );
     }
 
-    await this.recordHistorySnapshotForItem(managerAccountId, itemId);
+    await this.recordHistorySnapshotForItem(managerAccountId, itemId, "upsert", normalizedWorkspaceId);
     });
   }
 
   async previewCarryForward(
     managerAccountId: string,
     fromDate: string,
-    toDate: string
+    toDate: string,
+    workspaceId?: string
   ): Promise<ManagerDeskCarryForwardPreviewResponse> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     this.assertCarryForwardDateOrder(fromDate, toDate);
 
     const plan = await this.buildCarryForwardPlan(managerAccountId, {
       fromDate,
       toDate,
-    });
+    }, normalizedWorkspaceId);
 
     if (plan.length === 0) {
       return {
@@ -727,7 +756,7 @@ export class ManagerDeskService {
       };
     }
 
-    const items = await this.buildCarryForwardPreviewItems(plan, toDate);
+    const items = await this.buildCarryForwardPreviewItems(plan, toDate, normalizedWorkspaceId);
     return {
       fromDate,
       toDate,
@@ -741,12 +770,15 @@ export class ManagerDeskService {
   async getCarryForwardContext(
     managerAccountId: string,
     toDate: string,
-    lookbackDays = SMART_CARRY_FORWARD_LOOKBACK_DAYS
+    lookbackDays = SMART_CARRY_FORWARD_LOOKBACK_DAYS,
+    workspaceId?: string
   ): Promise<ManagerDeskCarryForwardContextResponse> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const fromDate = await this.resolveLatestCarryForwardSourceDate(
       managerAccountId,
       toDate,
-      lookbackDays
+      lookbackDays,
+      normalizedWorkspaceId
     );
 
     if (!fromDate) {
@@ -760,7 +792,7 @@ export class ManagerDeskService {
       };
     }
 
-    const preview = await this.previewCarryForward(managerAccountId, fromDate, toDate);
+    const preview = await this.previewCarryForward(managerAccountId, fromDate, toDate, normalizedWorkspaceId);
     return {
       fromDate,
       toDate,
@@ -773,17 +805,19 @@ export class ManagerDeskService {
 
   async carryForward(
     managerAccountId: string,
-    params: CarryForwardParams
+    params: CarryForwardParams,
+    workspaceId?: string
   ): Promise<number> {
     return runInTransaction(async () => {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     this.assertCarryForwardDateOrder(params.fromDate, params.toDate);
 
-    const plan = await this.buildCarryForwardPlan(managerAccountId, params);
+    const plan = await this.buildCarryForwardPlan(managerAccountId, params, normalizedWorkspaceId);
     if (plan.length === 0) {
       return 0;
     }
 
-    const targetDay = await this.ensureDay(managerAccountId, params.toDate);
+    const targetDay = await this.ensureDay(managerAccountId, params.toDate, normalizedWorkspaceId);
     let updated = 0;
     const now = nowIso();
 
@@ -806,10 +840,11 @@ export class ManagerDeskService {
         entry.item.title,
         entry.normalizedLinks,
         entry.item.status as ManagerDeskStatus,
-        entry.trackerNote
+        entry.trackerNote,
+        normalizedWorkspaceId
       );
 
-      await this.recordHistorySnapshotForItem(managerAccountId, entry.item.id);
+      await this.recordHistorySnapshotForItem(managerAccountId, entry.item.id, "upsert", normalizedWorkspaceId);
 
       updated += 1;
     }
@@ -820,9 +855,11 @@ export class ManagerDeskService {
 
   async moveLinkedItemsToDate(
     managerAccountId: string,
-    params: CarryForwardParams
+    params: CarryForwardParams,
+    workspaceId?: string
   ): Promise<number> {
     return runInTransaction(async () => {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     this.assertCarryForwardDateOrder(params.fromDate, params.toDate);
 
     const uniqueIds = [...new Set(params.itemIds ?? [])];
@@ -832,19 +869,21 @@ export class ManagerDeskService {
 
     let moved = 0;
     for (const itemId of uniqueIds) {
-      const item = await this.getOwnedItemRow(managerAccountId, itemId);
+      const item = await this.getOwnedItemRow(managerAccountId, itemId, normalizedWorkspaceId);
       if (!isOpenStatus(item.status as ManagerDeskStatus)) {
         continue;
       }
 
-      const links = await this.getNormalizedLinksByItemId(itemId);
+      const links = await this.getNormalizedLinksByItemId(itemId, normalizedWorkspaceId);
       await this.syncTrackerAssignment(
         itemId,
         item.assigneeDeveloperAccountId,
         params.toDate,
         item.title,
         links,
-        item.status as ManagerDeskStatus
+        item.status as ManagerDeskStatus,
+        undefined,
+        normalizedWorkspaceId
       );
       moved += 1;
     }
@@ -976,7 +1015,8 @@ export class ManagerDeskService {
     return result;
   }
 
-  async lookupIssues(query: string): Promise<ManagerDeskIssueLookupItem[]> {
+  async lookupIssues(query: string, workspaceId?: string): Promise<ManagerDeskIssueLookupItem[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const normalizedQuery = query.trim();
     if (!normalizedQuery) {
       return [];
@@ -992,7 +1032,7 @@ export class ManagerDeskService {
         assigneeName: issues.assigneeName,
       })
       .from(issues)
-      .where(or(like(issues.jiraKey, pattern), like(issues.summary, pattern)))
+      .where(and(eq(issues.workspaceId, normalizedWorkspaceId), or(like(issues.jiraKey, pattern), like(issues.summary, pattern))))
       .orderBy(desc(issues.updatedAt))
       .limit(20);
 
@@ -1008,8 +1048,10 @@ export class ManagerDeskService {
   async lookupDevelopers(
     query: string,
     date?: string,
-    options?: { includeUnavailable?: boolean }
+    options?: { includeUnavailable?: boolean },
+    workspaceId?: string
   ): Promise<ManagerDeskDeveloperLookupItem[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const normalizedQuery = query.trim();
     const pattern = `%${normalizedQuery}%`;
     const rows = await db
@@ -1023,6 +1065,7 @@ export class ManagerDeskService {
       .where(
         normalizedQuery
           ? and(
+              eq(developers.workspaceId, normalizedWorkspaceId),
               eq(developers.isActive, 1),
               or(
                 like(developers.accountId, pattern),
@@ -1030,14 +1073,15 @@ export class ManagerDeskService {
                 like(developers.email, pattern)
               )
             )
-          : eq(developers.isActive, 1)
+          : and(eq(developers.workspaceId, normalizedWorkspaceId), eq(developers.isActive, 1))
       )
       .limit(normalizedQuery ? 20 : 200);
 
     const availabilityByAccountId = date
       ? await this.availability.getAvailabilityMapForDate(
           rows.map((row) => row.accountId),
-          date
+          date,
+          normalizedWorkspaceId
         )
       : new Map();
 
@@ -1059,35 +1103,38 @@ export class ManagerDeskService {
 
   async getTrackerTaskDetail(
     managerAccountId: string,
-    trackerItemId: number
+    trackerItemId: number,
+    workspaceId?: string
   ): Promise<TrackerSharedTaskDetailResponse> {
-    const trackerContext = await this.trackerService.getItemDetailContext(trackerItemId);
-    return this.buildTrackerTaskDetailResponse(managerAccountId, trackerContext);
+    const trackerContext = await this.trackerService.getItemDetailContext(trackerItemId, workspaceId);
+    return this.buildTrackerTaskDetailResponse(managerAccountId, trackerContext, workspaceId);
   }
 
   async promoteTrackerTask(
     managerAccountId: string,
-    trackerItemId: number
+    trackerItemId: number,
+    workspaceId?: string
   ): Promise<TrackerSharedTaskDetailResponse> {
     return runInTransaction(async () => {
-    const trackerContext = await this.trackerService.getItemDetailContext(trackerItemId);
+    const trackerContext = await this.trackerService.getItemDetailContext(trackerItemId, workspaceId);
 
     if (!trackerContext.trackerItem.managerDeskItemId) {
-      await this.createManagerDeskItemFromTrackerItem(managerAccountId, trackerContext);
+      await this.createManagerDeskItemFromTrackerItem(managerAccountId, trackerContext, workspaceId);
     }
 
-    const linkedTrackerContext = await this.trackerService.getItemDetailContext(trackerItemId);
-    return this.buildTrackerTaskDetailResponse(managerAccountId, linkedTrackerContext);
+    const linkedTrackerContext = await this.trackerService.getItemDetailContext(trackerItemId, workspaceId);
+    return this.buildTrackerTaskDetailResponse(managerAccountId, linkedTrackerContext, workspaceId);
     });
   }
 
   async getTaskDetailByItemId(
     managerAccountId: string,
-    itemId: number
+    itemId: number,
+    workspaceId?: string
   ): Promise<TrackerSharedTaskDetailResponse> {
-    const managerDeskItem = await this.getItemById(managerAccountId, itemId);
+    const managerDeskItem = await this.getItemById(managerAccountId, itemId, workspaceId);
     const trackerContext =
-      await this.trackerService.getItemDetailContextForManagerDeskItem(itemId);
+      await this.trackerService.getItemDetailContextForManagerDeskItem(itemId, workspaceId);
 
     if (!trackerContext) {
       throw new HttpError(404, "Task is no longer assigned in Team Tracker");
@@ -1104,22 +1151,25 @@ export class ManagerDeskService {
 
   async ensureDay(
     managerAccountId: string,
-    date: string
+    date: string,
+    workspaceId?: string
   ): Promise<typeof managerDeskDays.$inferSelect> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const now = nowIso();
     await db
       .insert(managerDeskDays)
       .values({
+        workspaceId: normalizedWorkspaceId,
         date,
         managerAccountId,
         createdAt: now,
         updatedAt: now,
       })
       .onConflictDoNothing({
-        target: [managerDeskDays.date, managerDeskDays.managerAccountId],
+        target: [managerDeskDays.workspaceId, managerDeskDays.date, managerDeskDays.managerAccountId],
       });
 
-    const day = await this.findDay(managerAccountId, date);
+    const day = await this.findDay(managerAccountId, date, normalizedWorkspaceId);
     if (!day) {
       throw new Error(`Failed to initialize manager desk day for ${managerAccountId} on ${date}`);
     }
@@ -1129,9 +1179,10 @@ export class ManagerDeskService {
 
   private async buildLiveDayView(
     managerAccountId: string,
-    date: string
+    date: string,
+    workspaceId?: string
   ): Promise<ManagerDeskDayResponse> {
-    const items = await this.getCurrentItemsForManager(managerAccountId, date);
+    const items = await this.getCurrentItemsForManager(managerAccountId, date, workspaceId);
     const visible = items.filter((item) => {
       if (item.status === "backlog") {
         return true;
@@ -1152,9 +1203,10 @@ export class ManagerDeskService {
 
   private async buildPlanningDayView(
     managerAccountId: string,
-    date: string
+    date: string,
+    workspaceId?: string
   ): Promise<ManagerDeskDayResponse> {
-    const items = await this.getCurrentItemsForManager(managerAccountId, date);
+    const items = await this.getCurrentItemsForManager(managerAccountId, date, workspaceId);
     const visible = items.filter((item) => this.isRelevantToPlanningDate(item, date));
 
     return {
@@ -1167,9 +1219,10 @@ export class ManagerDeskService {
 
   private async buildHistoricalDayView(
     managerAccountId: string,
-    date: string
+    date: string,
+    workspaceId?: string
   ): Promise<ManagerDeskDayResponse> {
-    const history = await this.getHistoricalItemsForDate(managerAccountId, date);
+    const history = await this.getHistoricalItemsForDate(managerAccountId, date, workspaceId);
     const createdThatDayItems = history.filter((item) => isoDatePart(item.createdAt) === date);
 
     return {
@@ -1183,12 +1236,14 @@ export class ManagerDeskService {
 
   private async getCurrentItemsForManager(
     managerAccountId: string,
-    date: string
+    date: string,
+    workspaceId?: string
   ): Promise<ManagerDeskItem[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const days = await db
       .select()
       .from(managerDeskDays)
-      .where(eq(managerDeskDays.managerAccountId, managerAccountId));
+      .where(and(eq(managerDeskDays.workspaceId, normalizedWorkspaceId), eq(managerDeskDays.managerAccountId, managerAccountId)));
 
     if (days.length === 0) {
       return [];
@@ -1201,11 +1256,12 @@ export class ManagerDeskService {
       .where(inArray(managerDeskItems.dayId, days.map((day) => day.id)));
 
     const dedupedRows = this.dedupeCurrentLineageRows(itemRows);
-    const linksByItemId = await this.getLinksByItemIds(dedupedRows.map((item) => item.id));
+    const linksByItemId = await this.getLinksByItemIds(dedupedRows.map((item) => item.id), normalizedWorkspaceId);
     const delegatedExecutionByItemId = await this.getDelegatedExecutionByManagerDeskItemIds(
-      dedupedRows.map((item) => item.id)
+      dedupedRows.map((item) => item.id),
+      normalizedWorkspaceId
     );
-    const assigneesByAccountId = await this.getAssigneeMap(dedupedRows, date);
+    const assigneesByAccountId = await this.getAssigneeMap(dedupedRows, date, normalizedWorkspaceId);
 
     return dedupedRows
       .sort(compareItemRows)
@@ -1273,12 +1329,14 @@ export class ManagerDeskService {
 
   private async getHistoricalItemsForDate(
     managerAccountId: string,
-    date: string
+    date: string,
+    workspaceId?: string
   ): Promise<ManagerDeskItem[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const historyRows = await db
       .select()
       .from(managerDeskItemHistory)
-      .where(eq(managerDeskItemHistory.managerAccountId, managerAccountId));
+      .where(and(eq(managerDeskItemHistory.workspaceId, normalizedWorkspaceId), eq(managerDeskItemHistory.managerAccountId, managerAccountId)));
 
     const cutoff = endOfIsoDate(date);
     const latestByItemId = new Map<number, ManagerDeskHistoryEntry>();
@@ -1304,14 +1362,15 @@ export class ManagerDeskService {
       return snapshotItems;
     }
 
-    return this.getLegacyHistoricalItemsForDate(managerAccountId, date);
+    return this.getLegacyHistoricalItemsForDate(managerAccountId, date, normalizedWorkspaceId);
   }
 
   private async getLegacyHistoricalItemsForDate(
     managerAccountId: string,
-    date: string
+    date: string,
+    workspaceId?: string
   ): Promise<ManagerDeskItem[]> {
-    const items = await this.getCurrentItemsForManager(managerAccountId, date);
+    const items = await this.getCurrentItemsForManager(managerAccountId, date, workspaceId);
     const cutoff = endOfIsoDate(date);
 
     return items.filter((item) => {
@@ -1360,13 +1419,16 @@ export class ManagerDeskService {
 
   private async findDay(
     managerAccountId: string,
-    date: string
+    date: string,
+    workspaceId?: string
   ): Promise<typeof managerDeskDays.$inferSelect | undefined> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(managerDeskDays)
       .where(
         and(
+          eq(managerDeskDays.workspaceId, normalizedWorkspaceId),
           eq(managerDeskDays.managerAccountId, managerAccountId),
           eq(managerDeskDays.date, date)
         )
@@ -1378,15 +1440,17 @@ export class ManagerDeskService {
 
   private async getItemById(
     managerAccountId: string,
-    itemId: number
+    itemId: number,
+    workspaceId?: string
   ): Promise<ManagerDeskItem> {
-    const item = await this.getOwnedItemRow(managerAccountId, itemId);
-    const day = await this.getDayById(item.dayId);
-    const linksByItemId = await this.getLinksByItemIds([item.id]);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const item = await this.getOwnedItemRow(managerAccountId, itemId, normalizedWorkspaceId);
+    const day = await this.getDayById(item.dayId, normalizedWorkspaceId);
+    const linksByItemId = await this.getLinksByItemIds([item.id], normalizedWorkspaceId);
     const delegatedExecutionByItemId = await this.getDelegatedExecutionByManagerDeskItemIds([
       item.id,
-    ]);
-    const assigneesByAccountId = await this.getAssigneeMap([item], day?.date);
+    ], normalizedWorkspaceId);
+    const assigneesByAccountId = await this.getAssigneeMap([item], day?.date, normalizedWorkspaceId);
     return this.mapItem(
       item,
       linksByItemId.get(item.id) ?? [],
@@ -1400,10 +1464,12 @@ export class ManagerDeskService {
 
   private async getOwnedItemRow(
     managerAccountId: string,
-    itemId: number
+    itemId: number,
+    workspaceId?: string
   ): Promise<ManagerDeskItemRow> {
-    const item = await this.getItemRow(itemId);
-    const day = await this.getDayById(item.dayId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const item = await this.getItemRow(itemId, normalizedWorkspaceId);
+    const day = await this.getDayById(item.dayId, normalizedWorkspaceId);
 
     if (!day || day.managerAccountId !== managerAccountId) {
       throw new HttpError(404, "Item not found");
@@ -1412,11 +1478,12 @@ export class ManagerDeskService {
     return item;
   }
 
-  private async getItemRow(itemId: number): Promise<ManagerDeskItemRow> {
+  private async getItemRow(itemId: number, workspaceId?: string): Promise<ManagerDeskItemRow> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(managerDeskItems)
-      .where(eq(managerDeskItems.id, itemId))
+      .where(and(eq(managerDeskItems.workspaceId, normalizedWorkspaceId), eq(managerDeskItems.id, itemId)))
       .limit(1);
 
     const row = rows[0];
@@ -1427,11 +1494,12 @@ export class ManagerDeskService {
     return row;
   }
 
-  private async getDayById(dayId: number): Promise<typeof managerDeskDays.$inferSelect | undefined> {
+  private async getDayById(dayId: number, workspaceId?: string): Promise<typeof managerDeskDays.$inferSelect | undefined> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(managerDeskDays)
-      .where(eq(managerDeskDays.id, dayId))
+      .where(and(eq(managerDeskDays.workspaceId, normalizedWorkspaceId), eq(managerDeskDays.id, dayId)))
       .limit(1);
 
     return rows[0];
@@ -1445,9 +1513,11 @@ export class ManagerDeskService {
 
   private async buildCarryForwardPlan(
     managerAccountId: string,
-    params: CarryForwardParams
+    params: CarryForwardParams,
+    workspaceId?: string
   ): Promise<ManagerDeskCarryForwardPlanEntry[]> {
-    const sourceDay = await this.findDay(managerAccountId, params.fromDate);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const sourceDay = await this.findDay(managerAccountId, params.fromDate, normalizedWorkspaceId);
     if (!sourceDay) {
       return [];
     }
@@ -1466,8 +1536,8 @@ export class ManagerDeskService {
         const missingRows = await Promise.all(
           missingIds.map(async (itemId) => {
             try {
-              const item = await this.getOwnedItemRow(managerAccountId, itemId);
-              const day = await this.getDayById(item.dayId);
+              const item = await this.getOwnedItemRow(managerAccountId, itemId, normalizedWorkspaceId);
+              const day = await this.getDayById(item.dayId, normalizedWorkspaceId);
               return {
                 itemId,
                 dayDate: day?.date,
@@ -1496,7 +1566,7 @@ export class ManagerDeskService {
       return [];
     }
 
-    const targetDay = await this.ensureDay(managerAccountId, params.toDate);
+    const targetDay = await this.ensureDay(managerAccountId, params.toDate, normalizedWorkspaceId);
     const targetItems = await db
       .select({
         sourceItemId: managerDeskItems.sourceItemId,
@@ -1510,10 +1580,12 @@ export class ManagerDeskService {
     );
 
     const sourceLinksByItemId = await this.getRawLinksByItemIds(
-      eligibleItems.map((item) => item.id)
+      eligibleItems.map((item) => item.id),
+      normalizedWorkspaceId
     );
     const sourceTrackerNotesByItemId = await this.getTrackerNotesByManagerDeskItemIds(
-      eligibleItems.map((item) => item.id)
+      eligibleItems.map((item) => item.id),
+      normalizedWorkspaceId
     );
     const now = Date.now();
 
@@ -1554,7 +1626,8 @@ export class ManagerDeskService {
   private async resolveLatestCarryForwardSourceDate(
     managerAccountId: string,
     toDate: string,
-    lookbackDays: number
+    lookbackDays: number,
+    workspaceId?: string
   ): Promise<string | undefined> {
     const boundedLookbackDays = Math.max(
       1,
@@ -1566,7 +1639,7 @@ export class ManagerDeskService {
       const plan = await this.buildCarryForwardPlan(managerAccountId, {
         fromDate: candidateDate,
         toDate,
-      });
+      }, workspaceId);
 
       if (plan.length > 0) {
         return candidateDate;
@@ -1578,16 +1651,17 @@ export class ManagerDeskService {
 
   private async buildCarryForwardPreviewItems(
     plan: ManagerDeskCarryForwardPlanEntry[],
-    date: string
+    date: string,
+    workspaceId?: string
   ): Promise<ManagerDeskCarryForwardPreviewItem[]> {
     if (plan.length === 0) {
       return [];
     }
 
     const itemIds = plan.map((entry) => entry.item.id);
-    const linksByItemId = await this.getLinksByItemIds(itemIds);
-    const delegatedExecutionByItemId = await this.getDelegatedExecutionByManagerDeskItemIds(itemIds);
-    const assigneesByAccountId = await this.getAssigneeMap(plan.map((entry) => entry.item), date);
+    const linksByItemId = await this.getLinksByItemIds(itemIds, workspaceId);
+    const delegatedExecutionByItemId = await this.getDelegatedExecutionByManagerDeskItemIds(itemIds, workspaceId);
+    const assigneesByAccountId = await this.getAssigneeMap(plan.map((entry) => entry.item), date, workspaceId);
 
     return plan.map((entry) => ({
       item: this.mapItem(
@@ -1606,8 +1680,8 @@ export class ManagerDeskService {
     }));
   }
 
-  private async getLinksByItemIds(itemIds: number[]): Promise<Map<number, ManagerDeskLink[]>> {
-    const rawLinksByItemId = await this.getRawLinksByItemIds(itemIds);
+  private async getLinksByItemIds(itemIds: number[], workspaceId?: string): Promise<Map<number, ManagerDeskLink[]>> {
+    const rawLinksByItemId = await this.getRawLinksByItemIds(itemIds, workspaceId);
     const allLinkRows = [...rawLinksByItemId.values()].flat();
     if (allLinkRows.length === 0) {
       return new Map(itemIds.map((itemId) => [itemId, []]));
@@ -1618,7 +1692,7 @@ export class ManagerDeskService {
         .map((link) => link.developerAccountId)
         .filter((accountId): accountId is string => Boolean(accountId))
     )];
-    const developerNames = await this.getDeveloperDisplayNameMap(developerIds);
+    const developerNames = await this.getDeveloperDisplayNameMap(developerIds, workspaceId);
 
     const mapped = new Map<number, ManagerDeskLink[]>();
     for (const [itemId, rows] of rawLinksByItemId.entries()) {
@@ -1633,15 +1707,16 @@ export class ManagerDeskService {
     return mapped;
   }
 
-  private async getRawLinksByItemIds(itemIds: number[]): Promise<Map<number, ManagerDeskLinkRow[]>> {
+  private async getRawLinksByItemIds(itemIds: number[], workspaceId?: string): Promise<Map<number, ManagerDeskLinkRow[]>> {
     if (itemIds.length === 0) {
       return new Map();
     }
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
 
     const rows = await db
       .select()
       .from(managerDeskLinks)
-      .where(inArray(managerDeskLinks.itemId, itemIds));
+      .where(and(eq(managerDeskLinks.workspaceId, normalizedWorkspaceId), inArray(managerDeskLinks.itemId, itemIds)));
 
     const grouped = new Map<number, ManagerDeskLinkRow[]>();
     for (const itemId of itemIds) {
@@ -1660,26 +1735,29 @@ export class ManagerDeskService {
   }
 
   private async getDeveloperDisplayNameMap(
-    developerIds: string[]
+    developerIds: string[],
+    workspaceId?: string
   ): Promise<Map<string, string>> {
     if (developerIds.length === 0) {
       return new Map();
     }
 
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select({
         accountId: developers.accountId,
         displayName: developers.displayName,
       })
       .from(developers)
-      .where(inArray(developers.accountId, developerIds));
+      .where(and(eq(developers.workspaceId, normalizedWorkspaceId), inArray(developers.accountId, developerIds)));
 
     return new Map(rows.map((row) => [row.accountId, row.displayName]));
   }
 
   private async getAssigneeMap(
     items: Pick<ManagerDeskItemRow, "assigneeDeveloperAccountId">[],
-    date?: string
+    date?: string,
+    workspaceId?: string
   ): Promise<Map<string, ManagerDeskAssignee>> {
     const assigneeIds = [...new Set(
       items
@@ -1691,6 +1769,7 @@ export class ManagerDeskService {
       return new Map();
     }
 
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select({
         accountId: developers.accountId,
@@ -1698,10 +1777,10 @@ export class ManagerDeskService {
         avatarUrl: developers.avatarUrl,
       })
       .from(developers)
-      .where(inArray(developers.accountId, assigneeIds));
+      .where(and(eq(developers.workspaceId, normalizedWorkspaceId), inArray(developers.accountId, assigneeIds)));
 
     const availabilityByAccountId = date
-      ? await this.availability.getAvailabilityMapForDate(assigneeIds, date)
+      ? await this.availability.getAvailabilityMapForDate(assigneeIds, date, normalizedWorkspaceId)
       : new Map();
 
     return new Map(
@@ -1731,19 +1810,22 @@ export class ManagerDeskService {
   private async recordHistorySnapshotForItem(
     managerAccountId: string,
     itemId: number,
-    eventType: "upsert" | "deleted" = "upsert"
+    eventType: "upsert" | "deleted" = "upsert",
+    workspaceId?: string
   ): Promise<void> {
-    const snapshot = await this.getItemById(managerAccountId, itemId);
-    await this.insertHistoryRow(managerAccountId, itemId, snapshot, eventType);
+    const snapshot = await this.getItemById(managerAccountId, itemId, workspaceId);
+    await this.insertHistoryRow(managerAccountId, itemId, snapshot, eventType, workspaceId);
   }
 
   private async insertHistoryRow(
     managerAccountId: string,
     itemId: number,
     snapshot: ManagerDeskItem,
-    eventType: "upsert" | "deleted"
+    eventType: "upsert" | "deleted",
+    workspaceId?: string
   ): Promise<void> {
     await db.insert(managerDeskItemHistory).values({
+      workspaceId: normalizeWorkspaceId(workspaceId),
       itemId,
       managerAccountId,
       eventType,
@@ -1833,17 +1915,18 @@ export class ManagerDeskService {
   }
 
   private async normalizeLinkInputs(
-    links: ManagerDeskLinkInput[]
+    links: ManagerDeskLinkInput[],
+    workspaceId?: string
   ): Promise<NormalizedManagerDeskLink[]> {
     const normalized: NormalizedManagerDeskLink[] = [];
     for (const link of links) {
-      normalized.push(await this.normalizeLinkInput(link));
+      normalized.push(await this.normalizeLinkInput(link, workspaceId));
     }
     return normalized;
   }
 
-  private async getNormalizedLinksByItemId(itemId: number): Promise<NormalizedManagerDeskLink[]> {
-    const rows = (await this.getRawLinksByItemIds([itemId])).get(itemId) ?? [];
+  private async getNormalizedLinksByItemId(itemId: number, workspaceId?: string): Promise<NormalizedManagerDeskLink[]> {
+    const rows = (await this.getRawLinksByItemIds([itemId], workspaceId)).get(itemId) ?? [];
     return rows.map((row) => ({
       linkType: row.linkType as ManagerDeskLinkType,
       issueKey: row.issueKey ?? undefined,
@@ -1853,7 +1936,8 @@ export class ManagerDeskService {
   }
 
   private async normalizeAssigneeAccountId(
-    accountId: string | null | undefined
+    accountId: string | null | undefined,
+    workspaceId?: string
   ): Promise<string | null | undefined> {
     if (accountId === undefined) {
       return undefined;
@@ -1867,10 +1951,11 @@ export class ManagerDeskService {
       return null;
     }
 
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select({ accountId: developers.accountId })
       .from(developers)
-      .where(and(eq(developers.accountId, normalized), eq(developers.isActive, 1)))
+      .where(and(eq(developers.workspaceId, normalizedWorkspaceId), eq(developers.accountId, normalized), eq(developers.isActive, 1)))
       .limit(1);
 
     if (!rows[0]) {
@@ -1887,9 +1972,11 @@ export class ManagerDeskService {
     title: string,
     links: NormalizedManagerDeskLink[],
     status: ManagerDeskStatus,
-    note?: string | null
+    note?: string | null,
+    workspaceId?: string
   ): Promise<void> {
     await this.trackerService.syncManagerDeskItem({
+      workspaceId: normalizeWorkspaceId(workspaceId),
       managerDeskItemId,
       assigneeDeveloperAccountId: isOpenStatus(status) ? assigneeDeveloperAccountId : null,
       date,
@@ -1902,19 +1989,21 @@ export class ManagerDeskService {
   }
 
   private async getTrackerNotesByManagerDeskItemIds(
-    itemIds: number[]
+    itemIds: number[],
+    workspaceId?: string
   ): Promise<Map<number, string | null>> {
     if (itemIds.length === 0) {
       return new Map();
     }
 
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select({
         managerDeskItemId: teamTrackerItems.managerDeskItemId,
         note: teamTrackerItems.note,
       })
       .from(teamTrackerItems)
-      .where(inArray(teamTrackerItems.managerDeskItemId, itemIds));
+      .where(and(eq(teamTrackerItems.workspaceId, normalizedWorkspaceId), inArray(teamTrackerItems.managerDeskItemId, itemIds)));
 
     return new Map(
       rows
@@ -1926,16 +2015,18 @@ export class ManagerDeskService {
   }
 
   private async getDelegatedExecutionByManagerDeskItemIds(
-    itemIds: number[]
+    itemIds: number[],
+    workspaceId?: string
   ): Promise<Map<number, ManagerDeskDelegatedExecution>> {
     if (itemIds.length === 0) {
       return new Map();
     }
 
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(teamTrackerItems)
-      .where(inArray(teamTrackerItems.managerDeskItemId, itemIds));
+      .where(and(eq(teamTrackerItems.workspaceId, normalizedWorkspaceId), inArray(teamTrackerItems.managerDeskItemId, itemIds)));
 
     return new Map(
       rows
@@ -1957,13 +2048,16 @@ export class ManagerDeskService {
 
   private async createManagerDeskItemFromTrackerItem(
     managerAccountId: string,
-    trackerContext: Awaited<ReturnType<TeamTrackerService["getItemDetailContext"]>>
+    trackerContext: Awaited<ReturnType<TeamTrackerService["getItemDetailContext"]>>,
+    workspaceId?: string
   ): Promise<number> {
-    const day = await this.ensureDay(managerAccountId, trackerContext.date);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const day = await this.ensureDay(managerAccountId, trackerContext.date, normalizedWorkspaceId);
     const now = nowIso();
     const inserted = await db
       .insert(managerDeskItems)
       .values({
+        workspaceId: normalizedWorkspaceId,
         dayId: day.id,
         sourceItemId: null,
         assigneeDeveloperAccountId: trackerContext.developer.accountId,
@@ -1992,6 +2086,7 @@ export class ManagerDeskService {
 
     if (trackerContext.trackerItem.jiraKey) {
       await db.insert(managerDeskLinks).values({
+        workspaceId: normalizedWorkspaceId,
         itemId: item.id,
         linkType: "issue",
         issueKey: trackerContext.trackerItem.jiraKey,
@@ -2001,15 +2096,16 @@ export class ManagerDeskService {
       });
     }
 
-    await this.trackerService.linkManagerDeskItem(trackerContext.trackerItem.id, item.id);
-    await this.recordHistorySnapshotForItem(managerAccountId, item.id);
+    await this.trackerService.linkManagerDeskItem(trackerContext.trackerItem.id, item.id, normalizedWorkspaceId);
+    await this.recordHistorySnapshotForItem(managerAccountId, item.id, "upsert", normalizedWorkspaceId);
 
     return item.id;
   }
 
   private async buildTrackerTaskDetailResponse(
     managerAccountId: string,
-    trackerContext: Awaited<ReturnType<TeamTrackerService["getItemDetailContext"]>>
+    trackerContext: Awaited<ReturnType<TeamTrackerService["getItemDetailContext"]>>,
+    workspaceId?: string
   ): Promise<TrackerSharedTaskDetailResponse> {
     const managerDeskItemId = trackerContext.trackerItem.managerDeskItemId;
 
@@ -2026,14 +2122,16 @@ export class ManagerDeskService {
       date: trackerContext.date,
       developer: trackerContext.developer,
       lifecycle: "manager_desk_linked",
-      managerDeskItem: await this.getItemById(managerAccountId, managerDeskItemId),
+      managerDeskItem: await this.getItemById(managerAccountId, managerDeskItemId, workspaceId),
       trackerItem: trackerContext.trackerItem,
     };
   }
 
   private async normalizeLinkInput(
-    link: ManagerDeskLinkInput
+    link: ManagerDeskLinkInput,
+    workspaceId?: string
   ): Promise<NormalizedManagerDeskLink> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     if (link.linkType === "issue") {
       const issueKey = link.issueKey?.trim().toUpperCase();
       if (!issueKey) {
@@ -2043,7 +2141,7 @@ export class ManagerDeskService {
       const issueRows = await db
         .select({ jiraKey: issues.jiraKey })
         .from(issues)
-        .where(eq(issues.jiraKey, issueKey))
+        .where(and(eq(issues.workspaceId, normalizedWorkspaceId), eq(issues.jiraKey, issueKey)))
         .limit(1);
       if (!issueRows[0]) {
         throw new HttpError(400, `Jira issue ${issueKey} is not available in synced issues`);
@@ -2064,7 +2162,7 @@ export class ManagerDeskService {
       const developerRows = await db
         .select({ accountId: developers.accountId })
         .from(developers)
-        .where(eq(developers.accountId, developerAccountId))
+        .where(and(eq(developers.workspaceId, normalizedWorkspaceId), eq(developers.accountId, developerAccountId)))
         .limit(1);
       if (!developerRows[0]) {
         throw new HttpError(400, `Developer ${developerAccountId} was not found`);
@@ -2101,9 +2199,10 @@ export class ManagerDeskService {
 
   private async assertItemDoesNotAlreadyHaveLink(
     itemId: number,
-    link: NormalizedManagerDeskLink
+    link: NormalizedManagerDeskLink,
+    workspaceId?: string
   ): Promise<void> {
-    const existingLinks = (await this.getRawLinksByItemIds([itemId])).get(itemId) ?? [];
+    const existingLinks = (await this.getRawLinksByItemIds([itemId], workspaceId)).get(itemId) ?? [];
     const existingIdentities = new Set(
       existingLinks.map((existingLink) =>
         buildLinkIdentity({

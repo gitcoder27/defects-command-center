@@ -248,6 +248,7 @@ export function createTeamTrackerRouter(
     try {
       const date = req.query.date as string;
       const board = await trackerService.getBoard(date, {
+        workspaceId: req.auth!.user.workspaceId,
         managerAccountId: req.auth?.user.accountId,
         query: {
           q: req.query.q as string | undefined,
@@ -288,7 +289,7 @@ export function createTeamTrackerRouter(
 
   router.get("/views", async (req, res, next) => {
     try {
-      const views = await trackerService.listSavedViews(req.auth!.user.accountId);
+      const views = await trackerService.listSavedViews(req.auth!.user.accountId, req.auth!.user.workspaceId);
       res.json({ views });
     } catch (error) {
       next(error);
@@ -297,7 +298,7 @@ export function createTeamTrackerRouter(
 
   router.post("/views", validate(createSavedViewSchema), async (req, res, next) => {
     try {
-      const view = await trackerService.createSavedView(req.auth!.user.accountId, req.body);
+      const view = await trackerService.createSavedView(req.auth!.user.accountId, req.body, req.auth!.user.workspaceId);
       res.status(201).json(view);
     } catch (error) {
       next(error);
@@ -313,7 +314,8 @@ export function createTeamTrackerRouter(
         const view = await trackerService.updateSavedView(
           req.auth!.user.accountId,
           viewId,
-          req.body
+          req.body,
+          req.auth!.user.workspaceId
         );
         res.json(view);
       } catch (error) {
@@ -328,7 +330,7 @@ export function createTeamTrackerRouter(
     async (req, res, next) => {
       try {
         const viewId = parseInt(req.params.viewId as string, 10);
-        await trackerService.deleteSavedView(req.auth!.user.accountId, viewId);
+        await trackerService.deleteSavedView(req.auth!.user.accountId, viewId, req.auth!.user.workspaceId);
         res.json({ deleted: true });
       } catch (error) {
         next(error);
@@ -343,7 +345,7 @@ export function createTeamTrackerRouter(
       try {
         const jiraKey = req.params.jiraKey as string;
         const date = req.query.date as string;
-        const assignments = await trackerService.getIssueAssignments(jiraKey, date);
+        const assignments = await trackerService.getIssueAssignments(jiraKey, date, req.auth!.user.workspaceId);
         res.json({ assignments });
       } catch (error) {
         next(error);
@@ -363,7 +365,7 @@ export function createTeamTrackerRouter(
           status,
           capacityUnits,
           managerNotes,
-        });
+        }, req.auth!.user.workspaceId);
         res.json(day);
       } catch (error) {
         next(error);
@@ -377,7 +379,7 @@ export function createTeamTrackerRouter(
     async (req, res, next) => {
       try {
         const accountId = req.params.accountId as string;
-        const availability = await trackerService.updateAvailability(accountId, req.body);
+        const availability = await trackerService.updateAvailability(accountId, req.body, req.auth!.user.workspaceId);
         res.json(availability);
       } catch (error) {
         next(error);
@@ -397,7 +399,7 @@ export function createTeamTrackerRouter(
           jiraKey,
           title,
           note,
-        });
+        }, req.auth!.user.workspaceId);
         res.status(201).json(item);
       } catch (error) {
         next(error);
@@ -412,7 +414,7 @@ export function createTeamTrackerRouter(
     async (req, res, next) => {
       try {
         const itemId = parseInt(req.params.itemId as string, 10);
-        const item = await trackerService.updateItem(itemId, req.body);
+        const item = await trackerService.updateItem(itemId, req.body, req.auth!.user.workspaceId);
         res.json(item);
       } catch (error) {
         next(error);
@@ -427,7 +429,7 @@ export function createTeamTrackerRouter(
     async (req, res, next) => {
       try {
         const itemId = parseInt(req.params.itemId as string, 10);
-        await trackerService.deleteItem(itemId);
+        await trackerService.deleteItem(itemId, undefined, req.auth!.user.workspaceId);
         res.json({ deleted: true });
       } catch (error) {
         next(error);
@@ -444,7 +446,7 @@ export function createTeamTrackerRouter(
         const itemId = parseInt(req.params.itemId as string, 10);
         const item = await trackerService.setCurrentItem(itemId, {
           ifNoCurrent: req.body?.ifNoCurrent,
-        });
+        }, req.auth!.user.workspaceId);
         res.json(item);
       } catch (error) {
         next(error);
@@ -466,7 +468,7 @@ export function createTeamTrackerRouter(
         }, {
           type: req.auth?.user.role ?? "manager",
           accountId: req.auth?.user.accountId,
-        });
+        }, req.auth!.user.workspaceId);
         res.status(201).json(checkIn);
       } catch (error) {
         next(error);
@@ -493,7 +495,8 @@ export function createTeamTrackerRouter(
           {
             type: req.auth?.user.role ?? "manager",
             accountId: req.auth?.user.accountId,
-          }
+          },
+          req.auth!.user.workspaceId
         );
         res.status(201).json(day);
       } catch (error) {
@@ -510,7 +513,8 @@ export function createTeamTrackerRouter(
       try {
         const preview = await trackerService.getCarryForwardContext(
           req.query.toDate as string,
-          req.query.lookbackDays as number | undefined
+          req.query.lookbackDays as number | undefined,
+          req.auth!.user.workspaceId
         );
         res.json(preview);
       } catch (error) {
@@ -530,7 +534,8 @@ export function createTeamTrackerRouter(
         };
         const preview = await trackerService.previewCarryForward(
           fromDate,
-          toDate
+          toDate,
+          req.auth!.user.workspaceId
         );
         res.json(preview);
       } catch (error) {
@@ -561,9 +566,9 @@ export function createTeamTrackerRouter(
               );
             }
 
-            return managerDeskService.moveLinkedItemsToDate(req.auth.user.accountId, params);
+            return managerDeskService.moveLinkedItemsToDate(req.auth.user.accountId, params, req.auth.user.workspaceId);
           },
-        });
+        }, req.auth!.user.workspaceId);
         res.json({ carried });
       } catch (error) {
         next(error);

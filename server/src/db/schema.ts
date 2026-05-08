@@ -1,7 +1,16 @@
-import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+
+export const workspaces = sqliteTable("workspaces", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  ownerAccountId: text("owner_account_id"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
 
 export const issues = sqliteTable("issues", {
-  jiraKey: text("jira_key").primaryKey(),
+  workspaceId: text("workspace_id").notNull().default("default"),
+  jiraKey: text("jira_key").notNull(),
   summary: text("summary").notNull(),
   description: text("description"),
   aspenSeverity: text("aspen_severity"),
@@ -27,20 +36,26 @@ export const issues = sqliteTable("issues", {
   scopeChangedAt: text("scope_changed_at"),
   analysisNotes: text("analysis_notes"),
   excluded: integer("excluded").notNull().default(0),
-});
+}, (table) => [
+  primaryKey({ name: "pk_issues_workspace_jira_key", columns: [table.workspaceId, table.jiraKey] }),
+]);
 
 export const developers = sqliteTable("developers", {
-  accountId: text("account_id").primaryKey(),
+  workspaceId: text("workspace_id").notNull().default("default"),
+  accountId: text("account_id").notNull(),
   displayName: text("display_name").notNull(),
   email: text("email"),
   avatarUrl: text("avatar_url"),
   source: text("source").notNull().default("jira"),
   jiraAccountId: text("jira_account_id"),
   isActive: integer("is_active").notNull().default(1),
-});
+}, (table) => [
+  primaryKey({ name: "pk_developers_workspace_account", columns: [table.workspaceId, table.accountId] }),
+]);
 
 export const appUsers = sqliteTable("app_users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: text("workspace_id").notNull().default("default"),
   username: text("username").notNull().unique(),
   displayName: text("display_name").notNull(),
   passwordHash: text("password_hash").notNull(),
@@ -60,19 +75,26 @@ export const appSessions = sqliteTable("app_sessions", {
 });
 
 export const alertDismissals = sqliteTable("alert_dismissals", {
+  workspaceId: text("workspace_id").notNull().default("default"),
   managerAccountId: text("manager_account_id").notNull(),
   alertId: text("alert_id").notNull(),
   dismissedAt: text("dismissed_at").notNull(),
-});
+}, (table) => [
+  uniqueIndex("idx_alert_dismissals_workspace_manager_alert").on(table.workspaceId, table.managerAccountId, table.alertId),
+]);
 
 export const componentMap = sqliteTable("component_map", {
+  workspaceId: text("workspace_id").notNull().default("default"),
   componentName: text("component_name").notNull(),
   accountId: text("account_id").notNull(),
   fixCount: integer("fix_count").notNull().default(0),
-});
+}, (table) => [
+  primaryKey({ name: "pk_component_map_workspace_component_account", columns: [table.workspaceId, table.componentName, table.accountId] }),
+]);
 
 export const syncLog = sqliteTable("sync_log", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: text("workspace_id").notNull().default("default"),
   startedAt: text("started_at").notNull(),
   completedAt: text("completed_at"),
   status: text("status").notNull(),
@@ -81,23 +103,33 @@ export const syncLog = sqliteTable("sync_log", {
 });
 
 export const configTable = sqliteTable("config", {
-  key: text("key").primaryKey(),
+  workspaceId: text("workspace_id").notNull().default("default"),
+  key: text("key").notNull(),
   value: text("value").notNull(),
-});
+}, (table) => [
+  primaryKey({ name: "pk_config_workspace_key", columns: [table.workspaceId, table.key] }),
+]);
 
 export const localTags = sqliteTable("local_tags", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull().unique(),
+  workspaceId: text("workspace_id").notNull().default("default"),
+  name: text("name").notNull(),
   color: text("color").notNull().default("#6366f1"),
-});
+}, (table) => [
+  uniqueIndex("idx_local_tags_workspace_name").on(table.workspaceId, table.name),
+]);
 
 export const issueTags = sqliteTable("issue_tags", {
+  workspaceId: text("workspace_id").notNull().default("default"),
   jiraKey: text("jira_key").notNull(),
   tagId: integer("tag_id").notNull(),
-});
+}, (table) => [
+  primaryKey({ name: "pk_issue_tags_workspace_issue_tag", columns: [table.workspaceId, table.jiraKey, table.tagId] }),
+]);
 
 export const issueScopeHistory = sqliteTable("issue_scope_history", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: text("workspace_id").notNull().default("default"),
   jiraKey: text("jira_key").notNull(),
   observedAt: text("observed_at").notNull(),
   changeType: text("change_type").notNull(),
@@ -115,6 +147,7 @@ export const issueScopeHistory = sqliteTable("issue_scope_history", {
 
 export const teamTrackerDays = sqliteTable("team_tracker_days", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: text("workspace_id").notNull().default("default"),
   date: text("date").notNull(),
   developerAccountId: text("developer_account_id").notNull(),
   status: text("status").notNull().default("on_track"),
@@ -126,11 +159,12 @@ export const teamTrackerDays = sqliteTable("team_tracker_days", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (table) => [
-  uniqueIndex("idx_tracker_days_unique_date_developer").on(table.date, table.developerAccountId),
+  uniqueIndex("idx_tracker_days_unique_workspace_date_developer").on(table.workspaceId, table.date, table.developerAccountId),
 ]);
 
 export const developerAvailabilityPeriods = sqliteTable("developer_availability_periods", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: text("workspace_id").notNull().default("default"),
   developerAccountId: text("developer_account_id").notNull(),
   startDate: text("start_date").notNull(),
   endDate: text("end_date"),
@@ -141,6 +175,7 @@ export const developerAvailabilityPeriods = sqliteTable("developer_availability_
 
 export const teamTrackerItems = sqliteTable("team_tracker_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: text("workspace_id").notNull().default("default"),
   dayId: integer("day_id").notNull(),
   managerDeskItemId: integer("manager_desk_item_id"),
   itemType: text("item_type").notNull(),
@@ -156,6 +191,7 @@ export const teamTrackerItems = sqliteTable("team_tracker_items", {
 
 export const teamTrackerCheckIns = sqliteTable("team_tracker_checkins", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: text("workspace_id").notNull().default("default"),
   dayId: integer("day_id").notNull(),
   summary: text("summary").notNull(),
   status: text("status"),
@@ -168,6 +204,7 @@ export const teamTrackerCheckIns = sqliteTable("team_tracker_checkins", {
 
 export const teamTrackerSavedViews = sqliteTable("team_tracker_saved_views", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: text("workspace_id").notNull().default("default"),
   managerAccountId: text("manager_account_id").notNull(),
   name: text("name").notNull(),
   searchQuery: text("search_query"),
@@ -176,22 +213,26 @@ export const teamTrackerSavedViews = sqliteTable("team_tracker_saved_views", {
   groupBy: text("group_by").notNull(),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
-});
+}, (table) => [
+  uniqueIndex("idx_tracker_saved_views_workspace_manager_name").on(table.workspaceId, table.managerAccountId, table.name),
+]);
 
 // ── Manager Desk tables ────────────────────────────────
 
 export const managerDeskDays = sqliteTable("manager_desk_days", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: text("workspace_id").notNull().default("default"),
   date: text("date").notNull(),
   managerAccountId: text("manager_account_id").notNull(),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (table) => [
-  uniqueIndex("idx_manager_desk_days_unique_date_manager").on(table.date, table.managerAccountId),
+  uniqueIndex("idx_manager_desk_days_unique_workspace_date_manager").on(table.workspaceId, table.date, table.managerAccountId),
 ]);
 
 export const managerDeskItems = sqliteTable("manager_desk_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: text("workspace_id").notNull().default("default"),
   dayId: integer("day_id").notNull(),
   sourceItemId: integer("source_item_id"),
   assigneeDeveloperAccountId: text("assignee_developer_account_id"),
@@ -214,6 +255,7 @@ export const managerDeskItems = sqliteTable("manager_desk_items", {
 
 export const managerDeskLinks = sqliteTable("manager_desk_links", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: text("workspace_id").notNull().default("default"),
   itemId: integer("item_id").notNull(),
   linkType: text("link_type").notNull(),
   issueKey: text("issue_key"),
@@ -224,6 +266,7 @@ export const managerDeskLinks = sqliteTable("manager_desk_links", {
 
 export const managerDeskItemHistory = sqliteTable("manager_desk_item_history", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: text("workspace_id").notNull().default("default"),
   itemId: integer("item_id").notNull(),
   managerAccountId: text("manager_account_id").notNull(),
   eventType: text("event_type").notNull(),

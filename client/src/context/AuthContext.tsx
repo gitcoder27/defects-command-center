@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { api } from '@/lib/api';
 import type { AuthUser, AuthSessionResponse } from '@/types';
 
@@ -20,9 +21,20 @@ const AuthContext = createContext<AuthContextValue>({
   refreshSession: async () => null,
 });
 
+export function getAuthScopeKey(user: AuthUser | null | undefined): string {
+  if (!user) {
+    return 'anonymous';
+  }
+
+  return `${user.workspaceId}:${user.username}:${user.role}:${user.developerAccountId ?? ''}`;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const authScopeKey = getAuthScopeKey(user);
+  const previousAuthScopeKeyRef = useRef<string | null>(null);
 
   const refreshSession = useCallback(async () => {
     try {
@@ -38,6 +50,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refreshSession().finally(() => setIsLoading(false));
   }, [refreshSession]);
+
+  useEffect(() => {
+    if (previousAuthScopeKeyRef.current === null) {
+      previousAuthScopeKeyRef.current = authScopeKey;
+      return;
+    }
+
+    if (previousAuthScopeKeyRef.current !== authScopeKey) {
+      queryClient.clear();
+      previousAuthScopeKeyRef.current = authScopeKey;
+    }
+  }, [authScopeKey, queryClient]);
 
   const login = useCallback(async (username: string, password: string) => {
     const res = await api.post<AuthSessionResponse>('/auth/login', { username, password });
@@ -70,4 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   return useContext(AuthContext);
+}
+
+export function useAuthScopeKey(): string {
+  const { user } = useAuth();
+  return useMemo(() => getAuthScopeKey(user), [user]);
 }

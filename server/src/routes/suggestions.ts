@@ -23,11 +23,11 @@ export function createSuggestionsRouter(automationService: AutomationService, is
   router.get("/assignee/:key", validate(keySchema), async (req, res, next) => {
     try {
       const key = req.params.key as string;
-      const issue = await issueService.getById(key);
+      const issue = await issueService.getById(key, undefined, req.auth!.user.workspaceId);
       if (!issue) {
         throw new HttpError(404, "Issue not found");
       }
-      const ranked = await automationService.suggestAssignee();
+      const ranked = await automationService.suggestAssignee(req.auth!.user.workspaceId);
       res.json({ issueKey: issue.jiraKey, suggestions: ranked });
     } catch (error) {
       next(error);
@@ -37,7 +37,7 @@ export function createSuggestionsRouter(automationService: AutomationService, is
   router.get("/priority/:key", validate(keySchema), async (req, res, next) => {
     try {
       const key = req.params.key as string;
-      const issue = await issueService.getById(key);
+      const issue = await issueService.getById(key, undefined, req.auth!.user.workspaceId);
       if (!issue) {
         throw new HttpError(404, "Issue not found");
       }

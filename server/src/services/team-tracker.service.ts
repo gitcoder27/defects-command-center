@@ -49,6 +49,7 @@ import {
   normalizeSavedViewQuery as normalizeSavedViewQueryInput,
   resolveUnsavedBoardQuery,
 } from "./team-tracker-board-query";
+import { normalizeWorkspaceId } from "./workspace.service";
 
 interface TrackerSignalConfig {
   staleThresholdHours: number;
@@ -795,25 +796,29 @@ export class TeamTrackerService {
   async getBoard(
     date: string,
     options?: {
+      workspaceId?: string;
       managerAccountId?: string;
       query?: TeamTrackerBoardQuery;
     }
   ): Promise<TeamTrackerBoardResponse> {
+    const workspaceId = normalizeWorkspaceId(options?.workspaceId);
     const query = await this.resolveBoardQuery(
       options?.managerAccountId,
-      options?.query
+      options?.query,
+      workspaceId
     );
     const viewMode = getTrackerViewMode(date);
-    const signalConfig = await this.getSignalConfig();
+    const signalConfig = await this.getSignalConfig(workspaceId);
     const devRows = await db
       .select()
       .from(developers)
-      .where(eq(developers.isActive, 1));
+      .where(and(eq(developers.workspaceId, workspaceId), eq(developers.isActive, 1)));
 
     const devList: Developer[] = devRows.map(mapDeveloper);
     const availabilityByAccountId = await this.availability.getAvailabilityMapForDate(
       devList.map((dev) => dev.accountId),
-      date
+      date,
+      workspaceId
     );
     const activeDevelopers = devList
       .map((developer) => ({
@@ -834,8 +839,8 @@ export class TeamTrackerService {
     for (const dev of activeDevelopers) {
       devDays.push(
         viewMode === "history"
-          ? await this.buildHistoricalDeveloperDay(date, dev, signalConfig)
-          : await this.buildLiveDeveloperDay(date, dev, signalConfig)
+          ? await this.buildHistoricalDeveloperDay(date, dev, signalConfig, workspaceId)
+          : await this.buildLiveDeveloperDay(date, dev, signalConfig, workspaceId)
       );
     }
 
@@ -870,11 +875,12 @@ export class TeamTrackerService {
     };
   }
 
-  async listSavedViews(managerAccountId: string): Promise<TeamTrackerSavedView[]> {
+  async listSavedViews(managerAccountId: string, workspaceId?: string): Promise<TeamTrackerSavedView[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(teamTrackerSavedViews)
-      .where(eq(teamTrackerSavedViews.managerAccountId, managerAccountId));
+      .where(and(eq(teamTrackerSavedViews.workspaceId, normalizedWorkspaceId), eq(teamTrackerSavedViews.managerAccountId, managerAccountId)));
 
     return rows
       .sort(
@@ -886,20 +892,23 @@ export class TeamTrackerService {
 
   async createSavedView(
     managerAccountId: string,
-    input: TeamTrackerSavedViewInput
+    input: TeamTrackerSavedViewInput,
+    workspaceId?: string
   ): Promise<TeamTrackerSavedView> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const name = input.name.trim();
     if (!name) {
       throw new HttpError(400, "name is required");
     }
 
-    await this.assertSavedViewNameAvailable(managerAccountId, name);
+    await this.assertSavedViewNameAvailable(managerAccountId, name, undefined, normalizedWorkspaceId);
 
     const now = nowIso();
     const query = this.normalizeSavedViewQuery(input);
     const inserted = await db
       .insert(teamTrackerSavedViews)
       .values({
+        workspaceId: normalizedWorkspaceId,
         managerAccountId,
         name,
         searchQuery: query.q || null,
@@ -917,9 +926,11 @@ export class TeamTrackerService {
   async updateSavedView(
     managerAccountId: string,
     viewId: number,
-    input: TeamTrackerSavedViewUpdate
+    input: TeamTrackerSavedViewUpdate,
+    workspaceId?: string
   ): Promise<TeamTrackerSavedView> {
-    const existing = await this.getOwnedSavedViewRow(managerAccountId, viewId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const existing = await this.getOwnedSavedViewRow(managerAccountId, viewId, normalizedWorkspaceId);
     const nextName =
       input.name !== undefined ? input.name.trim() : existing.name;
 
@@ -927,7 +938,7 @@ export class TeamTrackerService {
       throw new HttpError(400, "name is required");
     }
 
-    await this.assertSavedViewNameAvailable(managerAccountId, nextName, viewId);
+    await this.assertSavedViewNameAvailable(managerAccountId, nextName, viewId, normalizedWorkspaceId);
 
     const merged = this.normalizeSavedViewQuery({
       q: input.q !== undefined ? input.q : existing.searchQuery ?? "",
@@ -958,12 +969,12 @@ export class TeamTrackerService {
       })
       .where(eq(teamTrackerSavedViews.id, viewId));
 
-    const updated = await this.getOwnedSavedViewRow(managerAccountId, viewId);
+    const updated = await this.getOwnedSavedViewRow(managerAccountId, viewId, normalizedWorkspaceId);
     return mapSavedView(updated);
   }
 
-  async deleteSavedView(managerAccountId: string, viewId: number): Promise<void> {
-    await this.getOwnedSavedViewRow(managerAccountId, viewId);
+  async deleteSavedView(managerAccountId: string, viewId: number, workspaceId?: string): Promise<void> {
+    await this.getOwnedSavedViewRow(managerAccountId, viewId, workspaceId);
 
     await db
       .delete(teamTrackerSavedViews)
@@ -972,7 +983,8 @@ export class TeamTrackerService {
 
   async resolveBoardQuery(
     managerAccountId: string | undefined,
-    rawQuery?: TeamTrackerBoardQuery
+    rawQuery?: TeamTrackerBoardQuery,
+    workspaceId?: string
   ): Promise<TeamTrackerBoardResolvedQuery> {
     const normalizedRawQuery = rawQuery ?? {};
 
@@ -986,7 +998,8 @@ export class TeamTrackerService {
 
     const savedView = await this.getOwnedSavedViewRow(
       managerAccountId,
-      normalizedRawQuery.viewId
+      normalizedRawQuery.viewId,
+      workspaceId
     );
 
     return {
@@ -1010,18 +1023,21 @@ export class TeamTrackerService {
   async getDeveloperDay(
     date: string,
     developerAccountId: string,
-    options?: { includeManagerNotes?: boolean }
+    options?: { includeManagerNotes?: boolean },
+    workspaceId?: string
   ): Promise<TrackerDeveloperDay> {
-    const signalConfig = await this.getSignalConfig();
-    const developer = await this.getDeveloperByAccountId(developerAccountId);
-    const availability = await this.availability.getAvailabilityForDate(developerAccountId, date);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const signalConfig = await this.getSignalConfig(normalizedWorkspaceId);
+    const developer = await this.getDeveloperByAccountId(developerAccountId, normalizedWorkspaceId);
+    const availability = await this.availability.getAvailabilityForDate(developerAccountId, date, normalizedWorkspaceId);
     const day = await this.buildDeveloperDay(
       date,
       {
         ...developer,
         availability,
       },
-      signalConfig
+      signalConfig,
+      normalizedWorkspaceId
     );
 
     if (options?.includeManagerNotes === false) {
@@ -1034,8 +1050,8 @@ export class TeamTrackerService {
     return day;
   }
 
-  async getAvailabilityForDate(accountId: string, date: string) {
-    return this.availability.getAvailabilityForDate(accountId, date);
+  async getAvailabilityForDate(accountId: string, date: string, workspaceId?: string) {
+    return this.availability.getAvailabilityForDate(accountId, date, workspaceId);
   }
 
   async updateAvailability(
@@ -1044,19 +1060,23 @@ export class TeamTrackerService {
       effectiveDate: string;
       state: "active" | "inactive";
       note?: string;
-    }
+    },
+    workspaceId?: string
   ) {
-    return this.availability.setAvailability({ accountId, ...params });
+    return this.availability.setAvailability({ accountId, workspaceId, ...params });
   }
 
   async ensureDay(
     date: string,
-    developerAccountId: string
+    developerAccountId: string,
+    workspaceId?: string
   ): Promise<typeof teamTrackerDays.$inferSelect> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const now = nowIso();
     await db
       .insert(teamTrackerDays)
       .values({
+        workspaceId: normalizedWorkspaceId,
         date,
         developerAccountId,
         status: "on_track",
@@ -1065,7 +1085,7 @@ export class TeamTrackerService {
         updatedAt: now,
       })
       .onConflictDoNothing({
-        target: [teamTrackerDays.date, teamTrackerDays.developerAccountId],
+        target: [teamTrackerDays.workspaceId, teamTrackerDays.date, teamTrackerDays.developerAccountId],
       });
 
     const rows = await db
@@ -1074,6 +1094,7 @@ export class TeamTrackerService {
       .where(
         and(
           eq(teamTrackerDays.date, date),
+          eq(teamTrackerDays.workspaceId, normalizedWorkspaceId),
           eq(teamTrackerDays.developerAccountId, developerAccountId)
         )
       )
@@ -1095,10 +1116,12 @@ export class TeamTrackerService {
       status?: TrackerDeveloperStatus;
       capacityUnits?: number | null;
       managerNotes?: string;
-    }
+    },
+    workspaceId?: string
   ): Promise<typeof teamTrackerDays.$inferSelect> {
-    await this.availability.assertAvailableForDate(accountId, date);
-    const day = await this.ensureDay(date, accountId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    await this.availability.assertAvailableForDate(accountId, date, normalizedWorkspaceId);
+    const day = await this.ensureDay(date, accountId, normalizedWorkspaceId);
     const now = nowIso();
     const nextStatus = updates.status;
     const statusChanged =
@@ -1135,17 +1158,19 @@ export class TeamTrackerService {
       title: string;
       note?: string;
       managerDeskItemId?: number;
-    }
+    },
+    workspaceId?: string
   ): Promise<TrackerWorkItem> {
-    await this.availability.assertAvailableForDate(accountId, date);
-    const day = await this.ensureDay(date, accountId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    await this.availability.assertAvailableForDate(accountId, date, normalizedWorkspaceId);
+    const day = await this.ensureDay(date, accountId, normalizedWorkspaceId);
     const normalizedJiraKey = params.jiraKey?.trim();
 
     if (normalizedJiraKey) {
       const issueRows = await db
         .select({ jiraKey: issues.jiraKey })
         .from(issues)
-        .where(eq(issues.jiraKey, normalizedJiraKey))
+        .where(and(eq(issues.workspaceId, normalizedWorkspaceId), eq(issues.jiraKey, normalizedJiraKey)))
         .limit(1);
 
       if (!issueRows[0]) {
@@ -1170,6 +1195,7 @@ export class TeamTrackerService {
     const inserted = await db
       .insert(teamTrackerItems)
       .values({
+        workspaceId: normalizedWorkspaceId,
         dayId: day.id,
         managerDeskItemId: params.managerDeskItemId ?? null,
         itemType: normalizedJiraKey ? "jira" : "custom",
@@ -1183,10 +1209,11 @@ export class TeamTrackerService {
       })
       .returning();
 
-    return this.getItemById(inserted[0]!.id);
+    return this.getItemById(inserted[0]!.id, normalizedWorkspaceId);
   }
 
   async syncManagerDeskItem(params: {
+    workspaceId?: string;
     managerDeskItemId: number;
     assigneeDeveloperAccountId?: string | null;
     date: string;
@@ -1195,16 +1222,17 @@ export class TeamTrackerService {
     note?: string | null;
   }): Promise<void> {
     return runInTransaction(async () => {
-    const existing = await this.getManagerDeskTrackerItem(params.managerDeskItemId);
+    const workspaceId = normalizeWorkspaceId(params.workspaceId);
+    const existing = await this.getManagerDeskTrackerItem(params.managerDeskItemId, workspaceId);
 
     if (!params.assigneeDeveloperAccountId) {
       if (existing) {
-        await this.deleteItem(existing.id, { allowLinkedManagerDeskDelete: true });
+        await this.deleteItem(existing.id, { allowLinkedManagerDeskDelete: true }, workspaceId);
       }
       return;
     }
 
-    await this.getDeveloperByAccountId(params.assigneeDeveloperAccountId);
+    await this.getDeveloperByAccountId(params.assigneeDeveloperAccountId, workspaceId);
 
     const normalizedIssueKeys = [...new Set(params.issueKeys.map((key) => key.trim()).filter(Boolean))];
     const jiraKey = normalizedIssueKeys.length === 1 ? normalizedIssueKeys[0] : undefined;
@@ -1213,7 +1241,7 @@ export class TeamTrackerService {
       const issueRows = await db
         .select({ jiraKey: issues.jiraKey })
         .from(issues)
-        .where(eq(issues.jiraKey, jiraKey))
+        .where(and(eq(issues.workspaceId, workspaceId), eq(issues.jiraKey, jiraKey)))
         .limit(1);
       if (!issueRows[0]) {
         throw new HttpError(400, `Jira issue ${jiraKey} is not available in synced issues`);
@@ -1221,7 +1249,7 @@ export class TeamTrackerService {
     }
 
     if (existing) {
-      const currentDay = await this.getDayById(existing.dayId);
+      const currentDay = await this.getDayById(existing.dayId, workspaceId);
       if (
         currentDay?.developerAccountId === params.assigneeDeveloperAccountId &&
         currentDay.date === params.date
@@ -1238,7 +1266,7 @@ export class TeamTrackerService {
         return;
       }
 
-      await this.deleteItem(existing.id, { allowLinkedManagerDeskDelete: true });
+      await this.deleteItem(existing.id, { allowLinkedManagerDeskDelete: true }, workspaceId);
     }
 
     await this.addItem(params.assigneeDeveloperAccountId, params.date, {
@@ -1246,12 +1274,13 @@ export class TeamTrackerService {
       title: params.title,
       note: params.note ?? undefined,
       managerDeskItemId: params.managerDeskItemId,
-    });
+    }, workspaceId);
     });
   }
 
-  async unlinkManagerDeskItem(managerDeskItemId: number): Promise<void> {
-    const existing = await this.getManagerDeskTrackerItem(managerDeskItemId);
+  async unlinkManagerDeskItem(managerDeskItemId: number, workspaceId?: string): Promise<void> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const existing = await this.getManagerDeskTrackerItem(managerDeskItemId, normalizedWorkspaceId);
     if (!existing) {
       return;
     }
@@ -1265,13 +1294,14 @@ export class TeamTrackerService {
       .where(eq(teamTrackerItems.id, existing.id));
   }
 
-  async cancelManagerDeskItem(managerDeskItemId: number): Promise<boolean> {
-    const existing = await this.getManagerDeskTrackerItem(managerDeskItemId);
+  async cancelManagerDeskItem(managerDeskItemId: number, workspaceId?: string): Promise<boolean> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const existing = await this.getManagerDeskTrackerItem(managerDeskItemId, normalizedWorkspaceId);
     if (!existing) {
       return false;
     }
 
-    await this.deleteItem(existing.id, { allowLinkedManagerDeskDelete: true });
+    await this.deleteItem(existing.id, { allowLinkedManagerDeskDelete: true }, normalizedWorkspaceId);
     return true;
   }
 
@@ -1282,10 +1312,12 @@ export class TeamTrackerService {
       state?: TrackerItemState;
       note?: string | null;
       position?: number;
-    }
+    },
+    workspaceId?: string
   ): Promise<TrackerWorkItem> {
     return runInTransaction(async () => {
-    const existing = await this.getItemRow(itemId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const existing = await this.getItemRow(itemId, normalizedWorkspaceId);
     if (existing.managerDeskItemId !== null && updates.title !== undefined) {
       throw new HttpError(409, "Linked delegated tasks must be renamed from Manager Desk");
     }
@@ -1303,7 +1335,7 @@ export class TeamTrackerService {
     }
     if (updates.state !== undefined) {
       if (updates.state === "in_progress") {
-        const currentDay = await this.getDayById(existing.dayId);
+        const currentDay = await this.getDayById(existing.dayId, normalizedWorkspaceId);
         if (!currentDay) {
           throw new Error(`Tracker day ${existing.dayId} was not found`);
         }
@@ -1343,16 +1375,17 @@ export class TeamTrackerService {
       await this.touchManagerDeskItems([...linkedManagerDeskItemIds], now);
     }
 
-    return this.getItemById(itemId);
+    return this.getItemById(itemId, normalizedWorkspaceId);
     });
   }
 
   async deleteItem(
     itemId: number,
-    options?: { allowLinkedManagerDeskDelete?: boolean }
+    options?: { allowLinkedManagerDeskDelete?: boolean },
+    workspaceId?: string
   ): Promise<void> {
     return runInTransaction(async () => {
-    const existing = await this.getItemRow(itemId);
+    const existing = await this.getItemRow(itemId, workspaceId);
     if (existing.managerDeskItemId !== null && !options?.allowLinkedManagerDeskDelete) {
       throw new HttpError(
         409,
@@ -1366,10 +1399,11 @@ export class TeamTrackerService {
     });
   }
 
-  async setCurrentItem(itemId: number, options: { ifNoCurrent?: boolean } = {}): Promise<TrackerWorkItem> {
+  async setCurrentItem(itemId: number, options: { ifNoCurrent?: boolean } = {}, workspaceId?: string): Promise<TrackerWorkItem> {
     return runInTransaction(async () => {
-    const item = await this.getItemRow(itemId);
-    const day = await this.getDayById(item.dayId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const item = await this.getItemRow(itemId, normalizedWorkspaceId);
+    const day = await this.getDayById(item.dayId, normalizedWorkspaceId);
     if (!day) {
       throw new Error(`Tracker day ${item.dayId} was not found`);
     }
@@ -1393,7 +1427,7 @@ export class TeamTrackerService {
       .limit(1);
 
     if (!updated[0]) throw new Error("Item not found after update");
-    return this.getItemById(updated[0].id);
+    return this.getItemById(updated[0].id, normalizedWorkspaceId);
     });
   }
 
@@ -1409,10 +1443,12 @@ export class TeamTrackerService {
     actor?: {
       type: UserRole;
       accountId?: string;
-    }
+    },
+    workspaceId?: string
   ): Promise<TrackerCheckIn> {
-    await this.availability.assertAvailableForDate(accountId, date);
-    const day = await this.ensureDay(date, accountId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    await this.availability.assertAvailableForDate(accountId, date, normalizedWorkspaceId);
+    const day = await this.ensureDay(date, accountId, normalizedWorkspaceId);
     const now = nowIso();
     const summary = params.summary.trim();
     const rationale = normalizeOptionalText(params.rationale);
@@ -1425,6 +1461,7 @@ export class TeamTrackerService {
     const inserted = await db
       .insert(teamTrackerCheckIns)
       .values({
+        workspaceId: normalizedWorkspaceId,
         dayId: day.id,
         summary,
         status: params.status ?? null,
@@ -1470,8 +1507,10 @@ export class TeamTrackerService {
     actor?: {
       type: UserRole;
       accountId?: string;
-    }
+    },
+    workspaceId?: string
   ): Promise<TrackerDeveloperDay> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rationale = normalizeOptionalText(params.rationale);
     const summary = normalizeOptionalText(params.summary);
 
@@ -1495,16 +1534,19 @@ export class TeamTrackerService {
         rationale,
         nextFollowUpAt: params.nextFollowUpAt ?? null,
       },
-      actor
+      actor,
+      normalizedWorkspaceId
     );
 
-    return this.getDeveloperDay(date, accountId);
+    return this.getDeveloperDay(date, accountId, undefined, normalizedWorkspaceId);
   }
 
   async assertItemBelongsToDeveloper(
     itemId: number,
-    developerAccountId: string
+    developerAccountId: string,
+    workspaceId?: string
   ): Promise<{ ownerAccountId: string; date: string }> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select({
         ownerAccountId: teamTrackerDays.developerAccountId,
@@ -1512,7 +1554,7 @@ export class TeamTrackerService {
       })
       .from(teamTrackerItems)
       .innerJoin(teamTrackerDays, eq(teamTrackerDays.id, teamTrackerItems.dayId))
-      .where(eq(teamTrackerItems.id, itemId))
+      .where(and(eq(teamTrackerItems.workspaceId, normalizedWorkspaceId), eq(teamTrackerItems.id, itemId)))
       .limit(1);
 
     const row = rows[0];
@@ -1529,22 +1571,24 @@ export class TeamTrackerService {
 
   async getIssueAssignments(
     jiraKey: string,
-    date: string
+    date: string,
+    workspaceId?: string
   ): Promise<TrackerIssueAssignment[]> {
     const normalizedJiraKey = jiraKey.trim();
     if (!normalizedJiraKey) {
       return [];
     }
 
-    return (await this.getActiveIssueAssignmentsForDate(date)).filter(
+    return (await this.getActiveIssueAssignmentsForDate(date, workspaceId)).filter(
       (assignment) => assignment.jiraKey === normalizedJiraKey
     );
   }
 
   async getIssueAssignmentSummaryMap(
-    date: string
+    date: string,
+    workspaceId?: string
   ): Promise<Map<string, IssueTrackerAssignmentSummary>> {
-    const assignments = await this.getActiveIssueAssignmentsForDate(date);
+    const assignments = await this.getActiveIssueAssignmentsForDate(date, workspaceId);
     const summaryMap = new Map<string, IssueTrackerAssignmentSummary>();
 
     for (const assignment of assignments) {
@@ -1566,11 +1610,12 @@ export class TeamTrackerService {
     return summaryMap;
   }
 
-  async getItemDetailContext(itemId: number): Promise<{
+  async getItemDetailContext(itemId: number, workspaceId?: string): Promise<{
     date: string;
     developer: Developer;
     trackerItem: TrackerWorkItem;
   }> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select({
         item: teamTrackerItems,
@@ -1579,8 +1624,8 @@ export class TeamTrackerService {
       })
       .from(teamTrackerItems)
       .innerJoin(teamTrackerDays, eq(teamTrackerDays.id, teamTrackerItems.dayId))
-      .innerJoin(developers, eq(developers.accountId, teamTrackerDays.developerAccountId))
-      .where(eq(teamTrackerItems.id, itemId))
+      .innerJoin(developers, and(eq(developers.workspaceId, normalizedWorkspaceId), eq(developers.accountId, teamTrackerDays.developerAccountId)))
+      .where(and(eq(teamTrackerItems.workspaceId, normalizedWorkspaceId), eq(teamTrackerItems.id, itemId)))
       .limit(1);
 
     const row = rows[0];
@@ -1589,7 +1634,8 @@ export class TeamTrackerService {
     }
 
     const issueContextMap = await this.getIssueContextMap(
-      row.item.jiraKey ? [row.item.jiraKey] : []
+      row.item.jiraKey ? [row.item.jiraKey] : [],
+      normalizedWorkspaceId
     );
 
     return {
@@ -1603,7 +1649,8 @@ export class TeamTrackerService {
   }
 
   async getItemDetailContextForManagerDeskItem(
-    managerDeskItemId: number
+    managerDeskItemId: number,
+    workspaceId?: string
   ): Promise<
     | {
         date: string;
@@ -1612,6 +1659,7 @@ export class TeamTrackerService {
       }
     | null
   > {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select({
         item: teamTrackerItems,
@@ -1620,8 +1668,8 @@ export class TeamTrackerService {
       })
       .from(teamTrackerItems)
       .innerJoin(teamTrackerDays, eq(teamTrackerDays.id, teamTrackerItems.dayId))
-      .innerJoin(developers, eq(developers.accountId, teamTrackerDays.developerAccountId))
-      .where(eq(teamTrackerItems.managerDeskItemId, managerDeskItemId))
+      .innerJoin(developers, and(eq(developers.workspaceId, normalizedWorkspaceId), eq(developers.accountId, teamTrackerDays.developerAccountId)))
+      .where(and(eq(teamTrackerItems.workspaceId, normalizedWorkspaceId), eq(teamTrackerItems.managerDeskItemId, managerDeskItemId)))
       .limit(1);
 
     const row = rows[0];
@@ -1630,7 +1678,8 @@ export class TeamTrackerService {
     }
 
     const issueContextMap = await this.getIssueContextMap(
-      row.item.jiraKey ? [row.item.jiraKey] : []
+      row.item.jiraKey ? [row.item.jiraKey] : [],
+      normalizedWorkspaceId
     );
 
     return {
@@ -1645,31 +1694,35 @@ export class TeamTrackerService {
 
   async linkManagerDeskItem(
     itemId: number,
-    managerDeskItemId: number
+    managerDeskItemId: number,
+    workspaceId?: string
   ): Promise<TrackerWorkItem> {
-    await this.getItemRow(itemId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    await this.getItemRow(itemId, normalizedWorkspaceId);
 
     await db
       .update(teamTrackerItems)
       .set({ managerDeskItemId })
       .where(eq(teamTrackerItems.id, itemId));
 
-    return this.getItemById(itemId);
+    return this.getItemById(itemId, normalizedWorkspaceId);
   }
 
   async previewCarryForward(
     fromDate: string,
-    toDate: string
+    toDate: string,
+    workspaceId?: string
   ): Promise<TrackerCarryForwardPreviewResponse> {
-    const plan = await this.buildCarryForwardPlan(fromDate, toDate);
+    const plan = await this.buildCarryForwardPlan(fromDate, toDate, workspaceId);
     return this.buildCarryForwardPreview(plan.entries);
   }
 
   async getCarryForwardContext(
     toDate: string,
-    lookbackDays = SMART_CARRY_FORWARD_LOOKBACK_DAYS
+    lookbackDays = SMART_CARRY_FORWARD_LOOKBACK_DAYS,
+    workspaceId?: string
   ): Promise<TrackerCarryForwardContextResponse> {
-    const fromDate = await this.resolveLatestCarryForwardSourceDate(toDate, lookbackDays);
+    const fromDate = await this.resolveLatestCarryForwardSourceDate(toDate, lookbackDays, workspaceId);
     if (!fromDate) {
       return {
         fromDate: undefined,
@@ -1679,7 +1732,7 @@ export class TeamTrackerService {
       };
     }
 
-    const preview = await this.previewCarryForward(fromDate, toDate);
+    const preview = await this.previewCarryForward(fromDate, toDate, workspaceId);
     return {
       fromDate,
       toDate,
@@ -1691,15 +1744,17 @@ export class TeamTrackerService {
   async carryForward(
     fromDate: string,
     toDate: string,
-    options?: CarryForwardExecutionOptions
+    options?: CarryForwardExecutionOptions,
+    workspaceId?: string
   ): Promise<number> {
     assertForwardDateRange(fromDate, toDate);
     return runInTransaction(async () => {
-    const plan = await this.buildCarryForwardPlan(fromDate, toDate);
+    const plan = await this.buildCarryForwardPlan(fromDate, toDate, workspaceId);
     const selectedEntries = await this.selectCarryForwardEntries(
       fromDate,
       plan.entries,
-      options?.itemIds
+      options?.itemIds,
+      workspaceId
     );
     const trackerOnlyItems = selectedEntries
       .filter((entry) => entry.item.managerDeskItemId === null)
@@ -1709,7 +1764,8 @@ export class TeamTrackerService {
       }));
     let carried = await this.carryForwardTrackerOnlyItems(
       trackerOnlyItems,
-      toDate
+      toDate,
+      workspaceId
     );
     const managerDeskItemIds = selectedEntries
       .map((entry) => entry.item.managerDeskItemId)
@@ -1793,11 +1849,12 @@ export class TeamTrackerService {
     });
   }
 
-  private async getDeveloperByAccountId(accountId: string): Promise<Developer> {
+  private async getDeveloperByAccountId(accountId: string, workspaceId?: string): Promise<Developer> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(developers)
-      .where(eq(developers.accountId, accountId))
+      .where(and(eq(developers.workspaceId, normalizedWorkspaceId), eq(developers.accountId, accountId)))
       .limit(1);
 
     const row = rows[0];
@@ -1811,9 +1868,11 @@ export class TeamTrackerService {
   private async buildDeveloperDay(
     date: string,
     developer: Developer,
-    signalConfig: TrackerSignalConfig
+    signalConfig: TrackerSignalConfig,
+    workspaceId?: string
   ): Promise<TrackerDeveloperDay> {
-    const day = await this.ensureDay(date, developer.accountId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const day = await this.ensureDay(date, developer.accountId, normalizedWorkspaceId);
     const items = await db
       .select()
       .from(teamTrackerItems)
@@ -1823,7 +1882,7 @@ export class TeamTrackerService {
       .from(teamTrackerCheckIns)
       .where(eq(teamTrackerCheckIns.dayId, day.id));
 
-    const mapped = (await this.mapItemsWithIssueContext(items)).sort(
+    const mapped = (await this.mapItemsWithIssueContext(items, normalizedWorkspaceId)).sort(
       (a, b) => a.position - b.position
     );
     const currentItem = mapped.find((i) => i.state === "in_progress");
@@ -1868,9 +1927,11 @@ export class TeamTrackerService {
   private async buildHistoricalDeveloperDay(
     date: string,
     developer: Developer,
-    signalConfig: TrackerSignalConfig
+    signalConfig: TrackerSignalConfig,
+    workspaceId?: string
   ): Promise<TrackerDeveloperDay> {
-    const day = await this.findDay(date, developer.accountId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const day = await this.findDay(date, developer.accountId, normalizedWorkspaceId);
     const items = day
       ? await db
           .select()
@@ -1884,7 +1945,7 @@ export class TeamTrackerService {
           .where(eq(teamTrackerCheckIns.dayId, day.id))
       : [];
 
-    const mapped = (await this.mapItemsWithIssueContext(items)).sort(
+    const mapped = (await this.mapItemsWithIssueContext(items, normalizedWorkspaceId)).sort(
       (a, b) => a.position - b.position
     );
     const currentItem = mapped.find((item) => item.state === "in_progress");
@@ -1930,13 +1991,15 @@ export class TeamTrackerService {
   private async buildLiveDeveloperDay(
     date: string,
     developer: Developer,
-    signalConfig: TrackerSignalConfig
+    signalConfig: TrackerSignalConfig,
+    workspaceId?: string
   ): Promise<TrackerDeveloperDay> {
-    const exactDay = await this.findDay(date, developer.accountId);
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const exactDay = await this.findDay(date, developer.accountId, normalizedWorkspaceId);
     const allRelevantDays = await db
       .select()
       .from(teamTrackerDays)
-      .where(eq(teamTrackerDays.developerAccountId, developer.accountId));
+      .where(and(eq(teamTrackerDays.workspaceId, normalizedWorkspaceId), eq(teamTrackerDays.developerAccountId, developer.accountId)));
     const eligibleDays = allRelevantDays
       .filter((day) => day.date <= date)
       .sort((left, right) => left.date.localeCompare(right.date));
@@ -1950,7 +2013,7 @@ export class TeamTrackerService {
             .where(inArray(teamTrackerItems.dayId, eligibleDays.map((day) => day.id)))
         : [];
     const canonicalItemRows = this.getLiveCanonicalItemRows(itemRows, dayById);
-    const mappedCanonicalItems = (await this.mapItemsWithIssueContext(canonicalItemRows)).sort(
+    const mappedCanonicalItems = (await this.mapItemsWithIssueContext(canonicalItemRows, normalizedWorkspaceId)).sort(
       compareLiveOpenItems
     );
     const currentItem = mappedCanonicalItems.find((item) => item.state === "in_progress");
@@ -2005,15 +2068,15 @@ export class TeamTrackerService {
     };
   }
 
-  private async getSignalConfig(): Promise<TrackerSignalConfig> {
+  private async getSignalConfig(workspaceId?: string): Promise<TrackerSignalConfig> {
     const [
       staleThresholdHours,
       noCurrentThresholdHours,
       statusFollowUpThresholdHours,
     ] = await Promise.all([
-      this.settings.getTeamTrackerStaleThresholdHours(),
-      this.settings.getTeamTrackerNoCurrentThresholdHours(),
-      this.settings.getTeamTrackerStatusFollowUpThresholdHours(),
+      this.settings.getTeamTrackerStaleThresholdHours(workspaceId),
+      this.settings.getTeamTrackerNoCurrentThresholdHours(workspaceId),
+      this.settings.getTeamTrackerStatusFollowUpThresholdHours(workspaceId),
     ]);
 
     return {
@@ -2034,14 +2097,17 @@ export class TeamTrackerService {
 
   private async getOwnedSavedViewRow(
     managerAccountId: string,
-    viewId: number
+    viewId: number,
+    workspaceId?: string
   ): Promise<typeof teamTrackerSavedViews.$inferSelect> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(teamTrackerSavedViews)
       .where(
         and(
           eq(teamTrackerSavedViews.id, viewId),
+          eq(teamTrackerSavedViews.workspaceId, normalizedWorkspaceId),
           eq(teamTrackerSavedViews.managerAccountId, managerAccountId)
         )
       )
@@ -2058,13 +2124,16 @@ export class TeamTrackerService {
   private async assertSavedViewNameAvailable(
     managerAccountId: string,
     name: string,
-    excludeViewId?: number
+    excludeViewId?: number,
+    workspaceId?: string
   ): Promise<void> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(teamTrackerSavedViews)
       .where(
         and(
+          eq(teamTrackerSavedViews.workspaceId, normalizedWorkspaceId),
           eq(teamTrackerSavedViews.managerAccountId, managerAccountId),
           eq(teamTrackerSavedViews.name, name)
         )
@@ -2078,33 +2147,38 @@ export class TeamTrackerService {
   }
 
   private async getItemRow(
-    itemId: number
+    itemId: number,
+    workspaceId?: string
   ): Promise<typeof teamTrackerItems.$inferSelect> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(teamTrackerItems)
-      .where(eq(teamTrackerItems.id, itemId))
+      .where(and(eq(teamTrackerItems.workspaceId, normalizedWorkspaceId), eq(teamTrackerItems.id, itemId)))
       .limit(1);
 
     if (!rows[0]) throw new HttpError(404, "Item not found");
     return rows[0];
   }
 
-  private async getItemById(itemId: number): Promise<TrackerWorkItem> {
-    const row = await this.getItemRow(itemId);
+  private async getItemById(itemId: number, workspaceId?: string): Promise<TrackerWorkItem> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const row = await this.getItemRow(itemId, normalizedWorkspaceId);
     const issueContextMap = await this.getIssueContextMap(
-      row.jiraKey ? [row.jiraKey] : []
+      row.jiraKey ? [row.jiraKey] : [],
+      normalizedWorkspaceId
     );
     return mapItem(row, row.jiraKey ? issueContextMap.get(row.jiraKey) : undefined);
   }
 
   private async mapItemsWithIssueContext(
-    rows: Array<typeof teamTrackerItems.$inferSelect>
+    rows: Array<typeof teamTrackerItems.$inferSelect>,
+    workspaceId?: string
   ): Promise<TrackerWorkItem[]> {
     const jiraKeys = rows
       .map((row) => row.jiraKey)
       .filter((jiraKey): jiraKey is string => Boolean(jiraKey));
-    const issueContextMap = await this.getIssueContextMap(jiraKeys);
+    const issueContextMap = await this.getIssueContextMap(jiraKeys, workspaceId);
 
     return rows.map((row) =>
       mapItem(row, row.jiraKey ? issueContextMap.get(row.jiraKey) : undefined)
@@ -2112,12 +2186,14 @@ export class TeamTrackerService {
   }
 
   private async getManagerDeskTrackerItem(
-    managerDeskItemId: number
+    managerDeskItemId: number,
+    workspaceId?: string
   ): Promise<typeof teamTrackerItems.$inferSelect | undefined> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(teamTrackerItems)
-      .where(eq(teamTrackerItems.managerDeskItemId, managerDeskItemId))
+      .where(and(eq(teamTrackerItems.workspaceId, normalizedWorkspaceId), eq(teamTrackerItems.managerDeskItemId, managerDeskItemId)))
       .limit(1);
 
     return rows[0];
@@ -2125,14 +2201,17 @@ export class TeamTrackerService {
 
   private async findDay(
     date: string,
-    developerAccountId: string
+    developerAccountId: string,
+    workspaceId?: string
   ): Promise<typeof teamTrackerDays.$inferSelect | undefined> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(teamTrackerDays)
       .where(
         and(
           eq(teamTrackerDays.date, date),
+          eq(teamTrackerDays.workspaceId, normalizedWorkspaceId),
           eq(teamTrackerDays.developerAccountId, developerAccountId)
         )
       )
@@ -2142,12 +2221,14 @@ export class TeamTrackerService {
   }
 
   private async getDayById(
-    dayId: number
+    dayId: number,
+    workspaceId?: string
   ): Promise<typeof teamTrackerDays.$inferSelect | undefined> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(teamTrackerDays)
-      .where(eq(teamTrackerDays.id, dayId))
+      .where(and(eq(teamTrackerDays.workspaceId, normalizedWorkspaceId), eq(teamTrackerDays.id, dayId)))
       .limit(1);
 
     return rows[0];
@@ -2176,8 +2257,10 @@ export class TeamTrackerService {
   }
 
   private async getIssueContextMap(
-    jiraKeys: string[]
+    jiraKeys: string[],
+    workspaceId?: string
   ): Promise<Map<string, TrackerIssueContext>> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const uniqueKeys = [...new Set(jiraKeys)];
     if (uniqueKeys.length === 0) {
       return new Map();
@@ -2192,16 +2275,21 @@ export class TeamTrackerService {
         developmentDueDate: issues.developmentDueDate,
       })
       .from(issues)
-      .where(inArray(issues.jiraKey, uniqueKeys));
+      .where(and(eq(issues.workspaceId, normalizedWorkspaceId), inArray(issues.jiraKey, uniqueKeys)));
 
     return new Map(rows.map((row) => [row.jiraKey, row]));
   }
 
   private async getActiveIssueAssignmentsForDate(
-    date: string
+    date: string,
+    workspaceId?: string
   ): Promise<TrackerIssueAssignment[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const viewMode = getTrackerViewMode(date);
-    const dayRows = await db.select().from(teamTrackerDays);
+    const dayRows = await db
+      .select()
+      .from(teamTrackerDays)
+      .where(eq(teamTrackerDays.workspaceId, normalizedWorkspaceId));
     const relevantDayRows =
       viewMode === "history"
         ? dayRows.filter((row) => row.date === date)
@@ -2215,12 +2303,13 @@ export class TeamTrackerService {
     const accountIds = [...new Set(relevantDayRows.map((row) => row.developerAccountId))];
     const availabilityByAccountId = await this.availability.getAvailabilityMapForDate(
       accountIds,
-      date
+      date,
+      normalizedWorkspaceId
     );
     const developerRows = await db
       .select()
       .from(developers)
-      .where(inArray(developers.accountId, accountIds));
+      .where(and(eq(developers.workspaceId, normalizedWorkspaceId), inArray(developers.accountId, accountIds)));
     const developerMap = new Map(
       developerRows.map((row) => [row.accountId, mapDeveloper(row)])
     );
@@ -2349,14 +2438,17 @@ export class TeamTrackerService {
 
   private async getTargetCarryForwardItems(
     toDate: string,
-    developerAccountId: string
+    developerAccountId: string,
+    workspaceId?: string
   ): Promise<Array<typeof teamTrackerItems.$inferSelect>> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const targetDayRows = await db
       .select()
       .from(teamTrackerDays)
       .where(
         and(
           eq(teamTrackerDays.date, toDate),
+          eq(teamTrackerDays.workspaceId, normalizedWorkspaceId),
           eq(teamTrackerDays.developerAccountId, developerAccountId)
         )
       )
@@ -2377,8 +2469,10 @@ export class TeamTrackerService {
 
   private async buildCarryForwardPlan(
     fromDate: string,
-    toDate: string
+    toDate: string,
+    workspaceId?: string
   ): Promise<CarryForwardPlan> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const dayRows = await db
       .select({
         day: teamTrackerDays,
@@ -2387,9 +2481,9 @@ export class TeamTrackerService {
       .from(teamTrackerDays)
       .innerJoin(
         developers,
-        eq(developers.accountId, teamTrackerDays.developerAccountId)
+        and(eq(developers.workspaceId, normalizedWorkspaceId), eq(developers.accountId, teamTrackerDays.developerAccountId))
       )
-      .where(eq(teamTrackerDays.date, fromDate));
+      .where(and(eq(teamTrackerDays.workspaceId, normalizedWorkspaceId), eq(teamTrackerDays.date, fromDate)));
 
     const plannedEntries: Array<{
       developer: Developer;
@@ -2413,7 +2507,8 @@ export class TeamTrackerService {
 
       const targetItems = await this.getTargetCarryForwardItems(
         toDate,
-        dayRow.day.developerAccountId
+        dayRow.day.developerAccountId,
+        normalizedWorkspaceId
       );
       const remainingToCarry = this.buildRemainingCarryForwardMap(
         unfinished,
@@ -2440,7 +2535,8 @@ export class TeamTrackerService {
     const issueContextMap = await this.getIssueContextMap(
       plannedEntries
         .map((entry) => entry.item.jiraKey)
-        .filter((jiraKey): jiraKey is string => Boolean(jiraKey))
+        .filter((jiraKey): jiraKey is string => Boolean(jiraKey)),
+      normalizedWorkspaceId
     );
 
     return {
@@ -2504,7 +2600,8 @@ export class TeamTrackerService {
   private async selectCarryForwardEntries(
     fromDate: string,
     entries: CarryForwardPlanEntry[],
-    itemIds?: number[]
+    itemIds?: number[],
+    workspaceId?: string
   ): Promise<CarryForwardPlanEntry[]> {
     if (!itemIds) {
       return entries;
@@ -2525,6 +2622,7 @@ export class TeamTrackerService {
       .innerJoin(teamTrackerDays, eq(teamTrackerDays.id, teamTrackerItems.dayId))
       .where(
         and(
+          eq(teamTrackerItems.workspaceId, normalizeWorkspaceId(workspaceId)),
           eq(teamTrackerDays.date, fromDate),
           inArray(teamTrackerItems.id, Array.from(requestedIds))
         )
@@ -2542,8 +2640,10 @@ export class TeamTrackerService {
 
   private async carryForwardTrackerOnlyItems(
     items: CarryForwardSourceItem[],
-    toDate: string
+    toDate: string,
+    workspaceId?: string
   ): Promise<number> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     if (items.length === 0) {
       return 0;
     }
@@ -2558,7 +2658,7 @@ export class TeamTrackerService {
     }
 
     for (const [developerAccountId, sourceItems] of itemsByDeveloper.entries()) {
-      const newDay = await this.ensureDay(toDate, developerAccountId);
+      const newDay = await this.ensureDay(toDate, developerAccountId, normalizedWorkspaceId);
       const targetItems = await db
         .select()
         .from(teamTrackerItems)
@@ -2570,6 +2670,7 @@ export class TeamTrackerService {
 
       for (const item of sourceItems.sort((a, b) => a.position - b.position)) {
         await db.insert(teamTrackerItems).values({
+          workspaceId: normalizedWorkspaceId,
           dayId: newDay.id,
           itemType: item.itemType,
           jiraKey: item.jiraKey,
@@ -2590,7 +2691,8 @@ export class TeamTrackerService {
 
   private async resolveLatestCarryForwardSourceDate(
     toDate: string,
-    lookbackDays: number
+    lookbackDays: number,
+    workspaceId?: string
   ): Promise<string | undefined> {
     const boundedLookbackDays = Math.max(
       1,
@@ -2599,7 +2701,7 @@ export class TeamTrackerService {
 
     for (let dayOffset = 1; dayOffset <= boundedLookbackDays; dayOffset += 1) {
       const candidateDate = addDaysToIsoDate(toDate, -dayOffset);
-      const plan = await this.buildCarryForwardPlan(candidateDate, toDate);
+      const plan = await this.buildCarryForwardPlan(candidateDate, toDate, workspaceId);
       if (plan.entries.length > 0) {
         return candidateDate;
       }

@@ -7,6 +7,7 @@ import { TestWrapper } from './wrapper';
 
 const mockMutate = vi.fn();
 const mockAddToast = vi.fn();
+const CAPTURE_TARGET_STORAGE_KEY = 'lead-os:anonymous:dcc-capture-target';
 
 const mockDevelopers = [
   {
@@ -118,14 +119,14 @@ describe('GlobalCaptureDialog', () => {
     renderDialog();
 
     fireEvent.click(screen.getByText('Team'));
-    expect(localStorage.getItem('dcc-capture-target')).toBe('team-tracker');
+    expect(localStorage.getItem(CAPTURE_TARGET_STORAGE_KEY)).toBe('team-tracker');
 
     fireEvent.click(screen.getByText('Desk'));
-    expect(localStorage.getItem('dcc-capture-target')).toBe('manager-desk');
+    expect(localStorage.getItem(CAPTURE_TARGET_STORAGE_KEY)).toBe('manager-desk');
   });
 
   it('restores persisted target on reopen', async () => {
-    localStorage.setItem('dcc-capture-target', 'team-tracker');
+    localStorage.setItem(CAPTURE_TARGET_STORAGE_KEY, 'team-tracker');
     renderDialog();
 
     await waitFor(() => {

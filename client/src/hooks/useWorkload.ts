@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAuthScopeKey } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import type { DeveloperWorkload } from '@/types';
 
@@ -7,8 +8,10 @@ interface WorkloadResponse {
 }
 
 export function useWorkload(date?: string) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<DeveloperWorkload[]>({
-    queryKey: ['workload', date],
+    queryKey: ['workload', date, authScopeKey],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (date) {

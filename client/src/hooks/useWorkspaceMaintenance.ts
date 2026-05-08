@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuthScopeKey } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import type {
   WorkspaceMaintenancePreviewResponse,
@@ -7,8 +8,10 @@ import type {
 } from '@/types';
 
 export function useWorkspaceMaintenancePreview(enabled = true) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<WorkspaceMaintenancePreviewResponse>({
-    queryKey: ['config', 'maintenance-reset-preview'],
+    queryKey: ['config', 'maintenance-reset-preview', authScopeKey],
     queryFn: () =>
       api.get<WorkspaceMaintenancePreviewResponse>('/config/maintenance/reset-preview'),
     enabled,

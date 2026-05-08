@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAuthScopeKey } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import type {
   TeamTrackerBoardResponse,
@@ -23,8 +24,10 @@ function buildBoardUrl(date: string, query?: TeamTrackerBoardQuery): string {
 }
 
 export function useTeamTracker(date: string, query?: TeamTrackerBoardQuery, enabled = true) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<TeamTrackerBoardResponse>({
-    queryKey: ['team-tracker', date, query ?? {}],
+    queryKey: ['team-tracker', date, query ?? {}, authScopeKey],
     queryFn: () => api.get<TeamTrackerBoardResponse>(buildBoardUrl(date, query)),
     refetchInterval: enabled ? 30_000 : false,
     enabled,
@@ -32,8 +35,10 @@ export function useTeamTracker(date: string, query?: TeamTrackerBoardQuery, enab
 }
 
 export function useCarryForwardPreview(fromDate: string, toDate: string, enabled = true) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<TrackerCarryForwardPreviewResponse>({
-    queryKey: ['team-tracker', 'carry-forward-preview', fromDate, toDate],
+    queryKey: ['team-tracker', 'carry-forward-preview', fromDate, toDate, authScopeKey],
     queryFn: async () => {
       const params = new URLSearchParams({ fromDate, toDate });
       return api.get<TrackerCarryForwardPreviewResponse>(
@@ -46,8 +51,10 @@ export function useCarryForwardPreview(fromDate: string, toDate: string, enabled
 }
 
 export function useCarryForwardContext(toDate: string, enabled = true) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<TrackerCarryForwardContextResponse>({
-    queryKey: ['team-tracker', 'carry-forward-context', toDate],
+    queryKey: ['team-tracker', 'carry-forward-context', toDate, authScopeKey],
     queryFn: () =>
       api.get<TrackerCarryForwardContextResponse>(
         `/team-tracker/carry-forward-context?toDate=${encodeURIComponent(toDate)}`
@@ -58,8 +65,10 @@ export function useCarryForwardContext(toDate: string, enabled = true) {
 }
 
 export function useTrackerIssueAssignments(jiraKey?: string, date?: string) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<TrackerIssueAssignment[]>({
-    queryKey: ['team-tracker', 'issue-assignment', date, jiraKey],
+    queryKey: ['team-tracker', 'issue-assignment', date, jiraKey, authScopeKey],
     queryFn: async () => {
       const params = new URLSearchParams({ date: date! });
       const res = await api.get<TrackerIssueAssignmentsResponse>(

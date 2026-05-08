@@ -123,6 +123,7 @@ export function createAuthRouter(authService: AuthService): Router {
     try {
       const userCount = await authService.getUserCount();
       const isBootstrap = userCount === 0;
+      let caller: AuthUser | undefined;
 
       if (isBootstrap && req.body.role !== "manager") {
         res.status(403).json({ error: "The first account must be a manager", status: 403 });
@@ -137,7 +138,7 @@ export function createAuthRouter(authService: AuthService): Router {
           res.status(401).json({ error: "Authentication required", status: 401 });
           return;
         }
-        const caller = await authService.getUserForSession(sessionId);
+        caller = await authService.getUserForSession(sessionId);
         if (!caller || caller.role !== "manager") {
           res.status(403).json({ error: "Only managers can create users", status: 403 });
           return;
@@ -150,6 +151,7 @@ export function createAuthRouter(authService: AuthService): Router {
         password,
         displayName,
         role,
+        workspaceId: caller?.workspaceId,
         developerAccountId,
       });
 
@@ -183,9 +185,9 @@ export function createAuthRouter(authService: AuthService): Router {
     }
   });
 
-  router.get("/users", requireManager(authService), async (_req, res, next) => {
+  router.get("/users", requireManager(authService), async (req, res, next) => {
     try {
-      const users = await authService.listUsers();
+      const users = await authService.listUsers(req.auth!.user.workspaceId);
       res.json({ users });
     } catch (error) {
       next(error);
@@ -199,7 +201,7 @@ export function createAuthRouter(authService: AuthService): Router {
         res.status(400).json({ error: "username is required", status: 400 });
         return;
       }
-      await authService.deleteUser(username);
+      await authService.deleteUser(username, req.auth!.user.workspaceId);
       res.json({ ok: true });
     } catch (error) {
       next(error);

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuthScopeKey } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import type { Alert, AlertDismissRequest, AlertDismissResponse } from '@/types';
 
@@ -11,8 +12,10 @@ interface UseAlertsOptions {
 }
 
 export function useAlerts(options?: UseAlertsOptions) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<Alert[]>({
-    queryKey: ['alerts'],
+    queryKey: ['alerts', authScopeKey],
     queryFn: async () => {
       const res = await api.get<AlertsResponse>('/alerts');
       return res.alerts;
@@ -24,16 +27,18 @@ export function useAlerts(options?: UseAlertsOptions) {
 
 export function useDismissAlerts() {
   const queryClient = useQueryClient();
+  const authScopeKey = useAuthScopeKey();
+  const queryKey = ['alerts', authScopeKey] as const;
 
   return useMutation({
     mutationFn: (payload: AlertDismissRequest) =>
       api.post<AlertDismissResponse>('/alerts/dismiss', payload),
     onMutate: async ({ alertIds }) => {
       await queryClient.cancelQueries({ queryKey: ['alerts'] });
-      const previousAlerts = queryClient.getQueryData<Alert[]>(['alerts']);
+      const previousAlerts = queryClient.getQueryData<Alert[]>(queryKey);
       const dismissedIds = new Set(alertIds);
 
-      queryClient.setQueryData<Alert[]>(['alerts'], (currentAlerts = []) =>
+      queryClient.setQueryData<Alert[]>(queryKey, (currentAlerts = []) =>
         currentAlerts.filter((alert) => !dismissedIds.has(alert.id))
       );
 
@@ -41,7 +46,7 @@ export function useDismissAlerts() {
     },
     onError: (_error, _variables, context) => {
       if (context?.previousAlerts !== undefined) {
-        queryClient.setQueryData(['alerts'], context.previousAlerts);
+        queryClient.setQueryData(queryKey, context.previousAlerts);
       }
     },
     onSettled: () => {

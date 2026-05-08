@@ -45,16 +45,16 @@ export function createTagsRouter(tagService: TagService, issueService?: import('
       const result = await issueService.getTagCounts({
         filter: req.query.filter as any,
         assignee: req.query.assignee as string | undefined,
-      });
+      }, req.auth!.user.workspaceId);
       res.json(result);
     } catch (error) {
       next(error);
     }
   });
 
-  router.get("/", async (_req, res, next) => {
+  router.get("/", async (req, res, next) => {
     try {
-      const tags = await tagService.getAll();
+      const tags = await tagService.getAll(req.auth!.user.workspaceId);
       res.json({ tags });
     } catch (error) {
       next(error);
@@ -63,7 +63,7 @@ export function createTagsRouter(tagService: TagService, issueService?: import('
 
   router.post("/", validate(createTagSchema), async (req, res, next) => {
     try {
-      const tag = await tagService.create(req.body.name, req.body.color);
+      const tag = await tagService.create(req.body.name, req.body.color, req.auth!.user.workspaceId);
       res.status(201).json(tag);
     } catch (error) {
       next(error);
@@ -72,7 +72,7 @@ export function createTagsRouter(tagService: TagService, issueService?: import('
 
   router.get("/:id/usage", validate(getTagUsageSchema), async (req, res, next) => {
     try {
-      const usage = await tagService.getUsage(Number(req.params.id));
+      const usage = await tagService.getUsage(Number(req.params.id), req.auth!.user.workspaceId);
       if (!usage) {
         throw new HttpError(404, "Tag not found");
       }
@@ -84,7 +84,7 @@ export function createTagsRouter(tagService: TagService, issueService?: import('
 
   router.delete("/:id", validate(deleteTagSchema), async (req, res, next) => {
     try {
-      const usage = await tagService.getUsage(Number(req.params.id));
+      const usage = await tagService.getUsage(Number(req.params.id), req.auth!.user.workspaceId);
       if (!usage) {
         throw new HttpError(404, "Tag not found");
       }
@@ -99,7 +99,7 @@ export function createTagsRouter(tagService: TagService, issueService?: import('
         return;
       }
 
-      await tagService.remove(Number(req.params.id));
+      await tagService.remove(Number(req.params.id), req.auth!.user.workspaceId);
       res.json({ success: true, removedIssueCount: usage.issueCount });
     } catch (error) {
       next(error);
@@ -108,7 +108,7 @@ export function createTagsRouter(tagService: TagService, issueService?: import('
 
   router.put("/issue/:key", validate(setIssueTagsSchema), async (req, res, next) => {
     try {
-      const tags = await tagService.setIssueTags(req.params.key as string, req.body.tagIds);
+      const tags = await tagService.setIssueTags(req.params.key as string, req.body.tagIds, req.auth!.user.workspaceId);
       res.json({ tags });
     } catch (error) {
       next(error);

@@ -16,7 +16,11 @@ export function createTodayRouter(todayService: TodayService): Router {
 
   router.get("/", validate(dateQuerySchema), async (req, res, next) => {
     try {
-      const today = await todayService.getToday(req.auth!.user.accountId, req.query.date as string);
+      const today = await todayService.getToday(
+        req.auth!.user.accountId,
+        req.query.date as string,
+        req.auth!.user.workspaceId
+      );
       res.json(today);
     } catch (error) {
       next(error);

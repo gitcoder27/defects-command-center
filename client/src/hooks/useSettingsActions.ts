@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuthScopeKey } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import type { AuthUser, Developer } from '@/types';
 
@@ -60,8 +61,10 @@ interface UpdateDeveloperPayload {
 }
 
 export function useAppUsers() {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery({
-    queryKey: ['auth-users'],
+    queryKey: ['auth-users', authScopeKey],
     queryFn: async () => {
       const res = await api.get<{ users: AuthUser[] }>('/auth/users');
       return res.users ?? [];
@@ -71,22 +74,24 @@ export function useAppUsers() {
 
 export function useCreateAppUser() {
   const queryClient = useQueryClient();
+  const authScopeKey = useAuthScopeKey();
 
   return useMutation({
     mutationFn: (payload: CreateAppUserPayload) => api.post<{ user: AuthUser }>('/auth/register', payload),
     onSuccess: (res) => {
-      queryClient.setQueryData<AuthUser[]>(['auth-users'], (previous = []) => [...previous, res.user]);
+      queryClient.setQueryData<AuthUser[]>(['auth-users', authScopeKey], (previous = []) => [...previous, res.user]);
     },
   });
 }
 
 export function useDeleteAppUser() {
   const queryClient = useQueryClient();
+  const authScopeKey = useAuthScopeKey();
 
   return useMutation({
     mutationFn: (username: string) => api.delete<{ ok: true }>(`/auth/users/${encodeURIComponent(username)}`),
     onSuccess: (_res, username) => {
-      queryClient.setQueryData<AuthUser[]>(['auth-users'], (previous = []) =>
+      queryClient.setQueryData<AuthUser[]>(['auth-users', authScopeKey], (previous = []) =>
         previous.filter((user) => user.username !== username)
       );
     },

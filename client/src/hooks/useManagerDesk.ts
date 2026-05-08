@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthScopeKey } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import type {
   ManagerDeskDayResponse,
@@ -26,8 +27,10 @@ function invalidateDeskDependentViews(qc: ReturnType<typeof useQueryClient>) {
 // ── Day query ───────────────────────────────────────────
 
 export function useManagerDesk(date: string, enabled = true) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<ManagerDeskDayResponse>({
-    queryKey: ['manager-desk', date],
+    queryKey: ['manager-desk', date, authScopeKey],
     queryFn: () => api.get<ManagerDeskDayResponse>(`/manager-desk?date=${date}`),
     enabled,
     refetchInterval: 30_000,
@@ -39,8 +42,10 @@ export function useTrackerSharedTaskDetail(params: {
   managerDeskItemId: number | null;
 }) {
   const { trackerItemId, managerDeskItemId } = params;
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<TrackerSharedTaskDetailResponse>({
-    queryKey: ['manager-desk', 'task-detail', managerDeskItemId, trackerItemId],
+    queryKey: ['manager-desk', 'task-detail', managerDeskItemId, trackerItemId, authScopeKey],
     queryFn: () => {
       if (managerDeskItemId !== null) {
         return api.get<TrackerSharedTaskDetailResponse>(`/manager-desk/items/${managerDeskItemId}/detail`);
@@ -195,8 +200,10 @@ export function useManagerDeskCarryForwardPreview(
   toDate: string,
   enabled = true,
 ) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<ManagerDeskCarryForwardPreviewResponse>({
-    queryKey: ['manager-desk', 'carry-forward-preview', fromDate, toDate],
+    queryKey: ['manager-desk', 'carry-forward-preview', fromDate, toDate, authScopeKey],
     queryFn: () => {
       const params = new URLSearchParams({ fromDate, toDate });
       return api.get<ManagerDeskCarryForwardPreviewResponse>(
@@ -209,8 +216,10 @@ export function useManagerDeskCarryForwardPreview(
 }
 
 export function useManagerDeskCarryForwardContext(toDate: string, enabled = true) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<ManagerDeskCarryForwardContextResponse>({
-    queryKey: ['manager-desk', 'carry-forward-context', toDate],
+    queryKey: ['manager-desk', 'carry-forward-context', toDate, authScopeKey],
     queryFn: () =>
       api.get<ManagerDeskCarryForwardContextResponse>(
         `/manager-desk/carry-forward-context?toDate=${encodeURIComponent(toDate)}`
@@ -240,8 +249,10 @@ export function useCarryForwardManagerDesk(date: string) {
 // ── Lookups ─────────────────────────────────────────────
 
 export function useManagerDeskIssueLookup(query: string, enabled = true) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<ManagerDeskIssueLookupItem[]>({
-    queryKey: ['manager-desk', 'lookup-issues', query],
+    queryKey: ['manager-desk', 'lookup-issues', query, authScopeKey],
     queryFn: async () => {
       const res = await api.get<{ items: ManagerDeskIssueLookupItem[] }>(
         `/manager-desk/lookups/issues?q=${encodeURIComponent(query)}`
@@ -254,8 +265,10 @@ export function useManagerDeskIssueLookup(query: string, enabled = true) {
 }
 
 export function useManagerDeskDeveloperLookup(query: string, date?: string, enabled = true) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<ManagerDeskDeveloperLookupItem[]>({
-    queryKey: ['manager-desk', 'lookup-developers', query, date],
+    queryKey: ['manager-desk', 'lookup-developers', query, date, authScopeKey],
     queryFn: async () => {
       const params = new URLSearchParams({ q: query });
       if (date) {

@@ -1,4 +1,4 @@
-import { desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, or } from "drizzle-orm";
 import type {
   FilterType,
   Issue as SharedIssue,
@@ -14,6 +14,7 @@ import { endOfWeekIsoDate, todayIsoDate } from "../utils/date";
 import { getEffectiveDueDate, isActiveTeamIssue, isOutOfTeamIssue, isStaleIssue } from "./issue-rules";
 import { SettingsService } from "./settings.service";
 import { TeamTrackerService } from "./team-tracker.service";
+import { normalizeWorkspaceId } from "./workspace.service";
 
 export interface IssueQuery {
   filter?: FilterType;
@@ -37,18 +38,23 @@ export class IssueService {
     private readonly teamTrackerService = new TeamTrackerService(),
   ) {}
 
-  async getAll(query: IssueQuery = {}): Promise<SharedIssue[]> {
-    const rows: Array<typeof issues.$inferSelect> = await db.select().from(issues).orderBy(desc(issues.updatedAt));
-    const tagMap = await this.getTagMapForAll();
-    const managerJiraAccountId = await this.settings.getManagerJiraAccountId();
-    const staleThresholdHours = await this.settings.getStaleThresholdHours();
+  async getAll(query: IssueQuery = {}, workspaceId?: string): Promise<SharedIssue[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const rows: Array<typeof issues.$inferSelect> = await db
+      .select()
+      .from(issues)
+      .where(eq(issues.workspaceId, normalizedWorkspaceId))
+      .orderBy(desc(issues.updatedAt));
+    const tagMap = await this.getTagMapForAll(normalizedWorkspaceId);
+    const managerJiraAccountId = await this.settings.getManagerJiraAccountId(normalizedWorkspaceId);
+    const staleThresholdHours = await this.settings.getStaleThresholdHours(normalizedWorkspaceId);
     const now = new Date();
     const today = todayIsoDate(now);
     const trackerDate = query.trackerDate ?? today;
     const weekEnd = endOfWeekIsoDate(now);
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const recentlyAssignedIssueKeys = await this.getRecentlyAssignedIssueKeys(dayAgo);
-    const trackerAssignmentSummaryMap = await this.teamTrackerService.getIssueAssignmentSummaryMap(trackerDate);
+    const recentlyAssignedIssueKeys = await this.getRecentlyAssignedIssueKeys(dayAgo, normalizedWorkspaceId);
+    const trackerAssignmentSummaryMap = await this.teamTrackerService.getIssueAssignmentSummaryMap(trackerDate, normalizedWorkspaceId);
 
     let result: SharedIssue[] = rows.map((row: typeof issues.$inferSelect) =>
       this.toSharedIssue(
@@ -71,25 +77,35 @@ export class IssueService {
     return this.sortIssues(result, query.sort ?? "priority", query.order ?? "desc");
   }
 
-  async getById(jiraKey: string, trackerDate = todayIsoDate()): Promise<SharedIssue | undefined> {
-    const row = await db.select().from(issues).where(eq(issues.jiraKey, jiraKey)).limit(1);
+  async getById(jiraKey: string, trackerDate = todayIsoDate(), workspaceId?: string): Promise<SharedIssue | undefined> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const row = await db
+      .select()
+      .from(issues)
+      .where(and(eq(issues.workspaceId, normalizedWorkspaceId), eq(issues.jiraKey, jiraKey)))
+      .limit(1);
     if (!row[0]) {
       return undefined;
     }
-    const tags = await this.getTagsForIssue(jiraKey);
-    const trackerAssignmentSummaryMap = await this.teamTrackerService.getIssueAssignmentSummaryMap(trackerDate);
+    const tags = await this.getTagsForIssue(jiraKey, normalizedWorkspaceId);
+    const trackerAssignmentSummaryMap = await this.teamTrackerService.getIssueAssignmentSummaryMap(trackerDate, normalizedWorkspaceId);
     return this.toSharedIssue(row[0], tags, trackerAssignmentSummaryMap.get(jiraKey));
   }
 
-  async update(jiraKey: string, payload: IssueUpdate): Promise<SharedIssue> {
-    const existing = await db.select().from(issues).where(eq(issues.jiraKey, jiraKey)).limit(1);
+  async update(jiraKey: string, payload: IssueUpdate, workspaceId?: string): Promise<SharedIssue> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const existing = await db
+      .select()
+      .from(issues)
+      .where(and(eq(issues.workspaceId, normalizedWorkspaceId), eq(issues.jiraKey, jiraKey)))
+      .limit(1);
     const existingRow = existing[0];
     if (!existingRow) {
       throw new Error("Issue not found");
     }
 
     const jiraFields: Record<string, unknown> = {};
-    const devDueDateField = await this.settings.getJiraDevDueDateField();
+    const devDueDateField = await this.settings.getJiraDevDueDateField(normalizedWorkspaceId);
     const updatedAt = new Date().toISOString();
 
     if (payload.assigneeId !== undefined) {
@@ -112,15 +128,15 @@ export class IssueService {
     const hasJiraFields = payload.assigneeId !== undefined || payload.priorityName !== undefined ||
       payload.dueDate !== undefined || payload.developmentDueDate !== undefined || payload.flagged !== undefined;
     if (hasJiraFields) {
-      const jiraClient = await this.getJiraClient();
+      const jiraClient = await this.getJiraClient(normalizedWorkspaceId);
       await jiraClient.updateIssue(jiraKey, jiraFields);
     }
 
     const localUpdate: Partial<typeof issues.$inferInsert> = {};
     if (payload.assigneeId !== undefined) {
       localUpdate.assigneeId = payload.assigneeId;
-      localUpdate.assigneeName = await this.resolveAssigneeName(payload.assigneeId);
-      localUpdate.teamScopeState = await this.resolveTeamScopeState(payload.assigneeId);
+      localUpdate.assigneeName = await this.resolveAssigneeName(payload.assigneeId, normalizedWorkspaceId);
+      localUpdate.teamScopeState = await this.resolveTeamScopeState(payload.assigneeId, normalizedWorkspaceId);
       localUpdate.syncScopeState = "active";
       localUpdate.lastReconciledAt = updatedAt;
       localUpdate.scopeChangedAt = updatedAt;
@@ -144,7 +160,7 @@ export class IssueService {
     await db
       .update(issues)
       .set({ ...localUpdate, updatedAt })
-      .where(eq(issues.jiraKey, jiraKey));
+      .where(and(eq(issues.workspaceId, normalizedWorkspaceId), eq(issues.jiraKey, jiraKey)));
 
     if (
       payload.assigneeId !== undefined &&
@@ -159,38 +175,60 @@ export class IssueService {
       }, updatedAt);
     }
 
-    const updated = await this.getById(jiraKey);
+    const updated = await this.getById(jiraKey, todayIsoDate(), normalizedWorkspaceId);
     if (!updated) {
       throw new Error("Issue not found after update");
     }
     return updated;
   }
 
-  async addComment(jiraKey: string, text: string): Promise<void> {
-    const jiraClient = await this.getJiraClient();
+  async addComment(jiraKey: string, text: string, workspaceId?: string): Promise<void> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const issue = await this.getById(jiraKey, todayIsoDate(), normalizedWorkspaceId);
+    if (!issue) {
+      throw new Error("Issue not found");
+    }
+    const jiraClient = await this.getJiraClient(normalizedWorkspaceId);
     await jiraClient.addComment(jiraKey, text);
   }
 
-  async excludeIssue(jiraKey: string): Promise<void> {
-    await db.update(issues).set({ excluded: 1 }).where(eq(issues.jiraKey, jiraKey));
+  async excludeIssue(jiraKey: string, workspaceId?: string): Promise<void> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    await db
+      .update(issues)
+      .set({ excluded: 1 })
+      .where(and(eq(issues.workspaceId, normalizedWorkspaceId), eq(issues.jiraKey, jiraKey)));
   }
 
-  async restoreIssue(jiraKey: string): Promise<void> {
-    await db.update(issues).set({ excluded: 0 }).where(eq(issues.jiraKey, jiraKey));
+  async restoreIssue(jiraKey: string, workspaceId?: string): Promise<void> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    await db
+      .update(issues)
+      .set({ excluded: 0 })
+      .where(and(eq(issues.workspaceId, normalizedWorkspaceId), eq(issues.jiraKey, jiraKey)));
   }
 
-  async getOverviewCounts(): Promise<OverviewCounts> {
-    const rows: Array<typeof issues.$inferSelect> = await db.select().from(issues);
+  async getOverviewCounts(workspaceId?: string): Promise<OverviewCounts> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const rows: Array<typeof issues.$inferSelect> = await db
+      .select()
+      .from(issues)
+      .where(eq(issues.workspaceId, normalizedWorkspaceId));
     const all = rows.map((row) => this.toSharedIssue(row));
-    const managerJiraAccountId = await this.settings.getManagerJiraAccountId();
-    const staleThresholdHours = await this.settings.getStaleThresholdHours();
+    const managerJiraAccountId = await this.settings.getManagerJiraAccountId(normalizedWorkspaceId);
+    const staleThresholdHours = await this.settings.getStaleThresholdHours(normalizedWorkspaceId);
     const now = new Date();
     const today = todayIsoDate(now);
     const weekEnd = endOfWeekIsoDate(now);
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const recentlyAssignedIssueKeys = await this.getRecentlyAssignedIssueKeys(dayAgo);
+    const recentlyAssignedIssueKeys = await this.getRecentlyAssignedIssueKeys(dayAgo, normalizedWorkspaceId);
 
-    const latest = await db.select().from(syncLog).orderBy(desc(syncLog.id)).limit(1);
+    const latest = await db
+      .select()
+      .from(syncLog)
+      .where(eq(syncLog.workspaceId, normalizedWorkspaceId))
+      .orderBy(desc(syncLog.id))
+      .limit(1);
     const filterContext = { managerJiraAccountId, staleThresholdHours, now, today, weekEnd, dayAgo, recentlyAssignedIssueKeys };
 
     return {
@@ -212,8 +250,8 @@ export class IssueService {
     };
   }
 
-  async getTagCounts(query: Pick<IssueQuery, "filter" | "assignee"> = {}): Promise<{ counts: { tagId: number; count: number }[]; untaggedCount: number }> {
-    const all = await this.getAll({ filter: query.filter, assignee: query.assignee });
+  async getTagCounts(query: Pick<IssueQuery, "filter" | "assignee"> = {}, workspaceId?: string): Promise<{ counts: { tagId: number; count: number }[]; untaggedCount: number }> {
+    const all = await this.getAll({ filter: query.filter, assignee: query.assignee }, workspaceId);
     const tagCountMap = new Map<number, number>();
     let untaggedCount = 0;
 
@@ -313,12 +351,16 @@ export class IssueService {
     }
   }
 
-  private async resolveTeamScopeState(assigneeId?: string): Promise<"in_team" | "out_of_team" | "unassigned"> {
+  private async resolveTeamScopeState(assigneeId?: string, workspaceId?: string): Promise<"in_team" | "out_of_team" | "unassigned"> {
     if (!assigneeId) {
       return "unassigned";
     }
 
-    const rows = await db.select().from(developers).where(eq(developers.isActive, 1));
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const rows = await db
+      .select()
+      .from(developers)
+      .where(and(eq(developers.workspaceId, normalizedWorkspaceId), eq(developers.isActive, 1)));
     const activeTeamIds = new Set(
       rows
         .map((row) => row.jiraAccountId ?? (row.source === "manual" ? undefined : row.accountId))
@@ -327,21 +369,31 @@ export class IssueService {
     return activeTeamIds.has(assigneeId) ? "in_team" : "out_of_team";
   }
 
-  private async resolveAssigneeName(assigneeId?: string): Promise<string | null> {
+  private async resolveAssigneeName(assigneeId?: string, workspaceId?: string): Promise<string | null> {
     if (!assigneeId) {
       return null;
     }
 
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(developers)
-      .where(or(eq(developers.accountId, assigneeId), eq(developers.jiraAccountId, assigneeId)))
+      .where(
+        and(
+          eq(developers.workspaceId, normalizedWorkspaceId),
+          or(eq(developers.accountId, assigneeId), eq(developers.jiraAccountId, assigneeId))
+        )
+      )
       .limit(1);
     return rows[0]?.displayName ?? null;
   }
 
-  private async getRecentlyAssignedIssueKeys(dayAgo: Date): Promise<Set<string>> {
-    const rows = await db.select().from(issueScopeHistory);
+  private async getRecentlyAssignedIssueKeys(dayAgo: Date, workspaceId?: string): Promise<Set<string>> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const rows = await db
+      .select()
+      .from(issueScopeHistory)
+      .where(eq(issueScopeHistory.workspaceId, normalizedWorkspaceId));
     const cutoff = dayAgo.getTime();
 
     return new Set(
@@ -435,6 +487,7 @@ export class IssueService {
     observedAt: string
   ): Promise<void> {
     await db.insert(issueScopeHistory).values({
+      workspaceId: previous.workspaceId,
       jiraKey: previous.jiraKey,
       observedAt,
       changeType: this.getScopeChangeType(previous, next),
@@ -474,16 +527,18 @@ export class IssueService {
     return "issue_updated";
   }
 
-  private async getTagsForIssue(jiraKey: string): Promise<LocalTag[]> {
+  private async getTagsForIssue(jiraKey: string, workspaceId?: string): Promise<LocalTag[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select({ id: localTags.id, name: localTags.name, color: localTags.color })
       .from(issueTags)
       .innerJoin(localTags, eq(issueTags.tagId, localTags.id))
-      .where(eq(issueTags.jiraKey, jiraKey));
+      .where(and(eq(issueTags.workspaceId, normalizedWorkspaceId), eq(issueTags.jiraKey, jiraKey)));
     return rows;
   }
 
-  private async getTagMapForAll(): Promise<Map<string, LocalTag[]>> {
+  private async getTagMapForAll(workspaceId?: string): Promise<Map<string, LocalTag[]>> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select({
         jiraKey: issueTags.jiraKey,
@@ -492,7 +547,8 @@ export class IssueService {
         color: localTags.color,
       })
       .from(issueTags)
-      .innerJoin(localTags, eq(issueTags.tagId, localTags.id));
+      .innerJoin(localTags, eq(issueTags.tagId, localTags.id))
+      .where(eq(issueTags.workspaceId, normalizedWorkspaceId));
     const map = new Map<string, LocalTag[]>();
     for (const row of rows) {
       const arr = map.get(row.jiraKey) ?? [];
@@ -502,13 +558,13 @@ export class IssueService {
     return map;
   }
 
-  private async getJiraClient(): Promise<JiraMutationClient> {
+  private async getJiraClient(workspaceId?: string): Promise<JiraMutationClient> {
     if (typeof this.jiraClientResolver === "function") {
       return this.jiraClientResolver();
     }
     if (this.jiraClientResolver) {
       return this.jiraClientResolver;
     }
-    return this.settings.createJiraClient();
+    return this.settings.createJiraClient(workspaceId);
   }
 }

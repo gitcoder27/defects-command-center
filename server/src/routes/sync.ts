@@ -4,9 +4,9 @@ import { SyncEngine } from "../sync/engine";
 export function createSyncRouter(syncEngine: SyncEngine): Router {
   const router = Router();
 
-  router.post("/", async (_req, res, next) => {
+  router.post("/", async (req, res, next) => {
     try {
-      const result = await syncEngine.syncNow();
+      const result = await syncEngine.syncNow(req.auth!.user.workspaceId);
       if (result.status === "skipped") {
         res.status(202).json(result);
         return;
@@ -17,10 +17,10 @@ export function createSyncRouter(syncEngine: SyncEngine): Router {
     }
   });
 
-  router.get("/status", async (_req, res, next) => {
+  router.get("/status", async (req, res, next) => {
     try {
-      const latest = await syncEngine.getLastSyncLog();
-      const runtime = syncEngine.getRuntimeStatus();
+      const latest = await syncEngine.getLastSyncLog(req.auth!.user.workspaceId);
+      const runtime = syncEngine.getRuntimeStatus(req.auth!.user.workspaceId);
       const status = runtime.status === "syncing" || runtime.status === "error"
         ? runtime.status
         : latest?.status === "error"

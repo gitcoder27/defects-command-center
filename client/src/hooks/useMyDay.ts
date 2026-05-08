@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthScopeKey } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import type {
   MyDayResponse,
@@ -9,8 +10,10 @@ import type {
 } from '@/types';
 
 export function useMyDay(date: string, enabled = true) {
+  const authScopeKey = useAuthScopeKey();
+
   return useQuery<MyDayResponse>({
-    queryKey: ['my-day', date],
+    queryKey: ['my-day', date, authScopeKey],
     queryFn: () => api.get<MyDayResponse>(`/my-day?date=${date}`),
     refetchInterval: 30_000,
     enabled,

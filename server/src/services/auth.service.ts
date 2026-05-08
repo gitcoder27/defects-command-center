@@ -5,6 +5,7 @@ import type { AuthUser, UserRole } from "shared/types";
 import { db } from "../db/connection";
 import { appSessions, appUsers, developers } from "../db/schema";
 import { HttpError } from "../middleware/errorHandler";
+import { DEFAULT_WORKSPACE_ID, normalizeWorkspaceId, WorkspaceService } from "./workspace.service";
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 const DEFAULT_SESSION_COOKIE_NAME = "dcc_session";
@@ -17,12 +18,14 @@ interface CreateUserParams {
   displayName: string;
   password: string;
   role: UserRole;
+  workspaceId?: string;
   developerAccountId?: string;
   isActive?: boolean;
 }
 
 interface PersistedUser {
   id: number;
+  workspaceId: string;
   username: string;
   displayName: string;
   role: UserRole;
@@ -67,6 +70,7 @@ function mapAuthUser(user: PersistedUser): AuthUser {
   return {
     username: user.username,
     accountId: user.developerAccountId ?? user.username,
+    workspaceId: user.workspaceId,
     displayName: user.displayName,
     role: user.role,
     developerAccountId: user.developerAccountId,
@@ -104,11 +108,22 @@ export function clearSessionCookie(): string {
 export class AuthService {
   readonly sessionMaxAgeSeconds = SESSION_MAX_AGE_SECONDS;
 
+  constructor(private readonly workspaceService = new WorkspaceService()) {}
+
   async createUser(params: CreateUserParams): Promise<AuthUser> {
     const username = normalizeUsername(params.username);
     if (!username) {
       throw new HttpError(400, "username is required");
     }
+
+    const userCount = await this.getUserCount();
+    const workspaceId = await this.resolveWorkspaceIdForNewUser({
+      explicitWorkspaceId: params.workspaceId,
+      userCount,
+      role: params.role,
+      username,
+      displayName: params.displayName,
+    });
 
     if (params.role === "developer" && !params.developerAccountId) {
       throw new HttpError(400, "developerAccountId is required for developer users");
@@ -117,7 +132,13 @@ export class AuthService {
       const developerRows = await db
         .select({ accountId: developers.accountId })
         .from(developers)
-        .where(and(eq(developers.accountId, params.developerAccountId), eq(developers.isActive, 1)))
+        .where(
+          and(
+            eq(developers.workspaceId, workspaceId),
+            eq(developers.accountId, params.developerAccountId),
+            eq(developers.isActive, 1)
+          )
+        )
         .limit(1);
 
       if (!developerRows[0]) {
@@ -129,6 +150,7 @@ export class AuthService {
     const inserted = await db
       .insert(appUsers)
       .values({
+        workspaceId,
         username,
         displayName: params.displayName.trim(),
         passwordHash: await hashPassword(params.password),
@@ -147,6 +169,7 @@ export class AuthService {
 
     return mapAuthUser({
       id: row.id,
+      workspaceId: row.workspaceId,
       username: row.username,
       displayName: row.displayName,
       role: row.role as UserRole,
@@ -181,6 +204,7 @@ export class AuthService {
       sessionId,
       user: mapAuthUser({
         id: row.id,
+        workspaceId: row.workspaceId,
         username: row.username,
         displayName: row.displayName,
         role: row.role as UserRole,
@@ -194,6 +218,7 @@ export class AuthService {
       .select({
         sessionId: appSessions.id,
         userId: appUsers.id,
+        workspaceId: appUsers.workspaceId,
         username: appUsers.username,
         displayName: appUsers.displayName,
         role: appUsers.role,
@@ -224,6 +249,7 @@ export class AuthService {
 
     return mapAuthUser({
       id: row.userId,
+      workspaceId: row.workspaceId,
       username: row.username,
       displayName: row.displayName,
       role: row.role as UserRole,
@@ -243,15 +269,17 @@ export class AuthService {
     return rows.length;
   }
 
-  async listUsers(): Promise<AuthUser[]> {
+  async listUsers(workspaceId?: string): Promise<AuthUser[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(appUsers)
-      .where(eq(appUsers.isActive, 1));
+      .where(and(eq(appUsers.workspaceId, normalizedWorkspaceId), eq(appUsers.isActive, 1)));
 
     return rows.map((row) =>
       mapAuthUser({
         id: row.id,
+        workspaceId: row.workspaceId,
         username: row.username,
         displayName: row.displayName,
         role: row.role as UserRole,
@@ -286,16 +314,23 @@ export class AuthService {
       .where(eq(appUsers.id, row.id));
   }
 
-  async deleteUser(username: string): Promise<void> {
+  async deleteUser(username: string, workspaceId?: string): Promise<void> {
     const normalizedUsername = normalizeUsername(username);
     if (!normalizedUsername) {
       throw new HttpError(400, "username is required");
     }
 
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db
       .select()
       .from(appUsers)
-      .where(and(eq(appUsers.username, normalizedUsername), eq(appUsers.isActive, 1)))
+      .where(
+        and(
+          eq(appUsers.workspaceId, normalizedWorkspaceId),
+          eq(appUsers.username, normalizedUsername),
+          eq(appUsers.isActive, 1)
+        )
+      )
       .limit(1);
 
     const row = rows[0];
@@ -309,5 +344,27 @@ export class AuthService {
 
     await db.delete(appSessions).where(eq(appSessions.userId, row.id));
     await db.delete(appUsers).where(eq(appUsers.id, row.id));
+  }
+
+  private async resolveWorkspaceIdForNewUser(params: {
+    explicitWorkspaceId?: string;
+    userCount: number;
+    role: UserRole;
+    username: string;
+    displayName: string;
+  }): Promise<string> {
+    if (params.explicitWorkspaceId) {
+      return this.workspaceService.assertWorkspaceExists(params.explicitWorkspaceId);
+    }
+
+    if (params.userCount === 0) {
+      return this.workspaceService.ensureDefaultWorkspace(params.role === "manager" ? params.username : undefined);
+    }
+
+    if (params.role === "manager") {
+      return this.workspaceService.createWorkspaceForManager(params.username, params.displayName);
+    }
+
+    return this.workspaceService.assertWorkspaceExists(DEFAULT_WORKSPACE_ID);
   }
 }
