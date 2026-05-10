@@ -192,7 +192,22 @@ describe('TodayPage V2', () => {
 
   it('captures a follow-up through the Today dialog instead of a native prompt', async () => {
     const promptSpy = vi.spyOn(window, 'prompt');
-    const fetchMock = mockFetch(todayResponse());
+    const followUpTarget = target({
+      type: 'issue',
+      view: 'work',
+      issueKey: 'AM-1',
+      relatedIssueKeys: ['AM-2'],
+      filter: 'overdue',
+    });
+    const fetchMock = mockFetch(todayResponse({
+      actionItems: [
+        actionItem(1, {
+          target: followUpTarget,
+          primaryAction: command('open', 'Open issue', followUpTarget),
+          secondaryActions: [command('capture_follow_up', 'Follow up', followUpTarget)],
+        }),
+      ],
+    }));
     renderToday();
 
     fireEvent.click((await screen.findAllByLabelText('More actions'))[0]!);
@@ -207,6 +222,13 @@ describe('TodayPage V2', () => {
         body: expect.stringContaining('Check API rollout'),
       }));
     });
+    const postCall = fetchMock.mock.calls.find(([url, init]) => (
+      url === '/api/manager-desk/items' && (init as RequestInit | undefined)?.method === 'POST'
+    ));
+    expect(JSON.parse((postCall?.[1] as RequestInit).body as string).links).toEqual([
+      { linkType: 'issue', issueKey: 'AM-1' },
+      { linkType: 'issue', issueKey: 'AM-2' },
+    ]);
     expect(promptSpy).not.toHaveBeenCalled();
   });
 

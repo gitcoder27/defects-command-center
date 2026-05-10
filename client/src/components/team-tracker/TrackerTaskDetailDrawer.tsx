@@ -11,6 +11,7 @@ import { useSetCurrentItem, useUpdateTrackerItem } from '@/hooks/useTeamTrackerM
 import { TrackerTaskExecutionPanel } from './TrackerTaskExecutionPanel';
 import { useToast } from '@/context/ToastContext';
 import { JiraIssueLink } from '@/components/JiraIssueLink';
+import { RelatedIssueChips } from './RelatedIssueChips';
 
 interface TrackerTaskDetailDrawerProps {
   trackerItemId: number | null;
@@ -196,6 +197,7 @@ function TrackerOnlyDrawer({
                   </>
                 )}
               </div>
+              <RelatedIssueChips issueKeys={item.relatedIssueKeys} compact className="mt-2" />
             </div>
             <button
               type="button"

@@ -29,6 +29,7 @@ const addItemSchema = z.object({
   body: z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     jiraKey: z.string().trim().optional(),
+    relatedIssueKeys: z.array(z.string().trim().min(1)).max(20).optional(),
     title: z.string().trim().min(1).max(500),
     note: z.string().trim().max(2000).optional(),
   }),

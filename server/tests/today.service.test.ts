@@ -170,6 +170,33 @@ describe("TodayService", () => {
     expect(pulseItem?.actionPreview).toBe("BE modernization");
   });
 
+  it("includes current tracker issue context on developer action targets", async () => {
+    await seedIssue("AM-1");
+    await seedIssue("AM-2", { summary: "Related checkout context" });
+    await trackerService.updateDay("dev-1", "2026-03-08", { status: "blocked" });
+    const current = await trackerService.addItem("dev-1", "2026-03-08", {
+      jiraKey: "AM-1",
+      relatedIssueKeys: ["AM-2"],
+      title: "Checkout retry fix",
+    });
+    await trackerService.setCurrentItem(current.id);
+
+    const response = await todayService().getToday("manager-1", "2026-03-08");
+    const developerAction = response.actionItems.find((item) => item.target.developerAccountId === "dev-1");
+    const pulseItem = response.teamPulse.find((item) => item.accountId === "dev-1");
+
+    expect(developerAction?.target).toMatchObject({
+      trackerItemId: current.id,
+      issueKey: "AM-1",
+      relatedIssueKeys: ["AM-2"],
+    });
+    expect(pulseItem?.target).toMatchObject({
+      trackerItemId: current.id,
+      issueKey: "AM-1",
+      relatedIssueKeys: ["AM-2"],
+    });
+  });
+
   it("does not turn Later desk items into Today carry-forward actions", async () => {
     const planned = await managerDeskService.createItem("manager-1", {
       date: "2026-03-07",

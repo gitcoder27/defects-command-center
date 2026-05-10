@@ -1600,7 +1600,9 @@ export class ManagerDeskService {
           rebaseTimestampToTargetDate(item.followUpAt, params.fromDate, params.toDate) ?? null;
         this.assertTimeRange(rebasedPlannedStartAt, rebasedPlannedEndAt);
 
-        const rawLinks = sourceLinksByItemId.get(item.id) ?? [];
+        const rawLinks = [...(sourceLinksByItemId.get(item.id) ?? [])].sort(
+          (left, right) => left.id - right.id
+        );
         return {
           item,
           rawLinks,
@@ -1927,7 +1929,7 @@ export class ManagerDeskService {
 
   private async getNormalizedLinksByItemId(itemId: number, workspaceId?: string): Promise<NormalizedManagerDeskLink[]> {
     const rows = (await this.getRawLinksByItemIds([itemId], workspaceId)).get(itemId) ?? [];
-    return rows.map((row) => ({
+    return [...rows].sort((left, right) => left.id - right.id).map((row) => ({
       linkType: row.linkType as ManagerDeskLinkType,
       issueKey: row.issueKey ?? undefined,
       developerAccountId: row.developerAccountId ?? undefined,
@@ -2084,16 +2086,25 @@ export class ManagerDeskService {
       throw new Error("Failed to create manager desk item from tracker item");
     }
 
-    if (trackerContext.trackerItem.jiraKey) {
-      await db.insert(managerDeskLinks).values({
-        workspaceId: normalizedWorkspaceId,
-        itemId: item.id,
-        linkType: "issue",
-        issueKey: trackerContext.trackerItem.jiraKey,
-        developerAccountId: null,
-        externalLabel: null,
-        createdAt: now,
-      });
+    const issueKeys = [
+      trackerContext.trackerItem.jiraKey,
+      ...(trackerContext.trackerItem.relatedIssueKeys ?? []),
+    ]
+      .map((key) => key?.trim())
+      .filter((key): key is string => Boolean(key));
+    const uniqueIssueKeys = Array.from(new Set(issueKeys));
+    if (uniqueIssueKeys.length > 0) {
+      await db.insert(managerDeskLinks).values(
+        uniqueIssueKeys.map((issueKey) => ({
+          workspaceId: normalizedWorkspaceId,
+          itemId: item.id,
+          linkType: "issue",
+          issueKey,
+          developerAccountId: null,
+          externalLabel: null,
+          createdAt: now,
+        }))
+      );
     }
 
     await this.trackerService.linkManagerDeskItem(trackerContext.trackerItem.id, item.id, normalizedWorkspaceId);

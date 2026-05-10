@@ -5,6 +5,7 @@ import { JiraIssueLink } from '@/components/JiraIssueLink';
 import { formatDate, priorityColor } from '@/lib/utils';
 import { TrackerItemRowActions, type TrackerItemActionPreset } from './TrackerItemRowActions';
 import { TrackerItemRowDetails } from './TrackerItemRowDetails';
+import { RelatedIssueChips } from './RelatedIssueChips';
 
 type TrackerItemRowVariant = 'default' | 'drawer-planned';
 
@@ -228,10 +229,11 @@ export function TrackerItemRow({
 
         {item.jiraKey && (
           isDrawerPlanned ? (
-            <div className="mt-0.5 min-w-0">
+            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5">
               <JiraIssueLink issueKey={item.jiraKey} className="font-mono text-[12px] truncate" style={{ color: 'var(--accent)' }}>
                 {item.jiraKey}
               </JiraIssueLink>
+              <RelatedIssueChips issueKeys={item.relatedIssueKeys} compact />
             </div>
           ) : (
             <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
@@ -243,6 +245,17 @@ export function TrackerItemRow({
               </JiraIssueLink>
             </div>
           )
+        )}
+        {!isDrawerPlanned && (
+          <RelatedIssueChips
+            issueKeys={item.relatedIssueKeys}
+            muted={isDone}
+            compact={compact}
+            className="mt-1"
+          />
+        )}
+        {isDrawerPlanned && !item.jiraKey && (
+          <RelatedIssueChips issueKeys={item.relatedIssueKeys} compact className="mt-0.5" />
         )}
         {jiraMeta && !isDrawerPlanned && (
           <div className="mt-0.5">

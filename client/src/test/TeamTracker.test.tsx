@@ -617,6 +617,41 @@ describe('TeamTrackerPage', () => {
     expect(rosterView.queryByText('Active work is set')).not.toBeInTheDocument();
   });
 
+  it('captures developer follow-ups with current and related tracker issue links', () => {
+    mockBoard.developers[1] = {
+      ...mockBoard.developers[1]!,
+      currentItem: {
+        ...mockBoard.developers[1]!.currentItem!,
+        jiraKey: 'AM-123',
+        relatedIssueKeys: ['AM-456', 'AM-789'],
+      },
+    };
+
+    render(
+      <TestWrapper>
+        <TeamTrackerPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /capture follow-up for bob jones/i }));
+    expect(screen.getByRole('dialog', { name: /follow up with bob jones/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /add to desk/i }));
+
+    expect(mockCreateManagerDeskItemMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Follow up with Bob Jones',
+        links: [
+          { linkType: 'developer', developerAccountId: 'dev-2' },
+          { linkType: 'issue', issueKey: 'AM-123' },
+          { linkType: 'issue', issueKey: 'AM-456' },
+          { linkType: 'issue', issueKey: 'AM-789' },
+        ],
+      }),
+      expect.any(Object),
+    );
+  });
+
   it('renders the inactive restore tray and reactivates developers from it', () => {
     mockBoard.inactiveDevelopers = [
       {

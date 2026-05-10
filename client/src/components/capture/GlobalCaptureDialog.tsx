@@ -12,6 +12,18 @@ export type CaptureTarget = 'manager-desk' | 'team-tracker';
 
 const STORAGE_KEY = 'dcc-capture-target';
 
+export interface GlobalCaptureContext {
+  defaultTarget?: CaptureTarget;
+  issue?: {
+    jiraKey: string;
+    summary?: string;
+  };
+  developer?: {
+    accountId: string;
+    displayName?: string;
+  };
+}
+
 const TARGETS: { id: CaptureTarget; label: string; Icon: typeof Briefcase }[] = [
   { id: 'manager-desk', label: 'Desk', Icon: Briefcase },
   { id: 'team-tracker', label: 'Team', Icon: Users },
@@ -31,15 +43,17 @@ interface GlobalCaptureDialogProps {
   onClose: () => void;
   onOpenManagerDesk?: () => void;
   onOpenTeamTracker?: () => void;
+  context?: GlobalCaptureContext;
 }
 
 export function GlobalCaptureDialog({
   onClose,
   onOpenManagerDesk,
   onOpenTeamTracker,
+  context,
 }: GlobalCaptureDialogProps) {
   const storageKey = useScopedStorageKey(STORAGE_KEY);
-  const [target, setTarget] = useState<CaptureTarget>(() => loadTarget(storageKey));
+  const [target, setTarget] = useState<CaptureTarget>(() => context?.defaultTarget ?? loadTarget(storageKey));
   const storageKeyRef = useRef(storageKey);
   const date = useMemo(() => getLocalIsoDate(), []);
   const formattedDate = useMemo(() => format(parseISO(date), 'EEEE, MMM d'), [date]);
@@ -49,7 +63,7 @@ export function GlobalCaptureDialog({
   useEffect(() => {
     if (storageKeyRef.current !== storageKey) {
       storageKeyRef.current = storageKey;
-      setTarget(loadTarget(storageKey));
+      setTarget(context?.defaultTarget ?? loadTarget(storageKey));
       return;
     }
 
@@ -58,7 +72,13 @@ export function GlobalCaptureDialog({
     } catch {
       /* ignore */
     }
-  }, [storageKey, target]);
+  }, [context?.defaultTarget, storageKey, target]);
+
+  useEffect(() => {
+    if (context?.defaultTarget) {
+      setTarget(context.defaultTarget);
+    }
+  }, [context?.defaultTarget]);
 
   // Escape to close + lock body scroll
   useEffect(() => {
@@ -245,6 +265,7 @@ export function GlobalCaptureDialog({
               formattedDate={formattedDate}
               onClose={onClose}
               onOpenManagerDesk={onOpenManagerDesk}
+              context={context}
             />
           ) : (
             <TrackerCaptureForm
@@ -253,6 +274,7 @@ export function GlobalCaptureDialog({
               formattedDate={formattedDate}
               onClose={onClose}
               onOpenTeamTracker={onOpenTeamTracker}
+              context={context}
             />
           )}
         </AnimatePresence>

@@ -115,6 +115,80 @@ function normalizeOptionalText(value: string | null | undefined): string | undef
   return trimmed ? trimmed : undefined;
 }
 
+function normalizeJiraIssueKey(value: string | null | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.toUpperCase() : undefined;
+}
+
+function normalizeJiraIssueKeys(values: Array<string | null | undefined>): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+
+  for (const value of values) {
+    const key = normalizeJiraIssueKey(value);
+    if (!key || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    normalized.push(key);
+  }
+
+  return normalized;
+}
+
+function parseRelatedIssueKeys(value: string | null | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return normalizeJiraIssueKeys(
+      parsed.filter((key): key is string => typeof key === "string")
+    );
+  } catch {
+    return [];
+  }
+}
+
+function serializeRelatedIssueKeys(keys: string[]): string | null {
+  const normalized = normalizeJiraIssueKeys(keys);
+  return normalized.length > 0 ? JSON.stringify(normalized) : null;
+}
+
+function resolveTrackerIssueKeys(params: {
+  jiraKey?: string | null;
+  relatedIssueKeys?: string[];
+}): {
+  jiraKey?: string;
+  relatedIssueKeys: string[];
+  allIssueKeys: string[];
+} {
+  const jiraKey = normalizeJiraIssueKey(params.jiraKey);
+  const seen = new Set<string>();
+  if (jiraKey) {
+    seen.add(jiraKey);
+  }
+
+  const relatedIssueKeys: string[] = [];
+  for (const key of normalizeJiraIssueKeys(params.relatedIssueKeys ?? [])) {
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    relatedIssueKeys.push(key);
+  }
+
+  return {
+    jiraKey,
+    relatedIssueKeys,
+    allIssueKeys: jiraKey ? [jiraKey, ...relatedIssueKeys] : relatedIssueKeys,
+  };
+}
+
 function requiresStatusRationale(status: TrackerDeveloperStatus): boolean {
   return status === "blocked" || status === "at_risk";
 }
@@ -302,6 +376,10 @@ function mapItem(
   row: typeof teamTrackerItems.$inferSelect,
   issueContext?: TrackerIssueContext
 ): TrackerWorkItem {
+  const relatedIssueKeys = parseRelatedIssueKeys(row.relatedJiraKeys).filter(
+    (key) => key !== normalizeJiraIssueKey(row.jiraKey)
+  );
+
   return {
     id: row.id,
     dayId: row.dayId,
@@ -309,6 +387,7 @@ function mapItem(
     lifecycle: row.managerDeskItemId === null ? "tracker_only" : "manager_desk_linked",
     itemType: row.jiraKey ? "jira" : "custom",
     jiraKey: row.jiraKey ?? undefined,
+    ...(relatedIssueKeys.length > 0 && { relatedIssueKeys }),
     jiraSummary: issueContext?.summary ?? undefined,
     jiraPriorityName: issueContext?.priorityName ?? undefined,
     jiraDueDate: issueContext
@@ -345,6 +424,7 @@ function mapAttentionActionItem(item: TrackerWorkItem): TrackerAttentionActionIt
     id: item.id,
     title: item.title,
     jiraKey: item.jiraKey,
+    relatedIssueKeys: item.relatedIssueKeys,
     lifecycle: item.lifecycle,
   };
 }
@@ -376,16 +456,21 @@ function mapDeveloper(row: typeof developers.$inferSelect): Developer {
 function buildCarryForwardKey(
   item: Pick<
     typeof teamTrackerItems.$inferSelect,
-    "jiraKey" | "title" | "note"
+    "jiraKey" | "relatedJiraKeys" | "title" | "note"
   >
 ): string {
-  return JSON.stringify([item.jiraKey ?? null, item.title, item.note ?? null]);
+  return JSON.stringify([
+    item.jiraKey ?? null,
+    parseRelatedIssueKeys(item.relatedJiraKeys),
+    item.title,
+    item.note ?? null,
+  ]);
 }
 
 function buildLiveWorkspaceItemKey(
   item: Pick<
     typeof teamTrackerItems.$inferSelect,
-    "managerDeskItemId" | "jiraKey" | "title" | "note"
+    "managerDeskItemId" | "jiraKey" | "relatedJiraKeys" | "title" | "note"
   >
 ): string {
   if (item.managerDeskItemId !== null) {
@@ -626,6 +711,7 @@ function matchesDaySearch(day: TrackerDeveloperDay, normalizedQuery: string): bo
       return [
         value.title,
         value.jiraKey,
+        ...(value.relatedIssueKeys ?? []),
         value.jiraSummary,
         value.note,
       ];
@@ -1155,6 +1241,7 @@ export class TeamTrackerService {
     date: string,
     params: {
       jiraKey?: string;
+      relatedIssueKeys?: string[];
       title: string;
       note?: string;
       managerDeskItemId?: number;
@@ -1164,22 +1251,11 @@ export class TeamTrackerService {
     const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     await this.availability.assertAvailableForDate(accountId, date, normalizedWorkspaceId);
     const day = await this.ensureDay(date, accountId, normalizedWorkspaceId);
-    const normalizedJiraKey = params.jiraKey?.trim();
-
-    if (normalizedJiraKey) {
-      const issueRows = await db
-        .select({ jiraKey: issues.jiraKey })
-        .from(issues)
-        .where(and(eq(issues.workspaceId, normalizedWorkspaceId), eq(issues.jiraKey, normalizedJiraKey)))
-        .limit(1);
-
-      if (!issueRows[0]) {
-        throw new HttpError(
-          400,
-          `Jira issue ${normalizedJiraKey} is not available in synced issues`
-        );
-      }
-    }
+    const { jiraKey, relatedIssueKeys, allIssueKeys } = resolveTrackerIssueKeys({
+      jiraKey: params.jiraKey,
+      relatedIssueKeys: params.relatedIssueKeys,
+    });
+    await this.assertIssueKeysAvailable(allIssueKeys, normalizedWorkspaceId);
 
     // Get next position
     const existing = await db
@@ -1198,8 +1274,9 @@ export class TeamTrackerService {
         workspaceId: normalizedWorkspaceId,
         dayId: day.id,
         managerDeskItemId: params.managerDeskItemId ?? null,
-        itemType: normalizedJiraKey ? "jira" : "custom",
-        jiraKey: normalizedJiraKey ?? null,
+        itemType: jiraKey ? "jira" : "custom",
+        jiraKey: jiraKey ?? null,
+        relatedJiraKeys: serializeRelatedIssueKeys(relatedIssueKeys),
         title: params.title,
         state: "planned",
         position: maxPosition + 1,
@@ -1234,19 +1311,10 @@ export class TeamTrackerService {
 
     await this.getDeveloperByAccountId(params.assigneeDeveloperAccountId, workspaceId);
 
-    const normalizedIssueKeys = [...new Set(params.issueKeys.map((key) => key.trim()).filter(Boolean))];
-    const jiraKey = normalizedIssueKeys.length === 1 ? normalizedIssueKeys[0] : undefined;
-
-    if (jiraKey) {
-      const issueRows = await db
-        .select({ jiraKey: issues.jiraKey })
-        .from(issues)
-        .where(and(eq(issues.workspaceId, workspaceId), eq(issues.jiraKey, jiraKey)))
-        .limit(1);
-      if (!issueRows[0]) {
-        throw new HttpError(400, `Jira issue ${jiraKey} is not available in synced issues`);
-      }
-    }
+    const normalizedIssueKeys = normalizeJiraIssueKeys(params.issueKeys);
+    const jiraKey = normalizedIssueKeys[0];
+    const relatedIssueKeys = normalizedIssueKeys.slice(1);
+    await this.assertIssueKeysAvailable(normalizedIssueKeys, workspaceId);
 
     if (existing) {
       const currentDay = await this.getDayById(existing.dayId, workspaceId);
@@ -1259,6 +1327,7 @@ export class TeamTrackerService {
           .set({
             itemType: jiraKey ? "jira" : "custom",
             jiraKey: jiraKey ?? null,
+            relatedJiraKeys: serializeRelatedIssueKeys(relatedIssueKeys),
             title: params.title,
             updatedAt: nowIso(),
           })
@@ -1271,6 +1340,7 @@ export class TeamTrackerService {
 
     await this.addItem(params.assigneeDeveloperAccountId, params.date, {
       jiraKey,
+      relatedIssueKeys,
       title: params.title,
       note: params.note ?? undefined,
       managerDeskItemId: params.managerDeskItemId,
@@ -2161,6 +2231,28 @@ export class TeamTrackerService {
     return rows[0];
   }
 
+  private async assertIssueKeysAvailable(issueKeys: string[], workspaceId?: string): Promise<void> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const normalizedIssueKeys = normalizeJiraIssueKeys(issueKeys);
+    if (normalizedIssueKeys.length === 0) {
+      return;
+    }
+
+    const rows = await db
+      .select({ jiraKey: issues.jiraKey })
+      .from(issues)
+      .where(and(eq(issues.workspaceId, normalizedWorkspaceId), inArray(issues.jiraKey, normalizedIssueKeys)));
+    const found = new Set(rows.map((row) => normalizeJiraIssueKey(row.jiraKey)));
+    const missing = normalizedIssueKeys.filter((key) => !found.has(key));
+
+    if (missing.length > 0) {
+      throw new HttpError(
+        400,
+        `Jira issue ${missing[0]} is not available in synced issues`
+      );
+    }
+  }
+
   private async getItemById(itemId: number, workspaceId?: string): Promise<TrackerWorkItem> {
     const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const row = await this.getItemRow(itemId, normalizedWorkspaceId);
@@ -2403,13 +2495,13 @@ export class TeamTrackerService {
     sourceItems: Array<
       Pick<
         typeof teamTrackerItems.$inferSelect,
-        "jiraKey" | "title" | "note"
+        "jiraKey" | "relatedJiraKeys" | "title" | "note"
       >
     >,
     targetItems: Array<
       Pick<
         typeof teamTrackerItems.$inferSelect,
-        "jiraKey" | "title" | "note"
+        "jiraKey" | "relatedJiraKeys" | "title" | "note"
       >
     >
   ): Map<string, number> {
@@ -2674,6 +2766,7 @@ export class TeamTrackerService {
           dayId: newDay.id,
           itemType: item.itemType,
           jiraKey: item.jiraKey,
+          relatedJiraKeys: item.relatedJiraKeys,
           title: item.title,
           state: "planned",
           position: nextPosition,

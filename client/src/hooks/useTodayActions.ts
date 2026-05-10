@@ -253,8 +253,12 @@ function buildFollowUpPayload(date: string, target: TodayActionTarget, title: st
   if (target.developerAccountId) {
     links.push({ linkType: 'developer', developerAccountId: target.developerAccountId });
   }
-  if (target.issueKey) {
-    links.push({ linkType: 'issue', issueKey: target.issueKey });
+  const issueKeys = [target.issueKey, ...(target.relatedIssueKeys ?? [])]
+    .map((key) => key?.trim())
+    .filter((key): key is string => Boolean(key));
+  const uniqueIssueKeys = Array.from(new Set(issueKeys));
+  for (const issueKey of uniqueIssueKeys) {
+    links.push({ linkType: 'issue', issueKey });
   }
 
   return {

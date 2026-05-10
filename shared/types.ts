@@ -250,6 +250,7 @@ export interface TodayActionTarget {
   type: TodayActionTargetType;
   view: "work" | "team" | "desk" | "follow-ups" | "meetings" | "settings";
   issueKey?: string;
+  relatedIssueKeys?: string[];
   developerAccountId?: string;
   managerDeskItemId?: number;
   trackerItemId?: number;
@@ -514,6 +515,7 @@ export interface TrackerWorkItem {
   lifecycle: TrackerTaskLifecycle;
   itemType: TrackerItemType;
   jiraKey?: string;
+  relatedIssueKeys?: string[];
   jiraSummary?: string;
   jiraPriorityName?: string;
   jiraDueDate?: string;
@@ -576,6 +578,7 @@ export interface TrackerAttentionActionItem {
   id: number;
   title: string;
   jiraKey?: string;
+  relatedIssueKeys?: string[];
   lifecycle: TrackerTaskLifecycle;
 }
 

@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, CircleOff, Clock, MessageSquarePlus, Zap }
 import type { Issue, TrackerAttentionItem, TrackerDeveloperDay, TrackerDeveloperGroup, TrackerWorkItem } from '@/types';
 import { formatAbsoluteDateTime, formatRelativeTime } from '@/lib/utils';
 import { TrackerStatusPill } from './TrackerStatusPill';
+import { RelatedIssueChips } from './RelatedIssueChips';
 
 interface TrackerRosterBoardProps {
   date: string;
@@ -152,6 +153,7 @@ function WorkSummary({
           {item.jiraKey}
         </span>
       )}
+      <RelatedIssueChips issueKeys={item.relatedIssueKeys} compact link={false} />
     </>
   );
 

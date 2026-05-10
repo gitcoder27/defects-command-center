@@ -419,6 +419,50 @@ describe("TeamTrackerService", () => {
       expect(item.jiraSummary).toBe("Linked Jira task");
     });
 
+    it("stores normalized related Jira keys without duplicating the primary issue", async () => {
+      await seedIssue();
+      await seedIssue({ jiraKey: "AM-456", summary: "Secondary context" });
+      await seedIssue({ jiraKey: "AM-789", summary: "Tertiary context" });
+
+      const item = await service.addItem("dev-1", "2026-03-07", {
+        jiraKey: " am-123 ",
+        relatedIssueKeys: ["am-456", "AM-123", "AM-456", " am-789 "],
+        title: "Multi-issue tracker item",
+      });
+
+      expect(item.jiraKey).toBe("AM-123");
+      expect(item.relatedIssueKeys).toEqual(["AM-456", "AM-789"]);
+
+      const rows = await db
+        .select()
+        .from(teamTrackerItems)
+        .where(eq(teamTrackerItems.id, item.id));
+      expect(rows[0]?.relatedJiraKeys).toBe(JSON.stringify(["AM-456", "AM-789"]));
+    });
+
+    it("matches related Jira keys in Team Tracker search", async () => {
+      await seedIssue();
+      await seedIssue({ jiraKey: "AM-456", summary: "Secondary context" });
+
+      await service.addItem("dev-1", "2026-03-07", {
+        jiraKey: "AM-123",
+        relatedIssueKeys: ["AM-456"],
+        title: "Primary task",
+      });
+
+      const board = await service.getBoard("2026-03-07", {
+        query: { q: "AM-456" },
+      });
+
+      expect(board.developers).toHaveLength(1);
+      expect(board.developers[0]?.plannedItems).toEqual([
+        expect.objectContaining({
+          title: "Primary task",
+          relatedIssueKeys: ["AM-456"],
+        }),
+      ]);
+    });
+
     it("rejects Jira-linked items whose key is not present in synced issues", async () => {
       await expect(
         service.addItem("dev-1", "2026-03-07", {
@@ -426,6 +470,18 @@ describe("TeamTrackerService", () => {
           title: "Missing Jira task",
         })
       ).rejects.toThrow("Jira issue AM-999 is not available in synced issues");
+    });
+
+    it("rejects related Jira keys that are not present in synced issues", async () => {
+      await seedIssue();
+
+      await expect(
+        service.addItem("dev-1", "2026-03-07", {
+          jiraKey: "AM-123",
+          relatedIssueKeys: ["AM-404"],
+          title: "Missing related Jira task",
+        })
+      ).rejects.toThrow("Jira issue AM-404 is not available in synced issues");
     });
 
     it("rejects new work for an inactive developer", async () => {
@@ -730,6 +786,76 @@ describe("TeamTrackerService", () => {
   });
 
   describe("manager desk linkage helpers", () => {
+    it("delegates Manager Desk issue links with one primary Jira key and related context", async () => {
+      await seedIssue();
+      await seedIssue({ jiraKey: "AM-456", summary: "Secondary context" });
+      await seedIssue({ jiraKey: "AM-789", summary: "Tertiary context" });
+
+      const managerItem = await managerDeskService.createItem("manager-1", {
+        date: "2026-03-07",
+        title: "Shared delegated task",
+        assigneeDeveloperAccountId: "dev-1",
+        links: [
+          { linkType: "issue", issueKey: "AM-123" },
+          { linkType: "issue", issueKey: "AM-456" },
+          { linkType: "issue", issueKey: "AM-789" },
+        ],
+      });
+
+      const linkedItem = (await service.getItemDetailContextForManagerDeskItem(managerItem.id))
+        ?.trackerItem;
+
+      expect(linkedItem).toMatchObject({
+        jiraKey: "AM-123",
+        relatedIssueKeys: ["AM-456", "AM-789"],
+      });
+
+      const rows = await db
+        .select()
+        .from(teamTrackerItems)
+        .where(eq(teamTrackerItems.managerDeskItemId, managerItem.id));
+      expect(rows[0]?.relatedJiraKeys).toBe(JSON.stringify(["AM-456", "AM-789"]));
+    });
+
+    it("resyncs related Jira keys when Manager Desk issue links change", async () => {
+      await seedIssue();
+      await seedIssue({ jiraKey: "AM-456", summary: "Secondary context" });
+      await seedIssue({ jiraKey: "AM-789", summary: "Tertiary context" });
+
+      const managerItem = await managerDeskService.createItem("manager-1", {
+        date: "2026-03-07",
+        title: "Shared delegated task",
+        assigneeDeveloperAccountId: "dev-1",
+        links: [
+          { linkType: "issue", issueKey: "AM-123" },
+          { linkType: "issue", issueKey: "AM-456" },
+        ],
+      });
+
+      await managerDeskService.addLink("manager-1", managerItem.id, {
+        linkType: "issue",
+        issueKey: "AM-789",
+      });
+
+      let linkedItem = (await service.getItemDetailContextForManagerDeskItem(managerItem.id))
+        ?.trackerItem;
+      expect(linkedItem).toMatchObject({
+        jiraKey: "AM-123",
+        relatedIssueKeys: ["AM-456", "AM-789"],
+      });
+
+      const primaryLink = managerItem.links.find((link) => link.issueKey === "AM-123");
+      expect(primaryLink).toBeDefined();
+      await managerDeskService.deleteLink("manager-1", managerItem.id, primaryLink!.id);
+
+      linkedItem = (await service.getItemDetailContextForManagerDeskItem(managerItem.id))
+        ?.trackerItem;
+      expect(linkedItem).toMatchObject({
+        jiraKey: "AM-456",
+        relatedIssueKeys: ["AM-789"],
+      });
+    });
+
     it("unlinks Manager Desk work without deleting tracker execution data", async () => {
       const managerItem = await managerDeskService.createItem("manager-1", {
         date: "2026-03-07",
@@ -1146,6 +1272,32 @@ describe("TeamTrackerService", () => {
         (d) => d.developer.accountId === "dev-1"
       )!;
       expect(devDay.plannedItems.some((i) => i.title === "Unfinished task")).toBe(true);
+    });
+
+    it("preserves related Jira keys when carrying tracker-only work forward", async () => {
+      await seedIssue();
+      await seedIssue({ jiraKey: "AM-456", summary: "Secondary context" });
+
+      await service.addItem("dev-1", "2026-03-06", {
+        jiraKey: "AM-123",
+        relatedIssueKeys: ["AM-456"],
+        title: "Unfinished related task",
+      });
+
+      const carried = await service.carryForward("2026-03-06", "2026-03-07");
+      expect(carried).toBe(1);
+
+      const board = await service.getBoard("2026-03-07");
+      const devDay = board.developers.find(
+        (d) => d.developer.accountId === "dev-1"
+      )!;
+      expect(devDay.plannedItems).toEqual([
+        expect.objectContaining({
+          title: "Unfinished related task",
+          jiraKey: "AM-123",
+          relatedIssueKeys: ["AM-456"],
+        }),
+      ]);
     });
 
     it("carries Manager Desk-linked items into the next day by rebasing their manager work", async () => {

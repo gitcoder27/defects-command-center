@@ -218,6 +218,57 @@ describe('GlobalCaptureDialog', () => {
     );
   });
 
+  it('prelinks scoped issue context on manager desk submit', async () => {
+    renderDialog({
+      context: {
+        defaultTarget: 'manager-desk',
+        issue: { jiraKey: 'PROJ-221', summary: 'Open blocker' },
+      },
+    });
+
+    const titleInput = screen.getByPlaceholderText('What needs to land on your desk?');
+    fireEvent.change(titleInput, { target: { value: 'Review blocker' } });
+
+    fireEvent.click(screen.getByText('Add to Desk'));
+
+    expect(mockMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Review blocker',
+        links: [{ linkType: 'issue', issueKey: 'PROJ-221' }],
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('preselects scoped issue context for team tracker capture', async () => {
+    renderDialog({
+      context: {
+        defaultTarget: 'team-tracker',
+        issue: { jiraKey: 'PROJ-221', summary: 'Open blocker' },
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Assign to')).toBeInTheDocument();
+    });
+    expect(screen.getByText('PROJ-221')).toBeInTheDocument();
+    expect(screen.getByText('Open blocker')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Alice Smith'));
+    const titleInput = screen.getByPlaceholderText('What should Alice work on?');
+    fireEvent.change(titleInput, { target: { value: 'Pick up blocker' } });
+    fireEvent.click(screen.getByText('Add Task'));
+
+    expect(mockMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountId: 'dev-1',
+        title: 'Pick up blocker',
+        jiraKey: 'PROJ-221',
+      }),
+      expect.any(Object),
+    );
+  });
+
   it('disables tracker submit when no developer is selected', async () => {
     renderDialog();
     fireEvent.click(screen.getByText('Team'));

@@ -23,6 +23,11 @@ import { DeveloperTrackerDrawer } from './DeveloperTrackerDrawer';
 import { AvailabilityDialog } from './AvailabilityDialog';
 import { TrackerTaskDetailDrawer } from './TrackerTaskDetailDrawer';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
+import {
+  formatTrackerIssueContextNote,
+  getTrackerIssueContextChips,
+  getTrackerIssueLinks,
+} from './trackerIssueContext';
 import type { AppView } from '@/App';
 import type {
   TeamTrackerBoardResponse,
@@ -181,7 +186,7 @@ function useTeamTrackerWorkflow({
   }, []);
 
   const handleCreateTask = useCallback(
-    (params: { accountId: string; title: string; jiraKey?: string; note?: string }) => {
+    (params: { accountId: string; title: string; jiraKey?: string; relatedIssueKeys?: string[]; note?: string }) => {
       if (readOnly) {
         return;
       }
@@ -566,14 +571,14 @@ export function TeamTrackerPage({
           initialTitle={`Follow up with ${workflow.followUpTarget.day.developer.displayName}`}
           initialKind="action"
           initialCategory="follow_up"
-          initialContextNote={
-            workflow.followUpTarget.day.currentItem?.jiraKey
-              ? `Current tracker context: ${workflow.followUpTarget.day.currentItem.jiraKey} - ${workflow.followUpTarget.day.currentItem.title}`
-              : ''
-          }
-          initialLinks={[{ linkType: 'developer', developerAccountId: workflow.followUpTarget.day.developer.accountId }]}
+          initialContextNote={formatTrackerIssueContextNote(workflow.followUpTarget.day.currentItem)}
+          initialLinks={[
+            { linkType: 'developer', developerAccountId: workflow.followUpTarget.day.developer.accountId },
+            ...getTrackerIssueLinks(workflow.followUpTarget.day.currentItem),
+          ]}
           contextChips={[
             { label: 'Developer', value: workflow.followUpTarget.day.developer.displayName, tone: 'developer' },
+            ...getTrackerIssueContextChips(workflow.followUpTarget.day.currentItem),
             ...workflow.followUpTarget.reasons.map((reason) => ({ label: 'Reason', value: reason.label, tone: 'generic' as const })),
           ]}
           date={date}
@@ -588,6 +593,7 @@ function mapAttentionCurrentItem(item: TrackerWorkItem): TrackerAttentionActionI
     id: item.id,
     title: item.title,
     jiraKey: item.jiraKey,
+    relatedIssueKeys: item.relatedIssueKeys,
     lifecycle: item.lifecycle ?? (item.managerDeskItemId ? 'manager_desk_linked' : 'tracker_only'),
   };
 }

@@ -3,8 +3,9 @@ import { motion } from 'framer-motion';
 import { Briefcase, FileText } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { useCreateManagerDeskItem } from '@/hooks/useManagerDesk';
-import type { ManagerDeskCategory, ManagerDeskItemKind } from '@/types/manager-desk';
+import type { ManagerDeskCategory, ManagerDeskCreateItemPayload, ManagerDeskItemKind } from '@/types/manager-desk';
 import { CATEGORY_LABELS, KIND_LABELS } from '@/types/manager-desk';
+import type { GlobalCaptureContext } from './GlobalCaptureDialog';
 
 const kindOptions: ManagerDeskItemKind[] = ['action', 'meeting', 'decision', 'waiting'];
 const categoryOptions: ManagerDeskCategory[] = [
@@ -24,6 +25,7 @@ interface DeskCaptureFormProps {
   formattedDate: string;
   onClose: () => void;
   onOpenManagerDesk?: () => void;
+  context?: GlobalCaptureContext;
 }
 
 export function DeskCaptureForm({
@@ -31,6 +33,7 @@ export function DeskCaptureForm({
   formattedDate,
   onClose,
   onOpenManagerDesk,
+  context,
 }: DeskCaptureFormProps) {
   const createItem = useCreateManagerDeskItem(date);
   const { addToast } = useToast();
@@ -41,6 +44,14 @@ export function DeskCaptureForm({
   const [category, setCategory] = useState<ManagerDeskCategory>('planning');
   const [contextNote, setContextNote] = useState('');
   const [detailsOpen, setDetailsOpen] = useState(false);
+
+  const contextLinks: ManagerDeskCreateItemPayload['links'] = [];
+  if (context?.developer?.accountId) {
+    contextLinks.push({ linkType: 'developer', developerAccountId: context.developer.accountId });
+  }
+  if (context?.issue?.jiraKey) {
+    contextLinks.push({ linkType: 'issue', issueKey: context.issue.jiraKey });
+  }
 
   useEffect(() => {
     const t = setTimeout(() => titleRef.current?.focus(), 140);
@@ -58,6 +69,7 @@ export function DeskCaptureForm({
         kind,
         category,
         contextNote: contextNote.trim() || undefined,
+        links: contextLinks.length > 0 ? contextLinks : undefined,
       },
       {
         onSuccess: () => {

@@ -217,6 +217,8 @@ function getDeveloperAttentionPrimary(
   const currentTarget = target("developer", "team", {
     developerAccountId: item.developer.accountId,
     trackerItemId: item.currentItem?.id,
+    issueKey: item.currentItem?.jiraKey,
+    relatedIssueKeys: item.currentItem?.relatedIssueKeys,
     date,
   });
   const setCurrentCandidate = !item.hasCurrentItem ? item.setCurrentCandidates[0] : undefined;
@@ -228,6 +230,8 @@ function getDeveloperAttentionPrimary(
       target: target("tracker_item", "team", {
         developerAccountId: item.developer.accountId,
         trackerItemId: setCurrentCandidate.id,
+        issueKey: setCurrentCandidate.jiraKey,
+        relatedIssueKeys: setCurrentCandidate.relatedIssueKeys,
         date,
       }),
       secondaryKinds: ["open", "capture_follow_up"],
@@ -272,6 +276,8 @@ function getDeveloperPulsePrimary(
   const openTarget = target("developer", "team", {
     developerAccountId: day.developer.accountId,
     trackerItemId: day.currentItem?.id,
+    issueKey: day.currentItem?.jiraKey,
+    relatedIssueKeys: day.currentItem?.relatedIssueKeys,
     date,
   });
   const setCurrentCandidate = attentionItem?.setCurrentCandidates[0] ?? (!day.currentItem ? day.plannedItems[0] : undefined);
@@ -283,6 +289,8 @@ function getDeveloperPulsePrimary(
       target: target("tracker_item", "team", {
         developerAccountId: day.developer.accountId,
         trackerItemId: setCurrentCandidate.id,
+        issueKey: setCurrentCandidate.jiraKey,
+        relatedIssueKeys: setCurrentCandidate.relatedIssueKeys,
         date,
       }),
       secondaryKinds: ["open", "capture_follow_up"],
@@ -465,6 +473,8 @@ function buildTeamPulse(board: TeamTrackerBoardResponse, date: string): TodayTea
       const pulseTarget = target("developer", "team", {
         developerAccountId: day.developer.accountId,
         trackerItemId: day.currentItem?.id,
+        issueKey: day.currentItem?.jiraKey,
+        relatedIssueKeys: day.currentItem?.relatedIssueKeys,
         date,
       });
       const primary = getDeveloperPulsePrimary(day, attentionItem, date);

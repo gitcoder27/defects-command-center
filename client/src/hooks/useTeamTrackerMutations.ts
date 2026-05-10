@@ -72,12 +72,14 @@ export function useAddTrackerItem(date: string) {
     mutationFn: (params: {
       accountId: string;
       jiraKey?: string;
+      relatedIssueKeys?: string[];
       title: string;
       note?: string;
     }) =>
       api.post<TrackerWorkItem>(`/team-tracker/${params.accountId}/items`, {
         date,
         jiraKey: params.jiraKey,
+        relatedIssueKeys: params.relatedIssueKeys,
         title: params.title,
         note: params.note,
       }),

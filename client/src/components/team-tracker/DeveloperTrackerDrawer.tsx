@@ -11,6 +11,11 @@ import { useManagerDesk, useUpdateManagerDeskItem } from '@/hooks/useManagerDesk
 import { DrawerHeader, DrawerSection, HistorySection, StatusSummary } from './DeveloperDrawerSections';
 import { ManagerFollowUpRow } from './ManagerFollowUpsSection';
 import type { ManagerDeskItem } from '@/types/manager-desk';
+import {
+  formatTrackerIssueContextNote,
+  getTrackerIssueContextChips,
+  getTrackerIssueLinks,
+} from './trackerIssueContext';
 
 interface DeveloperTrackerDrawerProps {
   date: string;
@@ -18,7 +23,7 @@ interface DeveloperTrackerDrawerProps {
   open: boolean;
   onClose: () => void;
   onUpdateDay: (params: { accountId: string; status?: TrackerDeveloperStatus; capacityUnits?: number | null; managerNotes?: string }) => void;
-  onAddItem: (params: { accountId: string; jiraKey?: string; title: string; note?: string }) => void;
+  onAddItem: (params: { accountId: string; jiraKey?: string; relatedIssueKeys?: string[]; title: string; note?: string }) => void;
   onOpenTaskDetail: (itemId: number, managerDeskItemId?: number) => void;
   onReorderPlannedItem: (params: { itemId: number; position: number }) => void;
   onUpdateItemNote: (params: { itemId: number; note: string | null }) => void;
@@ -537,17 +542,14 @@ export function DeveloperTrackerDrawer({
           description="Create a manager task from this tracker view while keeping the developer linked."
           initialTitle={`Follow up with ${day.developer.displayName}`}
           initialCategory="team_management"
-          initialContextNote={
-            day.currentItem?.jiraKey
-              ? `Current tracker context: ${day.currentItem.jiraKey} - ${day.currentItem.title}`
-              : ''
-          }
-          initialLinks={[{ linkType: 'developer', developerAccountId: day.developer.accountId }]}
+          initialContextNote={formatTrackerIssueContextNote(day.currentItem)}
+          initialLinks={[
+            { linkType: 'developer', developerAccountId: day.developer.accountId },
+            ...getTrackerIssueLinks(day.currentItem),
+          ]}
           contextChips={[
             { label: 'Developer', value: day.developer.displayName, tone: 'developer' },
-            ...(day.currentItem?.jiraKey
-              ? [{ label: 'Current', value: day.currentItem.jiraKey, tone: 'issue' as const }]
-              : []),
+            ...getTrackerIssueContextChips(day.currentItem),
           ]}
         />
       )}

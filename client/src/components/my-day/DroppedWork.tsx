@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { XCircle } from 'lucide-react';
 import { JiraIssueLink } from '@/components/JiraIssueLink';
 import type { TrackerWorkItem } from '@/types';
+import { RelatedIssueChips } from '@/components/team-tracker/RelatedIssueChips';
 
 interface DroppedWorkProps {
   items: TrackerWorkItem[];
@@ -46,6 +47,7 @@ export function DroppedWork({ items }: DroppedWorkProps) {
                   </JiraIssueLink>
                 </div>
               )}
+              <RelatedIssueChips issueKeys={item.relatedIssueKeys} muted compact className="mt-1" />
               {item.note && (
                 <div className="mt-1">
                   <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>

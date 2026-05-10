@@ -10,6 +10,7 @@ import { HttpError } from "../middleware/errorHandler";
 interface AddMyDayItemParams {
   date: string;
   jiraKey?: string;
+  relatedIssueKeys?: string[];
   title: string;
   note?: string;
 }
@@ -61,6 +62,7 @@ export class MyDayService {
     await this.assertAvailable(accountId, params.date, workspaceId);
     return this.trackerService.addItem(accountId, params.date, {
       jiraKey: params.jiraKey,
+      relatedIssueKeys: params.relatedIssueKeys,
       title: params.title,
       note: params.note,
     }, workspaceId);

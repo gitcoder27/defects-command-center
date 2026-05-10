@@ -180,6 +180,7 @@ export const teamTrackerItems = sqliteTable("team_tracker_items", {
   managerDeskItemId: integer("manager_desk_item_id"),
   itemType: text("item_type").notNull(),
   jiraKey: text("jira_key"),
+  relatedJiraKeys: text("related_jira_keys"),
   title: text("title").notNull(),
   state: text("state").notNull().default("planned"),
   position: integer("position").notNull().default(0),

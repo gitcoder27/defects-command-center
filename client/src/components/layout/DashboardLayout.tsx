@@ -474,6 +474,7 @@ export function DashboardLayout({
         activeView={activeView}
         onViewChange={onViewChange}
         onDashboardAlertClick={handleAlertClick}
+        captureContext={selectedIssueKey ? { issue: { jiraKey: selectedIssueKey } } : undefined}
       />
 
       <div className="flex-1 min-h-0 px-1 pb-0.5 md:px-1.5 md:pb-1">

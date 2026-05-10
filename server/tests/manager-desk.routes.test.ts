@@ -345,6 +345,7 @@ describe("manager desk routes", () => {
   it("POST /api/manager-desk/tracker-items/:trackerItemId/promote explicitly creates a shared manager desk task", async () => {
     const trackerItem = await trackerService.addItem("dev-1", "2026-03-08", {
       jiraKey: "PROJ-221",
+      relatedIssueKeys: ["PROJ-321"],
       title: "Follow up from tracker",
       note: "Execution detail captured in tracker",
     });
@@ -370,6 +371,7 @@ describe("manager desk routes", () => {
         managerDeskItemId: first.body.managerDeskItem.id,
         lifecycle: "manager_desk_linked",
         jiraKey: "PROJ-221",
+        relatedIssueKeys: ["PROJ-321"],
         note: "Execution detail captured in tracker",
       },
       managerDeskItem: {
@@ -380,15 +382,22 @@ describe("manager desk routes", () => {
           accountId: "dev-1",
           displayName: "Alice Smith",
         },
-        links: [
-          expect.objectContaining({
-            linkType: "issue",
-            issueKey: "PROJ-221",
-            displayLabel: "PROJ-221",
-          }),
-        ],
       },
     });
+    expect(first.body.managerDeskItem.links).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          linkType: "issue",
+          issueKey: "PROJ-221",
+          displayLabel: "PROJ-221",
+        }),
+        expect.objectContaining({
+          linkType: "issue",
+          issueKey: "PROJ-321",
+          displayLabel: "PROJ-321",
+        }),
+      ])
+    );
 
     const second = await invoke(app, {
       method: "POST",

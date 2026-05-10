@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { JiraIssueLink } from '@/components/JiraIssueLink';
+import { RelatedIssueChips } from './RelatedIssueChips';
 import type {
   TrackerCarryForwardPreviewGroup,
   TrackerWorkItem,
@@ -238,6 +239,7 @@ function CarryForwardTaskRow({
               {item.jiraKey}
             </JiraIssueLink>
           )}
+          <RelatedIssueChips issueKeys={item.relatedIssueKeys} compact />
           {item.jiraPriorityName && (
             <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
               {item.jiraPriorityName}

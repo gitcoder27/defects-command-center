@@ -51,6 +51,10 @@ vi.mock('@/context/ToastContext', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useConfig', () => ({
+  useConfig: () => ({ data: { jiraBaseUrl: 'https://test.atlassian.net', isConfigured: true } }),
+}));
+
 vi.mock('@/hooks/useMyDay', () => ({
   useMyDay: () => ({
     data: mockDay,
@@ -215,6 +219,52 @@ describe('MyDayPage', () => {
     expect(screen.getByText('Coordinate with QA before lunch')).toBeInTheDocument();
     expect(screen.getByText('Include rollback timing')).toBeInTheDocument();
     expect(screen.getByText('Waiting on staging access')).toBeInTheDocument();
+  });
+
+  it('renders related issue chips across My Day work cards', () => {
+    mockDay.currentItem = createItem({
+      id: 101,
+      title: 'Review PR comments',
+      state: 'in_progress',
+      relatedIssueKeys: ['AUTH-2'],
+    });
+    mockDay.plannedItems = [
+      createItem({
+        id: 102,
+        title: 'Prepare release checklist',
+        position: 1,
+        relatedIssueKeys: ['REL-8'],
+      }),
+    ];
+    mockDay.completedItems = [
+      createItem({
+        id: 103,
+        title: 'Write incident summary',
+        state: 'done',
+        position: 2,
+        relatedIssueKeys: ['INC-5'],
+      }),
+    ];
+    mockDay.droppedItems = [
+      createItem({
+        id: 104,
+        title: 'Shadow deploy follow-up',
+        state: 'dropped',
+        position: 3,
+        relatedIssueKeys: ['OPS-9'],
+      }),
+    ];
+
+    render(
+      <TestWrapper>
+        <MyDayPage />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText('AUTH-2')).toBeInTheDocument();
+    expect(screen.getByText('REL-8')).toBeInTheDocument();
+    expect(screen.getByText('INC-5')).toBeInTheDocument();
+    expect(screen.getByText('OPS-9')).toBeInTheDocument();
   });
 
   it('edits a planned task note through the shared My Day mutation', () => {

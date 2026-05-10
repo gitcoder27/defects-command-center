@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, Play, RotateCcw, StickyNote, UserCircle, XCircle } from 'lucide-react';
 import type { Developer, TrackerWorkItem } from '@/types';
+import { RelatedIssueChips } from './RelatedIssueChips';
 
 type NoteSaveState = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -98,6 +99,7 @@ export function TrackerTaskExecutionPanel({
               <UserCircle size={12} />
               {developer.displayName}
             </span>
+            <RelatedIssueChips issueKeys={item.relatedIssueKeys} compact />
           </div>
         </div>
 

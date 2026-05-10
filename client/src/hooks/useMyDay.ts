@@ -37,6 +37,7 @@ export function useAddMyDayItem(date: string) {
   return useMutation({
     mutationFn: (params: {
       jiraKey?: string;
+      relatedIssueKeys?: string[];
       title: string;
       note?: string;
     }) =>

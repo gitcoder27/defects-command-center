@@ -7,12 +7,14 @@ import { useManagerDeskIssueLookup } from '@/hooks/useManagerDesk';
 import { JiraIssueLink } from '@/components/JiraIssueLink';
 import { DeveloperPicker } from './DeveloperPicker';
 import type { ManagerDeskDeveloperLookupItem } from '@/types/manager-desk';
+import type { GlobalCaptureContext } from './GlobalCaptureDialog';
 
 interface TrackerCaptureFormProps {
   date: string;
   formattedDate: string;
   onClose: () => void;
   onOpenTeamTracker?: () => void;
+  context?: GlobalCaptureContext;
 }
 
 export function TrackerCaptureForm({
@@ -20,6 +22,7 @@ export function TrackerCaptureForm({
   formattedDate,
   onClose,
   onOpenTeamTracker,
+  context,
 }: TrackerCaptureFormProps) {
   const addItem = useAddTrackerItem(date);
   const { addToast } = useToast();
@@ -45,6 +48,19 @@ export function TrackerCaptureForm({
       return () => clearTimeout(t);
     }
   }, [developer]);
+
+  useEffect(() => {
+    if (!context?.issue?.jiraKey) {
+      return;
+    }
+
+    setSelectedIssue({
+      jiraKey: context.issue.jiraKey,
+      summary: context.issue.summary ?? '',
+    });
+    setJiraPickerOpen(false);
+    setJiraSearch('');
+  }, [context?.issue?.jiraKey, context?.issue?.summary]);
 
   const handleSubmit = () => {
     const trimmed = title.trim();
@@ -218,12 +234,14 @@ export function TrackerCaptureForm({
                     {selectedIssue.jiraKey}
                   </JiraIssueLink>
                 </div>
-                <div
-                  className="text-[13px] mt-0.5 truncate"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  {selectedIssue.summary}
-                </div>
+                {selectedIssue.summary && (
+                  <div
+                    className="text-[13px] mt-0.5 truncate"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {selectedIssue.summary}
+                  </div>
+                )}
               </div>
               <button
                 type="button"

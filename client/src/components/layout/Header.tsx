@@ -8,7 +8,7 @@ import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { formatRelativeTime } from '@/lib/utils';
 import type { ActiveAppView, AppView } from '@/App';
 import type { Alert } from '@/types';
-import { GlobalCaptureDialog } from '@/components/capture/GlobalCaptureDialog';
+import { GlobalCaptureDialog, type GlobalCaptureContext } from '@/components/capture/GlobalCaptureDialog';
 import { HeaderNav } from '@/components/layout/HeaderNav';
 import { AlertInbox } from '@/components/alerts/AlertInbox';
 import { LeadOSMark } from '@/components/brand/LeadOSMark';
@@ -18,9 +18,10 @@ interface HeaderProps {
   activeView?: ActiveAppView;
   onViewChange?: (view: AppView) => void;
   onDashboardAlertClick?: (alert: Alert) => void;
+  captureContext?: GlobalCaptureContext;
 }
 
-export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashboardAlertClick }: HeaderProps) {
+export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashboardAlertClick, captureContext }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const { data: sync } = useSyncStatus();
@@ -42,6 +43,9 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
     : 'Not synced';
   const canQuickCapture = user?.role === 'manager';
   const currentView = activeView ?? 'today';
+  const defaultCaptureTarget = currentView === 'team' || currentView === 'team-tracker'
+    ? 'team-tracker'
+    : 'manager-desk';
   const showDashboardAlerts = user?.role === 'manager' && (currentView === 'work' || currentView === 'dashboard') && Boolean(onDashboardAlertClick);
 
   useLayoutEffect(() => {
@@ -235,6 +239,10 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
           onClose={() => setCaptureOpen(false)}
           onOpenManagerDesk={onViewChange ? () => onViewChange('desk') : undefined}
           onOpenTeamTracker={onViewChange ? () => onViewChange('team') : undefined}
+          context={{
+            ...captureContext,
+            defaultTarget: captureContext?.defaultTarget ?? defaultCaptureTarget,
+          }}
         />
       )}
     </>
