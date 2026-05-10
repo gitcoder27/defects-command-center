@@ -67,6 +67,7 @@ import { getPersistedJiraApiToken, storeJiraApiToken } from "../src/services/jir
 import { isEncryptedSecret } from "../src/services/secret-crypto";
 
 const testBackupDirectory = path.resolve("/tmp", "lead-os-test-config-backups");
+const testWorkspaceId = "default";
 
 beforeEach(async () => {
   migrate(rawDb);
@@ -74,12 +75,12 @@ beforeEach(async () => {
   clearJiraApiToken();
   jiraClientMock.constructorArgs.length = 0;
   fs.rmSync(testBackupDirectory, { recursive: true, force: true });
-  await db.insert(configTable).values({ key: "backup_directory", value: testBackupDirectory }).onConflictDoUpdate({
-    target: configTable.key,
+  await db.insert(configTable).values({ workspaceId: testWorkspaceId, key: "backup_directory", value: testBackupDirectory }).onConflictDoUpdate({
+    target: [configTable.workspaceId, configTable.key],
     set: { value: testBackupDirectory },
   });
-  await db.insert(configTable).values({ key: "backup_before_reset", value: "true" }).onConflictDoUpdate({
-    target: configTable.key,
+  await db.insert(configTable).values({ workspaceId: testWorkspaceId, key: "backup_before_reset", value: "true" }).onConflictDoUpdate({
+    target: [configTable.workspaceId, configTable.key],
     set: { value: "true" },
   });
 });
@@ -95,6 +96,7 @@ function createTestApp() {
         accountId: "manager-1",
         displayName: "Manager One",
         role: "manager",
+        workspaceId: testWorkspaceId,
       },
     };
     next();
@@ -711,6 +713,27 @@ ORDER BY updated DESC`);
     ).toEqual(["Other manager item"]);
     expect(await db.select().from(managerDeskLinks)).toHaveLength(0);
     expect(await db.select().from(managerDeskItemHistory)).toHaveLength(0);
+  });
+
+  it("POST /api/config/maintenance/reset skips the pre-reset backup when disabled", async () => {
+    await db.insert(configTable).values({ workspaceId: testWorkspaceId, key: "backup_before_reset", value: "false" }).onConflictDoUpdate({
+      target: [configTable.workspaceId, configTable.key],
+      set: { value: "false" },
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/config/maintenance/reset",
+      body: {
+        target: "workspace",
+        confirmationText: "CLEAR EVERYTHING",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.success).toBe(true);
+    expect(res.body?.backup).toBeUndefined();
   });
 
   it("PUT /api/config/settings stores and clears an optional manager Jira mapping", async () => {

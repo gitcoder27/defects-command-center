@@ -60,6 +60,12 @@ describe("auth routes", () => {
   });
 
   it("POST /api/auth/login creates a session and returns the authenticated user", async () => {
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
     await seedDeveloper("dev-1", "Alice Smith");
     await authService.createUser({
       username: "alice",
@@ -160,6 +166,78 @@ describe("auth routes", () => {
       role: "manager",
     });
     expect(created.headers["set-cookie"]).toContain(`${SESSION_COOKIE_NAME}=`);
+  });
+
+  it("AuthService enforces a manager bootstrap account before CLI-only admin creation", async () => {
+    await expect(authService.createUser({
+      username: "admin-first",
+      displayName: "Admin First",
+      password: "secret123",
+      role: "admin",
+    })).rejects.toMatchObject({
+      status: 403,
+      message: "The first account must be a manager",
+    });
+
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
+    const admin = await authService.createUser({
+      username: "admin",
+      displayName: "Admin",
+      password: "secret123",
+      role: "admin",
+    });
+    const login = await authService.authenticate("admin", "secret123");
+
+    expect(admin).toMatchObject({
+      username: "admin",
+      role: "admin",
+      workspaceId: "default",
+    });
+    expect(login.user).toMatchObject({
+      username: "admin",
+      role: "admin",
+      workspaceId: "default",
+    });
+  });
+
+  it("POST /api/auth/register keeps admin creation out of the web registration flow", async () => {
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
+
+    const app = createTestApp();
+    const managerLogin = await invoke(app, {
+      method: "POST",
+      url: "/api/auth/login",
+      body: {
+        username: "manager",
+        password: "secret123",
+      },
+    });
+
+    const rejected = await invoke(app, {
+      method: "POST",
+      url: "/api/auth/register",
+      headers: {
+        cookie: managerLogin.headers["set-cookie"],
+      },
+      body: {
+        username: "admin",
+        displayName: "Admin",
+        password: "secret123",
+        role: "admin",
+      },
+    });
+
+    expect(rejected.status).toBe(400);
   });
 
   it("POST /api/auth/register requires a manager session after bootstrap", async () => {
@@ -332,6 +410,12 @@ describe("auth routes", () => {
   });
 
   it("POST /api/auth/logout invalidates the current session", async () => {
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
     await seedDeveloper("dev-1", "Alice Smith");
     await authService.createUser({
       username: "alice",

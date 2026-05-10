@@ -431,6 +431,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
   router.post("/reset", async (req, res, next) => {
     try {
       const workspaceId = req.auth!.user.workspaceId;
+      const backup = backupService ? await backupService.createPreResetBackup(workspaceId) : null;
       await runInTransaction(async () => {
         const tagRows = await db.select({ id: localTags.id }).from(localTags).where(eq(localTags.workspaceId, workspaceId));
         const tagIds = tagRows.map((row) => row.id);
@@ -448,7 +449,11 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
 
       clearJiraApiToken(workspaceId);
       logger.info({ workspaceId }, "Workspace Jira configuration reset via API");
-      res.json({ success: true, message: "Configuration reset successfully" });
+      res.json({
+        success: true,
+        message: "Configuration reset successfully",
+        ...(backup ? { backup } : {}),
+      });
     } catch (error) {
       next(error);
     }

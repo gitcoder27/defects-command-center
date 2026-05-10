@@ -51,10 +51,11 @@ import {
 } from '@/hooks/useSettingsActions';
 import { TagManagementSection } from '@/components/settings/TagManagementSection';
 import { SettingsMaintenanceSection } from '@/components/settings/SettingsMaintenanceSection';
-import type { AuthUser, Developer, UserRole } from '@/types';
+import type { AuthUser, Developer } from '@/types';
 
 type FieldPickerTarget = 'dueDate' | 'aspenSeverity';
 type SectionId = 'connection' | 'sync' | 'team' | 'tags' | 'maintenance' | 'access';
+type CreatableUserRole = Extract<AuthUser['role'], 'manager' | 'developer'>;
 
 export function SettingsPage() {
   const DISCOVER_PAGE_SIZE = 50;
@@ -124,7 +125,7 @@ export function SettingsPage() {
   const [newUsername, setNewUsername] = useState('');
   const [newDisplayName, setNewDisplayName] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState<UserRole>('developer');
+  const [newRole, setNewRole] = useState<CreatableUserRole>('developer');
   const [newDevAccountId, setNewDevAccountId] = useState('');
   const [creatingUser, setCreatingUser] = useState(false);
   const [confirmDeleteUsername, setConfirmDeleteUsername] = useState<string | null>(null);
@@ -1758,7 +1759,7 @@ export function SettingsPage() {
                                 <select
                                   id="new-role"
                                   value={newRole}
-                                  onChange={(e) => { setNewRole(e.target.value as UserRole); if (e.target.value === 'manager') setNewDevAccountId(''); }}
+                                  onChange={(e) => { setNewRole(e.target.value as CreatableUserRole); if (e.target.value === 'manager') setNewDevAccountId(''); }}
                                   className="w-full appearance-none rounded-lg px-3 py-2 text-[13px] outline-none"
                                   style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
                                 >

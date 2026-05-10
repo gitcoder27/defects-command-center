@@ -298,7 +298,7 @@ function buildWorkMetrics(params: BuildManagerAttentionSnapshotParams, manualWor
       id: 'due-soon',
       label: 'Due soon',
       value: (overview?.dueToday ?? 0) + (overview?.dueThisWeek ?? 0),
-      detail: 'today or this week',
+      detail: 'today or later this week',
       severity: 'warning',
       target: 'work',
       filter: 'dueThisWeek',

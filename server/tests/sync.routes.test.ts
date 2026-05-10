@@ -7,6 +7,19 @@ import type { SyncEngine } from "../src/sync/engine";
 
 function createTestApp(syncEngine: Partial<SyncEngine>) {
   const app = express();
+  app.use((req, _res, next) => {
+    req.auth = {
+      sessionId: "test-session",
+      user: {
+        username: "manager",
+        accountId: "manager",
+        workspaceId: "default",
+        displayName: "Manager",
+        role: "manager",
+      },
+    };
+    next();
+  });
   app.use("/api/sync", createSyncRouter(syncEngine as SyncEngine));
   app.use(notFoundHandler);
   app.use(errorHandler);

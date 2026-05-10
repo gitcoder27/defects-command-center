@@ -18,6 +18,19 @@ beforeEach(async () => {
 function createTestApp() {
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    req.auth = {
+      sessionId: "test-session",
+      user: {
+        username: "manager",
+        accountId: "manager",
+        workspaceId: "default",
+        displayName: "Manager",
+        role: "manager",
+      },
+    };
+    next();
+  });
   app.use("/api/tags", createTagsRouter(new TagService()));
   app.use(notFoundHandler);
   app.use(errorHandler);

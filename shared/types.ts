@@ -461,7 +461,7 @@ export interface ApiErrorResponse {
   status: number;
 }
 
-export type UserRole = "manager" | "developer";
+export type UserRole = "admin" | "manager" | "developer";
 
 export interface AuthUser {
   username: string;

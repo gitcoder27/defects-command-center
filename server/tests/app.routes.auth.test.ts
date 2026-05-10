@@ -15,11 +15,15 @@ const managerOnlyCases = [
   { method: "GET", url: "/api/suggestions/duedate/High" },
   { method: "GET", url: "/api/sync/status" },
   { method: "GET", url: "/api/config" },
-  { method: "GET", url: "/api/backups" },
   { method: "GET", url: "/api/tags" },
   { method: "GET", url: "/api/team-tracker?date=2026-03-08" },
   { method: "GET", url: "/api/today?date=2026-03-08" },
   { method: "GET", url: "/api/manager-desk?date=2026-03-08" },
+] as const;
+
+const adminOnlyCases = [
+  { method: "GET", url: "/api/backups" },
+  { method: "POST", url: "/api/backups/run" },
 ] as const;
 
 function createTestApp(authService: AuthService) {
@@ -32,7 +36,21 @@ function createTestApp(authService: AuthService) {
       getLastSyncLog: async () => undefined,
       getRuntimeStatus: () => ({ status: "idle" }),
     } as any,
-    backupService: {} as any,
+    backupService: {
+      listBackups: async () => [],
+      getRuntimeStatus: async () => ({
+        enabled: true,
+        running: false,
+        directory: "/tmp/lead-os-test-backups",
+      }),
+      createManualBackup: async (reason = "manual") => ({
+        name: "lead-os-manual-test.db",
+        path: "/tmp/lead-os-test-backups/lead-os-manual-test.db",
+        sizeBytes: 1024,
+        createdAt: "2026-03-08T00:00:00.000Z",
+        reason,
+      }),
+    } as any,
     tagService: {} as any,
     teamTrackerService: {} as any,
     authService,
@@ -68,6 +86,12 @@ describe("app route authorization", () => {
   });
 
   it.each(managerOnlyCases)("$method $url rejects developer access", async ({ method, url, body }) => {
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
     await seedDeveloper("dev-1");
     const developer = await authService.createUser({
       username: "dev",
@@ -90,6 +114,118 @@ describe("app route authorization", () => {
 
     expect(response.status).toBe(403);
     expect(response.body?.error).toBe("Manager access required");
+  });
+
+  it.each(managerOnlyCases)("$method $url rejects admin access", async ({ method, url, body }) => {
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
+    await authService.createUser({
+      username: "admin",
+      displayName: "Admin",
+      password: "secret123",
+      role: "admin",
+    });
+    const session = await authService.authenticate("admin", "secret123");
+    const app = createTestApp(authService);
+
+    const response = await invoke(app, {
+      method,
+      url,
+      body,
+      headers: {
+        cookie: serializeSessionCookie(session.sessionId),
+      },
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body?.error).toBe("Manager access required");
+  });
+
+  it.each(adminOnlyCases)("$method $url rejects unauthenticated access", async ({ method, url }) => {
+    const app = createTestApp(authService);
+    const response = await invoke(app, { method, url });
+
+    expect(response.status).toBe(401);
+    expect(response.body?.error).toBe("Authentication required");
+  });
+
+  it.each(["manager", "developer"] as const)("GET /api/backups rejects %s access", async (role) => {
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
+    if (role === "developer") {
+      await seedDeveloper("dev-1");
+      await authService.createUser({
+        username: "dev",
+        displayName: "Developer",
+        password: "secret123",
+        role: "developer",
+        developerAccountId: "dev-1",
+      });
+    }
+    const session = await authService.authenticate(role === "manager" ? "manager" : "dev", "secret123");
+    const app = createTestApp(authService);
+
+    const response = await invoke(app, {
+      method: "GET",
+      url: "/api/backups",
+      headers: {
+        cookie: serializeSessionCookie(session.sessionId),
+      },
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body?.error).toBe("Admin access required");
+  });
+
+  it("allows admin users to list and run backups", async () => {
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
+    await authService.createUser({
+      username: "admin",
+      displayName: "Admin",
+      password: "secret123",
+      role: "admin",
+    });
+    const session = await authService.authenticate("admin", "secret123");
+    const app = createTestApp(authService);
+    const headers = { cookie: serializeSessionCookie(session.sessionId) };
+
+    const list = await invoke(app, {
+      method: "GET",
+      url: "/api/backups",
+      headers,
+    });
+    const run = await invoke(app, {
+      method: "POST",
+      url: "/api/backups/run",
+      headers,
+    });
+
+    expect(list.status).toBe(200);
+    expect(list.body).toMatchObject({
+      backups: [],
+      runtime: {
+        enabled: true,
+        running: false,
+      },
+    });
+    expect(run.status).toBe(201);
+    expect(run.body?.backup).toMatchObject({
+      name: "lead-os-manual-test.db",
+      reason: "manual",
+    });
   });
 
   it("GET /api/my-day rejects manager access", async () => {

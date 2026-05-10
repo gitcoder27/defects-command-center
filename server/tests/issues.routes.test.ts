@@ -7,6 +7,19 @@ import type { IssueService } from "../src/services/issue.service";
 
 function createTestApp(issueService: Partial<IssueService>) {
   const app = express();
+  app.use((req, _res, next) => {
+    req.auth = {
+      sessionId: "test-session",
+      user: {
+        username: "manager",
+        accountId: "manager",
+        workspaceId: "default",
+        displayName: "Manager",
+        role: "manager",
+      },
+    };
+    next();
+  });
   app.use("/api/issues", createIssuesRouter(issueService as IssueService));
   app.use(notFoundHandler);
   app.use(errorHandler);
@@ -41,14 +54,17 @@ describe("issues routes", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(issueService.getAll).toHaveBeenCalledWith(expect.objectContaining({
-      filter: "blocked",
-      sort: "updated",
-      order: "asc",
-      trackerDate: "2026-03-07",
-      tagIds: [1, 2],
-      noTags: false,
-    }));
+    expect(issueService.getAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filter: "blocked",
+        sort: "updated",
+        order: "asc",
+        trackerDate: "2026-03-07",
+        tagIds: [1, 2],
+        noTags: false,
+      }),
+      "default"
+    );
   });
 
   it("aligns comment creation with the shared ok response contract", async () => {
@@ -65,6 +81,6 @@ describe("issues routes", () => {
 
     expect(res.status).toBe(201);
     expect(res.body).toEqual({ ok: true });
-    expect(issueService.addComment).toHaveBeenCalledWith("AM-123", "Reviewed with Jira owner");
+    expect(issueService.addComment).toHaveBeenCalledWith("AM-123", "Reviewed with Jira owner", "default");
   });
 });

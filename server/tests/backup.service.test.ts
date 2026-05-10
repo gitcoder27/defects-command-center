@@ -14,7 +14,7 @@ import { resetDatabase } from "./helpers/db";
 const testBackupDirectory = path.resolve("/tmp", "lead-os-test-backups");
 
 async function upsertConfig(key: string, value: string): Promise<void> {
-  await db.insert(configTable).values({ key, value }).onConflictDoUpdate({ target: configTable.key, set: { value } });
+  await db.insert(configTable).values({ key, value }).onConflictDoUpdate({ target: [configTable.workspaceId, configTable.key], set: { value } });
 }
 
 function createBackupService(): BackupService {

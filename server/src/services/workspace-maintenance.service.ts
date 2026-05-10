@@ -45,13 +45,14 @@ export class WorkspaceMaintenanceService {
     workspaceId?: string
   ): Promise<WorkspaceMaintenancePreviewResponse> {
     const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
-    const [managerDesk, teamTracker] = await Promise.all([
+    const [backupBeforeReset, managerDesk, teamTracker] = await Promise.all([
+      this.settings.getBackupBeforeReset(normalizedWorkspaceId),
       this.buildManagerDeskScope(managerAccountId, normalizedWorkspaceId),
       this.buildTeamTrackerScope(managerAccountId, normalizedWorkspaceId),
     ]);
 
     return {
-      backupBeforeReset: false,
+      backupBeforeReset,
       managerDesk: managerDesk.preview,
       teamTracker: teamTracker.preview,
     };
@@ -63,6 +64,9 @@ export class WorkspaceMaintenanceService {
     workspaceId?: string
   ): Promise<WorkspaceMaintenanceResetResponse> {
     const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const backup = this.backupService
+      ? await this.backupService.createPreResetBackup(normalizedWorkspaceId)
+      : null;
 
     await runInTransaction(async () => {
       if (target === "team_tracker" || target === "workspace") {
@@ -81,6 +85,15 @@ export class WorkspaceMaintenanceService {
     return {
       success: true,
       target,
+      ...(backup
+        ? {
+            backup: {
+              name: backup.name,
+              createdAt: backup.createdAt,
+              reason: backup.reason,
+            },
+          }
+        : {}),
     };
   }
 

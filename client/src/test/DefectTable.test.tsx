@@ -182,6 +182,7 @@ describe('DefectTable', () => {
     mockCreateTagMutate.mockClear();
     mockSetIssueTagsMutate.mockClear();
     mockUpdateIssueMutate.mockClear();
+    window.localStorage.clear();
   });
 
   it('renders rows from mock data', () => {
@@ -532,6 +533,30 @@ describe('DefectTable', () => {
     expect(onClearFilters).toHaveBeenCalled();
     expect(screen.queryByLabelText('Search defects by ID or title')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Open defect search')).toBeInTheDocument();
+  });
+
+  it('treats persisted status exclusions as active filters and clears them from the toolbar action', () => {
+    window.localStorage.setItem('lead-os:anonymous:dcc:defect-table:excluded-statuses', JSON.stringify(['To Do']));
+
+    render(
+      <TestWrapper>
+        <DefectTable {...defaultProps} />
+      </TestWrapper>
+    );
+
+    expect(screen.queryByText('PROJ-101')).not.toBeInTheDocument();
+    expect(screen.getByText('PROJ-102')).toBeInTheDocument();
+    expect(screen.queryByText('PROJ-103')).not.toBeInTheDocument();
+
+    const clearButton = screen.getByLabelText('Clear all defect filters');
+    expect(clearButton).not.toBeDisabled();
+    fireEvent.click(clearButton);
+
+    expect(screen.getByText('PROJ-101')).toBeInTheDocument();
+    expect(screen.getByText('PROJ-102')).toBeInTheDocument();
+    expect(screen.getByText('PROJ-103')).toBeInTheDocument();
+    expect(window.localStorage.getItem('lead-os:anonymous:dcc:defect-table:excluded-statuses')).toBeNull();
+    expect(onClearFilters).toHaveBeenCalled();
   });
 
   it('reports zero visible issue keys once when a filter has no matches', async () => {

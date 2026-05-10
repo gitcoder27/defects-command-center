@@ -34,6 +34,23 @@ const trackerItemRows = [
   { id: 301, dayId: 3, state: "planned" },
 ] as any[];
 
+function conditionContainsValue(condition: any, expected: string, seen = new Set<object>()): boolean {
+  if (condition === expected) {
+    return true;
+  }
+  if (!condition || typeof condition !== "object") {
+    return false;
+  }
+  if (seen.has(condition)) {
+    return false;
+  }
+  seen.add(condition);
+  if ("value" in condition && condition.value === expected) {
+    return true;
+  }
+  return Object.values(condition).some((value) => conditionContainsValue(value, expected, seen));
+}
+
 vi.mock("../src/db/connection", () => ({
   db: {
     select: () => ({
@@ -47,9 +64,12 @@ vi.mock("../src/db/connection", () => ({
         if (table?.itemType) {
           return { where: async () => trackerItemRows };
         }
-        const rows: any = issueRows;
-        rows.where = async () => issueRows.filter((issue) => issue.assigneeId === "dev-3");
-        return rows;
+        return {
+          where: async (condition: any) =>
+            conditionContainsValue(condition, "dev-3")
+              ? issueRows.filter((issue) => issue.assigneeId === "dev-3")
+              : issueRows,
+        };
       },
     }),
   },

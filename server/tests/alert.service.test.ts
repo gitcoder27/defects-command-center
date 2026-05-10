@@ -120,7 +120,9 @@ const mockedIssues = [
 vi.mock("../src/db/connection", () => ({
   db: {
     select: () => ({
-      from: async () => mockedIssues,
+      from: () => ({
+        where: async () => mockedIssues,
+      }),
     }),
   },
 }));
@@ -178,6 +180,6 @@ describe("AlertService", () => {
   it("passes the computed date into idle-developer detection", async () => {
     await service.computeAlerts(new Date("2026-03-05T12:00:00.000Z"));
 
-    expect(workloadService.getIdleDevelopers).toHaveBeenCalledWith("2026-03-05");
+    expect(workloadService.getIdleDevelopers).toHaveBeenCalledWith("2026-03-05", "default");
   });
 });

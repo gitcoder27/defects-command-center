@@ -11,7 +11,12 @@ function target(overrides = {}) {
 }
 
 function command(kind: TodayActionItem['primaryAction']['kind'], label: string, actionTarget: TodayActionItem['target']) {
-  return { kind, label, target: actionTarget };
+  return {
+    kind,
+    label,
+    target: actionTarget,
+    ...(kind === 'mark_done' || kind === 'carry_forward' ? { confirm: true } : {}),
+  };
 }
 
 function actionItem(index: number, overrides: Partial<TodayActionItem> = {}): TodayActionItem {
@@ -148,12 +153,23 @@ describe('TodayPage V2', () => {
     });
   });
 
-  it('marks a follow-up done through the existing Manager Desk endpoint', async () => {
+  it('confirms a follow-up done action before mutating through the Manager Desk endpoint', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
     const fetchMock = mockFetch(todayResponse());
     renderToday();
 
     const doneButtons = await screen.findAllByRole('button', { name: /^Done$/i });
     fireEvent.click(doneButtons[0]!);
+
+    expect(await screen.findByRole('dialog', { name: /mark done/i })).toBeInTheDocument();
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(
+      fetchMock.mock.calls.some(([input, init]) =>
+        String(input) === '/api/manager-desk/items/44' && (init as RequestInit | undefined)?.method === 'PATCH',
+      ),
+    ).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Mark done$/i }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/manager-desk/items/44', expect.objectContaining({ method: 'PATCH' }));

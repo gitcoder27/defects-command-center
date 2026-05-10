@@ -711,6 +711,7 @@ export function DefectTable({
     Boolean(assigneeFilter) ||
     tagId !== undefined ||
     Boolean(noTags) ||
+    hasStatusFilter ||
     Boolean(normalizedSearch);
 
   const { filteredIssues, table, visibleIssueKeys } = useDefectTableModel({
@@ -733,8 +734,9 @@ export function DefectTable({
 
   const handleClearFilters = useCallback(() => {
     closeSearch();
+    clearStatusFilter();
     onClearFilters();
-  }, [closeSearch, onClearFilters]);
+  }, [clearStatusFilter, closeSearch, onClearFilters]);
 
   useEffect(() => {
     if (!searchOpen) {

@@ -86,3 +86,20 @@ export function requireManager(authService: AuthService) {
     }
   };
 }
+
+export function requireAdmin(authService: AuthService) {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await loadRequestAuth(req, authService);
+      if (!req.auth) {
+        throw new HttpError(401, "Authentication required");
+      }
+      if (req.auth.user.role !== "admin") {
+        throw new HttpError(403, "Admin access required");
+      }
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}

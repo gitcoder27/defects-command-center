@@ -73,6 +73,12 @@ describe("my day routes", () => {
     await resetDatabase();
     await seedDevelopers();
     await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
+    await authService.createUser({
       username: "alice",
       displayName: "Alice Smith",
       password: "secret123",

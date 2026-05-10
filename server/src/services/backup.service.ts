@@ -89,8 +89,8 @@ export class BackupService {
     return this.createBackup({ reason, prune: true });
   }
 
-  async createPreResetBackup(): Promise<BackupRecord | null> {
-    const enabled = await this.settings.getBackupBeforeReset();
+  async createPreResetBackup(workspaceId?: string): Promise<BackupRecord | null> {
+    const enabled = await this.settings.getBackupBeforeReset(workspaceId);
     if (!enabled) {
       return null;
     }

@@ -99,7 +99,7 @@ export class TodayService {
         activeDefects: overview.total,
         teamSize: teamBoard.summary.total,
         staleCheckIns: teamBoard.summary.stale,
-        dueWork: overview.dueToday + overview.overdue,
+        dueToday: overview.dueToday,
         followUpsDue: followUps.length,
         syncStatus,
       }),
@@ -142,7 +142,7 @@ function buildSummary(params: {
   activeDefects: number;
   teamSize: number;
   staleCheckIns: number;
-  dueWork: number;
+  dueToday: number;
   followUpsDue: number;
   syncStatus?: SyncStatus;
 }): TodaySummaryMetric[] {
@@ -151,7 +151,7 @@ function buildSummary(params: {
     metric("work", "Active defects", params.activeDefects, "in Work", "neutral", target("view", "work")),
     metric("team", "People", params.teamSize, "on team", "info", target("view", "team")),
     metric("stale", "Stale check-ins", params.staleCheckIns, "need update", params.staleCheckIns > 0 ? "warning" : "neutral", target("view", "team")),
-    metric("due-work", "Due work", params.dueWork, "today or late", params.dueWork > 0 ? "warning" : "neutral", target("view", "work", { filter: "overdue" })),
+    metric("due-work", "Due today", params.dueToday, "defects", params.dueToday > 0 ? "warning" : "neutral", target("view", "work", { filter: "dueToday" })),
     metric("promises", "Follow-ups", params.followUpsDue, "due now", params.followUpsDue > 0 ? "warning" : "neutral", target("view", "follow-ups")),
   ].concat(params.syncStatus?.status === "error"
     ? [metric("sync", "Sync", 1, "needs review", "critical", target("view", "settings"))]

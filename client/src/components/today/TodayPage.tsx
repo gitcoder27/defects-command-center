@@ -7,6 +7,7 @@ import type { FilterType, TodayActionCommand, TodayActionTarget, TodayResponse }
 import { TodayActionQueue } from './TodayActionQueue';
 import { TodayCheckInDialog } from './TodayCheckInDialog';
 import { TodayCommandFooter } from './TodayCommandFooter';
+import { TodayConfirmDialog } from './TodayConfirmDialog';
 import { TodayCurrentPriority } from './TodayCurrentPriority';
 import { TodayPeoplePulse } from './TodayPeoplePulse';
 import { TodayRhythmHeader } from './TodayRhythmHeader';
@@ -34,6 +35,10 @@ export function TodayPage({ onViewChange, onSelectWorkFilter, onOpenTodayTarget 
     defaultValue: string;
     saveLabel: string;
     multiline?: boolean;
+  } | null>(null);
+  const [confirmDraft, setConfirmDraft] = useState<{
+    command: TodayActionCommand;
+    preset?: 'later_today' | 'tomorrow' | 'next_week';
   } | null>(null);
   const today = useToday(date);
   const snapshot = today.data;
@@ -90,6 +95,11 @@ export function TodayPage({ onViewChange, onSelectWorkFilter, onOpenTodayTarget 
         saveLabel: 'Save outcome',
         multiline: true,
       });
+      return;
+    }
+
+    if (command.confirm) {
+      setConfirmDraft({ command, preset });
       return;
     }
 
@@ -178,6 +188,17 @@ export function TodayPage({ onViewChange, onSelectWorkFilter, onOpenTodayTarget 
           }}
         />
       ) : null}
+      {confirmDraft ? (
+        <TodayConfirmDialog
+          {...getConfirmationCopy(confirmDraft.command)}
+          isSaving={actions.isPending && actions.pendingKind === confirmDraft.command.kind}
+          onClose={() => setConfirmDraft(null)}
+          onConfirm={() => {
+            actions.runAction(confirmDraft.command, { preset: confirmDraft.preset });
+            setConfirmDraft(null);
+          }}
+        />
+      ) : null}
     </main>
   );
 }
@@ -255,4 +276,32 @@ function defaultFollowUpTitle(target: TodayActionTarget): string {
     return 'Follow up with developer';
   }
   return 'Follow up';
+}
+
+function getConfirmationCopy(command: TodayActionCommand): {
+  title: string;
+  description: string;
+  confirmLabel: string;
+} {
+  if (command.kind === 'mark_done') {
+    return {
+      title: 'Mark done?',
+      description: 'This will mark the Manager Desk item done and remove it from Today.',
+      confirmLabel: 'Mark done',
+    };
+  }
+
+  if (command.kind === 'carry_forward') {
+    return {
+      title: 'Carry forward?',
+      description: 'This will create today\'s carry-forward item and remove the current row from Today.',
+      confirmLabel: 'Carry forward',
+    };
+  }
+
+  return {
+    title: 'Confirm action?',
+    description: `Run "${command.label}" from Today.`,
+    confirmLabel: command.label,
+  };
 }

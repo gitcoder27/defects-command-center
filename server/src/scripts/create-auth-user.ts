@@ -7,9 +7,10 @@ import { AuthService } from "../services/auth.service";
 function usage(): string {
   return [
     "Usage:",
-    "  npm run auth:create-user --workspace=server -- --username <name> --password <password> --display-name <display> --role <manager|developer> [--developer-account-id <accountId>]",
+    "  npm run auth:create-user --workspace=server -- --username <name> --password <password> --display-name <display> --role <admin|manager|developer> [--developer-account-id <accountId>]",
     "",
     "Examples:",
+    "  npm run auth:create-user --workspace=server -- --username admin --password secret123 --display-name \"App Admin\" --role admin",
     "  npm run auth:create-user --workspace=server -- --username lead --password secret123 --display-name \"Team Lead\" --role manager",
     "  npm run auth:create-user --workspace=server -- --username alice --password secret123 --display-name \"Alice Smith\" --role developer --developer-account-id dev-1",
   ].join("\n");
@@ -59,8 +60,8 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (role !== "manager" && role !== "developer") {
-    console.error("role must be either 'manager' or 'developer'");
+  if (role !== "admin" && role !== "manager" && role !== "developer") {
+    console.error("role must be 'admin', 'manager', or 'developer'");
     process.exitCode = 1;
     return;
   }

@@ -7,8 +7,10 @@ import { api } from '@/lib/api';
 import { LeadOSMark } from '@/components/brand/LeadOSMark';
 import type { UserRole } from '@/types';
 
+type LoginRole = Extract<UserRole, 'manager' | 'developer'>;
+
 interface LoginPageProps {
-  role?: UserRole;
+  role?: LoginRole;
 }
 
 const ROLE_COPY = {

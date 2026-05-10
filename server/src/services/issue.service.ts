@@ -326,7 +326,7 @@ export class IssueService {
       case "dueThisWeek":
         return activeTeamIssues().filter((issue) => {
           const dueDate = getEffectiveDueDate(issue);
-          return Boolean(dueDate && dueDate >= context.today && dueDate <= context.weekEnd);
+          return Boolean(dueDate && dueDate > context.today && dueDate <= context.weekEnd);
         });
       case "noDueDate":
         return activeTeamIssues().filter((issue) => !getEffectiveDueDate(issue));

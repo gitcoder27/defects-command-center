@@ -173,17 +173,49 @@ function getWhereValue(condition: any, columnName: string) {
     return undefined;
   }
 
-  const hasColumn = chunks.some((chunk) => chunk?.name === columnName);
-  if (!hasColumn) {
-    return undefined;
+  for (let index = 0; index < chunks.length; index += 1) {
+    const chunk = chunks[index];
+    if (chunk?.name === columnName) {
+      for (let cursor = index + 1; cursor < chunks.length; cursor += 1) {
+        const candidate = chunks[cursor];
+        if (candidate && typeof candidate === "object" && "value" in candidate) {
+          return candidate.value;
+        }
+        if (candidate?.name) {
+          break;
+        }
+      }
+    }
+    const nestedValue = getWhereValue(chunk, columnName);
+    if (nestedValue !== undefined) {
+      return nestedValue;
+    }
   }
 
-  return chunks.find((chunk) => chunk && typeof chunk === "object" && "value" in chunk)?.value;
+  return undefined;
+}
+
+function conditionContainsValue(condition: any, expected: string, seen = new Set<object>()): boolean {
+  if (condition === expected) {
+    return true;
+  }
+  if (!condition || typeof condition !== "object") {
+    return false;
+  }
+  if (seen.has(condition)) {
+    return false;
+  }
+  seen.add(condition);
+  if ("value" in condition && condition.value === expected) {
+    return true;
+  }
+  return Object.values(condition).some((value) => conditionContainsValue(value, expected, seen));
 }
 
 function buildResolvedQuery<T>(rows: T[]) {
   const promise: any = Promise.resolve(rows);
   promise.limit = async (limit: number) => rows.slice(0, limit);
+  promise.orderBy = () => buildResolvedQuery(rows);
   return promise;
 }
 
@@ -192,14 +224,16 @@ vi.mock("../src/db/connection", () => {
     select: () => ({
       from: (table: any) => {
         if (table?.observedAt && table?.changeType) {
-          return Promise.resolve(mockedIssueScopeHistory);
+          return {
+            where: () => Promise.resolve(mockedIssueScopeHistory),
+          };
         }
         // issueTags table (has tagId but no summary)
         if (table?.tagId && !table?.summary) {
           return {
             innerJoin: () => {
               const p: any = Promise.resolve(mockedIssueTags);
-              p.where = () => Promise.resolve([]);
+              p.where = () => Promise.resolve(mockedIssueTags);
               return p;
             },
           };
@@ -207,7 +241,13 @@ vi.mock("../src/db/connection", () => {
         if (table?.jiraKey) {
           const query: any = Promise.resolve(mockedIssues);
           query.orderBy = async () => mockedIssues;
-          query.where = () => buildResolvedQuery(mockedIssues.filter((issue) => issue.jiraKey === "PROJ-2"));
+          query.where = (condition: any) => {
+            const explicitJiraKey = getWhereValue(condition, "jira_key");
+            const jiraKey = typeof explicitJiraKey === "string" && explicitJiraKey.startsWith("PROJ-")
+              ? explicitJiraKey
+              : mockedIssues.find((issue) => conditionContainsValue(condition, issue.jiraKey))?.jiraKey;
+            return buildResolvedQuery(jiraKey ? mockedIssues.filter((issue) => issue.jiraKey === jiraKey) : mockedIssues);
+          };
           query.limit = async () => mockedIssues;
           query.innerJoin = () => async () => [];
           return query;
@@ -230,10 +270,11 @@ vi.mock("../src/db/connection", () => {
           };
         }
         if (table?.startedAt) {
+          const rows = [{ completedAt: "2026-03-05T00:01:00.000Z" }];
           return {
-            orderBy: () => ({ limit: async () => [{ completedAt: "2026-03-05T00:01:00.000Z" }] }),
-            where: () => ({ limit: async () => [{ completedAt: "2026-03-05T00:01:00.000Z" }] }),
-            limit: async () => [{ completedAt: "2026-03-05T00:01:00.000Z" }],
+            orderBy: () => ({ limit: async () => rows }),
+            where: () => buildResolvedQuery(rows),
+            limit: async () => rows,
           };
         }
         return {
@@ -295,7 +336,7 @@ describe("IssueService", () => {
   it("applies all supported filters", async () => {
     expect((await service.getAll({ filter: "unassigned" })).map((i) => i.jiraKey)).toEqual(["PROJ-1"]);
     expect((await service.getAll({ filter: "dueToday" })).map((i) => i.jiraKey)).toContain("PROJ-1");
-    expect((await service.getAll({ filter: "dueThisWeek" })).map((i) => i.jiraKey)).toContain("PROJ-4");
+    expect((await service.getAll({ filter: "dueThisWeek" })).map((i) => i.jiraKey)).toEqual(["PROJ-4"]);
     expect((await service.getAll({ filter: "overdue" })).map((i) => i.jiraKey)).toContain("PROJ-2");
     expect((await service.getAll({ filter: "blocked" })).map((i) => i.jiraKey)).toEqual(["PROJ-2"]);
     expect((await service.getAll({ filter: "highPriority" })).map((i) => i.jiraKey)).toEqual(["PROJ-2", "PROJ-1"]);
@@ -320,6 +361,7 @@ describe("IssueService", () => {
     expect(overview.recentlyAssigned).toBe(1);
     expect(overview.unassigned).toBe(1);
     expect(overview.dueToday).toBe(1);
+    expect(overview.dueThisWeek).toBe(1);
     expect(overview.overdue).toBe(1);
     expect(overview.blocked).toBe(1);
     expect(overview.inProgress).toBe(2);
@@ -334,6 +376,7 @@ describe("IssueService", () => {
     expect((await service.getAll({ filter: "recentlyAssigned" })).length).toBe(overview.recentlyAssigned);
     expect((await service.getAll({ filter: "unassigned" })).length).toBe(overview.unassigned);
     expect((await service.getAll({ filter: "dueToday" })).length).toBe(overview.dueToday);
+    expect((await service.getAll({ filter: "dueThisWeek" })).length).toBe(overview.dueThisWeek);
     expect((await service.getAll({ filter: "overdue" })).length).toBe(overview.overdue);
     expect((await service.getAll({ filter: "blocked" })).length).toBe(overview.blocked);
     expect((await service.getAll({ filter: "inProgress" })).length).toBe(overview.inProgress);
@@ -423,13 +466,13 @@ describe("IssueService", () => {
       activeCount: 2,
       developerNames: ["Dev 1", "Dev 2"],
     });
-    expect(teamTrackerService.getIssueAssignmentSummaryMap).toHaveBeenCalledWith("2026-03-05");
+    expect(teamTrackerService.getIssueAssignmentSummaryMap).toHaveBeenCalledWith("2026-03-05", "default");
   });
 
   it("uses an explicit tracker date when provided", async () => {
     await service.getAll({ filter: "all", trackerDate: "2026-03-04" });
 
-    expect(teamTrackerService.getIssueAssignmentSummaryMap).toHaveBeenCalledWith("2026-03-04");
+    expect(teamTrackerService.getIssueAssignmentSummaryMap).toHaveBeenCalledWith("2026-03-04", "default");
   });
 
   it("filters issues by single tag (AND logic)", async () => {

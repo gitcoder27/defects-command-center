@@ -37,7 +37,7 @@ interface CreateAppUserPayload {
   username: string;
   password: string;
   displayName: string;
-  role: AuthUser['role'];
+  role: Extract<AuthUser['role'], 'manager' | 'developer'>;
   developerAccountId?: string;
 }
 

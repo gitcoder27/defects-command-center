@@ -117,6 +117,10 @@ export class AuthService {
     }
 
     const userCount = await this.getUserCount();
+    if (userCount === 0 && params.role !== "manager") {
+      throw new HttpError(403, "The first account must be a manager");
+    }
+
     const workspaceId = await this.resolveWorkspaceIdForNewUser({
       explicitWorkspaceId: params.workspaceId,
       userCount,
