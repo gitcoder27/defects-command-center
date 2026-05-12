@@ -249,7 +249,7 @@ describe("multi-workspace API isolation", () => {
       method: "PATCH",
       url: `/api/my-day/items/${bTrackerItem.id}`,
       headers: { cookie: devACookie },
-      body: { title: "A developer should not edit B" },
+      body: { date: "2026-03-08", title: "A developer should not edit B" },
     });
     expect(crossMyDayRes.status).toBe(404);
 

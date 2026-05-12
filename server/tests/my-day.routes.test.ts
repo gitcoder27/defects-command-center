@@ -8,7 +8,7 @@ import { MyDayService } from "../src/services/my-day.service";
 import { TeamTrackerService } from "../src/services/team-tracker.service";
 import { IssueService } from "../src/services/issue.service";
 import { resetDatabase, db } from "./helpers/db";
-import { developers, issues } from "../src/db/schema";
+import { developers, issues, teamTrackerDays } from "../src/db/schema";
 import { invoke } from "./helpers/http";
 
 const authService = new AuthService();
@@ -70,6 +70,8 @@ function createTestApp() {
 
 describe("my day routes", () => {
   beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-07T08:00:00.000Z"));
     await resetDatabase();
     await seedDevelopers();
     await authService.createUser({
@@ -121,6 +123,89 @@ describe("my day routes", () => {
     expect(res.body?.status).toBe("blocked");
     expect(res.body?.plannedItems).toHaveLength(1);
     expect("managerNotes" in res.body).toBe(false);
+  });
+
+  it("GET /api/my-day shows today's live unfinished work without creating today's day row", async () => {
+    const item = await trackerService.addItem("dev-1", "2026-03-06", {
+      title: "Yesterday follow-up",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/my-day?date=2026-03-07",
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.viewMode).toBe("live");
+    expect(res.body?.isReadOnly).toBe(false);
+    expect(res.body?.plannedItems).toEqual([
+      expect.objectContaining({
+        id: item.id,
+        title: "Yesterday follow-up",
+        originDate: "2026-03-06",
+      }),
+    ]);
+
+    const todayRows = await db
+      .select()
+      .from(teamTrackerDays);
+    expect(todayRows.filter((row) => row.date === "2026-03-07" && row.developerAccountId === "dev-1")).toEqual([]);
+  });
+
+  it("GET /api/my-day returns past dates as exact read-only history", async () => {
+    await trackerService.addItem("dev-1", "2026-03-06", {
+      title: "Historical item",
+    });
+    await trackerService.addItem("dev-1", "2026-03-07", {
+      title: "Today item",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/my-day?date=2026-03-06",
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.viewMode).toBe("history");
+    expect(res.body?.readOnlyReason).toBe("history");
+    expect(res.body?.isReadOnly).toBe(true);
+    expect(res.body?.plannedItems.map((item: { title: string }) => item.title)).toEqual([
+      "Historical item",
+    ]);
+  });
+
+  it("GET /api/my-day returns future dates as exact read-only planning", async () => {
+    await trackerService.addItem("dev-1", "2026-03-07", {
+      title: "Today item",
+    });
+    await trackerService.addItem("dev-1", "2026-03-08", {
+      title: "Future planned item",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "GET",
+      url: "/api/my-day?date=2026-03-08",
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.viewMode).toBe("planning");
+    expect(res.body?.readOnlyReason).toBe("future");
+    expect(res.body?.isReadOnly).toBe(true);
+    expect(res.body?.plannedItems.map((item: { title: string }) => item.title)).toEqual([
+      "Future planned item",
+    ]);
   });
 
   it("GET /api/my-day includes task notes updated through team tracker", async () => {
@@ -201,6 +286,7 @@ describe("my day routes", () => {
         cookie: await loginCookie("alice", "secret123"),
       },
       body: {
+        date: "2026-03-07",
         note: "Trying to edit someone else's task",
       },
     });
@@ -230,6 +316,36 @@ describe("my day routes", () => {
       authorType: "developer",
       authorAccountId: "dev-1",
     });
+  });
+
+  it("POST /api/my-day/checkins without status preserves inherited live risk state", async () => {
+    await trackerService.updateDay("dev-1", "2026-03-06", {
+      status: "blocked",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "POST",
+      url: "/api/my-day/checkins",
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+      body: {
+        date: "2026-03-07",
+        summary: "Still waiting on access",
+      },
+    });
+
+    expect(res.status).toBe(201);
+
+    const day = await invoke(app, {
+      method: "GET",
+      url: "/api/my-day?date=2026-03-07",
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+    });
+    expect(day.body?.status).toBe("blocked");
   });
 
   it("POST /api/my-day/items supports Jira-linked items for the authenticated developer", async () => {
@@ -295,6 +411,112 @@ describe("my day routes", () => {
     expect(res.status).toBe(400);
   });
 
+  it("PATCH /api/my-day/items/:itemId updates inherited items only from today's live view", async () => {
+    const inherited = await trackerService.addItem("dev-1", "2026-03-06", {
+      title: "Continue yesterday",
+    });
+
+    const app = createTestApp();
+    const today = await invoke(app, {
+      method: "PATCH",
+      url: `/api/my-day/items/${inherited.id}`,
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+      body: {
+        date: "2026-03-07",
+        note: "Live note",
+      },
+    });
+
+    expect(today.status).toBe(200);
+    expect(today.body).toMatchObject({
+      id: inherited.id,
+      originDate: "2026-03-06",
+      note: "Live note",
+    });
+
+    const past = await invoke(app, {
+      method: "PATCH",
+      url: `/api/my-day/items/${inherited.id}`,
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+      body: {
+        date: "2026-03-06",
+        note: "Past edit",
+      },
+    });
+    expect(past.status).toBe(409);
+    expect(past.body?.error).toBe("My Day is read-only for past dates");
+
+    const future = await invoke(app, {
+      method: "PATCH",
+      url: `/api/my-day/items/${inherited.id}`,
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+      body: {
+        date: "2026-03-08",
+        note: "Future edit",
+      },
+    });
+    expect(future.status).toBe(409);
+    expect(future.body?.error).toBe("My Day is read-only for future dates");
+  });
+
+  it("PATCH /api/my-day/items/:itemId rejects future-owned items from today's live view", async () => {
+    const futureItem = await trackerService.addItem("dev-1", "2026-03-08", {
+      title: "Tomorrow plan",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "PATCH",
+      url: `/api/my-day/items/${futureItem.id}`,
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+      body: {
+        date: "2026-03-07",
+        note: "Should not edit early",
+      },
+    });
+
+    expect(res.status).toBe(409);
+    expect(res.body?.error).toBe("Item is not available in the selected My Day view");
+  });
+
+  it("POST /api/my-day/items/:itemId/set-current can activate inherited live work without carrying it forward", async () => {
+    const inherited = await trackerService.addItem("dev-1", "2026-03-06", {
+      title: "Continue yesterday",
+    });
+
+    const app = createTestApp();
+    const res = await invoke(app, {
+      method: "POST",
+      url: `/api/my-day/items/${inherited.id}/set-current`,
+      headers: {
+        cookie: await loginCookie("alice", "secret123"),
+      },
+      body: {
+        date: "2026-03-07",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: inherited.id,
+      state: "in_progress",
+      originDate: "2026-03-06",
+    });
+
+    const rows = await db
+      .select()
+      .from(teamTrackerDays);
+    expect(rows.filter((row) => row.date === "2026-03-07" && row.developerAccountId === "dev-1")).toEqual([]);
+  });
+
   it("POST /api/my-day/items rejects writes while the developer is inactive", async () => {
     await trackerService.updateAvailability("dev-1", {
       effectiveDate: "2026-03-07",
@@ -358,6 +580,7 @@ describe("my day routes", () => {
         cookie: await loginCookie("alice", "secret123"),
       },
       body: {
+        date: "2026-03-07",
         title: "Developer rename attempt",
       },
     });
@@ -379,7 +602,7 @@ describe("my day routes", () => {
     const app = createTestApp();
     const res = await invoke(app, {
       method: "DELETE",
-      url: `/api/my-day/items/${linkedItem!.id}`,
+      url: `/api/my-day/items/${linkedItem!.id}?date=2026-03-07`,
       headers: {
         cookie: await loginCookie("alice", "secret123"),
       },
@@ -412,6 +635,7 @@ describe("my day routes", () => {
         cookie: await loginCookie("alice", "secret123"),
       },
       body: {
+        date: "2026-03-07",
         state: "done",
         note: "Fix validated and handed back.",
       },

@@ -19,6 +19,7 @@ interface TrackerItemRowProps {
   onMoveDown?: (id: number) => void;
   onUpdateNote?: (id: number, note: string | null) => void;
   onUpdateTitle?: (id: number, title: string) => void;
+  viewDate?: string;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   compact?: boolean;
@@ -47,6 +48,7 @@ export function TrackerItemRow({
   onMoveDown,
   onUpdateNote,
   onUpdateTitle,
+  viewDate,
   canMoveUp = false,
   canMoveDown = false,
   compact,
@@ -86,6 +88,7 @@ export function TrackerItemRow({
   const jiraLabel = item.jiraSummary && item.jiraSummary !== item.title ? `${item.jiraKey} · ${item.jiraSummary}` : item.jiraKey;
   const jiraMeta = [item.jiraPriorityName, item.jiraDueDate ? `Due ${formatDate(item.jiraDueDate)}` : undefined].filter(Boolean).join(' • ');
   const resolvedActionPreset = hideActions || readOnly ? 'none' : actionPreset;
+  const isContinued = Boolean(viewDate && item.originDate && item.originDate !== viewDate);
 
   const commitTitle = () => {
     const trimmed = draftTitle.trim();
@@ -277,6 +280,20 @@ export function TrackerItemRow({
             >
               <Link2 size={8} />
               Delegated
+            </span>
+          </div>
+        )}
+        {isContinued && !compact && !isDrawerPlanned && (
+          <div className="mt-0.5">
+            <span
+              className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]"
+              style={{
+                background: 'var(--bg-tertiary)',
+                color: 'var(--text-muted)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              Continued from {formatDate(item.originDate)}
             </span>
           </div>
         )}

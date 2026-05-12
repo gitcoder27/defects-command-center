@@ -10,6 +10,7 @@ import { QuickUpdates } from './QuickUpdates';
 import { MyDayInactiveBanner } from './MyDayInactiveBanner';
 
 interface MyDayLeftColumnProps {
+  date: string;
   user: AuthUser | null;
   day: MyDayResponse | undefined;
   isFetching: boolean;
@@ -34,6 +35,7 @@ const sectionVariants = {
 };
 
 export function MyDayLeftColumn({
+  date,
   user,
   day,
   isFetching,
@@ -92,6 +94,7 @@ export function MyDayLeftColumn({
           </h2>
         </div>
         <CurrentTask
+          viewDate={date}
           item={day?.currentItem}
           onMarkDone={handleMarkDone}
           onDrop={handleDrop}

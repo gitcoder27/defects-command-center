@@ -81,6 +81,26 @@ describe("TeamTrackerService", () => {
       expect(first.id).toBe(second.id);
     });
 
+    it("seeds a new live day from the latest prior effective risk state", async () => {
+      await service.recordStatusUpdate(
+        "dev-1",
+        "2026-03-06",
+        {
+          status: "blocked",
+          rationale: "Waiting for deploy credentials",
+          nextFollowUpAt: "2026-03-07T10:00:00.000Z",
+        },
+        { type: "manager", accountId: "manager-1" }
+      );
+      await service.updateDay("dev-1", "2026-03-06", { capacityUnits: 3 });
+
+      const day = await service.ensureDay("2026-03-07", "dev-1");
+
+      expect(day.status).toBe("blocked");
+      expect(day.capacityUnits).toBe(3);
+      expect(day.nextFollowUpAt).toBe("2026-03-07T10:00:00.000Z");
+    });
+
     it("returns the same row under concurrent calls", async () => {
       const [first, second] = await Promise.all([
         service.ensureDay("2026-03-07", "dev-1"),
@@ -588,6 +608,69 @@ describe("TeamTrackerService", () => {
         .from(teamTrackerItems)
         .where(eq(teamTrackerItems.id, yesterday.id));
 
+      expect(rows[0]?.state).toBe("in_progress");
+    });
+
+    it("chooses the most recently activated live in-progress item as current", async () => {
+      const yesterday = await service.addItem("dev-1", "2026-03-06", {
+        title: "Yesterday current task",
+      });
+      await service.setCurrentItem(yesterday.id);
+
+      vi.setSystemTime(new Date("2026-03-07T09:00:00.000Z"));
+      const today = await service.addItem("dev-1", "2026-03-07", {
+        title: "Today current task",
+      });
+      await service.setCurrentItem(today.id);
+
+      const board = await service.getBoard("2026-03-07");
+      const devDay = board.developers.find((day) => day.developer.accountId === "dev-1")!;
+
+      expect(devDay.currentItem?.id).toBe(today.id);
+      expect(devDay.plannedItems).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: yesterday.id,
+            state: "in_progress",
+            originDate: "2026-03-06",
+          }),
+        ])
+      );
+    });
+
+    it("can make reactivated inherited work the live current item without rewriting today's row", async () => {
+      const yesterday = await service.addItem("dev-1", "2026-03-06", {
+        title: "Yesterday current task",
+      });
+      await service.setCurrentItem(yesterday.id);
+
+      vi.setSystemTime(new Date("2026-03-07T09:00:00.000Z"));
+      const today = await service.addItem("dev-1", "2026-03-07", {
+        title: "Today current task",
+      });
+      await service.setCurrentItem(today.id);
+
+      vi.setSystemTime(new Date("2026-03-07T10:00:00.000Z"));
+      await service.setCurrentItem(yesterday.id);
+
+      const board = await service.getBoard("2026-03-07");
+      const devDay = board.developers.find((day) => day.developer.accountId === "dev-1")!;
+
+      expect(devDay.currentItem?.id).toBe(yesterday.id);
+      expect(devDay.plannedItems).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: today.id,
+            state: "in_progress",
+            originDate: "2026-03-07",
+          }),
+        ])
+      );
+
+      const rows = await db
+        .select()
+        .from(teamTrackerItems)
+        .where(eq(teamTrackerItems.id, today.id));
       expect(rows[0]?.state).toBe("in_progress");
     });
 

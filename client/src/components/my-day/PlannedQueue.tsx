@@ -4,6 +4,7 @@ import type { TrackerWorkItem } from '@/types';
 import { TrackerItemRow } from '@/components/team-tracker/TrackerItemRow';
 
 interface PlannedQueueProps {
+  viewDate?: string;
   items: TrackerWorkItem[];
   onSetCurrent: (id: number) => void;
   onMarkDone: (id: number) => void;
@@ -15,6 +16,7 @@ interface PlannedQueueProps {
 }
 
 export function PlannedQueue({
+  viewDate,
   items,
   onSetCurrent,
   onMarkDone,
@@ -102,7 +104,7 @@ export function PlannedQueue({
               border: '1px solid var(--border)',
             }}
           >
-            <TrackerItemRow item={item} readOnly />
+            <TrackerItemRow item={item} viewDate={viewDate} readOnly />
           </div>
         ))}
       </div>
@@ -130,6 +132,7 @@ export function PlannedQueue({
         >
           <TrackerItemRow
             item={item}
+            viewDate={viewDate}
             draggable
             onSetCurrent={onSetCurrent}
             onMarkDone={onMarkDone}

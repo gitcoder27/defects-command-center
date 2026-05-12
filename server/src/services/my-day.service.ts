@@ -1,4 +1,5 @@
 import type {
+  MyDayReadOnlyReason,
   MyDayResponse,
   TrackerCheckIn,
   TrackerDeveloperStatus,
@@ -26,17 +27,20 @@ export class MyDayService {
   constructor(private readonly trackerService: TeamTrackerService) {}
 
   async getMyDay(accountId: string, date: string, workspaceId?: string): Promise<MyDayResponse> {
-    const day = await this.trackerService.getDeveloperDay(date, accountId, {
+    const { day, viewMode } = await this.trackerService.getDeveloperDayView(date, accountId, {
       includeManagerNotes: false,
     }, workspaceId);
+    const readOnlyReason = this.getReadOnlyReason(day.availability.state, viewMode);
 
     return {
       date: day.date,
+      viewMode,
+      readOnlyReason,
       developer: day.developer,
       status: day.status,
       capacityUnits: day.capacityUnits,
       availability: day.availability,
-      isReadOnly: day.availability.state === "inactive",
+      isReadOnly: readOnlyReason !== undefined,
       lastCheckInAt: day.lastCheckInAt,
       currentItem: day.currentItem,
       plannedItems: day.plannedItems,
@@ -53,13 +57,13 @@ export class MyDayService {
     status?: TrackerDeveloperStatus,
     workspaceId?: string
   ): Promise<MyDayResponse> {
-    await this.assertAvailable(accountId, date, workspaceId);
+    await this.assertWritable(accountId, date, workspaceId);
     await this.trackerService.updateDay(accountId, date, { status }, workspaceId);
     return this.getMyDay(accountId, date, workspaceId);
   }
 
   async addItem(accountId: string, params: AddMyDayItemParams, workspaceId?: string): Promise<TrackerWorkItem> {
-    await this.assertAvailable(accountId, params.date, workspaceId);
+    await this.assertWritable(accountId, params.date, workspaceId);
     return this.trackerService.addItem(accountId, params.date, {
       jiraKey: params.jiraKey,
       relatedIssueKeys: params.relatedIssueKeys,
@@ -71,23 +75,27 @@ export class MyDayService {
   async updateItem(
     accountId: string,
     itemId: number,
+    date: string,
     updates: UpdateMyDayItemParams,
     workspaceId?: string
   ): Promise<TrackerWorkItem> {
     const ownership = await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId, workspaceId);
-    await this.assertAvailable(accountId, ownership.date, workspaceId);
+    await this.assertWritable(accountId, date, workspaceId);
+    this.assertItemAvailableInSelectedView(ownership.date, date);
     return this.trackerService.updateItem(itemId, updates, workspaceId);
   }
 
-  async deleteItem(accountId: string, itemId: number, workspaceId?: string): Promise<void> {
+  async deleteItem(accountId: string, itemId: number, date: string, workspaceId?: string): Promise<void> {
     const ownership = await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId, workspaceId);
-    await this.assertAvailable(accountId, ownership.date, workspaceId);
+    await this.assertWritable(accountId, date, workspaceId);
+    this.assertItemAvailableInSelectedView(ownership.date, date);
     await this.trackerService.deleteItem(itemId, undefined, workspaceId);
   }
 
-  async setCurrentItem(accountId: string, itemId: number, workspaceId?: string): Promise<TrackerWorkItem> {
+  async setCurrentItem(accountId: string, itemId: number, date: string, workspaceId?: string): Promise<TrackerWorkItem> {
     const ownership = await this.trackerService.assertItemBelongsToDeveloper(itemId, accountId, workspaceId);
-    await this.assertAvailable(accountId, ownership.date, workspaceId);
+    await this.assertWritable(accountId, date, workspaceId);
+    this.assertItemAvailableInSelectedView(ownership.date, date);
     return this.trackerService.setCurrentItem(itemId, undefined, workspaceId);
   }
 
@@ -100,7 +108,7 @@ export class MyDayService {
     },
     workspaceId?: string
   ): Promise<TrackerCheckIn> {
-    await this.assertAvailable(accountId, date, workspaceId);
+    await this.assertWritable(accountId, date, workspaceId);
     return this.trackerService.addCheckIn(
       accountId,
       date,
@@ -116,10 +124,43 @@ export class MyDayService {
     );
   }
 
-  private async assertAvailable(accountId: string, date: string, workspaceId?: string): Promise<void> {
-    const availability = await this.trackerService.getAvailabilityForDate(accountId, date, workspaceId);
-    if (availability.state === "inactive") {
+  private getReadOnlyReason(
+    availabilityState: "active" | "inactive",
+    viewMode: "live" | "history" | "planning"
+  ): MyDayReadOnlyReason | undefined {
+    if (availabilityState === "inactive") {
+      return "inactive";
+    }
+    if (viewMode === "history") {
+      return "history";
+    }
+    if (viewMode === "planning") {
+      return "future";
+    }
+    return undefined;
+  }
+
+  private async assertWritable(accountId: string, date: string, workspaceId?: string): Promise<void> {
+    const { day, viewMode } = await this.trackerService.getDeveloperDayView(date, accountId, {
+      includeManagerNotes: false,
+    }, workspaceId);
+    const reason = this.getReadOnlyReason(day.availability.state, viewMode);
+    if (!reason) {
+      return;
+    }
+
+    if (reason === "inactive") {
       throw new HttpError(409, `Developer is inactive on ${date}`);
+    }
+    if (reason === "history") {
+      throw new HttpError(409, "My Day is read-only for past dates");
+    }
+    throw new HttpError(409, "My Day is read-only for future dates");
+  }
+
+  private assertItemAvailableInSelectedView(itemDate: string, selectedDate: string): void {
+    if (itemDate > selectedDate) {
+      throw new HttpError(409, "Item is not available in the selected My Day view");
     }
   }
 }

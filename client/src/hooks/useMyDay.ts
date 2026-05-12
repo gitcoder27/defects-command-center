@@ -60,7 +60,7 @@ export function useUpdateMyDayItem(date: string) {
       position?: number;
     }) => {
       const { itemId, ...body } = params;
-      return api.patch<TrackerWorkItem>(`/my-day/items/${itemId}`, body);
+      return api.patch<TrackerWorkItem>(`/my-day/items/${itemId}`, { date, ...body });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-day', date] });
@@ -74,7 +74,7 @@ export function useSetMyDayCurrent(date: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (itemId: number) =>
-      api.post<TrackerWorkItem>(`/my-day/items/${itemId}/set-current`),
+      api.post<TrackerWorkItem>(`/my-day/items/${itemId}/set-current`, { date }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-day', date] });
       qc.invalidateQueries({ queryKey: ['team-tracker', date] });

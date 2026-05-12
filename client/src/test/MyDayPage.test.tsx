@@ -20,6 +20,7 @@ function createItem(overrides: Partial<TrackerWorkItem>): TrackerWorkItem {
   return {
     id: 1,
     dayId: 10,
+    originDate: '2026-03-10',
     itemType: 'custom',
     title: 'Task title',
     state: 'planned',
@@ -165,6 +166,7 @@ describe('MyDayPage', () => {
     vi.clearAllMocks();
     mockDay = {
       date: '2026-03-10',
+      viewMode: 'live',
       developer: { accountId: 'dev-1', displayName: 'Alice Smith', isActive: true },
       status: 'on_track',
       availability: { state: 'active' },
@@ -290,6 +292,45 @@ describe('MyDayPage', () => {
         onError: expect.any(Function),
       })
     );
+  });
+
+  it('renders continued-from context for inherited live work', () => {
+    mockDay.currentItem = createItem({
+      id: 101,
+      title: 'Review PR comments',
+      state: 'in_progress',
+      originDate: '2026-03-09',
+    });
+    mockDay.plannedItems = [
+      createItem({
+        id: 102,
+        title: 'Prepare release checklist',
+        originDate: '2026-03-09',
+      }),
+    ];
+
+    render(
+      <TestWrapper>
+        <MyDayPage />
+      </TestWrapper>
+    );
+
+    expect(screen.getAllByText('Continued from Mar 9')).toHaveLength(2);
+  });
+
+  it('disables task controls when My Day is viewing history', () => {
+    mockDay.viewMode = 'history';
+    mockDay.readOnlyReason = 'history';
+    mockDay.isReadOnly = true;
+
+    render(
+      <TestWrapper>
+        <MyDayPage />
+      </TestWrapper>
+    );
+
+    expect(screen.queryByTitle('Edit note')).not.toBeInTheDocument();
+    expect(screen.getByText('Review PR comments').closest('button')).toBeNull();
   });
 
   it('edits the current task title through the shared My Day mutation', () => {

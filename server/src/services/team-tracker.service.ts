@@ -28,6 +28,7 @@ import type {
   TrackerDeveloperGroup,
   TeamTrackerSavedView,
   TeamTrackerViewMode,
+  MyDayViewMode,
 } from "shared/types";
 import { db } from "../db/connection";
 import {
@@ -65,6 +66,7 @@ interface CarryForwardSourceItem {
 interface CarryForwardPlanEntry {
   developer: Developer;
   developerAccountId: string;
+  originDate: string;
   item: typeof teamTrackerItems.$inferSelect;
   trackerItem: TrackerWorkItem;
 }
@@ -96,6 +98,11 @@ interface TeamTrackerSavedViewUpdate {
   summaryFilter?: TrackerBoardSummaryFilter;
   sortBy?: TeamTrackerBoardSort;
   groupBy?: TeamTrackerBoardGroupBy;
+}
+
+interface DeveloperDayView {
+  day: TrackerDeveloperDay;
+  viewMode: MyDayViewMode;
 }
 
 function nowIso(): string {
@@ -255,6 +262,30 @@ function getTrackerViewMode(date: string): TeamTrackerViewMode {
   return date < localTodayIso() ? "history" : "live";
 }
 
+function getMyDayViewMode(date: string): MyDayViewMode {
+  const today = localTodayIso();
+  if (date < today) {
+    return "history";
+  }
+  if (date > today) {
+    return "planning";
+  }
+  return "live";
+}
+
+function getSeededStatus(status: string | null | undefined): TrackerDeveloperStatus {
+  if (
+    status === "blocked" ||
+    status === "at_risk" ||
+    status === "waiting" ||
+    status === "on_track"
+  ) {
+    return status;
+  }
+
+  return "on_track";
+}
+
 function buildStatusUpdateSummary(params: {
   status: TrackerDeveloperStatus;
   rationale?: string;
@@ -374,7 +405,8 @@ type TrackerIssueContext = Pick<
 
 function mapItem(
   row: typeof teamTrackerItems.$inferSelect,
-  issueContext?: TrackerIssueContext
+  issueContext?: TrackerIssueContext,
+  originDate?: string
 ): TrackerWorkItem {
   const relatedIssueKeys = parseRelatedIssueKeys(row.relatedJiraKeys).filter(
     (key) => key !== normalizeJiraIssueKey(row.jiraKey)
@@ -383,6 +415,7 @@ function mapItem(
   return {
     id: row.id,
     dayId: row.dayId,
+    originDate: originDate ?? isoDatePart(row.createdAt) ?? "",
     managerDeskItemId: row.managerDeskItemId ?? undefined,
     lifecycle: row.managerDeskItemId === null ? "tracker_only" : "manager_desk_linked",
     itemType: row.jiraKey ? "jira" : "custom",
@@ -527,6 +560,30 @@ function compareLiveOpenItems(
   }
 
   return left.id - right.id;
+}
+
+function compareLiveCurrentItems(
+  left: TrackerWorkItem,
+  right: TrackerWorkItem
+): number {
+  const updatedDiff =
+    new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+  if (updatedDiff !== 0) {
+    return updatedDiff;
+  }
+
+  const originDiff = right.originDate.localeCompare(left.originDate);
+  if (originDiff !== 0) {
+    return originDiff;
+  }
+
+  const createdDiff =
+    new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+  if (createdDiff !== 0) {
+    return createdDiff;
+  }
+
+  return right.id - left.id;
 }
 
 function isCarryForwardEligibleItem(
@@ -1136,6 +1193,48 @@ export class TeamTrackerService {
     return day;
   }
 
+  async getDeveloperDayView(
+    date: string,
+    developerAccountId: string,
+    options?: { includeManagerNotes?: boolean },
+    workspaceId?: string
+  ): Promise<DeveloperDayView> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const viewMode = getMyDayViewMode(date);
+    const signalConfig = await this.getSignalConfig(normalizedWorkspaceId);
+    const developer = await this.getDeveloperByAccountId(developerAccountId, normalizedWorkspaceId);
+    const availability = await this.availability.getAvailabilityForDate(developerAccountId, date, normalizedWorkspaceId);
+    const developerWithAvailability = {
+      ...developer,
+      availability,
+    };
+    const day =
+      viewMode === "live"
+        ? await this.buildLiveDeveloperDay(
+            date,
+            developerWithAvailability,
+            signalConfig,
+            normalizedWorkspaceId
+          )
+        : await this.buildHistoricalDeveloperDay(
+            date,
+            developerWithAvailability,
+            signalConfig,
+            normalizedWorkspaceId
+          );
+
+    return {
+      viewMode,
+      day:
+        options?.includeManagerNotes === false
+          ? {
+              ...day,
+              managerNotes: undefined,
+            }
+          : day,
+    };
+  }
+
   async getAvailabilityForDate(accountId: string, date: string, workspaceId?: string) {
     return this.availability.getAvailabilityForDate(accountId, date, workspaceId);
   }
@@ -1159,14 +1258,24 @@ export class TeamTrackerService {
   ): Promise<typeof teamTrackerDays.$inferSelect> {
     const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const now = nowIso();
+    const priorDay =
+      date === localTodayIso()
+        ? await this.findLatestPriorDay(date, developerAccountId, normalizedWorkspaceId)
+        : undefined;
+    const seededStatus = getSeededStatus(priorDay?.status);
     await db
       .insert(teamTrackerDays)
       .values({
         workspaceId: normalizedWorkspaceId,
         date,
         developerAccountId,
-        status: "on_track",
-        statusUpdatedAt: now,
+        status: seededStatus,
+        capacityUnits: priorDay?.capacityUnits ?? null,
+        nextFollowUpAt: priorDay?.nextFollowUpAt ?? null,
+        statusUpdatedAt:
+          seededStatus === priorDay?.status && priorDay?.statusUpdatedAt
+            ? priorDay.statusUpdatedAt
+            : now,
         createdAt: now,
         updatedAt: now,
       })
@@ -1713,7 +1822,8 @@ export class TeamTrackerService {
       developer: mapDeveloper(row.developer),
       trackerItem: mapItem(
         row.item,
-        row.item.jiraKey ? issueContextMap.get(row.item.jiraKey) : undefined
+        row.item.jiraKey ? issueContextMap.get(row.item.jiraKey) : undefined,
+        row.date
       ),
     };
   }
@@ -1757,7 +1867,8 @@ export class TeamTrackerService {
       developer: mapDeveloper(row.developer),
       trackerItem: mapItem(
         row.item,
-        row.item.jiraKey ? issueContextMap.get(row.item.jiraKey) : undefined
+        row.item.jiraKey ? issueContextMap.get(row.item.jiraKey) : undefined,
+        row.date
       ),
     };
   }
@@ -1952,7 +2063,11 @@ export class TeamTrackerService {
       .from(teamTrackerCheckIns)
       .where(eq(teamTrackerCheckIns.dayId, day.id));
 
-    const mapped = (await this.mapItemsWithIssueContext(items, normalizedWorkspaceId)).sort(
+    const mapped = (await this.mapItemsWithIssueContext(
+      items,
+      normalizedWorkspaceId,
+      new Map([[day.id, day]])
+    )).sort(
       (a, b) => a.position - b.position
     );
     const currentItem = mapped.find((i) => i.state === "in_progress");
@@ -2015,7 +2130,11 @@ export class TeamTrackerService {
           .where(eq(teamTrackerCheckIns.dayId, day.id))
       : [];
 
-    const mapped = (await this.mapItemsWithIssueContext(items, normalizedWorkspaceId)).sort(
+    const mapped = (await this.mapItemsWithIssueContext(
+      items,
+      normalizedWorkspaceId,
+      day ? new Map([[day.id, day]]) : undefined
+    )).sort(
       (a, b) => a.position - b.position
     );
     const currentItem = mapped.find((item) => item.state === "in_progress");
@@ -2083,10 +2202,16 @@ export class TeamTrackerService {
             .where(inArray(teamTrackerItems.dayId, eligibleDays.map((day) => day.id)))
         : [];
     const canonicalItemRows = this.getLiveCanonicalItemRows(itemRows, dayById);
-    const mappedCanonicalItems = (await this.mapItemsWithIssueContext(canonicalItemRows, normalizedWorkspaceId)).sort(
+    const mappedCanonicalItems = (await this.mapItemsWithIssueContext(
+      canonicalItemRows,
+      normalizedWorkspaceId,
+      dayById
+    )).sort(
       compareLiveOpenItems
     );
-    const currentItem = mappedCanonicalItems.find((item) => item.state === "in_progress");
+    const currentItem = mappedCanonicalItems
+      .filter((item) => item.state === "in_progress")
+      .sort(compareLiveCurrentItems)[0];
     const plannedItems = mappedCanonicalItems.filter(
       (item) => item.state === "planned" || (item.state === "in_progress" && item.id !== currentItem?.id)
     );
@@ -2256,16 +2381,22 @@ export class TeamTrackerService {
   private async getItemById(itemId: number, workspaceId?: string): Promise<TrackerWorkItem> {
     const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const row = await this.getItemRow(itemId, normalizedWorkspaceId);
+    const day = await this.getDayById(row.dayId, normalizedWorkspaceId);
     const issueContextMap = await this.getIssueContextMap(
       row.jiraKey ? [row.jiraKey] : [],
       normalizedWorkspaceId
     );
-    return mapItem(row, row.jiraKey ? issueContextMap.get(row.jiraKey) : undefined);
+    return mapItem(
+      row,
+      row.jiraKey ? issueContextMap.get(row.jiraKey) : undefined,
+      day?.date
+    );
   }
 
   private async mapItemsWithIssueContext(
     rows: Array<typeof teamTrackerItems.$inferSelect>,
-    workspaceId?: string
+    workspaceId?: string,
+    dayById?: Map<number, typeof teamTrackerDays.$inferSelect>
   ): Promise<TrackerWorkItem[]> {
     const jiraKeys = rows
       .map((row) => row.jiraKey)
@@ -2273,7 +2404,11 @@ export class TeamTrackerService {
     const issueContextMap = await this.getIssueContextMap(jiraKeys, workspaceId);
 
     return rows.map((row) =>
-      mapItem(row, row.jiraKey ? issueContextMap.get(row.jiraKey) : undefined)
+      mapItem(
+        row,
+        row.jiraKey ? issueContextMap.get(row.jiraKey) : undefined,
+        dayById?.get(row.dayId)?.date
+      )
     );
   }
 
@@ -2310,6 +2445,27 @@ export class TeamTrackerService {
       .limit(1);
 
     return rows[0];
+  }
+
+  private async findLatestPriorDay(
+    date: string,
+    developerAccountId: string,
+    workspaceId?: string
+  ): Promise<typeof teamTrackerDays.$inferSelect | undefined> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const rows = await db
+      .select()
+      .from(teamTrackerDays)
+      .where(
+        and(
+          eq(teamTrackerDays.workspaceId, normalizedWorkspaceId),
+          eq(teamTrackerDays.developerAccountId, developerAccountId)
+        )
+      );
+
+    return rows
+      .filter((day) => day.date < date)
+      .sort((left, right) => right.date.localeCompare(left.date))[0];
   }
 
   private async getDayById(
@@ -2580,6 +2736,7 @@ export class TeamTrackerService {
     const plannedEntries: Array<{
       developer: Developer;
       developerAccountId: string;
+      originDate: string;
       item: typeof teamTrackerItems.$inferSelect;
     }> = [];
 
@@ -2617,6 +2774,7 @@ export class TeamTrackerService {
         plannedEntries.push({
           developer: mapDeveloper(dayRow.developer),
           developerAccountId: dayRow.day.developerAccountId,
+          originDate: dayRow.day.date,
           item,
         });
 
@@ -2638,7 +2796,8 @@ export class TeamTrackerService {
           entry.item,
           entry.item.jiraKey
             ? issueContextMap.get(entry.item.jiraKey)
-            : undefined
+            : undefined,
+          entry.originDate
         ),
       })),
     };

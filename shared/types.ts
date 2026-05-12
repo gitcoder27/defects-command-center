@@ -495,6 +495,8 @@ export type TrackerItemState = "planned" | "in_progress" | "done" | "dropped";
 export type TrackerItemType = "jira" | "custom";
 export type TrackerTaskLifecycle = "tracker_only" | "manager_desk_linked";
 export type TeamTrackerViewMode = "live" | "history";
+export type MyDayViewMode = "live" | "history" | "planning";
+export type MyDayReadOnlyReason = "inactive" | "history" | "future";
 
 export interface TrackerCheckIn {
   id: number;
@@ -511,6 +513,7 @@ export interface TrackerCheckIn {
 export interface TrackerWorkItem {
   id: number;
   dayId: number;
+  originDate: string;
   managerDeskItemId?: number;
   lifecycle: TrackerTaskLifecycle;
   itemType: TrackerItemType;
@@ -690,6 +693,8 @@ export interface InactiveDeveloperListItem {
 
 export interface MyDayResponse {
   date: string;
+  viewMode: MyDayViewMode;
+  readOnlyReason?: MyDayReadOnlyReason;
   developer: Developer;
   status: TrackerDeveloperStatus;
   capacityUnits?: number;

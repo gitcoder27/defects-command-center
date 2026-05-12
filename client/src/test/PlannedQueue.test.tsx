@@ -92,6 +92,7 @@ function createItem(id: number, title: string, position: number): TrackerWorkIte
   return {
     id,
     dayId: 10,
+    originDate: '2026-03-10',
     lifecycle: 'tracker_only',
     itemType: 'custom',
     title,

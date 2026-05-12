@@ -4,6 +4,7 @@ import type { TrackerWorkItem } from '@/types';
 import { TrackerItemRow } from '@/components/team-tracker/TrackerItemRow';
 
 interface CurrentTaskProps {
+  viewDate?: string;
   item?: TrackerWorkItem;
   onMarkDone?: (id: number) => void;
   onDrop?: (id: number) => void;
@@ -14,6 +15,7 @@ interface CurrentTaskProps {
 }
 
 export function CurrentTask({
+  viewDate,
   item,
   onMarkDone,
   onDrop,
@@ -93,6 +95,7 @@ export function CurrentTask({
           <div className="mt-1 -ml-2">
             <TrackerItemRow
               item={item}
+              viewDate={viewDate}
               onUpdateNote={onUpdateNote}
               onUpdateTitle={onUpdateTitle}
               onMarkDone={onMarkDone}

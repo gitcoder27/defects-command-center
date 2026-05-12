@@ -66,6 +66,7 @@ export function MyDayRightColumn({
           </span>
         </div>
         <PlannedQueue
+          viewDate={date}
           items={day?.plannedItems ?? []}
           onSetCurrent={handleSetCurrent}
           onMarkDone={handleMarkDone}

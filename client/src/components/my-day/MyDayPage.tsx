@@ -18,7 +18,9 @@ export function MyDayPage() {
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
 
   const { data: day, isLoading, isFetching, error, refetch } = useMyDay(date);
-  const isReadOnly = Boolean(day?.isReadOnly);
+  const isReadOnly = Boolean(
+    day && (day.viewMode !== 'live' || day.readOnlyReason || day.isReadOnly)
+  );
 
   const {
     handleStatusUpdate,
@@ -94,6 +96,7 @@ export function MyDayPage() {
           {/* Left Column */}
           <div className="lg:col-span-7 xl:col-span-8 flex flex-col h-full">
             <MyDayLeftColumn
+              date={date}
               user={user}
               day={day}
               isFetching={isFetching}

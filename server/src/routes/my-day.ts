@@ -6,9 +6,11 @@ import { AuthService } from "../services/auth.service";
 import { IssueService } from "../services/issue.service";
 import { MyDayService } from "../services/my-day.service";
 
+const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD");
+
 const dateQuerySchema = z.object({
   query: z.object({
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
+    date: isoDateSchema,
   }),
   body: z.any().optional(),
   params: z.any().optional(),
@@ -16,7 +18,7 @@ const dateQuerySchema = z.object({
 
 const patchDaySchema = z.object({
   body: z.object({
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    date: isoDateSchema,
     status: z
       .enum(["on_track", "at_risk", "blocked", "waiting", "done_for_today"])
       .optional(),
@@ -27,7 +29,7 @@ const patchDaySchema = z.object({
 
 const addItemSchema = z.object({
   body: z.object({
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    date: isoDateSchema,
     jiraKey: z.string().trim().optional(),
     relatedIssueKeys: z.array(z.string().trim().min(1)).max(20).optional(),
     title: z.string().trim().min(1).max(500),
@@ -37,30 +39,50 @@ const addItemSchema = z.object({
   params: z.any().optional(),
 });
 
-const itemIdParamSchema = z.object({
-  params: z.object({
-    itemId: z.string().regex(/^\d+$/, "Invalid item id"),
-  }),
-  body: z.any().optional(),
-  query: z.any().optional(),
-});
-
 const updateItemSchema = z.object({
   params: z.object({
     itemId: z.string().regex(/^\d+$/, "Invalid item id"),
   }),
   body: z.object({
+    date: isoDateSchema,
     title: z.string().trim().min(1).max(500).optional(),
     state: z.enum(["planned", "in_progress", "done", "dropped"]).optional(),
     note: z.string().trim().max(2000).nullable().optional(),
     position: z.number().int().min(0).optional(),
-  }).refine((value) => Object.keys(value).length > 0, { message: "At least one item field is required" }),
+  }).refine(
+    (value) =>
+      value.title !== undefined ||
+      value.state !== undefined ||
+      value.note !== undefined ||
+      value.position !== undefined,
+    { message: "At least one item field is required" }
+  ),
+  query: z.any().optional(),
+});
+
+const deleteItemSchema = z.object({
+  params: z.object({
+    itemId: z.string().regex(/^\d+$/, "Invalid item id"),
+  }),
+  query: z.object({
+    date: isoDateSchema,
+  }),
+  body: z.any().optional(),
+});
+
+const setCurrentSchema = z.object({
+  params: z.object({
+    itemId: z.string().regex(/^\d+$/, "Invalid item id"),
+  }),
+  body: z.object({
+    date: isoDateSchema,
+  }),
   query: z.any().optional(),
 });
 
 const addCheckInSchema = z.object({
   body: z.object({
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    date: isoDateSchema,
     summary: z.string().trim().min(1).max(2000),
     status: z
       .enum(["on_track", "at_risk", "blocked", "waiting", "done_for_today"])
@@ -125,18 +147,19 @@ export function createMyDayRouter(
     try {
       const accountId = req.auth!.user.developerAccountId!;
       const itemId = parseInt(req.params.itemId as string, 10);
-      const item = await myDayService.updateItem(accountId, itemId, req.body, req.auth!.user.workspaceId);
+      const { date, ...updates } = req.body;
+      const item = await myDayService.updateItem(accountId, itemId, date, updates, req.auth!.user.workspaceId);
       res.json(item);
     } catch (error) {
       next(error);
     }
   });
 
-  router.delete("/items/:itemId", validate(itemIdParamSchema), async (req, res, next) => {
+  router.delete("/items/:itemId", validate(deleteItemSchema), async (req, res, next) => {
     try {
       const accountId = req.auth!.user.developerAccountId!;
       const itemId = parseInt(req.params.itemId as string, 10);
-      await myDayService.deleteItem(accountId, itemId, req.auth!.user.workspaceId);
+      await myDayService.deleteItem(accountId, itemId, req.query.date as string, req.auth!.user.workspaceId);
       res.json({ deleted: true });
     } catch (error) {
       next(error);
@@ -145,12 +168,12 @@ export function createMyDayRouter(
 
   router.post(
     "/items/:itemId/set-current",
-    validate(itemIdParamSchema),
+    validate(setCurrentSchema),
     async (req, res, next) => {
       try {
         const accountId = req.auth!.user.developerAccountId!;
         const itemId = parseInt(req.params.itemId as string, 10);
-        const item = await myDayService.setCurrentItem(accountId, itemId, req.auth!.user.workspaceId);
+        const item = await myDayService.setCurrentItem(accountId, itemId, req.body.date, req.auth!.user.workspaceId);
         res.json(item);
       } catch (error) {
         next(error);
