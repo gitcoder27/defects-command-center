@@ -7,10 +7,10 @@ import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { formatRelativeTime } from '@/lib/utils';
 import type { ActiveAppView, AppView } from '@/App';
-import type { Alert } from '@/types';
+import type { Alert, ManagerActionTarget } from '@/types';
 import { GlobalCaptureDialog, type GlobalCaptureContext } from '@/components/capture/GlobalCaptureDialog';
 import { HeaderNav } from '@/components/layout/HeaderNav';
-import { AlertInbox } from '@/components/alerts/AlertInbox';
+import { ManagerActionInbox } from '@/components/actions/ManagerActionInbox';
 import { LeadOSMark } from '@/components/brand/LeadOSMark';
 
 interface HeaderProps {
@@ -18,10 +18,11 @@ interface HeaderProps {
   activeView?: ActiveAppView;
   onViewChange?: (view: AppView) => void;
   onDashboardAlertClick?: (alert: Alert) => void;
+  onOpenActionTarget?: (target: ManagerActionTarget) => void;
   captureContext?: GlobalCaptureContext;
 }
 
-export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashboardAlertClick, captureContext }: HeaderProps) {
+export function Header({ onOpenMobileSidebar, activeView, onViewChange, onOpenActionTarget, captureContext }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const { data: sync } = useSyncStatus();
@@ -46,7 +47,11 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
   const defaultCaptureTarget = currentView === 'team' || currentView === 'team-tracker'
     ? 'team-tracker'
     : 'manager-desk';
-  const showDashboardAlerts = user?.role === 'manager' && (currentView === 'work' || currentView === 'dashboard') && Boolean(onDashboardAlertClick);
+  const openActionTarget = onOpenActionTarget ?? ((target: ManagerActionTarget) => {
+    if (onViewChange) {
+      onViewChange(target.view as AppView);
+    }
+  });
 
   useLayoutEffect(() => {
     const headerElement = headerRef.current;
@@ -159,8 +164,8 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onDashbo
             </div>
 
             <div className="flex items-center gap-1.5">
-              {showDashboardAlerts && onDashboardAlertClick ? (
-                <AlertInbox onAlertClick={onDashboardAlertClick} />
+              {user?.role === 'manager' && onViewChange ? (
+                <ManagerActionInbox onOpenTarget={openActionTarget} onViewChange={onViewChange} />
               ) : null}
 
               {canQuickCapture && (

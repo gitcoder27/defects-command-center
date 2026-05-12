@@ -38,15 +38,22 @@ function createTestApp() {
   });
 }
 
-async function managerCookie() {
-  await authService.createUser({
+async function managerSession() {
+  const user = await authService.createUser({
     username: "manager",
     displayName: "Manager",
     password: "secret123",
     role: "manager",
   });
   const session = await authService.authenticate("manager", "secret123");
-  return serializeSessionCookie(session.sessionId);
+  return {
+    cookie: serializeSessionCookie(session.sessionId),
+    user,
+  };
+}
+
+async function managerCookie() {
+  return (await managerSession()).cookie;
 }
 
 describe("today routes", () => {
@@ -96,5 +103,68 @@ describe("today routes", () => {
 
     expect(response.status).toBe(400);
     expect(response.body?.error).toContain("date must be YYYY-MM-DD");
+  });
+
+  it("GET /api/manager-actions returns the header action queue without calm fallback rows", async () => {
+    const cookie = await managerCookie();
+    const response = await invoke(createTestApp(), {
+      method: "GET",
+      url: "/api/manager-actions?date=2026-03-08&surface=header&limit=3",
+      headers: { cookie },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      date: "2026-03-08",
+      surface: "header",
+    });
+    expect(response.body.actions.length).toBeGreaterThan(0);
+    expect(response.body.actions.every((item: { type: string }) => item.type !== "calm")).toBe(true);
+    expect(response.body.totalCount).toBeGreaterThanOrEqual(response.body.actions.length);
+  });
+
+  it("POST /api/manager-actions/commands executes Manager Desk commands server-side", async () => {
+    const { cookie, user } = await managerSession();
+    const item = await managerDeskService.createItem(
+      user.accountId,
+      {
+        date: "2026-03-08",
+        title: "Follow up with QA",
+        kind: "action",
+        category: "follow_up",
+        status: "planned",
+        priority: "medium",
+        followUpAt: "2026-03-07T09:00:00.000Z",
+      },
+      user.workspaceId,
+    );
+
+    const response = await invoke(createTestApp(), {
+      method: "POST",
+      url: "/api/manager-actions/commands",
+      headers: { cookie },
+      body: {
+        date: "2026-03-08",
+        command: {
+          kind: "mark_done",
+          label: "Done",
+          target: {
+            type: "follow_up",
+            view: "follow-ups",
+            managerDeskItemId: item.id,
+            date: "2026-03-08",
+          },
+          confirm: true,
+        },
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      success: true,
+      command: "mark_done",
+      target: { managerDeskItemId: item.id },
+      result: { status: "done" },
+    });
   });
 });

@@ -31,8 +31,8 @@ vi.mock('@/components/capture/GlobalCaptureDialog', () => ({
   ),
 }));
 
-vi.mock('@/components/alerts/AlertInbox', () => ({
-  AlertInbox: () => <div data-testid="alert-inbox">Alert Inbox</div>,
+vi.mock('@/components/actions/ManagerActionInbox', () => ({
+  ManagerActionInbox: () => <div data-testid="manager-action-inbox">Action Inbox</div>,
 }));
 
 describe('Header', () => {
@@ -108,16 +108,16 @@ describe('Header', () => {
     expect(screen.getByText('Meetings')).toBeInTheDocument();
   });
 
-  it('shows the alert inbox only on Work when a dashboard alert handler is provided', () => {
+  it('shows the manager action inbox across manager views', () => {
     const { rerender } = render(
       <Header activeView="work" onViewChange={vi.fn()} onDashboardAlertClick={vi.fn()} />
     );
 
-    expect(screen.getByTestId('alert-inbox')).toBeInTheDocument();
+    expect(screen.getByTestId('manager-action-inbox')).toBeInTheDocument();
 
     rerender(<Header activeView="team" onViewChange={vi.fn()} onDashboardAlertClick={vi.fn()} />);
 
-    expect(screen.queryByTestId('alert-inbox')).not.toBeInTheDocument();
+    expect(screen.getByTestId('manager-action-inbox')).toBeInTheDocument();
   });
 
   it('shows the capture button on all manager views including desk', () => {

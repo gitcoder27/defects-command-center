@@ -18,6 +18,19 @@ const managerOnlyCases = [
   { method: "GET", url: "/api/tags" },
   { method: "GET", url: "/api/team-tracker?date=2026-03-08" },
   { method: "GET", url: "/api/today?date=2026-03-08" },
+  { method: "GET", url: "/api/manager-actions?date=2026-03-08" },
+  {
+    method: "POST",
+    url: "/api/manager-actions/commands",
+    body: {
+      date: "2026-03-08",
+      command: {
+        kind: "open",
+        label: "Open",
+        target: { type: "view", view: "team", date: "2026-03-08" },
+      },
+    },
+  },
   { method: "GET", url: "/api/manager-desk?date=2026-03-08" },
 ] as const;
 

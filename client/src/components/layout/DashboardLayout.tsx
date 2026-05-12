@@ -8,7 +8,7 @@ import { WorkloadBar } from '@/components/workload/WorkloadBar';
 import { WorkFocusStrip } from '@/components/work/WorkFocusStrip';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import type { FilterType, Alert } from '@/types';
+import type { FilterType, Alert, ManagerActionTarget } from '@/types';
 import type { AppView } from '@/App';
 
 export interface DashboardFilterState {
@@ -68,6 +68,7 @@ interface DashboardLayoutProps {
   initialIssueKey?: string;
   initialIssueNonce?: number;
   onInitialIssueHandled?: () => void;
+  onOpenActionTarget?: (target: ManagerActionTarget) => void;
 }
 
 function useDashboardShortcuts({
@@ -179,6 +180,7 @@ export function DashboardLayout({
   initialIssueKey,
   initialIssueNonce,
   onInitialIssueHandled,
+  onOpenActionTarget,
 }: DashboardLayoutProps) {
   const [internalFilterState, setInternalFilterState] = useState<DashboardFilterState>(DEFAULT_DASHBOARD_FILTER_STATE);
   const [selectedIssueKey, setSelectedIssueKey] = useState<string | undefined>();
@@ -474,6 +476,7 @@ export function DashboardLayout({
         activeView={activeView}
         onViewChange={onViewChange}
         onDashboardAlertClick={handleAlertClick}
+        onOpenActionTarget={onOpenActionTarget}
         captureContext={selectedIssueKey ? { issue: { jiraKey: selectedIssueKey } } : undefined}
       />
 

@@ -265,13 +265,14 @@ function NotFoundState({ onGoToday }: { onGoToday: () => void }) {
 interface WorkspaceShellProps {
   activeView: ActiveAppView;
   onViewChange: (view: AppView) => void;
+  onOpenActionTarget?: (target: TodayActionTarget) => void;
   children: ReactNode;
 }
 
-function WorkspaceShell({ activeView, onViewChange, children }: WorkspaceShellProps) {
+function WorkspaceShell({ activeView, onViewChange, onOpenActionTarget, children }: WorkspaceShellProps) {
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
-      <Header activeView={activeView} onViewChange={onViewChange} />
+      <Header activeView={activeView} onViewChange={onViewChange} onOpenActionTarget={onOpenActionTarget} />
       <div className="flex-1 min-h-0 px-1 pb-0.5 md:px-1.5 md:pb-1">
         <div
           className="h-full min-h-0 rounded-[16px] border overflow-hidden flex flex-col"
@@ -509,7 +510,7 @@ function AppContent() {
 
   if (activeView === 'not-found') {
     return (
-      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
+      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange} onOpenActionTarget={handleOpenTodayTarget}>
         <NotFoundState onGoToday={() => handleViewChange('today')} />
       </WorkspaceShell>
     );
@@ -517,7 +518,7 @@ function AppContent() {
 
   if (activeView === 'desk') {
     return (
-      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
+      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange} onOpenActionTarget={handleOpenTodayTarget}>
         <Suspense fallback={<PanelLoading />}>
           <ManagerDeskPage
             initialItemId={todayDeskTarget.itemId}
@@ -532,7 +533,7 @@ function AppContent() {
 
   if (activeView === 'team') {
     return (
-      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
+      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange} onOpenActionTarget={handleOpenTodayTarget}>
         <Suspense fallback={<PanelLoading />}>
           <TeamTrackerPage
             onViewChange={handleViewChange}
@@ -547,7 +548,7 @@ function AppContent() {
 
   if (activeView === 'follow-ups' || activeView === 'meetings') {
     return (
-      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
+      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange} onOpenActionTarget={handleOpenTodayTarget}>
         <Suspense fallback={<PanelLoading />}>
           <ManagerMemoryPage mode={activeView} onViewChange={handleViewChange} />
         </Suspense>
@@ -557,7 +558,7 @@ function AppContent() {
 
   if (activeView === 'settings') {
     return (
-      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
+      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange} onOpenActionTarget={handleOpenTodayTarget}>
         <Suspense fallback={<PanelLoading />}>
           <SettingsPage />
         </Suspense>
@@ -567,7 +568,7 @@ function AppContent() {
 
   if (activeView === 'today') {
     return (
-      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange}>
+      <WorkspaceShell activeView={activeView} onViewChange={handleViewChange} onOpenActionTarget={handleOpenTodayTarget}>
         <TodayPage
           onViewChange={handleViewChange}
           onSelectWorkFilter={handleTodayWorkFilter}
@@ -586,6 +587,7 @@ function AppContent() {
       initialIssueKey={todayWorkTarget.issueKey}
       initialIssueNonce={todayWorkTarget.nonce}
       onInitialIssueHandled={() => setTodayWorkTarget((prev) => ({ nonce: prev.nonce + 1 }))}
+      onOpenActionTarget={handleOpenTodayTarget}
     />
   );
 }

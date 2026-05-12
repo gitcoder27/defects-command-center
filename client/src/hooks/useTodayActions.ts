@@ -2,12 +2,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
 import type {
-  ManagerDeskCreateItemPayload,
-  ManagerDeskItem,
+  ManagerActionCommandResponse,
   TodayActionCommand,
   TodayActionTarget,
   TodayResponse,
-  TrackerCheckIn,
 } from '@/types';
 import type { AppView } from '@/App';
 
@@ -31,6 +29,7 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
 
   const invalidateToday = () => {
     qc.invalidateQueries({ queryKey: ['today'] });
+    qc.invalidateQueries({ queryKey: ['manager-actions'] });
     qc.invalidateQueries({ queryKey: ['manager-desk'] });
     qc.invalidateQueries({ queryKey: ['team-tracker'] });
     qc.invalidateQueries({ queryKey: ['workload'] });
@@ -133,52 +132,40 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
       }
 
       if (command.kind === 'mark_done' && target.managerDeskItemId) {
-        return api.patch<ManagerDeskItem>(`/manager-desk/items/${target.managerDeskItemId}`, { status: 'done' });
+        return api.post<ManagerActionCommandResponse>('/manager-actions/commands', { date, command });
       }
 
       if (command.kind === 'snooze' && target.managerDeskItemId) {
-        return api.patch<ManagerDeskItem>(`/manager-desk/items/${target.managerDeskItemId}`, {
-          followUpAt: buildSnoozeIso(date, preset ?? 'tomorrow'),
-        });
+        return api.post<ManagerActionCommandResponse>('/manager-actions/commands', { date, command, preset });
       }
 
       if (command.kind === 'add_check_in' && target.developerAccountId) {
         if (!summary?.trim()) {
           return { cancelled: true };
         }
-        return api.post<TrackerCheckIn>(`/team-tracker/${target.developerAccountId}/checkins`, {
-          date,
-          summary: summary.trim(),
-        });
+        return api.post<ManagerActionCommandResponse>('/manager-actions/commands', { date, command, summary: summary.trim() });
       }
 
       if (command.kind === 'set_current_work' && target.trackerItemId) {
-        return api.post(`/team-tracker/items/${target.trackerItemId}/set-current`, { ifNoCurrent: true });
+        return api.post<ManagerActionCommandResponse>('/manager-actions/commands', { date, command });
       }
 
       if (command.kind === 'capture_follow_up') {
         if (!title?.trim()) {
           return { cancelled: true };
         }
-        return api.post<ManagerDeskItem>('/manager-desk/items', buildFollowUpPayload(date, target, title.trim()));
+        return api.post<ManagerActionCommandResponse>('/manager-actions/commands', { date, command, title: title.trim() });
       }
 
       if (command.kind === 'carry_forward' && target.managerDeskItemId) {
-        return api.post<{ created: number }>('/manager-desk/carry-forward', {
-          fromDate: target.date ?? date,
-          toDate: date,
-          itemIds: [target.managerDeskItemId],
-        });
+        return api.post<ManagerActionCommandResponse>('/manager-actions/commands', { date, command });
       }
 
       if (command.kind === 'capture_meeting_outcome' && target.managerDeskItemId) {
         if (!outcome?.trim()) {
           return { cancelled: true };
         }
-        return api.patch<ManagerDeskItem>(`/manager-desk/items/${target.managerDeskItemId}`, {
-          outcome: outcome.trim(),
-          status: 'done',
-        });
+        return api.post<ManagerActionCommandResponse>('/manager-actions/commands', { date, command, outcome: outcome.trim() });
       }
 
       onOpenTarget(target);
@@ -232,45 +219,6 @@ export function useTodayActions({ date, onOpenTarget, onViewChange }: UseTodayAc
 
 function isActionResult(result: unknown, key: 'cancelled' | 'skipToast'): boolean {
   return Boolean(result && typeof result === 'object' && key in result);
-}
-
-function buildSnoozeIso(date: string, preset: NonNullable<TodayActionVariables['preset']>): string {
-  const base = new Date(`${date}T09:00:00`);
-  if (preset === 'later_today') {
-    base.setHours(17, 0, 0, 0);
-    return base.toISOString();
-  }
-  if (preset === 'next_week') {
-    base.setDate(base.getDate() + 7);
-    return base.toISOString();
-  }
-  base.setDate(base.getDate() + 1);
-  return base.toISOString();
-}
-
-function buildFollowUpPayload(date: string, target: TodayActionTarget, title: string): ManagerDeskCreateItemPayload {
-  const links: ManagerDeskCreateItemPayload['links'] = [];
-  if (target.developerAccountId) {
-    links.push({ linkType: 'developer', developerAccountId: target.developerAccountId });
-  }
-  const issueKeys = [target.issueKey, ...(target.relatedIssueKeys ?? [])]
-    .map((key) => key?.trim())
-    .filter((key): key is string => Boolean(key));
-  const uniqueIssueKeys = Array.from(new Set(issueKeys));
-  for (const issueKey of uniqueIssueKeys) {
-    links.push({ linkType: 'issue', issueKey });
-  }
-
-  return {
-    date,
-    title,
-    kind: 'action',
-    category: 'follow_up',
-    status: 'planned',
-    priority: 'medium',
-    contextNote: target.trackerItemId ? `Tracker item ${target.trackerItemId}` : undefined,
-    links,
-  };
 }
 
 function actionToastTitle(kind: TodayActionCommand['kind']): string {

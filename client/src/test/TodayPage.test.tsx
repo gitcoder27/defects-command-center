@@ -153,7 +153,7 @@ describe('TodayPage V2', () => {
     });
   });
 
-  it('confirms a follow-up done action before mutating through the Manager Desk endpoint', async () => {
+  it('confirms a follow-up done action before mutating through the manager action command endpoint', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm');
     const fetchMock = mockFetch(todayResponse());
     renderToday();
@@ -165,14 +165,17 @@ describe('TodayPage V2', () => {
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(
       fetchMock.mock.calls.some(([input, init]) =>
-        String(input) === '/api/manager-desk/items/44' && (init as RequestInit | undefined)?.method === 'PATCH',
+        String(input) === '/api/manager-actions/commands' && (init as RequestInit | undefined)?.method === 'POST',
       ),
     ).toBe(false);
 
     fireEvent.click(screen.getByRole('button', { name: /^Mark done$/i }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/manager-desk/items/44', expect.objectContaining({ method: 'PATCH' }));
+      expect(fetchMock).toHaveBeenCalledWith('/api/manager-actions/commands', expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('"kind":"mark_done"'),
+      }));
     });
   });
 
@@ -186,7 +189,10 @@ describe('TodayPage V2', () => {
     fireEvent.click(tomorrowButtons[0]!);
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/manager-desk/items/44', expect.objectContaining({ method: 'PATCH' }));
+      expect(fetchMock).toHaveBeenCalledWith('/api/manager-actions/commands', expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('"preset":"tomorrow"'),
+      }));
     });
   });
 
@@ -217,18 +223,18 @@ describe('TodayPage V2', () => {
     fireEvent.click(screen.getByRole('button', { name: /save follow-up/i }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/manager-desk/items', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('/api/manager-actions/commands', expect.objectContaining({
         method: 'POST',
         body: expect.stringContaining('Check API rollout'),
       }));
     });
     const postCall = fetchMock.mock.calls.find(([url, init]) => (
-      url === '/api/manager-desk/items' && (init as RequestInit | undefined)?.method === 'POST'
+      url === '/api/manager-actions/commands' && (init as RequestInit | undefined)?.method === 'POST'
     ));
-    expect(JSON.parse((postCall?.[1] as RequestInit).body as string).links).toEqual([
-      { linkType: 'issue', issueKey: 'AM-1' },
-      { linkType: 'issue', issueKey: 'AM-2' },
-    ]);
+    expect(JSON.parse((postCall?.[1] as RequestInit).body as string).command.target).toMatchObject({
+      issueKey: 'AM-1',
+      relatedIssueKeys: ['AM-2'],
+    });
     expect(promptSpy).not.toHaveBeenCalled();
   });
 
@@ -255,8 +261,8 @@ describe('TodayPage V2', () => {
     fireEvent.click(screen.getByRole('button', { name: /save outcome/i }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/manager-desk/items/91', expect.objectContaining({
-        method: 'PATCH',
+      expect(fetchMock).toHaveBeenCalledWith('/api/manager-actions/commands', expect.objectContaining({
+        method: 'POST',
         body: expect.stringContaining('Decision approved'),
       }));
     });
@@ -272,7 +278,10 @@ describe('TodayPage V2', () => {
     fireEvent.click(screen.getByRole('button', { name: /save check-in/i }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/team-tracker/dev-1/checkins', expect.objectContaining({ method: 'POST' }));
+      expect(fetchMock).toHaveBeenCalledWith('/api/manager-actions/commands', expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('Asked for update'),
+      }));
     });
   });
 
@@ -316,7 +325,7 @@ describe('TodayPage V2', () => {
       if (url.includes('/api/today')) {
         return new Response(JSON.stringify(response), { status: 200, headers: { 'content-type': 'application/json' } });
       }
-      if (url.includes('/api/team-tracker/dev-1/checkins')) {
+      if (url.includes('/api/manager-actions/commands')) {
         response = {
           ...response,
           currentPriority: afterAction,
@@ -372,8 +381,8 @@ describe('TodayPage V2', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^Set current$/i }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/team-tracker/items/77/set-current', expect.objectContaining({
-        body: JSON.stringify({ ifNoCurrent: true }),
+      expect(fetchMock).toHaveBeenCalledWith('/api/manager-actions/commands', expect.objectContaining({
+        body: expect.stringContaining('"kind":"set_current_work"'),
         method: 'POST',
       }));
     });
@@ -407,7 +416,7 @@ describe('TodayPage V2', () => {
       if (url.includes('/api/today')) {
         return new Response(JSON.stringify(response), { status: 200, headers: { 'content-type': 'application/json' } });
       }
-      if (url.includes('/api/team-tracker/items/77/set-current')) {
+      if (url.includes('/api/manager-actions/commands')) {
         await new Promise<void>((resolve) => {
           resolveSetCurrent = resolve;
         });

@@ -16,6 +16,7 @@ import { createTeamTrackerRouter } from "./routes/team-tracker";
 import { createAuthRouter } from "./routes/auth";
 import { createMyDayRouter } from "./routes/my-day";
 import { createManagerDeskRouter } from "./routes/manager-desk";
+import { createManagerActionsRouter } from "./routes/manager-actions";
 import { createTodayRouter } from "./routes/today";
 import { requireAdmin, requireManager } from "./middleware/auth";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
@@ -114,6 +115,11 @@ export function createApp(services: AppServices) {
   );
   app.use("/api/auth", createAuthRouter(services.authService));
   app.use("/api/today", requireManager(services.authService), createTodayRouter(services.todayService));
+  app.use(
+    "/api/manager-actions",
+    requireManager(services.authService),
+    createManagerActionsRouter(services.todayService)
+  );
   app.use(
     "/api/team-tracker",
     requireManager(services.authService),

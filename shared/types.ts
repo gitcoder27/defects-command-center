@@ -354,6 +354,40 @@ export interface TodayResponse {
   syncStatus?: SyncStatus;
 }
 
+// ── Manager action engine contracts ─────────────────────
+
+export type ManagerActionSurface = "today" | "header";
+export type ManagerActionKind = TodayActionKind;
+export type ManagerActionTarget = TodayActionTarget;
+export type ManagerActionCommand = TodayActionCommand;
+export type ManagerActionItem = TodayActionItem;
+export type ManagerActionSnoozePreset = "later_today" | "tomorrow" | "next_week";
+
+export interface ManagerActionResponse {
+  date: string;
+  generatedAt: string;
+  surface: ManagerActionSurface;
+  actions: ManagerActionItem[];
+  urgentCount: number;
+  totalCount: number;
+}
+
+export interface ManagerActionCommandRequest {
+  command: ManagerActionCommand;
+  date: string;
+  title?: string;
+  outcome?: string;
+  preset?: ManagerActionSnoozePreset;
+  summary?: string;
+}
+
+export interface ManagerActionCommandResponse {
+  success: boolean;
+  command: ManagerActionKind;
+  target: ManagerActionTarget;
+  result?: unknown;
+}
+
 export interface DashboardConfig {
   jiraBaseUrl: string;
   jiraEmail: string;

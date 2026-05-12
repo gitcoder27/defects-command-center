@@ -1,6 +1,12 @@
 import type {
   FilterType,
   Issue,
+  ManagerActionCommandRequest,
+  ManagerActionCommandResponse,
+  ManagerActionResponse,
+  ManagerActionSnoozePreset,
+  ManagerActionSurface,
+  ManagerActionTarget,
   ManagerDeskItem,
   SyncStatus,
   TeamTrackerBoardResponse,
@@ -21,7 +27,9 @@ import type {
   TrackerAttentionItem,
   TrackerDeveloperDay,
   TrackerWorkItem,
+  UserRole,
 } from "shared/types";
+import { HttpError } from "../middleware/errorHandler";
 import { IssueService } from "./issue.service";
 import { ManagerDeskService } from "./manager-desk.service";
 import { TeamTrackerService } from "./team-tracker.service";
@@ -111,6 +119,129 @@ export class TodayService {
       meetingPrompts: meetings.map((item) => buildMeetingPrompt(item)).slice(0, 8),
       syncStatus,
     };
+  }
+
+  async getManagerActions(
+    managerAccountId: string,
+    date: string,
+    params: { surface?: ManagerActionSurface; limit?: number } = {},
+    workspaceId?: string,
+  ): Promise<ManagerActionResponse> {
+    const surface = params.surface ?? "header";
+    const today = await this.getToday(managerAccountId, date, workspaceId);
+    const actionable = today.actionItems.filter((item) => item.type !== "calm");
+    const source = surface === "header" ? actionable : today.actionItems;
+    const limit = Math.max(1, Math.min(params.limit ?? (surface === "header" ? 8 : 20), 50));
+
+    return {
+      date,
+      generatedAt: today.generatedAt,
+      surface,
+      actions: source.slice(0, limit),
+      urgentCount: actionable.filter((item) => item.severity === "critical" || item.severity === "warning").length,
+      totalCount: actionable.length,
+    };
+  }
+
+  async executeCommand(
+    managerAccountId: string,
+    request: ManagerActionCommandRequest,
+    actor: { type: UserRole; accountId?: string },
+    workspaceId?: string,
+  ): Promise<ManagerActionCommandResponse> {
+    const { command, date } = request;
+    const { target: actionTarget } = command;
+
+    switch (command.kind) {
+      case "open":
+      case "assign_owner":
+      case "ask_check_in":
+        return commandResponse(command.kind, actionTarget);
+
+      case "mark_done": {
+        const itemId = requireManagerDeskItemId(actionTarget, command.kind);
+        const result = await this.managerDeskService.updateItem(
+          managerAccountId,
+          itemId,
+          { status: "done" },
+          workspaceId,
+        );
+        return commandResponse(command.kind, actionTarget, result);
+      }
+
+      case "snooze": {
+        const itemId = requireManagerDeskItemId(actionTarget, command.kind);
+        const result = await this.managerDeskService.updateItem(
+          managerAccountId,
+          itemId,
+          { followUpAt: buildSnoozeIso(date, request.preset ?? "tomorrow") },
+          workspaceId,
+        );
+        return commandResponse(command.kind, actionTarget, result);
+      }
+
+      case "add_check_in": {
+        const developerAccountId = requireDeveloperAccountId(actionTarget, command.kind);
+        const summary = requireTrimmedText(request.summary, "summary");
+        const result = await this.teamTrackerService.addCheckIn(
+          developerAccountId,
+          date,
+          { summary },
+          actor,
+          workspaceId,
+        );
+        return commandResponse(command.kind, actionTarget, result);
+      }
+
+      case "set_current_work": {
+        const itemId = requireTrackerItemId(actionTarget, command.kind);
+        const result = await this.teamTrackerService.setCurrentItem(
+          itemId,
+          { ifNoCurrent: true },
+          workspaceId,
+        );
+        return commandResponse(command.kind, actionTarget, result);
+      }
+
+      case "capture_follow_up": {
+        const title = requireTrimmedText(request.title, "title");
+        const result = await this.managerDeskService.createItem(
+          managerAccountId,
+          buildFollowUpCreateParams(date, actionTarget, title),
+          workspaceId,
+        );
+        return commandResponse(command.kind, actionTarget, result);
+      }
+
+      case "carry_forward": {
+        const itemId = requireManagerDeskItemId(actionTarget, command.kind);
+        const result = await this.managerDeskService.carryForward(
+          managerAccountId,
+          {
+            fromDate: actionTarget.date ?? date,
+            toDate: date,
+            itemIds: [itemId],
+          },
+          workspaceId,
+        );
+        return commandResponse(command.kind, actionTarget, { updated: result });
+      }
+
+      case "capture_meeting_outcome": {
+        const itemId = requireManagerDeskItemId(actionTarget, command.kind);
+        const outcome = requireTrimmedText(request.outcome, "outcome");
+        const result = await this.managerDeskService.updateItem(
+          managerAccountId,
+          itemId,
+          { outcome, status: "done" },
+          workspaceId,
+        );
+        return commandResponse(command.kind, actionTarget, result);
+      }
+
+      default:
+        throw new HttpError(400, "Unsupported manager action command");
+    }
   }
 
   private async getSyncStatus(workspaceId?: string): Promise<SyncStatus | undefined> {
@@ -835,4 +966,98 @@ function compactText(value: string, limit: number): string {
     return value;
   }
   return `${value.slice(0, limit - 3).trim()}...`;
+}
+
+function commandResponse(
+  kind: TodayActionCommand["kind"],
+  actionTarget: ManagerActionTarget,
+  result?: unknown,
+): ManagerActionCommandResponse {
+  return {
+    success: true,
+    command: kind,
+    target: actionTarget,
+    result,
+  };
+}
+
+function requireManagerDeskItemId(target: ManagerActionTarget, kind: TodayActionCommand["kind"]): number {
+  if (!target.managerDeskItemId) {
+    throw new HttpError(400, `${kind} requires a Manager Desk item target`);
+  }
+  return target.managerDeskItemId;
+}
+
+function requireDeveloperAccountId(target: ManagerActionTarget, kind: TodayActionCommand["kind"]): string {
+  if (!target.developerAccountId?.trim()) {
+    throw new HttpError(400, `${kind} requires a developer target`);
+  }
+  return target.developerAccountId;
+}
+
+function requireTrackerItemId(target: ManagerActionTarget, kind: TodayActionCommand["kind"]): number {
+  if (!target.trackerItemId) {
+    throw new HttpError(400, `${kind} requires a tracker item target`);
+  }
+  return target.trackerItemId;
+}
+
+function requireTrimmedText(value: string | undefined, field: string): string {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    throw new HttpError(400, `${field} is required`);
+  }
+  return trimmed;
+}
+
+function buildSnoozeIso(date: string, preset: ManagerActionSnoozePreset): string {
+  const base = new Date(`${date}T09:00:00`);
+  if (preset === "later_today") {
+    base.setHours(17, 0, 0, 0);
+    return base.toISOString();
+  }
+  if (preset === "next_week") {
+    base.setDate(base.getDate() + 7);
+    return base.toISOString();
+  }
+  base.setDate(base.getDate() + 1);
+  return base.toISOString();
+}
+
+function buildFollowUpCreateParams(date: string, actionTarget: ManagerActionTarget, title: string) {
+  const links: Array<
+    | { linkType: "developer"; developerAccountId: string }
+    | { linkType: "issue"; issueKey: string }
+  > = [];
+
+  if (actionTarget.developerAccountId) {
+    links.push({ linkType: "developer", developerAccountId: actionTarget.developerAccountId });
+  }
+
+  for (const issueKey of uniqueIssueKeys(actionTarget)) {
+    links.push({ linkType: "issue", issueKey });
+  }
+
+  return {
+    date,
+    title,
+    kind: "action" as const,
+    category: "follow_up" as const,
+    status: "planned" as const,
+    priority: "medium" as const,
+    contextNote: actionTarget.trackerItemId
+      ? `Tracker item ${actionTarget.trackerItemId}`
+      : actionTarget.managerDeskItemId
+      ? `Source Manager Desk item ${actionTarget.managerDeskItemId}`
+      : undefined,
+    links,
+  };
+}
+
+function uniqueIssueKeys(actionTarget: ManagerActionTarget): string[] {
+  const issueKeys = [actionTarget.issueKey, ...(actionTarget.relatedIssueKeys ?? [])]
+    .map((issueKey) => issueKey?.trim())
+    .filter((issueKey): issueKey is string => Boolean(issueKey));
+
+  return [...new Set(issueKeys)];
 }
