@@ -1,0 +1,68 @@
+# Auth Admin CLI
+
+Run these from the checkout whose SQLite data you want to manage.
+
+## Create An Isolated Manager Workspace
+
+Use this when a manager should have their own Jira config, team roster, synced issues, Team Tracker, and settings.
+
+```bash
+npm run auth:create-user --workspace=server -- \
+  --username new-manager \
+  --password 'change-me' \
+  --display-name 'New Manager' \
+  --role manager
+```
+
+If users already exist, this creates a new manager-owned workspace.
+
+## Delete A Shared-Workspace Manager Login
+
+Use this for a manager account accidentally created from Settings inside another manager's workspace.
+
+First preview the deletion:
+
+```bash
+npm run auth:delete-user --workspace=server -- \
+  --username shared-manager \
+  --workspace-id default \
+  --role manager \
+  --dry-run
+```
+
+Then delete the login account:
+
+```bash
+npm run auth:delete-user --workspace=server -- \
+  --username shared-manager \
+  --workspace-id default \
+  --role manager \
+  --confirm shared-manager
+```
+
+By default this removes only the app login and active sessions. It keeps shared workspace data such as Jira config, issues, team members, tags, and Team Tracker data.
+
+## Optional Private Data Purge
+
+If the mistaken manager account was used and you also want to remove its private manager data, add `--purge-private-data`:
+
+```bash
+npm run auth:delete-user --workspace=server -- \
+  --username shared-manager \
+  --workspace-id default \
+  --role manager \
+  --confirm shared-manager \
+  --purge-private-data
+```
+
+This removes that manager's alert dismissals, saved Team Tracker views, and Manager Desk data. Linked tracker work is preserved and detached from the deleted Manager Desk items.
+
+## Safety Rules
+
+The delete command refuses to delete:
+
+- the workspace owner manager account
+- the last active manager in a workspace
+- a user whose role does not match `--role`
+
+Use `--dry-run` before deleting, and take a backup before production account maintenance.
