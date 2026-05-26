@@ -469,6 +469,14 @@ describe("IssueService", () => {
     expect(teamTrackerService.getIssueAssignmentSummaryMap).toHaveBeenCalledWith("2026-03-05", "default");
   });
 
+  it("can skip tracker assignment summaries for lightweight read models", async () => {
+    const result = await service.getAll({ filter: "all", includeTrackerAssignments: false });
+    const issue = result.find((item) => item.jiraKey === "PROJ-2");
+
+    expect(issue?.trackerAssignmentsToday).toBeUndefined();
+    expect(teamTrackerService.getIssueAssignmentSummaryMap).not.toHaveBeenCalled();
+  });
+
   it("uses an explicit tracker date when provided", async () => {
     await service.getAll({ filter: "all", trackerDate: "2026-03-04" });
 

@@ -23,6 +23,66 @@ function todayService(syncStatus = { status: "idle" as const }) {
   });
 }
 
+function cachedTodayService() {
+  const issueServiceMock = {
+    getOverviewCounts: vi.fn(async () => ({
+      new: 0,
+      recentlyAssigned: 0,
+      unassigned: 0,
+      dueToday: 0,
+      dueThisWeek: 0,
+      noDueDate: 0,
+      overdue: 0,
+      blocked: 0,
+      stale: 0,
+      highPriority: 0,
+      inProgress: 0,
+      reopened: 0,
+      outOfTeam: 0,
+      total: 0,
+    })),
+    getAll: vi.fn(async () => []),
+  };
+  const teamTrackerServiceMock = {
+    getBoard: vi.fn(async () => ({
+      date: "2026-03-08",
+      viewMode: "live",
+      developers: [],
+      inactiveDevelopers: [],
+      summary: { total: 0, blocked: 0, atRisk: 0, stale: 0, noCurrent: 0, doneForToday: 0 },
+      visibleSummary: { total: 0, blocked: 0, atRisk: 0, stale: 0, noCurrent: 0, doneForToday: 0 },
+      groups: [],
+      query: { q: "", summaryFilter: "all", sortBy: "attention", groupBy: "attention" },
+      attentionQueue: [],
+    })),
+  };
+  const managerDeskServiceMock = {
+    getDay: vi.fn(async () => ({
+      date: "2026-03-08",
+      viewMode: "live",
+      items: [],
+      summary: { total: 0, inbox: 0, planned: 0, inProgress: 0, waiting: 0, done: 0 },
+    })),
+  };
+  const syncSourceMock = {
+    getLastSyncLog: vi.fn(async () => undefined),
+    getRuntimeStatus: vi.fn(() => ({ status: "idle" as const })),
+  };
+
+  return {
+    issueService: issueServiceMock,
+    teamTrackerService: teamTrackerServiceMock,
+    managerDeskService: managerDeskServiceMock,
+    syncSource: syncSourceMock,
+    service: new TodayService(
+      issueServiceMock as any,
+      teamTrackerServiceMock as any,
+      managerDeskServiceMock as any,
+      syncSourceMock,
+    ),
+  };
+}
+
 async function seedDeveloper(accountId = "dev-1", displayName = "Alice Smith") {
   await db.insert(developers).values({
     accountId,
@@ -128,6 +188,50 @@ describe("TodayService", () => {
         }),
       ]),
     );
+  });
+
+  it("deduplicates concurrent Today and manager-action snapshot builds", async () => {
+    const { service, issueService, teamTrackerService, managerDeskService } = cachedTodayService();
+
+    const [today, managerActions] = await Promise.all([
+      service.getToday("manager-1", "2026-03-08", "workspace-a"),
+      service.getManagerActions("manager-1", "2026-03-08", { surface: "header", limit: 8 }, "workspace-a"),
+    ]);
+
+    expect(today.generatedAt).toBe(managerActions.generatedAt);
+    expect(issueService.getOverviewCounts).toHaveBeenCalledTimes(1);
+    expect(issueService.getAll).toHaveBeenCalledTimes(1);
+    expect(issueService.getAll).toHaveBeenCalledWith(
+      expect.objectContaining({ includeTrackerAssignments: false }),
+      "workspace-a",
+    );
+    expect(teamTrackerService.getBoard).toHaveBeenCalledTimes(1);
+    expect(managerDeskService.getDay).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses cached Today snapshots briefly and clears them after commands", async () => {
+    const { service, issueService } = cachedTodayService();
+
+    await service.getToday("manager-1", "2026-03-08", "workspace-a");
+    await service.getToday("manager-1", "2026-03-08", "workspace-a");
+    expect(issueService.getOverviewCounts).toHaveBeenCalledTimes(1);
+
+    await service.executeCommand(
+      "manager-1",
+      {
+        date: "2026-03-08",
+        command: {
+          kind: "open",
+          label: "Open Team",
+          target: { type: "view", view: "team" },
+        },
+      },
+      { type: "manager", accountId: "manager-1" },
+      "workspace-a",
+    );
+    await service.getToday("manager-1", "2026-03-08", "workspace-a");
+
+    expect(issueService.getOverviewCounts).toHaveBeenCalledTimes(2);
   });
 
   it("adds sync attention without mutating source data", async () => {

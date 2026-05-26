@@ -26,6 +26,7 @@ export interface IssueQuery {
   order?: "asc" | "desc";
   tagIds?: number[];
   noTags?: boolean;
+  includeTrackerAssignments?: boolean;
 }
 
 type JiraMutationClient = Pick<JiraClient, "updateIssue" | "addComment">;
@@ -54,7 +55,9 @@ export class IssueService {
     const weekEnd = endOfWeekIsoDate(now);
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const recentlyAssignedIssueKeys = await this.getRecentlyAssignedIssueKeys(dayAgo, normalizedWorkspaceId);
-    const trackerAssignmentSummaryMap = await this.teamTrackerService.getIssueAssignmentSummaryMap(trackerDate, normalizedWorkspaceId);
+    const trackerAssignmentSummaryMap = query.includeTrackerAssignments === false
+      ? new Map<string, IssueTrackerAssignmentSummary>()
+      : await this.teamTrackerService.getIssueAssignmentSummaryMap(trackerDate, normalizedWorkspaceId);
 
     let result: SharedIssue[] = rows.map((row: typeof issues.$inferSelect) =>
       this.toSharedIssue(

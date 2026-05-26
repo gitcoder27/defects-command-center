@@ -33,11 +33,23 @@ import { HttpError } from "../middleware/errorHandler";
 import { IssueService } from "./issue.service";
 import { ManagerDeskService } from "./manager-desk.service";
 import { TeamTrackerService } from "./team-tracker.service";
+import { normalizeWorkspaceId } from "./workspace.service";
 
 type SyncStatusSource = {
   getLastSyncLog: (workspaceId?: string) => Promise<{ completedAt: string | null; status: string; issuesSynced: number; errorMessage: string | null } | undefined>;
   getRuntimeStatus: (workspaceId?: string) => { status: "idle" | "syncing" | "error"; errorMessage?: string };
 };
+
+type TodayCacheEntry = {
+  expiresAt: number;
+  promise: Promise<TodayResponse>;
+};
+
+type TodayServiceOptions = {
+  todayCacheTtlMs?: number;
+};
+
+const defaultTodayCacheTtlMs = 10_000;
 
 const openDeskStatuses = new Set<ManagerDeskItem["status"]>([
   "inbox",
@@ -70,17 +82,87 @@ const statusLabels: Record<string, string> = {
 };
 
 export class TodayService {
+  private readonly todayCache = new Map<string, TodayCacheEntry>();
+  private readonly todayCacheTtlMs: number;
+
   constructor(
     private readonly issueService: IssueService,
     private readonly teamTrackerService: TeamTrackerService,
     private readonly managerDeskService: ManagerDeskService,
     private readonly syncStatusSource?: SyncStatusSource,
-  ) {}
+    options: TodayServiceOptions = {},
+  ) {
+    this.todayCacheTtlMs = Math.max(0, options.todayCacheTtlMs ?? defaultTodayCacheTtlMs);
+  }
 
   async getToday(managerAccountId: string, date: string, workspaceId?: string): Promise<TodayResponse> {
+    const cacheKey = this.todayCacheKey(managerAccountId, date, workspaceId);
+    const cached = this.getCachedToday(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const promise = this.buildToday(managerAccountId, date, workspaceId).catch((error) => {
+      if (this.todayCache.get(cacheKey)?.promise === promise) {
+        this.todayCache.delete(cacheKey);
+      }
+      throw error;
+    });
+
+    if (this.todayCacheTtlMs > 0) {
+      this.todayCache.set(cacheKey, {
+        expiresAt: Date.now() + this.todayCacheTtlMs,
+        promise,
+      });
+    }
+
+    return promise;
+  }
+
+  clearTodayCache(workspaceId?: string): void {
+    if (!workspaceId) {
+      this.todayCache.clear();
+      return;
+    }
+
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    for (const key of this.todayCache.keys()) {
+      if (key.startsWith(`${normalizedWorkspaceId}:`)) {
+        this.todayCache.delete(key);
+      }
+    }
+  }
+
+  private getCachedToday(cacheKey: string): Promise<TodayResponse> | undefined {
+    if (this.todayCacheTtlMs <= 0) {
+      return undefined;
+    }
+
+    const cached = this.todayCache.get(cacheKey);
+    if (!cached) {
+      return undefined;
+    }
+
+    if (cached.expiresAt <= Date.now()) {
+      this.todayCache.delete(cacheKey);
+      return undefined;
+    }
+
+    return cached.promise;
+  }
+
+  private todayCacheKey(managerAccountId: string, date: string, workspaceId?: string): string {
+    return [
+      normalizeWorkspaceId(workspaceId),
+      managerAccountId,
+      date,
+    ].join(":");
+  }
+
+  private async buildToday(managerAccountId: string, date: string, workspaceId?: string): Promise<TodayResponse> {
     const [overview, issues, teamBoard, deskDay, syncStatus] = await Promise.all([
       this.issueService.getOverviewCounts(workspaceId),
-      this.issueService.getAll({ filter: "all", trackerDate: date }, workspaceId),
+      this.issueService.getAll({ filter: "all", trackerDate: date, includeTrackerAssignments: false }, workspaceId),
       this.teamTrackerService.getBoard(date, { managerAccountId, workspaceId }),
       this.managerDeskService.getDay(managerAccountId, date, workspaceId),
       this.getSyncStatus(workspaceId),
@@ -144,6 +226,17 @@ export class TodayService {
   }
 
   async executeCommand(
+    managerAccountId: string,
+    request: ManagerActionCommandRequest,
+    actor: { type: UserRole; accountId?: string },
+    workspaceId?: string,
+  ): Promise<ManagerActionCommandResponse> {
+    const response = await this.executeCommandInternal(managerAccountId, request, actor, workspaceId);
+    this.clearTodayCache(workspaceId);
+    return response;
+  }
+
+  private async executeCommandInternal(
     managerAccountId: string,
     request: ManagerActionCommandRequest,
     actor: { type: UserRole; accountId?: string },

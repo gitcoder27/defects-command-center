@@ -61,6 +61,7 @@ describe("today routes", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-08T02:30:00.000Z"));
     await resetDatabase();
+    todayService.clearTodayCache();
     await db.insert(developers).values({
       accountId: "dev-1",
       displayName: "Alice Smith",
