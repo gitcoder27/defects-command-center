@@ -210,6 +210,16 @@ describe('SettingsPage', () => {
         };
       }
 
+      if (path === '/config/test') {
+        return {
+          success: true,
+          checkedAt: '2026-03-10T09:00:00Z',
+          user: {
+            displayName: 'Edited Manager',
+          },
+        };
+      }
+
       return {};
     });
 
@@ -273,6 +283,9 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(mockPut).toHaveBeenCalledTimes(1);
       expect(mockPut).toHaveBeenCalledWith('/config/settings', expect.objectContaining({
+        jiraBaseUrl: 'https://acme.atlassian.net',
+        jiraEmail: 'manager@example.com',
+        jiraProjectKey: 'AM',
         jiraSyncScopeMode: 'team_assignees',
         jiraAspenSeverityField: 'customfield_10129',
         managerJiraAccountId: 'manager-1',
@@ -301,6 +314,66 @@ describe('SettingsPage', () => {
         managerJiraAccountId: 'manager-2',
       }));
       expect(mockRefetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('saves edited Jira connection fields from Settings', async () => {
+    mockPut.mockResolvedValue({ success: true });
+
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    fireEvent.change(screen.getByLabelText(/jira base url/i), {
+      target: { value: 'https://isolated.atlassian.net' },
+    });
+    fireEvent.change(screen.getByLabelText(/jira email/i), {
+      target: { value: 'isolated.manager@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText(/project key/i), {
+      target: { value: 'ISO' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+
+    await waitFor(() => {
+      expect(mockPut).toHaveBeenCalledWith('/config/settings', expect.objectContaining({
+        jiraBaseUrl: 'https://isolated.atlassian.net',
+        jiraEmail: 'isolated.manager@example.com',
+        jiraProjectKey: 'ISO',
+      }));
+    });
+  });
+
+  it('tests a new token against edited Jira connection fields', async () => {
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    fireEvent.change(screen.getByLabelText(/jira base url/i), {
+      target: { value: 'https://isolated.atlassian.net' },
+    });
+    fireEvent.change(screen.getByLabelText(/jira email/i), {
+      target: { value: 'isolated.manager@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText(/project key/i), {
+      target: { value: 'ISO' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/new api token/i), {
+      target: { value: 'fresh-token' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /test new token/i }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith('/config/test', {
+        jiraBaseUrl: 'https://isolated.atlassian.net',
+        jiraEmail: 'isolated.manager@example.com',
+        jiraProjectKey: 'ISO',
+        jiraApiToken: 'fresh-token',
+      });
     });
   });
 

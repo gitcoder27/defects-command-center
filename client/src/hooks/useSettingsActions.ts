@@ -115,7 +115,7 @@ export function useCheckCurrentJiraConnection() {
 
 export function useTestJiraConnection() {
   return useMutation({
-    mutationFn: (payload: { jiraBaseUrl: string; jiraEmail: string; jiraApiToken: string }) =>
+    mutationFn: (payload: { jiraBaseUrl: string; jiraEmail: string; jiraApiToken?: string; jiraProjectKey?: string }) =>
       api.post<JiraConnectionCheckResult>('/config/test', payload),
   });
 }
@@ -123,6 +123,9 @@ export function useTestJiraConnection() {
 export function useSaveSettingsConfig() {
   return useMutation({
     mutationFn: (payload: {
+      jiraBaseUrl?: string;
+      jiraEmail?: string;
+      jiraProjectKey?: string;
       jiraSyncScopeMode: JiraSyncScopeMode;
       jiraSyncJql: string;
       jiraDevDueDateField: string;

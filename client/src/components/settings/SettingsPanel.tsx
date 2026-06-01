@@ -36,7 +36,6 @@ import {
   useAddManualDeveloper,
   useAddTeamDevelopers,
   useAppUsers,
-  useCheckCurrentJiraConnection,
   useCreateAppUser,
   useDeleteAppUser,
   useDiscoverJiraFields,
@@ -70,7 +69,6 @@ export function SettingsPage() {
   const appUsersQuery = useAppUsers();
   const { mutateAsync: createAppUser } = useCreateAppUser();
   const { mutateAsync: deleteAppUser } = useDeleteAppUser();
-  const { mutateAsync: checkCurrentJiraConnection } = useCheckCurrentJiraConnection();
   const { mutateAsync: testJiraConnection } = useTestJiraConnection();
   const { mutateAsync: discoverJiraFields } = useDiscoverJiraFields();
   const { mutateAsync: saveSettingsConfig } = useSaveSettingsConfig();
@@ -83,6 +81,9 @@ export function SettingsPage() {
 
   const [jql, setJql] = useState('');
   const [syncScopeMode, setSyncScopeMode] = useState<JiraSyncScopeMode>(DEFAULT_SYNC_SCOPE_MODE);
+  const [jiraBaseUrl, setJiraBaseUrl] = useState('');
+  const [jiraEmail, setJiraEmail] = useState('');
+  const [jiraProjectKey, setJiraProjectKey] = useState('');
   const [devDueDateField, setDevDueDateField] = useState('');
   const [aspenSeverityField, setAspenSeverityField] = useState('');
   const [managerJiraAccountId, setManagerJiraAccountId] = useState('');
@@ -144,10 +145,14 @@ export function SettingsPage() {
   const [pwDigits, setPwDigits] = useState(true);
   const [pwSymbols, setPwSymbols] = useState(true);
 
+  const trimmedJiraBaseUrl = jiraBaseUrl.trim();
+  const trimmedJiraEmail = jiraEmail.trim();
+  const trimmedJiraProjectKey = jiraProjectKey.trim();
   const activeMemberIds = useMemo(() => new Set(developers.map((developer) => developer.accountId)), [developers]);
   const canUseJiraDirectory = Boolean(config?.jiraBaseUrl && config?.jiraEmail && config?.jiraProjectKey && config?.jiraApiToken);
   const syncErrorMessage = syncStatus?.status === 'error' ? syncStatus.errorMessage : undefined;
   const connectionNeedsAttention = Boolean(syncErrorMessage);
+  const canTestJiraConnection = Boolean(trimmedJiraBaseUrl && trimmedJiraEmail && (jiraApiTokenInput.trim() || config?.jiraApiToken));
 
   const filteredDevelopers = useMemo(
     () =>
@@ -167,6 +172,9 @@ export function SettingsPage() {
 
   useEffect(() => {
     if (config) {
+      setJiraBaseUrl(config.jiraBaseUrl || '');
+      setJiraEmail(config.jiraEmail || '');
+      setJiraProjectKey(config.jiraProjectKey || '');
       setJql(config.jiraSyncJql || '');
       setSyncScopeMode(config.jiraSyncScopeMode || DEFAULT_SYNC_SCOPE_MODE);
       setDevDueDateField(config.jiraDevDueDateField || 'customfield_10128');
@@ -257,21 +265,24 @@ export function SettingsPage() {
 
   const handleCheckJiraConnection = async () => {
     const candidateToken = jiraApiTokenInput.trim();
-    if (candidateToken && (!config?.jiraBaseUrl || !config?.jiraEmail)) {
+    if (!trimmedJiraBaseUrl || !trimmedJiraEmail) {
       addToast({ type: 'error', title: 'Missing Jira connection', message: 'Base URL and email must be configured before testing a new API token.' });
+      return;
+    }
+    if (!candidateToken && !config?.jiraApiToken) {
+      addToast({ type: 'error', title: 'Missing Jira token', message: 'Paste a Jira API token before testing this connection.' });
       return;
     }
 
     setCheckingJiraConnection(true);
     try {
-      const result = candidateToken
-        ? await testJiraConnection({
-            jiraBaseUrl: config!.jiraBaseUrl,
-            jiraEmail: config!.jiraEmail,
-            jiraApiToken: candidateToken,
-          })
-        : await checkCurrentJiraConnection();
-      const displayName = result.user?.displayName ?? config?.jiraEmail ?? 'Jira';
+      const result = await testJiraConnection({
+        jiraBaseUrl: trimmedJiraBaseUrl,
+        jiraEmail: trimmedJiraEmail,
+        ...(trimmedJiraProjectKey ? { jiraProjectKey: trimmedJiraProjectKey } : {}),
+        ...(candidateToken ? { jiraApiToken: candidateToken } : {}),
+      });
+      const displayName = result.user?.displayName ?? trimmedJiraEmail ?? 'Jira';
       addToast({ type: 'success', title: 'Jira connection verified', message: `${displayName} can authenticate with Jira.` });
     } catch (err) {
       addToast({
@@ -289,6 +300,9 @@ export function SettingsPage() {
     try {
       const trimmedToken = jiraApiTokenInput.trim();
       await saveSettingsConfig({
+        ...(trimmedJiraBaseUrl ? { jiraBaseUrl: trimmedJiraBaseUrl } : {}),
+        ...(trimmedJiraEmail ? { jiraEmail: trimmedJiraEmail } : {}),
+        ...(trimmedJiraProjectKey ? { jiraProjectKey: trimmedJiraProjectKey } : {}),
         jiraSyncScopeMode: syncScopeMode,
         jiraSyncJql: jql,
         jiraDevDueDateField: devDueDateField,
@@ -701,16 +715,16 @@ export function SettingsPage() {
   }, [knownJiraUsers, managerSearch, selectedManagerProfile]);
 
   const connectionLabel = useMemo(() => {
-    if (!config?.jiraBaseUrl) {
+    if (!trimmedJiraBaseUrl) {
       return 'Connection pending';
     }
 
     try {
-      return new URL(config.jiraBaseUrl).host;
+      return new URL(trimmedJiraBaseUrl).host;
     } catch {
-      return config.jiraBaseUrl;
+      return trimmedJiraBaseUrl;
     }
-  }, [config?.jiraBaseUrl]);
+  }, [trimmedJiraBaseUrl]);
 
   const syncScopeLabel = syncScopeMode === 'base_query' ? 'Base query' : 'Team assignees';
 
@@ -922,8 +936,8 @@ export function SettingsPage() {
                     <div className="mt-2.5 overflow-hidden rounded-xl" style={{ border: 'var(--settings-pane-border)' }}>
                       {([
                         { label: 'Workspace', value: connectionLabel },
-                        { label: 'Jira email', value: config?.jiraEmail || '-' },
-                        { label: 'Project key', value: config?.jiraProjectKey || '—' },
+                        { label: 'Jira email', value: trimmedJiraEmail || '-' },
+                        { label: 'Project key', value: trimmedJiraProjectKey || '—' },
                         { label: 'API token', value: config?.jiraApiToken ? 'Saved' : 'Not saved' },
                         { label: 'Sync scope', value: syncScopeMode === 'base_query' ? 'Base query only.' : 'Team assignees appended at sync time.' },
                       ] as Array<{ label: string; value: string }>).map((row, idx) => (
@@ -967,6 +981,52 @@ export function SettingsPage() {
                     </div>
                   ) : null}
 
+                  {/* Connection details */}
+                  <div>
+                    <SettingsGroupLabel>Connection Details</SettingsGroupLabel>
+                    <p className="mt-1 mb-3 text-[12px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                      Edit the Jira site and project used by this workspace. Save before running a sync.
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <SettingsLabeledInput label="Jira base URL" id="jira-base-url">
+                        <input
+                          id="jira-base-url"
+                          type="url"
+                          value={jiraBaseUrl}
+                          onChange={(e) => setJiraBaseUrl(e.target.value)}
+                          placeholder="https://tenant.atlassian.net"
+                          className="w-full rounded-lg px-3 py-1.5 font-mono text-[12.5px] outline-none"
+                          style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                        />
+                      </SettingsLabeledInput>
+                      <SettingsLabeledInput label="Project key" id="jira-project-key">
+                        <input
+                          id="jira-project-key"
+                          type="text"
+                          value={jiraProjectKey}
+                          onChange={(e) => setJiraProjectKey(e.target.value)}
+                          placeholder="AM"
+                          className="w-full rounded-lg px-3 py-1.5 font-mono text-[12.5px] outline-none"
+                          style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                        />
+                      </SettingsLabeledInput>
+                      <div className="sm:col-span-2">
+                        <SettingsLabeledInput label="Jira email" id="jira-email">
+                          <input
+                            id="jira-email"
+                            type="email"
+                            value={jiraEmail}
+                            onChange={(e) => setJiraEmail(e.target.value)}
+                            placeholder="manager@example.com"
+                            autoComplete="email"
+                            className="w-full rounded-lg px-3 py-1.5 text-[12.5px] outline-none"
+                            style={{ background: 'var(--settings-input-bg)', color: 'var(--text-primary)', border: 'var(--settings-input-border)' }}
+                          />
+                        </SettingsLabeledInput>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* API token */}
                   <div>
                     <SettingsGroupLabel>Jira API Token</SettingsGroupLabel>
@@ -987,7 +1047,7 @@ export function SettingsPage() {
                       <button
                         type="button"
                         onClick={() => void handleCheckJiraConnection()}
-                        disabled={checkingJiraConnection || (!jiraApiTokenInput.trim() && !config?.jiraApiToken)}
+                        disabled={checkingJiraConnection || !canTestJiraConnection}
                         className="flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-50"
                         style={{ background: 'var(--settings-accent-soft-bg)', color: 'var(--accent)', border: 'var(--settings-accent-soft-border)' }}
                       >

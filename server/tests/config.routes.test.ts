@@ -366,6 +366,36 @@ ORDER BY updated DESC`);
     expect(map["jira_sync_jql"]).toBe('project = AM AND status != Done AND assignee IN ("external-1")');
   });
 
+  it("PUT /api/config/settings stores Jira connection fields without a full config rewrite", async () => {
+    await db.insert(configTable).values([
+      { key: "jira_sync_jql", value: "project = OLD" },
+      { key: "jira_dev_due_date_field", value: "customfield_10020" },
+    ]);
+
+    const app = createTestApp();
+    const updateRes = await invoke(app, {
+      method: "PUT",
+      url: "/api/config/settings",
+      body: {
+        jiraBaseUrl: "https://isolated.atlassian.net",
+        jiraEmail: "isolated.manager@example.com",
+        jiraProjectKey: "ISO",
+        jiraSyncJql: "project = ISO AND issuetype = Bug",
+      },
+    });
+
+    expect(updateRes.status).toBe(200);
+
+    const rows = await db.select().from(configTable);
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+
+    expect(map["jira_base_url"]).toBe("https://isolated.atlassian.net");
+    expect(map["jira_email"]).toBe("isolated.manager@example.com");
+    expect(map["jira_project_key"]).toBe("ISO");
+    expect(map["jira_sync_jql"]).toBe("project = ISO AND issuetype = Bug");
+    expect(map["jira_dev_due_date_field"]).toBe("customfield_10020");
+  });
+
   it("POST /api/config/test can use the saved encrypted Jira token", async () => {
     await storeJiraApiToken("saved-token");
 

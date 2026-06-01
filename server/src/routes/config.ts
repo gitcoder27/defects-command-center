@@ -347,9 +347,12 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
     }
   });
 
-  // Lightweight settings update (JQL + dev due date field only, no full config rewrite)
+  // Lightweight settings update for editable Settings sections, without requiring a full config rewrite.
   const settingsSchema = z.object({
     body: z.object({
+      jiraBaseUrl: z.string().trim().optional(),
+      jiraEmail: z.string().trim().optional(),
+      jiraProjectKey: z.string().trim().optional(),
       jiraSyncScopeMode: z.enum(["team_assignees", "base_query"]).optional(),
       jiraSyncJql: z.string().optional(),
       jiraDevDueDateField: z.string().optional(),
@@ -365,7 +368,27 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
     try {
       const workspaceId = req.auth!.user.workspaceId;
       let shouldRestartSync = false;
+      const jiraBaseUrl = req.body.jiraBaseUrl?.trim();
+      const jiraEmail = req.body.jiraEmail?.trim();
+      const jiraProjectKey = req.body.jiraProjectKey?.trim();
       const jiraSyncScopeMode = normalizeJiraSyncScopeMode(req.body.jiraSyncScopeMode ?? await getConfigValue(workspaceId, "jira_sync_scope_mode"));
+
+      if (jiraBaseUrl) {
+        validateJiraBaseUrl(jiraBaseUrl);
+        await upsertConfig(workspaceId, "jira_base_url", jiraBaseUrl);
+        shouldRestartSync = true;
+      }
+      if (jiraEmail) {
+        if (!z.string().email().safeParse(jiraEmail).success) {
+          throw new HttpError(400, "Jira email must be valid");
+        }
+        await upsertConfig(workspaceId, "jira_email", jiraEmail);
+        shouldRestartSync = true;
+      }
+      if (jiraProjectKey) {
+        await upsertConfig(workspaceId, "jira_project_key", jiraProjectKey);
+        shouldRestartSync = true;
+      }
       if (req.body.jiraSyncScopeMode !== undefined) {
         await upsertConfig(workspaceId, "jira_sync_scope_mode", jiraSyncScopeMode);
       }
@@ -395,8 +418,16 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
         await deleteConfigValue(workspaceId, "jira_lead_account_id");
       }
       if (syncEngine && shouldRestartSync) {
-        await syncEngine.start();
-        void syncEngine.syncNow(workspaceId);
+        const [baseUrl, email, project, token] = await Promise.all([
+          settings.getJiraBaseUrl(workspaceId),
+          settings.getJiraEmail(workspaceId),
+          settings.getJiraProjectKey(workspaceId),
+          settings.getJiraToken(workspaceId),
+        ]);
+        if (baseUrl && email && project && token) {
+          await syncEngine.start();
+          void syncEngine.syncNow(workspaceId);
+        }
       }
       res.json({ success: true });
     } catch (error) {
