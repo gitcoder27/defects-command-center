@@ -8,6 +8,7 @@ import { config } from "../config";
 import { logger } from "../utils/logger";
 import { SettingsService } from "../services/settings.service";
 import { normalizeWorkspaceId } from "../services/workspace.service";
+import type { JiraSyncScopeMode } from "shared/types";
 
 export interface SyncResult {
   status: "success" | "error" | "skipped";
@@ -19,7 +20,7 @@ export interface SyncResult {
 }
 
 type TeamScopeState = "in_team" | "out_of_team" | "unassigned";
-type SyncScopeState = "active" | "inaccessible";
+type SyncScopeState = "active" | "inaccessible" | "out_of_scope";
 
 export class SyncEngine {
   private task?: NodeJS.Timeout;
@@ -115,8 +116,9 @@ export class SyncEngine {
       }
 
       const dbJql = await this.settings.getJiraSyncJql(normalizedWorkspaceId);
+      const syncScopeMode = await this.settings.getJiraSyncScopeMode(normalizedWorkspaceId);
       const teamAccountIds = await this.getScopedTeamAccountIds(normalizedWorkspaceId);
-      const jql = buildScopedJql(project, dbJql ?? config.JIRA_SYNC_JQL, teamAccountIds);
+      const jql = buildScopedJql(project, dbJql ?? config.JIRA_SYNC_JQL, teamAccountIds, syncScopeMode);
       const devDueDateField = await this.settings.getJiraDevDueDateField(normalizedWorkspaceId);
       const aspenSeverityField = await this.settings.getJiraAspenSeverityField(normalizedWorkspaceId);
       const jiraClient = await this.settings.createJiraClient(normalizedWorkspaceId);
@@ -148,10 +150,11 @@ export class SyncEngine {
 
       const returnedKeys = new Set(jiraIssues.map((it) => it.key));
       const missingKeys = locallyTrackedKeys.filter((key) => !returnedKeys.has(key));
-      const reconciledCount = await this.reconcileMissingIssues(
+      const reconciledCount = await this.reconcileMissingScopedIssues(
         missingKeys,
         jiraClient,
         teamAccountIds,
+        syncScopeMode,
         now,
         devDueDateField,
         aspenSeverityField,
@@ -447,6 +450,67 @@ export class SyncEngine {
     return reconciledCount;
   }
 
+  private async reconcileMissingScopedIssues(
+    missingKeys: string[],
+    jiraClient: JiraClient,
+    teamAccountIds: Set<string>,
+    syncScopeMode: JiraSyncScopeMode,
+    reconciledAt: string,
+    devDueDateFieldOverride?: string,
+    aspenSeverityFieldOverride?: string,
+    workspaceId?: string
+  ): Promise<number> {
+    if (missingKeys.length === 0) {
+      return 0;
+    }
+
+    if (syncScopeMode === "base_query" || teamAccountIds.size === 0) {
+      return this.markIssuesOutOfScopedSync(missingKeys, reconciledAt, workspaceId);
+    }
+
+    return this.reconcileMissingIssues(
+      missingKeys,
+      jiraClient,
+      teamAccountIds,
+      reconciledAt,
+      devDueDateFieldOverride,
+      aspenSeverityFieldOverride,
+      workspaceId
+    );
+  }
+
+  private async markIssuesOutOfScopedSync(issueKeys: string[], reconciledAt: string, workspaceId?: string): Promise<number> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    let changedCount = 0;
+
+    for (const jiraKey of issueKeys) {
+      const rows = await db.select().from(issues).where(and(eq(issues.workspaceId, normalizedWorkspaceId), eq(issues.jiraKey, jiraKey))).limit(1);
+      const existing = rows[0];
+      if (!existing) {
+        continue;
+      }
+
+      const changed = existing.syncScopeState !== "out_of_scope";
+      const updateRow: Partial<typeof issues.$inferInsert> = {
+        syncScopeState: "out_of_scope",
+        lastReconciledAt: reconciledAt,
+      };
+
+      if (changed) {
+        updateRow.scopeChangedAt = reconciledAt;
+      }
+
+      await db.update(issues).set(updateRow).where(and(eq(issues.workspaceId, normalizedWorkspaceId), eq(issues.jiraKey, jiraKey)));
+
+      if (changed) {
+        changedCount += 1;
+        await this.recordScopeHistory(existing, { ...existing, ...updateRow }, reconciledAt);
+      }
+    }
+
+    return changedCount;
+  }
+
   private async markIssuesInaccessible(issueKeys: string[], reconciledAt: string, workspaceId?: string): Promise<void> {
     const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     for (const jiraKey of issueKeys) {
@@ -598,7 +662,13 @@ export class SyncEngine {
       return "team_scope_changed";
     }
     if (previous.syncScopeState !== next.syncScopeState) {
-      return next.syncScopeState === "inaccessible" ? "issue_unreachable" : "sync_scope_restored";
+      if (next.syncScopeState === "inaccessible") {
+        return "issue_unreachable";
+      }
+      if (next.syncScopeState === "out_of_scope") {
+        return "left_sync_scope";
+      }
+      return "sync_scope_restored";
     }
     if (previous.assigneeId !== next.assigneeId) {
       return "reassigned";

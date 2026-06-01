@@ -108,6 +108,7 @@ describe("SyncEngine", () => {
       getJiraProjectKey: vi.fn(async () => "AM"),
       getJiraToken: vi.fn(async () => "token"),
       getJiraSyncJql: vi.fn(async () => "project = AM"),
+      getJiraSyncScopeMode: vi.fn(async () => "team_assignees"),
       getManagerJiraAccountId: vi.fn(async () => ""),
       getJiraDevDueDateField: vi.fn(async () => undefined),
       getJiraAspenSeverityField: vi.fn(async () => undefined),
@@ -126,6 +127,172 @@ describe("SyncEngine", () => {
     expect(issue.excluded).toBe(0);
   });
 
+  it("uses base-query mode without appending team assignees and retires issues missing from the base query", async () => {
+    rawDb.exec(`
+      INSERT INTO issues (
+        jira_key,
+        summary,
+        description,
+        priority_name,
+        priority_id,
+        status_name,
+        status_category,
+        assignee_id,
+        assignee_name,
+        team_scope_state,
+        sync_scope_state,
+        created_at,
+        updated_at,
+        synced_at,
+        last_reconciled_at,
+        excluded
+      ) VALUES (
+        'AM-OLD',
+        'Previous defect',
+        '',
+        'Medium',
+        '3',
+        'In Progress',
+        'indeterminate',
+        'external-old',
+        'External Old',
+        'out_of_team',
+        'active',
+        '2026-03-10T00:00:00.000Z',
+        '2026-03-11T00:00:00.000Z',
+        '2026-03-11T00:00:00.000Z',
+        '2026-03-11T00:00:00.000Z',
+        0
+      );
+    `);
+
+    const jiraClient = {
+      getCurrentUser: vi.fn(async () => ({ accountId: "sync-user", displayName: "Sync User" })),
+      searchIssues: vi.fn(async () => [
+        {
+          id: "2",
+          key: "AM-2",
+          fields: {
+            summary: "External defect",
+            description: "",
+            priority: { id: "2", name: "High" },
+            status: { name: "In Progress", statusCategory: { key: "indeterminate" } },
+            assignee: { accountId: "external-1", displayName: "External One" },
+            reporter: { displayName: "Reporter" },
+            components: [],
+            labels: [],
+            duedate: null,
+            created: "2026-03-12T08:00:00.000Z",
+            updated: "2026-03-12T09:00:00.000Z",
+            customfield_10021: null,
+          },
+        },
+      ]),
+    };
+    const settings = {
+      getSyncIntervalMs: vi.fn(async () => 60_000),
+      getJiraBaseUrl: vi.fn(async () => "https://example.atlassian.net"),
+      getJiraEmail: vi.fn(async () => "lead@example.com"),
+      getJiraProjectKey: vi.fn(async () => "AM"),
+      getJiraToken: vi.fn(async () => "token"),
+      getJiraSyncJql: vi.fn(async () => 'project = {PROJECT_KEY} AND assignee IN ("external-1")'),
+      getJiraSyncScopeMode: vi.fn(async () => "base_query"),
+      getManagerJiraAccountId: vi.fn(async () => ""),
+      getJiraDevDueDateField: vi.fn(async () => undefined),
+      getJiraAspenSeverityField: vi.fn(async () => undefined),
+      createJiraClient: vi.fn(async () => jiraClient),
+    };
+    const engine = new SyncEngine(settings as any);
+
+    const result = await engine.syncNow();
+    const rows = rawDb
+      .prepare("SELECT jira_key, team_scope_state, sync_scope_state FROM issues ORDER BY jira_key")
+      .all() as Array<{ jira_key: string; team_scope_state: string; sync_scope_state: string }>;
+
+    expect(result.status).toBe("success");
+    expect(jiraClient.searchIssues).toHaveBeenCalledTimes(1);
+    expect(jiraClient.searchIssues).toHaveBeenCalledWith(
+      'project = AM AND assignee IN ("external-1")',
+      expect.any(Array),
+    );
+    expect(rows).toEqual([
+      { jira_key: "AM-2", team_scope_state: "out_of_team", sync_scope_state: "active" },
+      { jira_key: "AM-OLD", team_scope_state: "out_of_team", sync_scope_state: "out_of_scope" },
+    ]);
+  });
+
+  it("retires previously tracked issues when team-assignee mode has no scoped accounts", async () => {
+    rawDb.exec(`
+      INSERT INTO issues (
+        jira_key,
+        summary,
+        description,
+        priority_name,
+        priority_id,
+        status_name,
+        status_category,
+        assignee_id,
+        assignee_name,
+        team_scope_state,
+        sync_scope_state,
+        created_at,
+        updated_at,
+        synced_at,
+        last_reconciled_at,
+        excluded
+      ) VALUES (
+        'AM-1',
+        'Unassigned old defect',
+        '',
+        'High',
+        '1',
+        'In Progress',
+        'indeterminate',
+        NULL,
+        NULL,
+        'unassigned',
+        'active',
+        '2026-03-10T00:00:00.000Z',
+        '2026-03-11T00:00:00.000Z',
+        '2026-03-11T00:00:00.000Z',
+        '2026-03-11T00:00:00.000Z',
+        0
+      );
+    `);
+
+    const jiraClient = {
+      getCurrentUser: vi.fn(async () => ({ accountId: "sync-user", displayName: "Sync User" })),
+      searchIssues: vi.fn(async () => []),
+    };
+    const settings = {
+      getSyncIntervalMs: vi.fn(async () => 60_000),
+      getJiraBaseUrl: vi.fn(async () => "https://example.atlassian.net"),
+      getJiraEmail: vi.fn(async () => "lead@example.com"),
+      getJiraProjectKey: vi.fn(async () => "AM"),
+      getJiraToken: vi.fn(async () => "token"),
+      getJiraSyncJql: vi.fn(async () => "project = AM"),
+      getJiraSyncScopeMode: vi.fn(async () => "team_assignees"),
+      getManagerJiraAccountId: vi.fn(async () => ""),
+      getJiraDevDueDateField: vi.fn(async () => undefined),
+      getJiraAspenSeverityField: vi.fn(async () => undefined),
+      createJiraClient: vi.fn(async () => jiraClient),
+    };
+    const engine = new SyncEngine(settings as any);
+
+    const result = await engine.syncNow();
+    const issue = rawDb
+      .prepare("SELECT sync_scope_state FROM issues WHERE jira_key = ?")
+      .get("AM-1") as { sync_scope_state: string };
+
+    expect(result.status).toBe("success");
+    expect(jiraClient.searchIssues).toHaveBeenCalledTimes(1);
+    expect(jiraClient.searchIssues).toHaveBeenCalledWith(
+      "project = AM AND assignee IS EMPTY AND assignee IS NOT EMPTY",
+      expect.any(Array),
+    );
+    expect(issue.sync_scope_state).toBe("out_of_scope");
+  });
+
   it("records a sync error when Jira authentication cannot be verified", async () => {
     const jiraClient = {
       getCurrentUser: vi.fn(async () => {
@@ -140,6 +307,7 @@ describe("SyncEngine", () => {
       getJiraProjectKey: vi.fn(async () => "AM"),
       getJiraToken: vi.fn(async () => "token"),
       getJiraSyncJql: vi.fn(async () => "project = AM"),
+      getJiraSyncScopeMode: vi.fn(async () => "team_assignees"),
       getManagerJiraAccountId: vi.fn(async () => ""),
       getJiraDevDueDateField: vi.fn(async () => undefined),
       getJiraAspenSeverityField: vi.fn(async () => undefined),
@@ -206,6 +374,7 @@ describe("SyncEngine", () => {
       getJiraProjectKey: vi.fn(async (workspaceId: string) => configured.has(workspaceId) ? "AM" : undefined),
       getJiraToken: vi.fn(async (workspaceId: string) => configured.has(workspaceId) ? `token-${workspaceId}` : undefined),
       getJiraSyncJql: vi.fn(async () => "project = AM"),
+      getJiraSyncScopeMode: vi.fn(async () => "team_assignees"),
       getManagerJiraAccountId: vi.fn(async () => ""),
       getJiraDevDueDateField: vi.fn(async () => undefined),
       getJiraAspenSeverityField: vi.fn(async () => undefined),

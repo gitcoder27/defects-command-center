@@ -119,6 +119,33 @@ function buildMockedIssues() {
       scopeChangedAt: null,
       analysisNotes: null,
     },
+    {
+      jiraKey: "PROJ-5",
+      summary: "External team defect",
+      description: null,
+      aspenSeverity: "3",
+      priorityName: "High",
+      priorityId: "5",
+      statusName: "In Progress",
+      statusCategory: "indeterminate",
+      assigneeId: "external-1",
+      assigneeName: "External 1",
+      reporterName: "Reporter",
+      component: "QAD",
+      labels: JSON.stringify([]),
+      dueDate: "2026-03-05",
+      developmentDueDate: null,
+      flagged: 0,
+      createdAt: "2026-03-03T08:00:00.000Z",
+      updatedAt: "2026-03-05T08:00:00.000Z",
+      syncedAt: "2026-03-05T08:00:00.000Z",
+      teamScopeState: "out_of_team",
+      syncScopeState: "active",
+      lastSeenInScopedSyncAt: "2026-03-05T08:00:00.000Z",
+      lastReconciledAt: "2026-03-05T08:00:00.000Z",
+      scopeChangedAt: null,
+      analysisNotes: null,
+    },
   ];
 }
 
@@ -311,6 +338,7 @@ describe("IssueService", () => {
   const settings = {
     getManagerJiraAccountId: vi.fn(async () => "lead-1"),
     getJiraLeadAccountId: vi.fn(async () => "lead-1"),
+    getJiraSyncScopeMode: vi.fn(async () => "team_assignees"),
     getStaleThresholdHours: vi.fn(async () => 48),
     getJiraDevDueDateField: vi.fn(async () => "customfield_10128"),
     createJiraClient: vi.fn(async () => jiraClient),
@@ -421,6 +449,18 @@ describe("IssueService", () => {
     const result = await service.getAll({ filter: "recentlyAssigned" });
 
     expect(result.map((issue) => issue.jiraKey)).toEqual(["PROJ-2"]);
+  });
+
+  it("includes outside-roster defects in normal filters when base-query mode is active", async () => {
+    const baseQuerySettings = {
+      ...settings,
+      getJiraSyncScopeMode: vi.fn(async () => "base_query"),
+    };
+    const baseQueryService = new IssueService(jiraClient, baseQuerySettings as any, teamTrackerService as any);
+
+    expect((await baseQueryService.getAll({ filter: "all" })).map((i) => i.jiraKey)).toContain("PROJ-5");
+    expect((await baseQueryService.getAll({ filter: "dueToday" })).map((i) => i.jiraKey)).toContain("PROJ-5");
+    expect((await baseQueryService.getOverviewCounts()).total).toBe(4);
   });
 
   it("does not cache the Jira mutation client", async () => {

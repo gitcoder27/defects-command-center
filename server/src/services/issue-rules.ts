@@ -1,4 +1,5 @@
 import { isOlderThanHours } from "../utils/date";
+import type { JiraSyncScopeMode } from "shared/types";
 
 type RuleIssue = {
   statusCategory: string;
@@ -23,6 +24,21 @@ export function isActiveTeamIssue(issue: Pick<RuleIssue, "statusCategory" | "exc
     !isExcluded(issue) &&
     (issue.teamScopeState ?? "in_team") !== "out_of_team" &&
     (issue.syncScopeState ?? "active") === "active";
+}
+
+export function isVisibleWorkIssue(
+  issue: Pick<RuleIssue, "statusCategory" | "excluded" | "teamScopeState" | "syncScopeState">,
+  mode: JiraSyncScopeMode
+): boolean {
+  if (issue.statusCategory === "done" || isExcluded(issue) || (issue.syncScopeState ?? "active") !== "active") {
+    return false;
+  }
+
+  if (mode === "base_query") {
+    return true;
+  }
+
+  return (issue.teamScopeState ?? "in_team") !== "out_of_team";
 }
 
 export function isOutOfTeamIssue(issue: Pick<RuleIssue, "statusCategory" | "excluded" | "teamScopeState" | "syncScopeState">): boolean {

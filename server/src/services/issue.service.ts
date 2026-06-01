@@ -6,12 +6,13 @@ import type {
   LocalTag,
   OverviewCounts,
   IssueTrackerAssignmentSummary,
+  JiraSyncScopeMode,
 } from "shared/types";
 import { db } from "../db/connection";
 import { configTable, developers, issueScopeHistory, issues, issueTags, localTags, syncLog } from "../db/schema";
 import { JiraClient } from "../jira/client";
 import { endOfWeekIsoDate, todayIsoDate } from "../utils/date";
-import { getEffectiveDueDate, isActiveTeamIssue, isOutOfTeamIssue, isStaleIssue } from "./issue-rules";
+import { getEffectiveDueDate, isOutOfTeamIssue, isStaleIssue, isVisibleWorkIssue } from "./issue-rules";
 import { SettingsService } from "./settings.service";
 import { TeamTrackerService } from "./team-tracker.service";
 import { normalizeWorkspaceId } from "./workspace.service";
@@ -48,6 +49,7 @@ export class IssueService {
       .orderBy(desc(issues.updatedAt));
     const tagMap = await this.getTagMapForAll(normalizedWorkspaceId);
     const managerJiraAccountId = await this.settings.getManagerJiraAccountId(normalizedWorkspaceId);
+    const jiraSyncScopeMode = await this.settings.getJiraSyncScopeMode(normalizedWorkspaceId);
     const staleThresholdHours = await this.settings.getStaleThresholdHours(normalizedWorkspaceId);
     const now = new Date();
     const today = todayIsoDate(now);
@@ -68,6 +70,7 @@ export class IssueService {
     );
     result = this.applyIssueQuery(result, query, {
       managerJiraAccountId,
+      jiraSyncScopeMode,
       staleThresholdHours,
       now,
       today,
@@ -219,6 +222,7 @@ export class IssueService {
       .where(eq(issues.workspaceId, normalizedWorkspaceId));
     const all = rows.map((row) => this.toSharedIssue(row));
     const managerJiraAccountId = await this.settings.getManagerJiraAccountId(normalizedWorkspaceId);
+    const jiraSyncScopeMode = await this.settings.getJiraSyncScopeMode(normalizedWorkspaceId);
     const staleThresholdHours = await this.settings.getStaleThresholdHours(normalizedWorkspaceId);
     const now = new Date();
     const today = todayIsoDate(now);
@@ -232,7 +236,7 @@ export class IssueService {
       .where(eq(syncLog.workspaceId, normalizedWorkspaceId))
       .orderBy(desc(syncLog.id))
       .limit(1);
-    const filterContext = { managerJiraAccountId, staleThresholdHours, now, today, weekEnd, dayAgo, recentlyAssignedIssueKeys };
+    const filterContext = { managerJiraAccountId, jiraSyncScopeMode, staleThresholdHours, now, today, weekEnd, dayAgo, recentlyAssignedIssueKeys };
 
     return {
       new: this.applyIssueQuery(all, { filter: "new" }, filterContext).length,
@@ -276,6 +280,7 @@ export class IssueService {
     query: Pick<IssueQuery, "filter" | "assignee" | "priority" | "status" | "tagIds" | "noTags">,
     context: {
       managerJiraAccountId: string;
+      jiraSyncScopeMode: JiraSyncScopeMode;
       staleThresholdHours: number;
       now: Date;
       today: string;
@@ -309,48 +314,48 @@ export class IssueService {
       });
     }
 
-    const activeTeamIssues = () => result.filter((issue) => isActiveTeamIssue(issue));
+    const visibleWorkIssues = () => result.filter((issue) => isVisibleWorkIssue(issue, context.jiraSyncScopeMode));
 
     switch (query.filter) {
       case "new":
-        return activeTeamIssues().filter((issue) => new Date(issue.createdAt).getTime() >= context.dayAgo.getTime());
+        return visibleWorkIssues().filter((issue) => new Date(issue.createdAt).getTime() >= context.dayAgo.getTime());
       case "recentlyAssigned":
-        return activeTeamIssues().filter((issue) => context.recentlyAssignedIssueKeys.has(issue.jiraKey));
+        return visibleWorkIssues().filter((issue) => context.recentlyAssignedIssueKeys.has(issue.jiraKey));
       case "inProgress":
-        return activeTeamIssues().filter((issue) => this.hasAnyStatusName(issue, ["In Progress", "Work in Progress"]));
+        return visibleWorkIssues().filter((issue) => this.hasAnyStatusName(issue, ["In Progress", "Work in Progress"]));
       case "reopened":
-        return activeTeamIssues().filter((issue) => this.hasStatusName(issue, "Reopened"));
+        return visibleWorkIssues().filter((issue) => this.hasStatusName(issue, "Reopened"));
       case "unassigned":
-        return activeTeamIssues().filter(
+        return visibleWorkIssues().filter(
           (issue) => issue.assigneeId === context.managerJiraAccountId || issue.teamScopeState === "unassigned"
         );
       case "dueToday":
-        return activeTeamIssues().filter((issue) => getEffectiveDueDate(issue) === context.today);
+        return visibleWorkIssues().filter((issue) => getEffectiveDueDate(issue) === context.today);
       case "dueThisWeek":
-        return activeTeamIssues().filter((issue) => {
+        return visibleWorkIssues().filter((issue) => {
           const dueDate = getEffectiveDueDate(issue);
           return Boolean(dueDate && dueDate > context.today && dueDate <= context.weekEnd);
         });
       case "noDueDate":
-        return activeTeamIssues().filter((issue) => !getEffectiveDueDate(issue));
+        return visibleWorkIssues().filter((issue) => !getEffectiveDueDate(issue));
       case "overdue":
-        return activeTeamIssues().filter((issue) => {
+        return visibleWorkIssues().filter((issue) => {
           const dueDate = getEffectiveDueDate(issue);
           return Boolean(dueDate && dueDate < context.today);
         });
       case "blocked":
-        return activeTeamIssues().filter((issue) => issue.flagged);
+        return visibleWorkIssues().filter((issue) => issue.flagged);
       case "stale":
-        return activeTeamIssues().filter((issue) => isStaleIssue(issue, context.staleThresholdHours, context.now));
+        return visibleWorkIssues().filter((issue) => isStaleIssue(issue, context.staleThresholdHours, context.now));
       case "highPriority":
-        return activeTeamIssues().filter((issue) => issue.priorityName === "Highest" || issue.priorityName === "High");
+        return visibleWorkIssues().filter((issue) => issue.priorityName === "Highest" || issue.priorityName === "High");
       case "outOfTeam":
         return result.filter((issue) => isOutOfTeamIssue(issue));
       case "all":
       case undefined:
-        return activeTeamIssues();
+        return visibleWorkIssues();
       default:
-        return activeTeamIssues();
+        return visibleWorkIssues();
     }
   }
 
@@ -522,7 +527,13 @@ export class IssueService {
       return "team_scope_changed";
     }
     if (previous.syncScopeState !== next.syncScopeState) {
-      return next.syncScopeState === "inaccessible" ? "issue_unreachable" : "sync_scope_restored";
+      if (next.syncScopeState === "inaccessible") {
+        return "issue_unreachable";
+      }
+      if (next.syncScopeState === "out_of_scope") {
+        return "left_sync_scope";
+      }
+      return "sync_scope_restored";
     }
     if (previous.assigneeId !== next.assigneeId) {
       return "reassigned";

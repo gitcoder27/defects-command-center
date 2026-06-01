@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthScopeKey } from '@/context/AuthContext';
 import { api } from '@/lib/api';
-import type { AuthUser, Developer } from '@/types';
+import type { AuthUser, Developer, JiraSyncScopeMode } from '@/types';
 
 export interface JiraField {
   id: string;
@@ -123,6 +123,7 @@ export function useTestJiraConnection() {
 export function useSaveSettingsConfig() {
   return useMutation({
     mutationFn: (payload: {
+      jiraSyncScopeMode: JiraSyncScopeMode;
       jiraSyncJql: string;
       jiraDevDueDateField: string;
       jiraAspenSeverityField: string;

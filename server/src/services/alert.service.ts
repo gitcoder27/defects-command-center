@@ -3,7 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db/connection";
 import { alertDismissals, issues } from "../db/schema";
 import { isOlderThanHours, todayIsoDate } from "../utils/date";
-import { getEffectiveDueDate, isActiveTeamIssue, isStaleIssue } from "./issue-rules";
+import { getEffectiveDueDate, isStaleIssue, isVisibleWorkIssue } from "./issue-rules";
 import { SettingsService } from "./settings.service";
 import { WorkloadService } from "./workload.service";
 import { normalizeWorkspaceId } from "./workspace.service";
@@ -82,11 +82,12 @@ export class AlertService {
     const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
     const rows = await db.select().from(issues).where(eq(issues.workspaceId, normalizedWorkspaceId));
     const staleThresholdHours = await this.settings.getStaleThresholdHours(normalizedWorkspaceId);
+    const jiraSyncScopeMode = await this.settings.getJiraSyncScopeMode(normalizedWorkspaceId);
     const today = todayIsoDate(now);
     const alerts: Alert[] = [];
 
     for (const row of rows) {
-      if (!isActiveTeamIssue(row)) {
+      if (!isVisibleWorkIssue(row, jiraSyncScopeMode)) {
         continue;
       }
 

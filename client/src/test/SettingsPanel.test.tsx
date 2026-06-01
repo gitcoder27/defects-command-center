@@ -20,6 +20,7 @@ const mockConfig = {
   jiraEmail: 'manager@example.com',
   jiraApiToken: '****',
   jiraProjectKey: 'AM',
+  jiraSyncScopeMode: 'team_assignees',
   jiraSyncJql: 'project = AM AND issuetype = Bug',
   jiraDevDueDateField: 'customfield_10128',
   jiraAspenSeverityField: 'customfield_10129',
@@ -272,6 +273,7 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(mockPut).toHaveBeenCalledTimes(1);
       expect(mockPut).toHaveBeenCalledWith('/config/settings', expect.objectContaining({
+        jiraSyncScopeMode: 'team_assignees',
         jiraAspenSeverityField: 'customfield_10129',
         managerJiraAccountId: 'manager-1',
       }));
@@ -299,6 +301,27 @@ describe('SettingsPage', () => {
         managerJiraAccountId: 'manager-2',
       }));
       expect(mockRefetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('saves base-query sync scope mode from the Sync Scope screen', async () => {
+    mockPut.mockResolvedValue({ success: true });
+
+    render(
+      <TestWrapper>
+        <SettingsPage />
+      </TestWrapper>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /sync scope/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /base query exact jql/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+
+    await waitFor(() => {
+      expect(mockPut).toHaveBeenCalledWith('/config/settings', expect.objectContaining({
+        jiraSyncScopeMode: 'base_query',
+        jiraSyncJql: 'project = AM AND issuetype = Bug',
+      }));
     });
   });
 

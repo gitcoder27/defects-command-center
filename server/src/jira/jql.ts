@@ -1,3 +1,5 @@
+import type { JiraSyncScopeMode } from "shared/types";
+
 function isBoundaryChar(char: string | undefined): boolean {
   return !char || !/[A-Za-z0-9_]/.test(char);
 }
@@ -171,11 +173,30 @@ export function appendManagedAssigneeClause(query: string, teamAccountIds: Itera
   return combineBodyAndOrder(nextBody, orderBy);
 }
 
-export function buildScopedJql(projectKey: string, configuredJql: string | undefined, teamAccountIds: Iterable<string>): string {
+function buildBaseJql(projectKey: string, configuredJql: string | undefined, normalizeManagedAssigneeClause: boolean): string {
   const rawConfigured = (configuredJql ?? "").trim();
-  const baseQuery = rawConfigured
-    ? stripManagedAssigneeClause(rawConfigured.replaceAll("{PROJECT_KEY}", projectKey))
-    : `project = ${projectKey} AND issuetype = Bug AND statusCategory != Done`;
+  if (!rawConfigured) {
+    return `project = ${projectKey} AND issuetype = Bug AND statusCategory != Done`;
+  }
+
+  const query = rawConfigured.replaceAll("{PROJECT_KEY}", projectKey);
+  return normalizeManagedAssigneeClause ? stripManagedAssigneeClause(query) : query;
+}
+
+export function normalizeConfiguredJqlForMode(query: string, mode: JiraSyncScopeMode): string {
+  return mode === "team_assignees" ? stripManagedAssigneeClause(query) : query.trim();
+}
+
+export function buildScopedJql(
+  projectKey: string,
+  configuredJql: string | undefined,
+  teamAccountIds: Iterable<string>,
+  mode: JiraSyncScopeMode = "team_assignees"
+): string {
+  const baseQuery = buildBaseJql(projectKey, configuredJql, mode === "team_assignees");
+  if (mode === "base_query") {
+    return baseQuery;
+  }
 
   return appendManagedAssigneeClause(baseQuery, teamAccountIds);
 }

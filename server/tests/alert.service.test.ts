@@ -133,6 +133,7 @@ describe("AlertService", () => {
   } as unknown as WorkloadService;
   const settings = {
     getStaleThresholdHours: vi.fn(async () => 48),
+    getJiraSyncScopeMode: vi.fn(async () => "team_assignees"),
   };
   const service = new AlertService(workloadService, settings as any);
 
@@ -162,6 +163,7 @@ describe("AlertService", () => {
   it("uses the configured stale threshold", async () => {
     const relaxedThresholdService = new AlertService(workloadService, {
       getStaleThresholdHours: vi.fn(async () => 72),
+      getJiraSyncScopeMode: vi.fn(async () => "team_assignees"),
     } as any);
 
     const alerts = await relaxedThresholdService.computeAlerts(new Date("2026-03-05T12:00:00.000Z"));
@@ -174,6 +176,18 @@ describe("AlertService", () => {
 
     expect(alerts.some((alert) => alert.issueKey === "PROJ-6")).toBe(false);
     expect(alerts.some((alert) => alert.issueKey === "PROJ-7")).toBe(false);
+    expect(alerts.some((alert) => alert.issueKey === "PROJ-8")).toBe(false);
+  });
+
+  it("includes outside-roster issue alerts in base-query mode", async () => {
+    const baseQueryService = new AlertService(workloadService, {
+      getStaleThresholdHours: vi.fn(async () => 48),
+      getJiraSyncScopeMode: vi.fn(async () => "base_query"),
+    } as any);
+
+    const alerts = await baseQueryService.computeAlerts(new Date("2026-03-05T12:00:00.000Z"));
+
+    expect(alerts.some((alert) => alert.issueKey === "PROJ-7")).toBe(true);
     expect(alerts.some((alert) => alert.issueKey === "PROJ-8")).toBe(false);
   });
 

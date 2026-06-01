@@ -78,6 +78,7 @@ describe("alerts routes", () => {
     } as unknown as WorkloadService,
     {
       getStaleThresholdHours: async () => 48,
+      getJiraSyncScopeMode: async () => "team_assignees",
     } as any,
   );
 

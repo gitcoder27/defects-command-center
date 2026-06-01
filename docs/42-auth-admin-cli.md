@@ -2,12 +2,21 @@
 
 Run these from the checkout whose SQLite data you want to manage.
 
+On the production server, run auth admin commands with the system Node/npm path pinned to `/usr/bin`.
+The production service uses `/usr/bin/node`; this prevents an interactive shell with nvm from picking a different Node version and failing to load native modules such as `better-sqlite3`.
+
+```bash
+env PATH=/usr/bin:/bin:$PATH /usr/bin/npm ...
+```
+
+For local development, plain `npm ...` is fine when your shell Node version matches the installed `node_modules`.
+
 ## Create An Isolated Manager Workspace
 
 Use this when a manager should have their own Jira config, team roster, synced issues, Team Tracker, and settings.
 
 ```bash
-npm run auth:create-user --workspace=server -- \
+env PATH=/usr/bin:/bin:$PATH /usr/bin/npm run auth:create-user --workspace=server -- \
   --username new-manager \
   --password 'change-me' \
   --display-name 'New Manager' \
@@ -23,7 +32,7 @@ Use this for a manager account accidentally created from Settings inside another
 First preview the deletion:
 
 ```bash
-npm run auth:delete-user --workspace=server -- \
+env PATH=/usr/bin:/bin:$PATH /usr/bin/npm run auth:delete-user --workspace=server -- \
   --username shared-manager \
   --workspace-id default \
   --role manager \
@@ -33,7 +42,7 @@ npm run auth:delete-user --workspace=server -- \
 Then delete the login account:
 
 ```bash
-npm run auth:delete-user --workspace=server -- \
+env PATH=/usr/bin:/bin:$PATH /usr/bin/npm run auth:delete-user --workspace=server -- \
   --username shared-manager \
   --workspace-id default \
   --role manager \
@@ -47,7 +56,7 @@ By default this removes only the app login and active sessions. It keeps shared 
 If the mistaken manager account was used and you also want to remove its private manager data, add `--purge-private-data`:
 
 ```bash
-npm run auth:delete-user --workspace=server -- \
+env PATH=/usr/bin:/bin:$PATH /usr/bin/npm run auth:delete-user --workspace=server -- \
   --username shared-manager \
   --workspace-id default \
   --role manager \

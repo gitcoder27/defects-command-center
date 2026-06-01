@@ -51,11 +51,12 @@ import {
 } from '@/hooks/useSettingsActions';
 import { TagManagementSection } from '@/components/settings/TagManagementSection';
 import { SettingsMaintenanceSection } from '@/components/settings/SettingsMaintenanceSection';
-import type { AuthUser, Developer } from '@/types';
+import type { AuthUser, Developer, JiraSyncScopeMode } from '@/types';
 
 type FieldPickerTarget = 'dueDate' | 'aspenSeverity';
 type SectionId = 'connection' | 'sync' | 'team' | 'tags' | 'maintenance' | 'access';
 type CreatableUserRole = Extract<AuthUser['role'], 'manager' | 'developer'>;
+const DEFAULT_SYNC_SCOPE_MODE: JiraSyncScopeMode = 'team_assignees';
 
 export function SettingsPage() {
   const DISCOVER_PAGE_SIZE = 50;
@@ -81,6 +82,7 @@ export function SettingsPage() {
   const { mutateAsync: removeTeamDeveloper } = useRemoveTeamDeveloper();
 
   const [jql, setJql] = useState('');
+  const [syncScopeMode, setSyncScopeMode] = useState<JiraSyncScopeMode>(DEFAULT_SYNC_SCOPE_MODE);
   const [devDueDateField, setDevDueDateField] = useState('');
   const [aspenSeverityField, setAspenSeverityField] = useState('');
   const [managerJiraAccountId, setManagerJiraAccountId] = useState('');
@@ -166,6 +168,7 @@ export function SettingsPage() {
   useEffect(() => {
     if (config) {
       setJql(config.jiraSyncJql || '');
+      setSyncScopeMode(config.jiraSyncScopeMode || DEFAULT_SYNC_SCOPE_MODE);
       setDevDueDateField(config.jiraDevDueDateField || 'customfield_10128');
       setAspenSeverityField(config.jiraAspenSeverityField || '');
       setManagerJiraAccountId(config.managerJiraAccountId || '');
@@ -286,6 +289,7 @@ export function SettingsPage() {
     try {
       const trimmedToken = jiraApiTokenInput.trim();
       await saveSettingsConfig({
+        jiraSyncScopeMode: syncScopeMode,
         jiraSyncJql: jql,
         jiraDevDueDateField: devDueDateField,
         jiraAspenSeverityField: aspenSeverityField,
@@ -708,6 +712,8 @@ export function SettingsPage() {
     }
   }, [config?.jiraBaseUrl]);
 
+  const syncScopeLabel = syncScopeMode === 'base_query' ? 'Base query' : 'Team assignees';
+
   const SECTION_LABELS: Record<SectionId, { title: string; description: string }> = {
     connection: { title: 'Jira Connection', description: 'Review the active workspace and set the lead manager identity.' },
     sync: { title: 'Sync Scope', description: 'Define the base defect query and map custom Jira fields.' },
@@ -719,7 +725,7 @@ export function SettingsPage() {
 
   const navItems: Array<{ id: SectionId; icon: ReactNode; label: string; status: string | null; sv: 'success' | 'warning' | 'muted' }> = [
     { id: 'connection', icon: <Globe size={13} />, label: 'Jira Connection', status: connectionNeedsAttention ? 'Needs attention' : connectionLabel !== 'Connection pending' ? connectionLabel : null, sv: connectionNeedsAttention ? 'warning' : config?.jiraBaseUrl ? 'success' : 'muted' },
-    { id: 'sync', icon: <RefreshCw size={13} />, label: 'Sync Scope', status: jql ? 'Query set' : 'No query', sv: jql ? 'muted' : 'warning' },
+    { id: 'sync', icon: <RefreshCw size={13} />, label: 'Sync Scope', status: jql ? syncScopeLabel : 'No query', sv: jql ? 'muted' : 'warning' },
     { id: 'team', icon: <Users size={13} />, label: 'Team Members', status: `${developers.length} tracked`, sv: 'muted' },
     { id: 'tags', icon: <Tag size={13} />, label: 'Defect Tags', status: null, sv: 'muted' },
     { id: 'maintenance', icon: <AlertTriangle size={13} />, label: 'Data Maintenance', status: 'Danger zone', sv: 'warning' },
@@ -919,7 +925,7 @@ export function SettingsPage() {
                         { label: 'Jira email', value: config?.jiraEmail || '-' },
                         { label: 'Project key', value: config?.jiraProjectKey || '—' },
                         { label: 'API token', value: config?.jiraApiToken ? 'Saved' : 'Not saved' },
-                        { label: 'Sync scope', value: 'Assignees auto-appended at sync time.' },
+                        { label: 'Sync scope', value: syncScopeMode === 'base_query' ? 'Base query only.' : 'Team assignees appended at sync time.' },
                       ] as Array<{ label: string; value: string }>).map((row, idx) => (
                         <div
                           key={row.label}
@@ -936,7 +942,9 @@ export function SettingsPage() {
                       ))}
                     </div>
                     <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                      Save the base query only — team assignees and the manager lead identity are appended automatically at sync time.
+                      {syncScopeMode === 'base_query'
+                        ? 'The saved query defines the Jira defect universe for this workspace.'
+                        : 'Team assignees and the manager lead identity are appended automatically at sync time.'}
                     </p>
                   </div>
 
@@ -1091,11 +1099,84 @@ export function SettingsPage() {
               {/* ── SYNC SCOPE ────── */}
               {activeSection === 'sync' ? (
                 <div className="max-w-[720px] space-y-7">
+                  {/* Scope mode */}
+                  <div>
+                    <SettingsGroupLabel>Scope Mode</SettingsGroupLabel>
+                    <p className="mt-1 mb-3 text-[12px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                      Choose whether Jira sync is limited to the tracked roster or driven directly by the base query.
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {([
+                        {
+                          id: 'team_assignees' as const,
+                          icon: <Users size={14} />,
+                          label: 'Team assignees',
+                          badge: 'Default',
+                          description: 'Append active team members and the manager identity. Empty roster returns no defects.',
+                        },
+                        {
+                          id: 'base_query' as const,
+                          icon: <Globe size={14} />,
+                          label: 'Base query',
+                          badge: 'Exact JQL',
+                          description: 'Run the base query without added assignee filters. Team roster stays optional.',
+                        },
+                      ]).map((option) => {
+                        const selected = syncScopeMode === option.id;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            aria-pressed={selected}
+                            onClick={() => setSyncScopeMode(option.id)}
+                            className="group rounded-xl px-3.5 py-3 text-left transition-all active:scale-[0.99]"
+                            style={{
+                              border: selected ? '1px solid color-mix(in srgb, var(--accent) 48%, transparent)' : 'var(--settings-inset-border)',
+                              background: selected ? 'var(--settings-accent-soft-bg)' : 'var(--settings-input-bg)',
+                              color: 'var(--text-primary)',
+                            }}
+                          >
+                            <span className="flex items-center gap-2">
+                              <span
+                                className="flex h-7 w-7 items-center justify-center rounded-lg"
+                                style={{
+                                  background: selected ? 'var(--accent)' : 'var(--bg-tertiary)',
+                                  color: selected ? '#fff' : 'var(--text-secondary)',
+                                }}
+                              >
+                                {option.icon}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-[13px] font-semibold leading-5">{option.label}</span>
+                                <span
+                                  className="mt-0.5 inline-flex rounded-full px-2 py-0.5 text-[10.5px] font-semibold uppercase"
+                                  style={{
+                                    letterSpacing: '0.08em',
+                                    background: selected ? 'color-mix(in srgb, var(--accent) 14%, transparent)' : 'var(--bg-tertiary)',
+                                    color: selected ? 'var(--accent)' : 'var(--text-muted)',
+                                  }}
+                                >
+                                  {option.badge}
+                                </span>
+                              </span>
+                              {selected ? <Check size={14} style={{ color: 'var(--accent)' }} /> : null}
+                            </span>
+                            <span className="mt-2 block text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>
+                              {option.description}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {/* Base query */}
                   <div>
                     <SettingsGroupLabel>Base JQL Query</SettingsGroupLabel>
                     <p className="mt-1 mb-3 text-[12px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                      Keep this query focused on the defect universe. Team assignees and manager lead logic are appended automatically at sync time.
+                      {syncScopeMode === 'base_query'
+                        ? 'This query is sent to Jira without LeadOS adding assignee filters.'
+                        : 'Keep this query focused on the defect universe. LeadOS will append team assignees and manager lead logic.'}
                     </p>
                     <textarea
                       id="jira-base-query"

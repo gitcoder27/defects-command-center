@@ -55,4 +55,20 @@ ORDER BY Rank ASC`);
       "project = AM AND issuetype = Bug AND statusCategory != Done AND assignee IS EMPTY AND assignee IS NOT EMPTY"
     );
   });
+
+  it("uses the configured base query without managed assignee changes in base-query mode", () => {
+    const query = `project = {PROJECT_KEY}
+AND assignee IN ("external-1", "external-2")
+ORDER BY updated DESC`;
+
+    expect(buildScopedJql("AM", query, ["lead-1"], "base_query")).toBe(`project = AM
+AND assignee IN ("external-1", "external-2")
+ORDER BY updated DESC`);
+  });
+
+  it("falls back to the default defect universe without assignee scope in base-query mode", () => {
+    expect(buildScopedJql("AM", "", [], "base_query")).toBe(
+      "project = AM AND issuetype = Bug AND statusCategory != Done"
+    );
+  });
 });

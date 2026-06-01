@@ -5,12 +5,12 @@ import { db } from "../db/connection";
 import { appUsers, configTable, developers as developersTable, issues, syncLog, componentMap, issueScopeHistory, issueTags, localTags } from "../db/schema";
 import { validate } from "../middleware/validate";
 import { JiraClient } from "../jira/client";
-import { stripManagedAssigneeClause } from "../jira/jql";
+import { normalizeConfiguredJqlForMode } from "../jira/jql";
 import { config } from "../config";
 import { clearJiraApiToken, getJiraApiToken } from "../runtime-credentials";
 import { BackupService } from "../services/backup.service";
 import { getPersistedJiraApiToken, storeJiraApiToken } from "../services/jira-credentials.service";
-import { SettingsService } from "../services/settings.service";
+import { normalizeJiraSyncScopeMode, SettingsService } from "../services/settings.service";
 import { WorkspaceMaintenanceService } from "../services/workspace-maintenance.service";
 import { SyncEngine } from "../sync/engine";
 import { logger } from "../utils/logger";
@@ -35,6 +35,7 @@ const configSchema = z.object({
     backupOnStartup: z.boolean().optional(),
     backupStartupMaxAgeHours: z.number().int().positive().optional(),
     backupBeforeReset: z.boolean().optional(),
+    jiraSyncScopeMode: z.enum(["team_assignees", "base_query"]).optional(),
     jiraSyncJql: z.string().optional(),
     jiraDevDueDateField: z.string().optional(),
     jiraAspenSeverityField: z.string().optional(),
@@ -170,7 +171,11 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
       const backupOnStartup = await settings.getBackupOnStartup(workspaceId);
       const backupStartupMaxAgeHours = await settings.getBackupStartupMaxAgeHours(workspaceId);
       const backupBeforeReset = await settings.getBackupBeforeReset(workspaceId);
-      const jiraSyncJql = stripManagedAssigneeClause((await getConfigValue(workspaceId, "jira_sync_jql")) ?? defaultWorkspaceFallback(workspaceId, config.JIRA_SYNC_JQL) ?? "");
+      const jiraSyncScopeMode = await settings.getJiraSyncScopeMode(workspaceId);
+      const jiraSyncJql = normalizeConfiguredJqlForMode(
+        (await getConfigValue(workspaceId, "jira_sync_jql")) ?? defaultWorkspaceFallback(workspaceId, config.JIRA_SYNC_JQL) ?? "",
+        jiraSyncScopeMode
+      );
       const jiraDevDueDateField = (await getConfigValue(workspaceId, "jira_dev_due_date_field")) ?? defaultWorkspaceFallback(workspaceId, config.JIRA_DEV_DUE_DATE_FIELD) ?? "customfield_10128";
       const jiraAspenSeverityField = (await getConfigValue(workspaceId, "jira_aspen_severity_field")) ?? defaultWorkspaceFallback(workspaceId, config.JIRA_ASPEN_SEVERITY_FIELD) ?? "";
       const managerRows = await db
@@ -197,6 +202,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
         backupOnStartup,
         backupStartupMaxAgeHours,
         backupBeforeReset,
+        jiraSyncScopeMode,
         jiraSyncJql,
         jiraDevDueDateField,
         jiraAspenSeverityField,
@@ -215,6 +221,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
       validateJiraBaseUrl(req.body.jiraBaseUrl);
       const tokenForLookup = req.body.jiraApiToken ?? await getConfiguredJiraToken(workspaceId);
       const managerJiraAccountId = normalizeManagerJiraAccountId(req.body.managerJiraAccountId);
+      const jiraSyncScopeMode = normalizeJiraSyncScopeMode(req.body.jiraSyncScopeMode ?? await getConfigValue(workspaceId, "jira_sync_scope_mode"));
 
       if (req.body.jiraApiToken) {
         await storeJiraApiToken(req.body.jiraApiToken, workspaceId);
@@ -233,8 +240,11 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
       }
       await upsertConfig(workspaceId, "sync_interval_ms", String(syncIntervalMs));
       await upsertConfig(workspaceId, "stale_threshold_hours", String(staleThresholdHours));
+      if (req.body.jiraSyncScopeMode !== undefined) {
+        await upsertConfig(workspaceId, "jira_sync_scope_mode", jiraSyncScopeMode);
+      }
       if (req.body.jiraSyncJql !== undefined) {
-        await upsertConfig(workspaceId, "jira_sync_jql", stripManagedAssigneeClause(req.body.jiraSyncJql));
+        await upsertConfig(workspaceId, "jira_sync_jql", normalizeConfiguredJqlForMode(req.body.jiraSyncJql, jiraSyncScopeMode));
       }
       if (req.body.jiraDevDueDateField !== undefined) {
         await upsertConfig(workspaceId, "jira_dev_due_date_field", req.body.jiraDevDueDateField);
@@ -340,6 +350,7 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
   // Lightweight settings update (JQL + dev due date field only, no full config rewrite)
   const settingsSchema = z.object({
     body: z.object({
+      jiraSyncScopeMode: z.enum(["team_assignees", "base_query"]).optional(),
       jiraSyncJql: z.string().optional(),
       jiraDevDueDateField: z.string().optional(),
       jiraAspenSeverityField: z.string().optional(),
@@ -354,8 +365,12 @@ export function createConfigRouter(syncEngine?: SyncEngine, backupService?: Back
     try {
       const workspaceId = req.auth!.user.workspaceId;
       let shouldRestartSync = false;
+      const jiraSyncScopeMode = normalizeJiraSyncScopeMode(req.body.jiraSyncScopeMode ?? await getConfigValue(workspaceId, "jira_sync_scope_mode"));
+      if (req.body.jiraSyncScopeMode !== undefined) {
+        await upsertConfig(workspaceId, "jira_sync_scope_mode", jiraSyncScopeMode);
+      }
       if (req.body.jiraSyncJql !== undefined) {
-        await upsertConfig(workspaceId, "jira_sync_jql", stripManagedAssigneeClause(req.body.jiraSyncJql));
+        await upsertConfig(workspaceId, "jira_sync_jql", normalizeConfiguredJqlForMode(req.body.jiraSyncJql, jiraSyncScopeMode));
       }
       if (req.body.jiraDevDueDateField !== undefined) {
         await upsertConfig(workspaceId, "jira_dev_due_date_field", req.body.jiraDevDueDateField);

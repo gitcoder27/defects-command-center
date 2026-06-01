@@ -1,6 +1,7 @@
 export type WorkloadLevel = "light" | "medium" | "heavy";
 export type TeamScopeState = "in_team" | "out_of_team" | "unassigned";
-export type SyncScopeState = "active" | "inaccessible";
+export type SyncScopeState = "active" | "inaccessible" | "out_of_scope";
+export type JiraSyncScopeMode = "team_assignees" | "base_query";
 
 export type FilterType =
   | "all"
@@ -404,6 +405,7 @@ export interface DashboardConfig {
   backupOnStartup: boolean;
   backupStartupMaxAgeHours: number;
   backupBeforeReset: boolean;
+  jiraSyncScopeMode: JiraSyncScopeMode;
   jiraSyncJql: string;
   jiraDevDueDateField: string;
   jiraAspenSeverityField: string;

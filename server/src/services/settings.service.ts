@@ -9,12 +9,14 @@ import { getPersistedJiraApiToken } from "./jira-credentials.service";
 import path from "node:path";
 import { HttpError } from "../middleware/errorHandler";
 import { DEFAULT_WORKSPACE_ID, normalizeWorkspaceId } from "./workspace.service";
+import type { JiraSyncScopeMode } from "shared/types";
 
 export const DEFAULT_SYNC_INTERVAL_MS = 300_000;
 export const DEFAULT_STALE_THRESHOLD_HOURS = 48;
 export const DEFAULT_TEAM_TRACKER_STALE_THRESHOLD_HOURS = 4;
 export const DEFAULT_TEAM_TRACKER_NO_CURRENT_THRESHOLD_HOURS = 2;
 export const DEFAULT_TEAM_TRACKER_STATUS_FOLLOW_UP_THRESHOLD_HOURS = 2;
+export const DEFAULT_JIRA_SYNC_SCOPE_MODE: JiraSyncScopeMode = "team_assignees";
 export const DEFAULT_BACKUP_ENABLED = true;
 export const DEFAULT_BACKUP_INTERVAL_MINUTES = 30;
 export const DEFAULT_BACKUP_RETENTION_DAYS = 14;
@@ -22,6 +24,10 @@ export const DEFAULT_BACKUP_MAX_SCHEDULED_SNAPSHOTS = 96;
 export const DEFAULT_BACKUP_ON_STARTUP = true;
 export const DEFAULT_BACKUP_STARTUP_MAX_AGE_HOURS = 12;
 export const DEFAULT_BACKUP_BEFORE_RESET = true;
+
+export function normalizeJiraSyncScopeMode(value: string | null | undefined): JiraSyncScopeMode {
+  return value === "base_query" ? "base_query" : DEFAULT_JIRA_SYNC_SCOPE_MODE;
+}
 
 export class SettingsService {
   private envFallback<T>(workspaceId: string | undefined, value: T): T | undefined {
@@ -68,6 +74,10 @@ export class SettingsService {
 
   async getJiraSyncJql(workspaceId?: string): Promise<string | undefined> {
     return (await this.getConfigValue("jira_sync_jql", workspaceId)) ?? this.envFallback(workspaceId, config.JIRA_SYNC_JQL);
+  }
+
+  async getJiraSyncScopeMode(workspaceId?: string): Promise<JiraSyncScopeMode> {
+    return normalizeJiraSyncScopeMode(await this.getConfigValue("jira_sync_scope_mode", workspaceId));
   }
 
   async getJiraDevDueDateField(workspaceId?: string): Promise<string> {
