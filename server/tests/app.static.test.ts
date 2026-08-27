@@ -23,18 +23,24 @@ const invokeStaticHeaders = (filePath: string) => {
 };
 
 describe("production static asset headers", () => {
-  it("prevents ranged or revalidated JavaScript bundle responses", () => {
+  it("marks fingerprinted JS bundles as immutable for one year", () => {
     const { headers, removedHeaders } = invokeStaticHeaders("/client/dist/assets/index-FEogyng1.js");
 
     expect(productionStaticOptions.acceptRanges).toBe(false);
     expect(productionStaticOptions.cacheControl).toBe(false);
-    expect(productionStaticOptions.etag).toBe(false);
-    expect(productionStaticOptions.lastModified).toBe(false);
+    expect(productionStaticOptions.etag).toBe(true);
+    expect(productionStaticOptions.lastModified).toBe(true);
     expect(removedHeaders).toContain("accept-ranges");
-    expect(headers.get("cache-control")).toContain("no-store");
-    expect(headers.get("pragma")).toBe("no-cache");
-    expect(headers.get("expires")).toBe("0");
+    expect(headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+    expect(headers.has("pragma")).toBe(false);
+    expect(headers.has("expires")).toBe(false);
     expect(headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
+  it("marks fingerprinted fonts as immutable for one year", () => {
+    const { headers } = invokeStaticHeaders("/client/dist/assets/geist-latin-wght-normal-Dm3htQBi.woff2");
+
+    expect(headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
   });
 
   it("marks HTML entrypoints as no-store", () => {
@@ -43,5 +49,11 @@ describe("production static asset headers", () => {
     expect(headers.get("cache-control")).toContain("no-store");
     expect(headers.get("pragma")).toBe("no-cache");
     expect(headers.get("expires")).toBe("0");
+  });
+
+  it("allows ETag revalidation for non-fingerprinted static files", () => {
+    const { headers } = invokeStaticHeaders("/client/dist/favicon.svg");
+
+    expect(headers.get("cache-control")).toBe("no-cache, must-revalidate");
   });
 });

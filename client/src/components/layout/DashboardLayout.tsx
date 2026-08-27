@@ -8,22 +8,11 @@ import { WorkloadBar } from '@/components/workload/WorkloadBar';
 import { WorkFocusStrip } from '@/components/work/WorkFocusStrip';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import type { FilterType, Alert, ManagerActionTarget } from '@/types';
+import type { Alert, FilterType, ManagerActionTarget } from '@/types';
 import type { AppView } from '@/App';
+import { DEFAULT_DASHBOARD_FILTER_STATE, type DashboardFilterState } from './dashboard-state';
 
-export interface DashboardFilterState {
-  activeFilter: FilterType;
-  activeDeveloper?: string;
-  selectedTagId?: number;
-  noTagsFilter: boolean;
-}
-
-export const DEFAULT_DASHBOARD_FILTER_STATE: DashboardFilterState = {
-  activeFilter: 'all',
-  activeDeveloper: undefined,
-  selectedTagId: undefined,
-  noTagsFilter: false,
-};
+export { DEFAULT_DASHBOARD_FILTER_STATE, type DashboardFilterState } from './dashboard-state';
 
 const RETAINED_HIGHLIGHT_INTERACTIVE_SELECTOR = [
   'button',

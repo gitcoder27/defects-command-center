@@ -341,6 +341,9 @@ export interface TodayMeetingPrompt {
   secondaryActions: TodayActionCommand[];
 }
 
+export type TodaySourceName = "issues" | "team" | "desk" | "sync";
+export type TodaySourceStatus = Record<TodaySourceName, "ready" | "unavailable">;
+
 export interface TodayResponse {
   date: string;
   generatedAt: string;
@@ -353,6 +356,8 @@ export interface TodayResponse {
   standupPrompts: TodayStandupPrompt[];
   meetingPrompts: TodayMeetingPrompt[];
   syncStatus?: SyncStatus;
+  isPartial?: boolean;
+  sourceStatus?: TodaySourceStatus;
 }
 
 // ── Manager action engine contracts ─────────────────────

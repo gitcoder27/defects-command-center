@@ -8,6 +8,7 @@ import { HttpError } from "../middleware/errorHandler";
 import { DEFAULT_WORKSPACE_ID, normalizeWorkspaceId, WorkspaceService } from "./workspace.service";
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+const SESSION_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
 const DEFAULT_SESSION_COOKIE_NAME = "dcc_session";
 export const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME?.trim() || DEFAULT_SESSION_COOKIE_NAME;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
@@ -229,6 +230,7 @@ export class AuthService {
         developerAccountId: appUsers.developerAccountId,
         isActive: appUsers.isActive,
         expiresAt: appSessions.expiresAt,
+        lastSeenAt: appSessions.lastSeenAt,
       })
       .from(appSessions)
       .innerJoin(appUsers, eq(appUsers.id, appSessions.userId))
@@ -246,10 +248,13 @@ export class AuthService {
       return undefined;
     }
 
-    await db
-      .update(appSessions)
-      .set({ lastSeenAt: now })
-      .where(eq(appSessions.id, sessionId));
+    const lastSeenAt = new Date(row.lastSeenAt).getTime();
+    if (Number.isNaN(lastSeenAt) || Date.now() - lastSeenAt >= SESSION_TOUCH_INTERVAL_MS) {
+      await db
+        .update(appSessions)
+        .set({ lastSeenAt: now })
+        .where(eq(appSessions.id, sessionId));
+    }
 
     return mapAuthUser({
       id: row.userId,

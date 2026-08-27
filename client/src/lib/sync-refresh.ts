@@ -13,6 +13,7 @@ export const SYNC_DEPENDENT_QUERY_KEYS: QueryKey[] = [
   ['manager-desk'],
   ['my-day'],
   ['my-day-issues'],
+  ['today'],
 ];
 
 export async function invalidateSyncDependentQueries(queryClient: QueryClient) {

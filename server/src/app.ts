@@ -34,21 +34,29 @@ import { TodayService } from "./services/today.service";
 import { SyncEngine } from "./sync/engine";
 import { resolveWorkspaceRoot } from "./db/paths";
 
-const cacheSensitiveAssetPattern = /\.(?:css|html|js|mjs)$/i;
+// Vite emits content-hashed filenames (e.g. assets/index-CnNbQUcO.js), which are
+// safe to cache forever: any change produces a new URL.
+const fingerprintedAssetPattern = /\/assets\/[^/]*-[0-9A-Za-z_-]{8,}\.[a-z0-9]+$/i;
 const executableAssetPattern = /\.(?:css|js|mjs)$/i;
+const htmlAssetPattern = /\.html?$/i;
 
 export const productionStaticOptions: ServeStaticOptions = {
   acceptRanges: false,
   cacheControl: false,
-  etag: false,
-  lastModified: false,
+  etag: true,
+  lastModified: true,
   setHeaders: (res, filePath) => {
     res.removeHeader("Accept-Ranges");
 
-    if (cacheSensitiveAssetPattern.test(filePath)) {
+    if (fingerprintedAssetPattern.test(filePath)) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    } else if (htmlAssetPattern.test(filePath)) {
       res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
       res.setHeader("Pragma", "no-cache");
       res.setHeader("Expires", "0");
+    } else {
+      // Non-fingerprinted static files (favicon, images) revalidate via ETag.
+      res.setHeader("Cache-Control", "no-cache, must-revalidate");
     }
 
     if (executableAssetPattern.test(filePath)) {
@@ -60,12 +68,12 @@ export const productionStaticOptions: ServeStaticOptions = {
 const indexHtmlSendFileOptions: SendFileOptions = {
   acceptRanges: false,
   cacheControl: false,
-  etag: false,
-  lastModified: false,
+  etag: true,
+  lastModified: true,
   headers: {
-    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-    Pragma: "no-cache",
-    Expires: "0",
+    // Keep the entry document fresh so new deploys are picked up immediately,
+    // while allowing cheap 304 revalidation on repeat loads.
+    "Cache-Control": "no-cache, must-revalidate",
   },
 };
 

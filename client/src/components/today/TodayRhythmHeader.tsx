@@ -1,5 +1,5 @@
 import { CalendarClock, Loader2, RefreshCw } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format, formatDistanceToNow, parseISO } from 'date-fns';
 import { todayToneStyles } from './today-design';
 import type { TodayResponse } from '@/types';
 
@@ -13,6 +13,7 @@ interface TodayRhythmHeaderProps {
 export function TodayRhythmHeader({ today, isFetching, onRefresh, onOpenMetric }: TodayRhythmHeaderProps) {
   const formattedDate = format(parseISO(today.date), 'MMM d, yyyy');
   const weekday = format(parseISO(today.date), 'EEE');
+  const freshness = formatDistanceToNow(parseISO(today.generatedAt), { addSuffix: true });
   const metrics = today.summary.slice(0, 6);
 
   return (
@@ -30,6 +31,9 @@ export function TodayRhythmHeader({ today, isFetching, onRefresh, onOpenMetric }
             <div>
               <p className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>Today</p>
               <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--text-secondary)' }}>{formattedDate} / {weekday}</p>
+              <p className="text-[10px] leading-4" style={{ color: 'var(--text-muted)' }}>
+                {isFetching ? 'Refreshing data' : `Updated ${freshness}`}
+              </p>
             </div>
           </div>
           <button

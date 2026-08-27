@@ -25,7 +25,7 @@ interface HeaderProps {
 export function Header({ onOpenMobileSidebar, activeView, onViewChange, onOpenActionTarget, captureContext }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
-  const { data: sync } = useSyncStatus();
+  const { data: sync } = useSyncStatus({ enabled: activeView !== 'today' });
   const triggerSync = useTriggerSync();
   const [captureOpen, setCaptureOpen] = useState(false);
   const headerRef = useRef<HTMLElement | null>(null);
@@ -36,11 +36,15 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onOpenAc
     ? 'Sync issue'
     : sync?.lastSyncedAt
     ? `Synced ${formatRelativeTime(sync.lastSyncedAt)}`
+    : activeView === 'today'
+    ? 'Status in Today'
     : 'Not synced';
   const syncTitle = hasError && sync?.errorMessage
     ? `Sync issue: ${sync.errorMessage}`
     : sync?.lastSyncedAt
     ? `Synced ${formatRelativeTime(sync.lastSyncedAt)}`
+    : activeView === 'today'
+    ? 'Sync status is included in Today'
     : 'Not synced';
   const canQuickCapture = user?.role === 'manager';
   const currentView = activeView ?? 'today';

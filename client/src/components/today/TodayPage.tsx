@@ -126,6 +126,13 @@ export function TodayPage({ onViewChange, onSelectWorkFilter, onOpenTodayTarget 
             onRefresh={() => void today.refetch()}
             onOpenMetric={openTarget}
           />
+          {snapshot.isPartial ? (
+            <TodayPartialDataNotice
+              sourceStatus={snapshot.sourceStatus}
+              isFetching={today.isFetching}
+              onRetry={() => void today.refetch()}
+            />
+          ) : null}
           <TodayCurrentPriority
             item={snapshot.currentPriority}
             onRunAction={(item) => runCommand(item.primaryAction)}
@@ -203,28 +210,136 @@ export function TodayPage({ onViewChange, onSelectWorkFilter, onOpenTodayTarget 
   );
 }
 
+function TodayPartialDataNotice({
+  sourceStatus,
+  isFetching,
+  onRetry,
+}: {
+  sourceStatus: TodayResponse['sourceStatus'];
+  isFetching: boolean;
+  onRetry: () => void;
+}) {
+  const labels = { issues: 'Work', team: 'Team', desk: 'Desk', sync: 'Sync' } as const;
+  const unavailable = sourceStatus
+    ? (Object.entries(sourceStatus) as Array<[keyof typeof labels, 'ready' | 'unavailable']>)
+        .filter(([, status]) => status === 'unavailable')
+        .map(([source]) => labels[source])
+    : [];
+
+  return (
+    <div
+      className="flex shrink-0 items-center justify-between gap-4 border-b px-5 py-2 text-[12px] xl:px-8"
+      style={{ borderColor: 'var(--today-line)', background: 'color-mix(in srgb, var(--warning) 7%, transparent)' }}
+      role="status"
+    >
+      <p style={{ color: 'var(--text-secondary)' }}>
+        {unavailable.join(', ') || 'Some'} data is temporarily unavailable. Available actions remain current.
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        disabled={isFetching}
+        className="shrink-0 rounded-md px-2.5 py-1 font-medium active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
+        style={{ color: 'var(--warning)', border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' }}
+      >
+        {isFetching ? 'Retrying' : 'Retry'}
+      </button>
+    </div>
+  );
+}
+
 function TodayLoadingState({ isError, onRetry }: { isError: boolean; onRetry: () => void }) {
+  if (!isError) {
+    return <TodayPageSkeleton />;
+  }
+
   return (
     <section className="flex min-h-0 flex-1 items-center justify-center px-5">
       <div className="text-center">
         <p className="text-[14px] font-medium" style={{ color: 'var(--text-primary)' }}>
-          {isError ? 'Today could not load' : 'Loading Today'}
+          Today could not load
         </p>
         <p className="mt-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-          {isError ? 'Retry the cockpit read model.' : 'Building the action queue.'}
+          Retry the cockpit read model.
         </p>
-        {isError ? (
-          <button
-            type="button"
-            onClick={onRetry}
-            className="mt-4 rounded-md px-3 py-1.5 text-[12px] font-medium"
-            style={{ background: 'var(--accent)', color: '#fff' }}
-          >
-            Retry
-          </button>
-        ) : null}
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-4 rounded-md px-3 py-1.5 text-[12px] font-medium active:scale-[0.98]"
+          style={{ background: 'var(--accent)', color: '#fff' }}
+        >
+          Retry
+        </button>
       </div>
     </section>
+  );
+}
+
+function TodayPageSkeleton() {
+  return (
+    <section className="flex min-h-0 flex-1 flex-col" role="status" aria-live="polite" aria-label="Loading Today">
+      <span className="sr-only">Loading Today</span>
+      <div aria-hidden="true" className="flex min-h-0 flex-1 flex-col">
+        <div className="shrink-0 border-b px-2 py-1.5" style={{ borderColor: 'var(--today-line)' }}>
+          <div className="grid gap-1.5 border-b border-t py-1.5 lg:grid-cols-[190px_repeat(6,minmax(0,1fr))_126px]" style={{ borderColor: 'var(--today-line)' }}>
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((item) => (
+              <div key={item} className="min-h-[58px] rounded-lg px-3.5 py-2.5">
+                <SkeletonBlock className={item === 0 ? 'h-4 w-24' : 'h-5 w-16'} />
+                <SkeletonBlock className="mt-2 h-3 w-20" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="shrink-0 border-b px-5 py-3 xl:px-8" style={{ borderColor: 'var(--today-line)' }}>
+          <div className="grid min-h-[62px] grid-cols-[92px_minmax(0,1fr)_120px] items-center gap-3 px-3.5">
+            <SkeletonBlock className="h-3 w-16" />
+            <div>
+              <SkeletonBlock className="h-4 w-2/3" />
+              <SkeletonBlock className="mt-2 h-3 w-1/3" />
+            </div>
+            <SkeletonBlock className="h-8 w-full" />
+          </div>
+        </div>
+        <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
+          <div className="border-b px-5 py-5 lg:border-b-0 lg:border-r xl:px-8" style={{ borderColor: 'var(--today-line-strong)' }}>
+            <SkeletonBlock className="h-5 w-32" />
+            <SkeletonBlock className="mt-2 h-3 w-48" />
+            <div className="mt-5 space-y-2">
+              {[0, 1, 2, 3, 4].map((row) => (
+                <div key={row} className="grid min-h-[52px] grid-cols-[30px_minmax(0,1fr)_112px] items-center gap-4 border-b px-1 py-3" style={{ borderColor: 'var(--today-line)' }}>
+                  <SkeletonBlock className="h-6 w-6" />
+                  <SkeletonBlock className="h-4 w-4/5" />
+                  <SkeletonBlock className="h-7 w-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <aside className="min-h-0 px-5 py-5 xl:px-8">
+            <SkeletonBlock className="h-5 w-28" />
+            <div className="mt-5 space-y-3">
+              {[0, 1, 2, 3].map((row) => (
+                <div key={row} className="grid min-h-[46px] grid-cols-[32px_minmax(0,1fr)_80px] items-center gap-3 border-b" style={{ borderColor: 'var(--today-line)' }}>
+                  <SkeletonBlock className="h-7 w-7" />
+                  <SkeletonBlock className="h-4 w-3/4" />
+                  <SkeletonBlock className="h-6 w-full" />
+                </div>
+              ))}
+            </div>
+            <SkeletonBlock className="mt-8 h-8 w-full" />
+            <SkeletonBlock className="mt-4 h-16 w-full" />
+          </aside>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SkeletonBlock({ className }: { className: string }) {
+  return (
+    <div
+      className={`${className} animate-pulse rounded-sm motion-reduce:animate-none`}
+      style={{ background: 'color-mix(in srgb, var(--bg-tertiary) 78%, transparent)' }}
+    />
   );
 }
 

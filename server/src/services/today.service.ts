@@ -1,6 +1,6 @@
+import { performance } from "node:perf_hooks";
 import type {
   FilterType,
-  Issue,
   ManagerActionCommandRequest,
   ManagerActionCommandResponse,
   ManagerActionResponse,
@@ -21,6 +21,7 @@ import type {
   TodayResponse,
   TodayRhythmState,
   TodayStandupPrompt,
+  TodaySourceStatus,
   TodaySummaryMetric,
   TodayTeamPulseItem,
   TrackerAttentionActionItem,
@@ -30,10 +31,11 @@ import type {
   UserRole,
 } from "shared/types";
 import { HttpError } from "../middleware/errorHandler";
-import { IssueService } from "./issue.service";
+import { IssueService, type TodayIssue } from "./issue.service";
 import { ManagerDeskService } from "./manager-desk.service";
 import { TeamTrackerService } from "./team-tracker.service";
 import { normalizeWorkspaceId } from "./workspace.service";
+import { logger } from "../utils/logger";
 
 type SyncStatusSource = {
   getLastSyncLog: (workspaceId?: string) => Promise<{ completedAt: string | null; status: string; issuesSynced: number; errorMessage: string | null } | undefined>;
@@ -42,7 +44,29 @@ type SyncStatusSource = {
 
 type TodayCacheEntry = {
   expiresAt: number;
-  promise: Promise<TodayResponse>;
+  promise: Promise<TodayBuildResult>;
+};
+
+type TodaySourceTimings = {
+  issues: number;
+  team: number;
+  desk: number;
+  sync: number;
+};
+
+type TimedSourceResult<T> =
+  | { status: "fulfilled"; value: T; durationMs: number }
+  | { status: "rejected"; reason: unknown; durationMs: number };
+
+type TodayBuildResult = {
+  today: TodayResponse;
+  sourceTimings: TodaySourceTimings;
+  buildDurationMs: number;
+};
+
+export type TodayRequestResult = TodayBuildResult & {
+  cacheStatus: "hit" | "miss";
+  requestDurationMs: number;
 };
 
 type TodayServiceOptions = {
@@ -96,10 +120,20 @@ export class TodayService {
   }
 
   async getToday(managerAccountId: string, date: string, workspaceId?: string): Promise<TodayResponse> {
+    return (await this.getTodayWithMetadata(managerAccountId, date, workspaceId)).today;
+  }
+
+  async getTodayWithMetadata(managerAccountId: string, date: string, workspaceId?: string): Promise<TodayRequestResult> {
+    const requestStartedAt = performance.now();
     const cacheKey = this.todayCacheKey(managerAccountId, date, workspaceId);
     const cached = this.getCachedToday(cacheKey);
     if (cached) {
-      return cached;
+      const result = await cached;
+      return {
+        ...result,
+        cacheStatus: "hit",
+        requestDurationMs: performance.now() - requestStartedAt,
+      };
     }
 
     const promise = this.buildToday(managerAccountId, date, workspaceId).catch((error) => {
@@ -116,7 +150,12 @@ export class TodayService {
       });
     }
 
-    return promise;
+    const result = await promise;
+    return {
+      ...result,
+      cacheStatus: "miss",
+      requestDurationMs: performance.now() - requestStartedAt,
+    };
   }
 
   clearTodayCache(workspaceId?: string): void {
@@ -133,7 +172,7 @@ export class TodayService {
     }
   }
 
-  private getCachedToday(cacheKey: string): Promise<TodayResponse> | undefined {
+  private getCachedToday(cacheKey: string): Promise<TodayBuildResult> | undefined {
     if (this.todayCacheTtlMs <= 0) {
       return undefined;
     }
@@ -159,39 +198,75 @@ export class TodayService {
     ].join(":");
   }
 
-  private async buildToday(managerAccountId: string, date: string, workspaceId?: string): Promise<TodayResponse> {
-    const [overview, issues, teamBoard, deskDay, syncStatus] = await Promise.all([
-      this.issueService.getOverviewCounts(workspaceId),
-      this.issueService.getAll({ filter: "all", trackerDate: date, includeTrackerAssignments: false }, workspaceId),
-      this.teamTrackerService.getBoard(date, { managerAccountId, workspaceId }),
-      this.managerDeskService.getDay(managerAccountId, date, workspaceId),
-      this.getSyncStatus(workspaceId),
+  private async buildToday(managerAccountId: string, date: string, workspaceId?: string): Promise<TodayBuildResult> {
+    const buildStartedAt = performance.now();
+    const [issueResult, teamResult, deskResult, syncResult] = await Promise.all([
+      measureSource(() => this.issueService.getTodaySnapshot(date, workspaceId)),
+      measureSource(() => this.teamTrackerService.getBoard(date, { managerAccountId, workspaceId })),
+      measureSource(() => this.managerDeskService.getTodayItems(managerAccountId, date, workspaceId)),
+      measureSource(() => this.getSyncStatus(workspaceId)),
     ]);
+    const sourceStatus: TodaySourceStatus = {
+      issues: issueResult.status === "fulfilled" ? "ready" : "unavailable",
+      team: teamResult.status === "fulfilled" ? "ready" : "unavailable",
+      desk: deskResult.status === "fulfilled" ? "ready" : "unavailable",
+      sync: syncResult.status === "fulfilled" ? "ready" : "unavailable",
+    };
+    const unavailableSources = Object.entries(sourceStatus)
+      .filter(([, status]) => status === "unavailable")
+      .map(([source]) => source);
+    if (unavailableSources.length > 0) {
+      logger.warn(
+        { workspaceId: normalizeWorkspaceId(workspaceId), date, unavailableSources },
+        "Today snapshot source unavailable"
+      );
+    }
+    if (
+      issueResult.status === "rejected" &&
+      teamResult.status === "rejected" &&
+      deskResult.status === "rejected"
+    ) {
+      throw new AggregateError(
+        [issueResult.reason, teamResult.reason, deskResult.reason],
+        "Today core sources are unavailable"
+      );
+    }
 
-    const followUps = getDueFollowUps(deskDay.items, date);
-    const meetings = getMeetingPrompts(deskDay.items, date);
+    const issueSnapshot = issueResult.status === "fulfilled"
+      ? issueResult.value
+      : { issues: [], activeDefects: 0, dueToday: 0 };
+    const teamBoard = teamResult.status === "fulfilled" ? teamResult.value : emptyTeamBoard(date);
+    const deskItems = deskResult.status === "fulfilled" ? deskResult.value : [];
+    const syncStatus = syncResult.status === "fulfilled" ? syncResult.value : undefined;
+    const issues = issueSnapshot.issues;
+
+    const followUps = getDueFollowUps(deskItems, date);
+    const meetings = getMeetingPrompts(deskItems, date);
     const actionItems = rankActionItems([
       ...buildDeveloperActions(teamBoard, date),
       ...buildIssueActions(issues, date),
       ...buildFollowUpActions(followUps, date),
       ...buildMeetingActions(meetings),
-      ...buildDeskCarryForwardActions(deskDay.items, date),
+      ...buildDeskCarryForwardActions(deskItems, date),
       ...buildSyncActions(syncStatus),
     ]);
     const visibleActions = actionItems.slice(0, 20);
 
-    return {
+    const today: TodayResponse = {
       date,
       generatedAt: new Date().toISOString(),
       rhythm: getRhythmState(new Date()),
       summary: buildSummary({
         attentionCount: visibleActions.filter((item) => item.type !== "calm").length,
-        activeDefects: overview.total,
+        activeDefects: issueSnapshot.activeDefects,
         teamSize: teamBoard.summary.total,
         staleCheckIns: teamBoard.summary.stale,
-        dueToday: overview.dueToday,
+        dueToday: issueSnapshot.dueToday,
         followUpsDue: followUps.length,
         syncStatus,
+        issuesAvailable: sourceStatus.issues === "ready",
+        teamAvailable: sourceStatus.team === "ready",
+        deskAvailable: sourceStatus.desk === "ready",
       }),
       currentPriority: visibleActions[0] ?? buildCalmAction(date),
       actionItems: visibleActions.length > 0 ? visibleActions : [buildCalmAction(date)],
@@ -200,7 +275,33 @@ export class TodayService {
       standupPrompts: buildStandupPrompts(teamBoard, issues, followUps, date).slice(0, 8),
       meetingPrompts: meetings.map((item) => buildMeetingPrompt(item)).slice(0, 8),
       syncStatus,
+      isPartial: unavailableSources.length > 0,
+      sourceStatus,
     };
+    const buildDurationMs = performance.now() - buildStartedAt;
+    const sourceTimings = {
+      issues: issueResult.durationMs,
+      team: teamResult.durationMs,
+      desk: deskResult.durationMs,
+      sync: syncResult.durationMs,
+    };
+
+    if (buildDurationMs >= 1_000) {
+      logger.warn(
+        {
+          workspaceId: normalizeWorkspaceId(workspaceId),
+          date,
+          buildDurationMs: Math.round(buildDurationMs),
+          sourceTimings: roundSourceTimings(sourceTimings),
+          issueCount: issues.length,
+          developerCount: teamBoard.developers.length,
+          deskItemCount: deskItems.length,
+        },
+        "Slow Today snapshot build"
+      );
+    }
+
+    return { today, sourceTimings, buildDurationMs };
   }
 
   async getManagerActions(
@@ -369,17 +470,58 @@ function buildSummary(params: {
   dueToday: number;
   followUpsDue: number;
   syncStatus?: SyncStatus;
+  issuesAvailable: boolean;
+  teamAvailable: boolean;
+  deskAvailable: boolean;
 }): TodaySummaryMetric[] {
-  return [
+  const metrics: Array<TodaySummaryMetric | undefined> = [
     metric("attention", "Attention", params.attentionCount, "action rows", params.attentionCount > 0 ? "warning" : "success"),
-    metric("work", "Active defects", params.activeDefects, "in Work", "neutral", target("view", "work")),
-    metric("team", "People", params.teamSize, "on team", "info", target("view", "team")),
-    metric("stale", "Stale check-ins", params.staleCheckIns, "need update", params.staleCheckIns > 0 ? "warning" : "neutral", target("view", "team")),
-    metric("due-work", "Due today", params.dueToday, "defects", params.dueToday > 0 ? "warning" : "neutral", target("view", "work", { filter: "dueToday" })),
-    metric("promises", "Follow-ups", params.followUpsDue, "due now", params.followUpsDue > 0 ? "warning" : "neutral", target("view", "follow-ups")),
-  ].concat(params.syncStatus?.status === "error"
+    params.issuesAvailable
+      ? metric("work", "Active defects", params.activeDefects, "in Work", "neutral", target("view", "work"))
+      : undefined,
+    params.teamAvailable
+      ? metric("team", "People", params.teamSize, "on team", "info", target("view", "team"))
+      : undefined,
+    params.teamAvailable
+      ? metric("stale", "Stale check-ins", params.staleCheckIns, "need update", params.staleCheckIns > 0 ? "warning" : "neutral", target("view", "team"))
+      : undefined,
+    params.issuesAvailable
+      ? metric("due-work", "Due today", params.dueToday, "defects", params.dueToday > 0 ? "warning" : "neutral", target("view", "work", { filter: "dueToday" }))
+      : undefined,
+    params.deskAvailable
+      ? metric("promises", "Follow-ups", params.followUpsDue, "due now", params.followUpsDue > 0 ? "warning" : "neutral", target("view", "follow-ups"))
+      : undefined,
+  ];
+
+  return metrics.filter((item): item is TodaySummaryMetric => Boolean(item)).concat(params.syncStatus?.status === "error"
     ? [metric("sync", "Sync", 1, "needs review", "critical", target("view", "settings"))]
     : []);
+}
+
+function emptyTeamBoard(date: string): TeamTrackerBoardResponse {
+  const summary = {
+    total: 0,
+    blocked: 0,
+    atRisk: 0,
+    waiting: 0,
+    stale: 0,
+    noCurrent: 0,
+    overdueLinkedWork: 0,
+    overCapacity: 0,
+    statusFollowUp: 0,
+    doneForToday: 0,
+  };
+  return {
+    date,
+    viewMode: "live",
+    developers: [],
+    inactiveDevelopers: [],
+    summary,
+    visibleSummary: summary,
+    groups: [],
+    query: { q: "", summaryFilter: "all", sortBy: "attention", groupBy: "none" },
+    attentionQueue: [],
+  };
 }
 
 function metric(
@@ -545,7 +687,7 @@ function getDeveloperPulsePrimary(
   };
 }
 
-function buildIssueActions(issues: Issue[], date: string): TodayActionItem[] {
+function buildIssueActions(issues: TodayIssue[], date: string): TodayActionItem[] {
   return issues
     .filter((issue) => issue.statusCategory.toLowerCase() !== "done")
     .filter((issue) => isOverdue(issueDueDate(issue), date) || isDueToday(issueDueDate(issue), date) || !issue.assigneeId || isHighPriority(issue))
@@ -758,7 +900,7 @@ function buildMeetingPrompt(item: ManagerDeskItem): TodayMeetingPrompt {
 
 function buildStandupPrompts(
   board: TeamTrackerBoardResponse,
-  issues: Issue[],
+  issues: TodayIssue[],
   followUps: ManagerDeskItem[],
   date: string,
 ): TodayStandupPrompt[] {
@@ -937,11 +1079,11 @@ function getRhythmState(now: Date): TodayRhythmState {
   return { stage: "wrap_up", label: "Wrap-up", detail: "Close loops" };
 }
 
-function issueDueDate(issue: Issue): string | undefined {
+function issueDueDate(issue: TodayIssue): string | undefined {
   return issue.developmentDueDate ?? issue.dueDate;
 }
 
-function isHighPriority(issue: Issue): boolean {
+function isHighPriority(issue: TodayIssue): boolean {
   return ["high", "highest"].includes(issue.priorityName.toLowerCase());
 }
 
@@ -1071,6 +1213,25 @@ function commandResponse(
     command: kind,
     target: actionTarget,
     result,
+  };
+}
+
+async function measureSource<T>(operation: () => Promise<T>): Promise<TimedSourceResult<T>> {
+  const startedAt = performance.now();
+  try {
+    const value = await operation();
+    return { status: "fulfilled", value, durationMs: performance.now() - startedAt };
+  } catch (reason) {
+    return { status: "rejected", reason, durationMs: performance.now() - startedAt };
+  }
+}
+
+function roundSourceTimings(timings: TodaySourceTimings): TodaySourceTimings {
+  return {
+    issues: Math.round(timings.issues),
+    team: Math.round(timings.team),
+    desk: Math.round(timings.desk),
+    sync: Math.round(timings.sync),
   };
 }
 

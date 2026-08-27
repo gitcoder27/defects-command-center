@@ -92,6 +92,8 @@ describe("today routes", () => {
     expect(response.body.actionItems[0]).toMatchObject({
       target: expect.objectContaining({ view: "team" }),
     });
+    expect(response.headers["x-today-cache"]).toBe("miss");
+    expect(response.headers["server-timing"]).toContain("today-team;dur=");
   });
 
   it("rejects invalid dates", async () => {

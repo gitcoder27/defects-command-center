@@ -130,6 +130,16 @@ function renderToday(response = todayResponse(), onOpenTodayTarget = vi.fn()) {
 describe('TodayPage V2', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    window.sessionStorage.clear();
+  });
+
+  it('shows the shaped Today skeleton while the first request is pending', () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
+
+    renderToday();
+
+    expect(screen.getByRole('status', { name: 'Loading Today' })).toBeInTheDocument();
+    expect(screen.queryByText('Building the action queue.')).not.toBeInTheDocument();
   });
 
   it('renders the action queue with a hard visible row limit', async () => {

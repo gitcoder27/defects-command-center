@@ -4,14 +4,9 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { ToastProvider, useToast } from '@/context/ToastContext';
 import { AuthProvider, useAuth, useAuthScopeKey } from '@/context/AuthContext';
 import { useBootstrapState } from '@/hooks/useBootstrapState';
-import { useConfig } from '@/hooks/useConfig';
 import { useSyncRefreshCoordinator } from '@/hooks/useSyncRefreshCoordinator';
 import { TodayPage } from '@/components/today/TodayPage';
-import {
-  DashboardLayout,
-  DEFAULT_DASHBOARD_FILTER_STATE,
-  type DashboardFilterState,
-} from '@/components/layout/DashboardLayout';
+import { DEFAULT_DASHBOARD_FILTER_STATE, type DashboardFilterState } from '@/components/layout/dashboard-state';
 import { Header } from '@/components/layout/Header';
 import type { TodayActionTarget } from '@/types';
 
@@ -22,6 +17,7 @@ export type ActiveAppView = AppView | 'not-found';
 type ResolvedAppView = CanonicalAppView | 'not-found';
 
 const loadTeamTrackerPage = () => import('@/components/team-tracker/TeamTrackerPage');
+const loadDashboardLayout = () => import('@/components/layout/DashboardLayout');
 const loadSetupWizard = () => import('@/components/setup/SetupWizard');
 const loadMyDayPage = () => import('@/components/my-day/MyDayPage');
 const loadLoginPage = () => import('@/components/my-day/LoginPage');
@@ -32,6 +28,11 @@ const loadSettingsPage = () => import('@/components/settings/SettingsPanel');
 const TeamTrackerPage = lazy(async () => {
   const module = await loadTeamTrackerPage();
   return { default: module.TeamTrackerPage };
+});
+
+const DashboardLayout = lazy(async () => {
+  const module = await loadDashboardLayout();
+  return { default: module.DashboardLayout };
 });
 
 const SetupWizard = lazy(async () => {
@@ -124,6 +125,9 @@ function preloadView(view: AppView) {
     case 'settings':
       void loadSettingsPage();
       break;
+    case 'work':
+      void loadDashboardLayout();
+      break;
     default:
       break;
   }
@@ -187,6 +191,64 @@ function FullPageLoading() {
   );
 }
 
+function TodayBootLoading() {
+  return (
+    <div className="flex h-full flex-col overflow-hidden px-1 pb-0.5 pt-0.5 md:px-1.5 md:pb-1" role="status" aria-label="Loading workspace">
+      <span className="sr-only">Loading workspace</span>
+      <div
+        aria-hidden="true"
+        className="mb-1.5 flex min-h-[64px] shrink-0 items-center justify-between rounded-[14px] border px-3"
+        style={{ borderColor: 'var(--border-strong)', background: 'var(--bg-primary)' }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="h-11 w-11 animate-pulse rounded-[14px] motion-reduce:animate-none" style={{ background: 'var(--accent-glow)' }} />
+          <div>
+            <div className="h-4 w-20 animate-pulse rounded-sm motion-reduce:animate-none" style={{ background: 'var(--bg-tertiary)' }} />
+            <div className="mt-2 h-3 w-40 animate-pulse rounded-sm motion-reduce:animate-none" style={{ background: 'var(--bg-tertiary)' }} />
+          </div>
+        </div>
+        <div className="hidden items-center gap-2 md:flex">
+          {[0, 1, 2, 3].map((item) => (
+            <div key={item} className="h-8 w-20 animate-pulse rounded-lg motion-reduce:animate-none" style={{ background: 'var(--bg-tertiary)' }} />
+          ))}
+        </div>
+      </div>
+      <div
+        aria-hidden="true"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] border"
+        style={{ borderColor: 'var(--border-strong)', background: 'var(--bg-primary)' }}
+      >
+        <div className="grid shrink-0 gap-2 border-b px-3 py-3 md:grid-cols-[190px_repeat(4,minmax(0,1fr))]" style={{ borderColor: 'var(--border)' }}>
+          {[0, 1, 2, 3, 4].map((item) => (
+            <div key={item} className="min-h-[56px] rounded-lg px-3 py-2" style={{ background: 'var(--bg-secondary)' }}>
+              <div className="h-4 w-20 animate-pulse rounded-sm motion-reduce:animate-none" style={{ background: 'var(--bg-tertiary)' }} />
+              <div className="mt-2 h-3 w-28 animate-pulse rounded-sm motion-reduce:animate-none" style={{ background: 'var(--bg-tertiary)' }} />
+            </div>
+          ))}
+        </div>
+        <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
+          <div className="border-b px-6 py-6 lg:border-b-0 lg:border-r" style={{ borderColor: 'var(--border)' }}>
+            <div className="h-5 w-32 animate-pulse rounded-sm motion-reduce:animate-none" style={{ background: 'var(--bg-tertiary)' }} />
+            <div className="mt-5 space-y-3">
+              {[0, 1, 2, 3, 4].map((item) => (
+                <div key={item} className="h-12 animate-pulse rounded-md motion-reduce:animate-none" style={{ background: 'var(--bg-secondary)' }} />
+              ))}
+            </div>
+          </div>
+          <div className="px-6 py-6">
+            <div className="h-5 w-28 animate-pulse rounded-sm motion-reduce:animate-none" style={{ background: 'var(--bg-tertiary)' }} />
+            <div className="mt-5 space-y-3">
+              {[0, 1, 2, 3].map((item) => (
+                <div key={item} className="h-10 animate-pulse rounded-md motion-reduce:animate-none" style={{ background: 'var(--bg-secondary)' }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PanelLoading() {
   return (
     <div className="h-full flex items-center justify-center" style={{ background: 'transparent' }}>
@@ -196,35 +258,6 @@ function PanelLoading() {
           style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }}
         />
         <span className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>Loading…</span>
-      </div>
-    </div>
-  );
-}
-
-function ConfigErrorState({ onRetry }: { onRetry: () => void }) {
-  return (
-    <div className="h-full flex items-center justify-center px-4" style={{ background: 'var(--bg-canvas)' }}>
-      <div
-        className="w-full max-w-xl rounded-[28px] border px-6 py-8 text-center"
-        style={{
-          borderColor: 'var(--border-strong)',
-          background: 'color-mix(in srgb, var(--bg-primary) 94%, transparent)',
-        }}
-      >
-        <h1 className="text-[26px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Manager setup is currently unavailable
-        </h1>
-        <p className="mt-3 text-[14px] leading-7" style={{ color: 'var(--text-secondary)' }}>
-          The manager surface could not load its workspace settings. Retry the request or sign out and re-enter the
-          command center.
-        </p>
-        <button
-          onClick={onRetry}
-          className="mt-6 rounded-[18px] px-4 py-3 text-[14px] font-semibold"
-          style={{ background: 'var(--accent)', color: '#fff' }}
-        >
-          Retry
-        </button>
       </div>
     </div>
   );
@@ -293,9 +326,8 @@ function AppContent() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const bootstrapQuery = useBootstrapState();
   const bootstrapState = bootstrapQuery.data;
-  const shouldCoordinateSyncRefresh = isAuthenticated && user?.role === 'manager';
-
-  useSyncRefreshCoordinator({ enabled: shouldCoordinateSyncRefresh });
+  const isAuthenticatedManager = isAuthenticated && user?.role === 'manager';
+  const isBootstrapPending = !isAuthenticatedManager && (bootstrapQuery.isLoading || !bootstrapState);
 
   const [activeView, setActiveView] = useState<ResolvedAppView>(() => pathToView(window.location.pathname));
   const [dashboardFilterState, setDashboardFilterState] = useState<DashboardFilterState>(DEFAULT_DASHBOARD_FILTER_STATE);
@@ -303,13 +335,7 @@ function AppContent() {
   const [todayTeamTarget, setTodayTeamTarget] = useState<{ developerAccountId?: string; nonce: number }>({ nonce: 0 });
   const [todayDeskTarget, setTodayDeskTarget] = useState<{ itemId?: number; date?: string; nonce: number }>({ nonce: 0 });
 
-  const shouldLoadManagerConfig = Boolean(
-    bootstrapState &&
-    !bootstrapState.bootstrapOpen &&
-    isAuthenticated &&
-    user?.role === 'manager'
-  );
-  const configQuery = useConfig({ enabled: shouldLoadManagerConfig });
+  useSyncRefreshCoordinator({ enabled: isAuthenticatedManager && activeView !== 'today' });
 
   const clearTodayTargets = useCallback(() => {
     setTodayWorkTarget((prev) => ({ nonce: prev.nonce + 1 }));
@@ -407,11 +433,11 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    if (authLoading || bootstrapQuery.isLoading || !bootstrapState) {
+    if (authLoading || isBootstrapPending) {
       return;
     }
 
-    if (bootstrapState.bootstrapOpen) {
+    if (bootstrapState?.bootstrapOpen) {
       if (activeView !== 'work') {
         replaceView('work');
       }
@@ -431,24 +457,23 @@ function AppContent() {
   }, [
     activeView,
     authLoading,
-    bootstrapQuery.isLoading,
     bootstrapState,
     isAuthenticated,
+    isBootstrapPending,
     replaceView,
     user,
   ]);
 
-  if (authLoading || bootstrapQuery.isLoading || !bootstrapState) {
-    return <FullPageLoading />;
+  if (authLoading || isBootstrapPending) {
+    return activeView === 'today' ? <TodayBootLoading /> : <FullPageLoading />;
   }
 
-  if (bootstrapState.bootstrapOpen) {
+  if (bootstrapState?.bootstrapOpen) {
     return (
       <Suspense fallback={<FullPageLoading />}>
         <SetupWizard
           onComplete={async () => {
             await bootstrapQuery.refetch();
-            await configQuery.refetch();
           }}
         />
       </Suspense>
@@ -485,27 +510,6 @@ function AppContent() {
 
   if (user?.role !== 'manager') {
     return <FullPageLoading />;
-  }
-
-  if (configQuery.isError) {
-    return <ConfigErrorState onRetry={() => void configQuery.refetch()} />;
-  }
-
-  if (configQuery.isLoading || !configQuery.data) {
-    return <FullPageLoading />;
-  }
-
-  if (!configQuery.data.isConfigured) {
-    return (
-      <Suspense fallback={<FullPageLoading />}>
-        <SetupWizard
-          onComplete={async () => {
-            await bootstrapQuery.refetch();
-            await configQuery.refetch();
-          }}
-        />
-      </Suspense>
-    );
   }
 
   if (activeView === 'not-found') {
@@ -579,16 +583,18 @@ function AppContent() {
   }
 
   return (
-    <DashboardLayout
-      activeView={activeView}
-      onViewChange={handleViewChange}
-      filterState={dashboardFilterState}
-      onFilterStateChange={setDashboardFilterState}
-      initialIssueKey={todayWorkTarget.issueKey}
-      initialIssueNonce={todayWorkTarget.nonce}
-      onInitialIssueHandled={() => setTodayWorkTarget((prev) => ({ nonce: prev.nonce + 1 }))}
-      onOpenActionTarget={handleOpenTodayTarget}
-    />
+    <Suspense fallback={<FullPageLoading />}>
+      <DashboardLayout
+        activeView={activeView}
+        onViewChange={handleViewChange}
+        filterState={dashboardFilterState}
+        onFilterStateChange={setDashboardFilterState}
+        initialIssueKey={todayWorkTarget.issueKey}
+        initialIssueNonce={todayWorkTarget.nonce}
+        onInitialIssueHandled={() => setTodayWorkTarget((prev) => ({ nonce: prev.nonce + 1 }))}
+        onOpenActionTarget={handleOpenTodayTarget}
+      />
+    </Suspense>
   );
 }
 

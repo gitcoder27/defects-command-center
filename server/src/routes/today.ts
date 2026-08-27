@@ -16,12 +16,21 @@ export function createTodayRouter(todayService: TodayService): Router {
 
   router.get("/", validate(dateQuerySchema), async (req, res, next) => {
     try {
-      const today = await todayService.getToday(
+      const result = await todayService.getTodayWithMetadata(
         req.auth!.user.accountId,
         req.query.date as string,
         req.auth!.user.workspaceId
       );
-      res.json(today);
+      res.setHeader("X-Today-Cache", result.cacheStatus);
+      res.setHeader("Server-Timing", [
+        `today;dur=${result.requestDurationMs.toFixed(1)}`,
+        `today-build;dur=${result.cacheStatus === "miss" ? result.buildDurationMs.toFixed(1) : "0.0"}`,
+        `today-issues;dur=${result.cacheStatus === "miss" ? result.sourceTimings.issues.toFixed(1) : "0.0"}`,
+        `today-team;dur=${result.cacheStatus === "miss" ? result.sourceTimings.team.toFixed(1) : "0.0"}`,
+        `today-desk;dur=${result.cacheStatus === "miss" ? result.sourceTimings.desk.toFixed(1) : "0.0"}`,
+        `today-sync;dur=${result.cacheStatus === "miss" ? result.sourceTimings.sync.toFixed(1) : "0.0"}`,
+      ].join(", "));
+      res.json(result.today);
     } catch (error) {
       next(error);
     }

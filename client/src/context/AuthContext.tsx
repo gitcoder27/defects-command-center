@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { api } from '@/lib/api';
+import { clearTodaySnapshotsForScope } from '@/lib/today-snapshot-cache';
 import type { AuthUser, AuthSessionResponse } from '@/types';
 
 interface AuthContextValue {
@@ -58,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (previousAuthScopeKeyRef.current !== authScopeKey) {
+      clearTodaySnapshotsForScope(previousAuthScopeKeyRef.current);
       queryClient.clear();
       previousAuthScopeKeyRef.current = authScopeKey;
     }

@@ -3,16 +3,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import App from '@/App';
 
 const useBootstrapStateMock = vi.fn();
-const useConfigMock = vi.fn();
 const useAuthMock = vi.fn();
 const dashboardLayoutSpy = vi.fn();
 
 vi.mock('@/hooks/useBootstrapState', () => ({
   useBootstrapState: () => useBootstrapStateMock(),
-}));
-
-vi.mock('@/hooks/useConfig', () => ({
-  useConfig: (...args: unknown[]) => useConfigMock(...args),
 }));
 
 vi.mock('@/context/AuthContext', () => ({
@@ -22,12 +17,6 @@ vi.mock('@/context/AuthContext', () => ({
 }));
 
 vi.mock('@/components/layout/DashboardLayout', () => ({
-  DEFAULT_DASHBOARD_FILTER_STATE: {
-    activeFilter: 'all',
-    activeDeveloper: undefined,
-    selectedTagId: undefined,
-    noTagsFilter: false,
-  },
   DashboardLayout: (props: {
     onViewChange?: (view: 'team') => void;
     filterState?: { activeFilter: string };
@@ -117,13 +106,6 @@ describe('App', () => {
       refetch: vi.fn(),
     });
 
-    useConfigMock.mockReturnValue({
-      data: { isConfigured: true, jiraApiToken: '****' },
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-
     useAuthMock.mockReturnValue({
       user: null,
       isLoading: false,
@@ -142,7 +124,8 @@ describe('App', () => {
     });
 
     render(<App />);
-    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading workspace' })).toBeInTheDocument();
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
   });
 
   it('renders setup wizard when bootstrap registration is still open', async () => {
@@ -201,7 +184,7 @@ describe('App', () => {
     expect(window.location.pathname).toBe('/');
   });
 
-  it('renders setup wizard for an authenticated manager when Jira connection is not configured', async () => {
+  it('renders Today for an authenticated manager without waiting for bootstrap or config', async () => {
     useAuthMock.mockReturnValue({
       user: { role: 'manager' },
       isLoading: false,
@@ -210,15 +193,14 @@ describe('App', () => {
       logout: vi.fn(),
       refreshSession: vi.fn(),
     });
-    useConfigMock.mockReturnValue({
-      data: { isConfigured: false, jiraApiToken: '' },
-      isLoading: false,
-      isError: false,
+    useBootstrapStateMock.mockReturnValue({
+      data: undefined,
+      isLoading: true,
       refetch: vi.fn(),
     });
 
     render(<App />);
-    expect(await screen.findByText('Setup wizard')).toBeInTheDocument();
+    expect(await screen.findByText('Today loaded')).toBeInTheDocument();
   });
 
   it('renders the dedicated settings page for authenticated managers on /settings', async () => {

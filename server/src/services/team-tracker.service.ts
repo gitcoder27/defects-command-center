@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, lte } from "drizzle-orm";
 import type {
   TrackerDeveloperStatus,
   TrackerItemState,
@@ -977,15 +977,13 @@ export class TeamTrackerService {
       .filter((item) => item.availability.state === "inactive")
       .sort((left, right) => left.developer.displayName.localeCompare(right.developer.displayName));
 
-    const devDays: TrackerDeveloperDay[] = [];
-
-    for (const dev of activeDevelopers) {
-      devDays.push(
-        viewMode === "history"
-          ? await this.buildHistoricalDeveloperDay(date, dev, signalConfig, workspaceId)
-          : await this.buildLiveDeveloperDay(date, dev, signalConfig, workspaceId)
-      );
-    }
+    const devDays = viewMode === "history"
+      ? await Promise.all(
+          activeDevelopers.map((developer) =>
+            this.buildHistoricalDeveloperDay(date, developer, signalConfig, workspaceId)
+          )
+        )
+      : await this.buildLiveDeveloperDays(date, activeDevelopers, signalConfig, workspaceId);
 
     const summary = this.computeSummary(devDays);
     const normalizedQuery = query.q.toLowerCase();
@@ -2261,6 +2259,165 @@ export class TeamTrackerService {
       createdAt: effectiveDay?.createdAt ?? `${date}T00:00:00.000Z`,
       updatedAt: effectiveDay?.updatedAt ?? `${date}T00:00:00.000Z`,
     };
+  }
+
+  private async buildLiveDeveloperDays(
+    date: string,
+    developerList: Developer[],
+    signalConfig: TrackerSignalConfig,
+    workspaceId?: string
+  ): Promise<TrackerDeveloperDay[]> {
+    if (developerList.length === 0) {
+      return [];
+    }
+
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const developerAccountIds = developerList.map((developer) => developer.accountId);
+    const allRelevantDays = await db
+      .select()
+      .from(teamTrackerDays)
+      .where(
+        and(
+          eq(teamTrackerDays.workspaceId, normalizedWorkspaceId),
+          inArray(teamTrackerDays.developerAccountId, developerAccountIds),
+          lte(teamTrackerDays.date, date)
+        )
+      );
+    const daysByDeveloper = new Map<string, Array<typeof teamTrackerDays.$inferSelect>>();
+    const dayById = new Map<number, typeof teamTrackerDays.$inferSelect>();
+
+    for (const day of allRelevantDays) {
+      dayById.set(day.id, day);
+      const developerDays = daysByDeveloper.get(day.developerAccountId) ?? [];
+      developerDays.push(day);
+      daysByDeveloper.set(day.developerAccountId, developerDays);
+    }
+    for (const developerDays of daysByDeveloper.values()) {
+      developerDays.sort((left, right) => left.date.localeCompare(right.date));
+    }
+
+    const dayIds = allRelevantDays.map((day) => day.id);
+    const itemRows = dayIds.length > 0
+      ? await db
+          .select()
+          .from(teamTrackerItems)
+          .where(
+            and(
+              eq(teamTrackerItems.workspaceId, normalizedWorkspaceId),
+              inArray(teamTrackerItems.dayId, dayIds)
+            )
+          )
+      : [];
+    const itemRowsByDeveloper = new Map<string, Array<typeof teamTrackerItems.$inferSelect>>();
+
+    for (const item of itemRows) {
+      const developerAccountId = dayById.get(item.dayId)?.developerAccountId;
+      if (!developerAccountId) {
+        continue;
+      }
+      const developerItems = itemRowsByDeveloper.get(developerAccountId) ?? [];
+      developerItems.push(item);
+      itemRowsByDeveloper.set(developerAccountId, developerItems);
+    }
+
+    const canonicalRowsByDeveloper = new Map<string, Array<typeof teamTrackerItems.$inferSelect>>();
+    const canonicalRows: Array<typeof teamTrackerItems.$inferSelect> = [];
+    for (const developer of developerList) {
+      const rows = this.getLiveCanonicalItemRows(
+        itemRowsByDeveloper.get(developer.accountId) ?? [],
+        dayById
+      );
+      canonicalRowsByDeveloper.set(developer.accountId, rows);
+      canonicalRows.push(...rows);
+    }
+
+    const issueContextMap = await this.getIssueContextMap(
+      canonicalRows
+        .map((row) => row.jiraKey)
+        .filter((jiraKey): jiraKey is string => Boolean(jiraKey)),
+      normalizedWorkspaceId
+    );
+    const exactDays = allRelevantDays.filter((day) => day.date === date);
+    const exactDayIds = exactDays.map((day) => day.id);
+    const checkInRows = exactDayIds.length > 0
+      ? await db
+          .select()
+          .from(teamTrackerCheckIns)
+          .where(
+            and(
+              eq(teamTrackerCheckIns.workspaceId, normalizedWorkspaceId),
+              inArray(teamTrackerCheckIns.dayId, exactDayIds)
+            )
+          )
+      : [];
+    const checkInsByDayId = new Map<number, Array<typeof teamTrackerCheckIns.$inferSelect>>();
+    for (const checkIn of checkInRows) {
+      const dayCheckIns = checkInsByDayId.get(checkIn.dayId) ?? [];
+      dayCheckIns.push(checkIn);
+      checkInsByDayId.set(checkIn.dayId, dayCheckIns);
+    }
+
+    return developerList.map((developer) => {
+      const eligibleDays = daysByDeveloper.get(developer.accountId) ?? [];
+      const exactDay = eligibleDays.find((day) => day.date === date);
+      const latestDay = eligibleDays[eligibleDays.length - 1];
+      const effectiveDay = exactDay ?? latestDay;
+      const mappedCanonicalItems = (canonicalRowsByDeveloper.get(developer.accountId) ?? [])
+        .map((row) =>
+          mapItem(
+            row,
+            row.jiraKey ? issueContextMap.get(row.jiraKey) : undefined,
+            dayById.get(row.dayId)?.date
+          )
+        )
+        .sort(compareLiveOpenItems);
+      const currentItem = mappedCanonicalItems
+        .filter((item) => item.state === "in_progress")
+        .sort(compareLiveCurrentItems)[0];
+      const plannedItems = mappedCanonicalItems.filter(
+        (item) => item.state === "planned" || (item.state === "in_progress" && item.id !== currentItem?.id)
+      );
+      const completedItems = mappedCanonicalItems.filter(
+        (item) => item.state === "done" && isoDatePart(item.completedAt) === date
+      );
+      const droppedItems = mappedCanonicalItems.filter(
+        (item) => item.state === "dropped" && isoDatePart(item.updatedAt) === date
+      );
+      const checkIns = exactDay ? checkInsByDayId.get(exactDay.id) ?? [] : [];
+      const signals = buildSignals({
+        date,
+        status: (effectiveDay?.status as TrackerDeveloperStatus | undefined) ?? "on_track",
+        lastCheckInAt: effectiveDay?.lastCheckInAt,
+        statusUpdatedAt: effectiveDay?.statusUpdatedAt,
+        updatedAt: effectiveDay?.updatedAt ?? `${date}T00:00:00.000Z`,
+        currentItem,
+        plannedItems,
+        capacityUnits: effectiveDay?.capacityUnits ?? undefined,
+        config: signalConfig,
+      });
+
+      return {
+        id: exactDay?.id ?? effectiveDay?.id ?? 0,
+        date,
+        developer,
+        availability: developer.availability ?? { state: "active" },
+        status: (effectiveDay?.status as TrackerDeveloperStatus | undefined) ?? "on_track",
+        capacityUnits: effectiveDay?.capacityUnits ?? undefined,
+        managerNotes: effectiveDay?.managerNotes ?? undefined,
+        lastCheckInAt: effectiveDay?.lastCheckInAt ?? undefined,
+        nextFollowUpAt: effectiveDay?.nextFollowUpAt ?? undefined,
+        currentItem,
+        plannedItems,
+        completedItems,
+        droppedItems,
+        checkIns: checkIns.map(mapCheckIn),
+        isStale: signals.freshness.staleByTime,
+        signals,
+        statusUpdatedAt: effectiveDay?.statusUpdatedAt ?? undefined,
+        createdAt: effectiveDay?.createdAt ?? `${date}T00:00:00.000Z`,
+        updatedAt: effectiveDay?.updatedAt ?? `${date}T00:00:00.000Z`,
+      };
+    });
   }
 
   private async getSignalConfig(workspaceId?: string): Promise<TrackerSignalConfig> {

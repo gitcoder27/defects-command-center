@@ -1,4 +1,4 @@
-import { and, desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, ne, or } from "drizzle-orm";
 import type {
   FilterType,
   Issue as SharedIssue,
@@ -28,6 +28,25 @@ export interface IssueQuery {
   tagIds?: number[];
   noTags?: boolean;
   includeTrackerAssignments?: boolean;
+}
+
+export type TodayIssue = Pick<
+  SharedIssue,
+  | "jiraKey"
+  | "summary"
+  | "priorityName"
+  | "statusName"
+  | "statusCategory"
+  | "assigneeId"
+  | "assigneeName"
+  | "dueDate"
+  | "developmentDueDate"
+>;
+
+export interface TodayIssueSnapshot {
+  issues: TodayIssue[];
+  activeDefects: number;
+  dueToday: number;
 }
 
 type JiraMutationClient = Pick<JiraClient, "updateIssue" | "addComment">;
@@ -81,6 +100,54 @@ export class IssueService {
 
 
     return this.sortIssues(result, query.sort ?? "priority", query.order ?? "desc");
+  }
+
+  async getTodaySnapshot(date: string, workspaceId?: string): Promise<TodayIssueSnapshot> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const jiraSyncScopeMode = await this.settings.getJiraSyncScopeMode(normalizedWorkspaceId);
+    const visibilityConditions = [
+      eq(issues.workspaceId, normalizedWorkspaceId),
+      ne(issues.statusCategory, "done"),
+      eq(issues.excluded, 0),
+      eq(issues.syncScopeState, "active"),
+    ];
+
+    if (jiraSyncScopeMode !== "base_query") {
+      visibilityConditions.push(ne(issues.teamScopeState, "out_of_team"));
+    }
+
+    const rows = await db
+      .select({
+        jiraKey: issues.jiraKey,
+        summary: issues.summary,
+        priorityName: issues.priorityName,
+        statusName: issues.statusName,
+        statusCategory: issues.statusCategory,
+        assigneeId: issues.assigneeId,
+        assigneeName: issues.assigneeName,
+        dueDate: issues.dueDate,
+        developmentDueDate: issues.developmentDueDate,
+      })
+      .from(issues)
+      .where(and(...visibilityConditions));
+
+    const todayIssues: TodayIssue[] = rows.map((row) => ({
+      jiraKey: row.jiraKey,
+      summary: row.summary,
+      priorityName: row.priorityName,
+      statusName: row.statusName,
+      statusCategory: row.statusCategory,
+      assigneeId: row.assigneeId ?? undefined,
+      assigneeName: row.assigneeName ?? undefined,
+      dueDate: row.dueDate ?? undefined,
+      developmentDueDate: row.developmentDueDate ?? undefined,
+    }));
+
+    return {
+      issues: todayIssues,
+      activeDefects: todayIssues.length,
+      dueToday: todayIssues.filter((issue) => getEffectiveDueDate(issue) === date).length,
+    };
   }
 
   async getById(jiraKey: string, trackerDate = todayIsoDate(), workspaceId?: string): Promise<SharedIssue | undefined> {

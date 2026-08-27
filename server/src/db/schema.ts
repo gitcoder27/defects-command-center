@@ -1,4 +1,4 @@
-import { integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const workspaces = sqliteTable("workspaces", {
   id: text("id").primaryKey(),
@@ -160,6 +160,7 @@ export const teamTrackerDays = sqliteTable("team_tracker_days", {
   updatedAt: text("updated_at").notNull(),
 }, (table) => [
   uniqueIndex("idx_tracker_days_unique_workspace_date_developer").on(table.workspaceId, table.date, table.developerAccountId),
+  index("idx_tracker_days_workspace_developer_date").on(table.workspaceId, table.developerAccountId, table.date),
 ]);
 
 export const developerAvailabilityPeriods = sqliteTable("developer_availability_periods", {

@@ -283,6 +283,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_alert_dismissals_workspace_manager_alert O
 CREATE INDEX IF NOT EXISTS idx_alert_dismissals_workspace_manager ON alert_dismissals(workspace_id, manager_account_id);
 CREATE INDEX IF NOT EXISTS idx_tracker_days_workspace_date ON team_tracker_days(workspace_id, date);
 CREATE INDEX IF NOT EXISTS idx_tracker_days_workspace_dev ON team_tracker_days(workspace_id, developer_account_id);
+CREATE INDEX IF NOT EXISTS idx_tracker_days_workspace_developer_date ON team_tracker_days(workspace_id, developer_account_id, date DESC);
 CREATE INDEX IF NOT EXISTS idx_dev_availability_workspace_dev_dates ON developer_availability_periods(workspace_id, developer_account_id, start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_tracker_items_workspace_day ON team_tracker_items(workspace_id, day_id);
 CREATE INDEX IF NOT EXISTS idx_tracker_checkins_workspace_day ON team_tracker_checkins(workspace_id, day_id);
@@ -333,6 +334,7 @@ const alterStatements = [
   "ALTER TABLE team_tracker_checkins ADD COLUMN author_account_id TEXT",
   "CREATE TABLE IF NOT EXISTS team_tracker_saved_views (id INTEGER PRIMARY KEY AUTOINCREMENT, manager_account_id TEXT NOT NULL, name TEXT NOT NULL, search_query TEXT, summary_filter TEXT NOT NULL DEFAULT 'all', sort_by TEXT NOT NULL DEFAULT 'name', group_by TEXT NOT NULL DEFAULT 'none', created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
   "CREATE INDEX IF NOT EXISTS idx_tracker_saved_views_manager ON team_tracker_saved_views(manager_account_id)",
+  "CREATE INDEX IF NOT EXISTS idx_tracker_days_workspace_developer_date ON team_tracker_days(workspace_id, developer_account_id, date DESC)",
   "CREATE UNIQUE INDEX IF NOT EXISTS idx_tracker_saved_views_manager_name ON team_tracker_saved_views(manager_account_id, name)",
   "ALTER TABLE team_tracker_items ADD COLUMN manager_desk_item_id INTEGER",
   "ALTER TABLE team_tracker_items ADD COLUMN related_jira_keys TEXT",

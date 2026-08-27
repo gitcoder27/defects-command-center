@@ -386,6 +386,68 @@ export class ManagerDeskService {
     return this.buildLiveDayView(managerAccountId, date, normalizedWorkspaceId);
   }
 
+  async getTodayItems(managerAccountId: string, date: string, workspaceId?: string): Promise<ManagerDeskItem[]> {
+    const normalizedWorkspaceId = normalizeWorkspaceId(workspaceId);
+    const days = await db
+      .select()
+      .from(managerDeskDays)
+      .where(
+        and(
+          eq(managerDeskDays.workspaceId, normalizedWorkspaceId),
+          eq(managerDeskDays.managerAccountId, managerAccountId)
+        )
+      );
+    if (days.length === 0) {
+      return [];
+    }
+
+    const dayById = new Map(days.map((day) => [day.id, day]));
+    const itemRows = await db
+      .select()
+      .from(managerDeskItems)
+      .where(
+        and(
+          eq(managerDeskItems.workspaceId, normalizedWorkspaceId),
+          inArray(managerDeskItems.dayId, days.map((day) => day.id))
+        )
+      );
+    const candidateRows = this.dedupeCurrentLineageRows(itemRows).filter((item) => {
+      const status = item.status as ManagerDeskStatus;
+      if (status === "done" || status === "cancelled") {
+        return false;
+      }
+
+      const originDate = dayById.get(item.dayId)?.date ?? date;
+      const plannedStartDate = isoDatePart(item.plannedStartAt ?? undefined);
+      const plannedEndDate = isoDatePart(item.plannedEndAt ?? undefined);
+      const isFollowUp = item.category === "follow_up" || Boolean(item.followUpAt);
+      const isDueFollowUp = isFollowUp && (!item.followUpAt || isoDatePart(item.followUpAt)! <= date);
+      const isMeeting = item.kind === "meeting" && !item.outcome?.trim() && originDate <= date;
+      const isCarryForward = status !== "backlog" && !isFollowUp && item.kind !== "meeting" && (
+        originDate < date ||
+        Boolean(plannedStartDate && plannedStartDate < date) ||
+        Boolean(plannedEndDate && plannedEndDate < date)
+      );
+      return isDueFollowUp || isMeeting || isCarryForward;
+    });
+    const linksByItemId = await this.getLinksByItemIds(
+      candidateRows.map((item) => item.id),
+      normalizedWorkspaceId
+    );
+
+    return candidateRows
+      .sort(compareItemRows)
+      .map((item) =>
+        this.mapItem(
+          item,
+          linksByItemId.get(item.id) ?? [],
+          undefined,
+          undefined,
+          dayById.get(item.dayId)?.date ?? date
+        )
+      );
+  }
+
   async createItem(
     managerAccountId: string,
     params: CreateManagerDeskItemParams,

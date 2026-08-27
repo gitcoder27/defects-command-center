@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db, resetDatabase } from "./helpers/db";
-import { developers, issues, teamTrackerDays } from "../src/db/schema";
+import { developers, issues, managerDeskDays, teamTrackerDays } from "../src/db/schema";
 import { IssueService } from "../src/services/issue.service";
 import { ManagerDeskService } from "../src/services/manager-desk.service";
 import { TeamTrackerService } from "../src/services/team-tracker.service";
@@ -25,23 +25,7 @@ function todayService(syncStatus = { status: "idle" as const }) {
 
 function cachedTodayService() {
   const issueServiceMock = {
-    getOverviewCounts: vi.fn(async () => ({
-      new: 0,
-      recentlyAssigned: 0,
-      unassigned: 0,
-      dueToday: 0,
-      dueThisWeek: 0,
-      noDueDate: 0,
-      overdue: 0,
-      blocked: 0,
-      stale: 0,
-      highPriority: 0,
-      inProgress: 0,
-      reopened: 0,
-      outOfTeam: 0,
-      total: 0,
-    })),
-    getAll: vi.fn(async () => []),
+    getTodaySnapshot: vi.fn(async () => ({ issues: [], activeDefects: 0, dueToday: 0 })),
   };
   const teamTrackerServiceMock = {
     getBoard: vi.fn(async () => ({
@@ -57,12 +41,7 @@ function cachedTodayService() {
     })),
   };
   const managerDeskServiceMock = {
-    getDay: vi.fn(async () => ({
-      date: "2026-03-08",
-      viewMode: "live",
-      items: [],
-      summary: { total: 0, inbox: 0, planned: 0, inProgress: 0, waiting: 0, done: 0 },
-    })),
+    getTodayItems: vi.fn(async () => []),
   };
   const syncSourceMock = {
     getLastSyncLog: vi.fn(async () => undefined),
@@ -199,14 +178,10 @@ describe("TodayService", () => {
     ]);
 
     expect(today.generatedAt).toBe(managerActions.generatedAt);
-    expect(issueService.getOverviewCounts).toHaveBeenCalledTimes(1);
-    expect(issueService.getAll).toHaveBeenCalledTimes(1);
-    expect(issueService.getAll).toHaveBeenCalledWith(
-      expect.objectContaining({ includeTrackerAssignments: false }),
-      "workspace-a",
-    );
+    expect(issueService.getTodaySnapshot).toHaveBeenCalledTimes(1);
+    expect(issueService.getTodaySnapshot).toHaveBeenCalledWith("2026-03-08", "workspace-a");
     expect(teamTrackerService.getBoard).toHaveBeenCalledTimes(1);
-    expect(managerDeskService.getDay).toHaveBeenCalledTimes(1);
+    expect(managerDeskService.getTodayItems).toHaveBeenCalledTimes(1);
   });
 
   it("reuses cached Today snapshots briefly and clears them after commands", async () => {
@@ -214,7 +189,7 @@ describe("TodayService", () => {
 
     await service.getToday("manager-1", "2026-03-08", "workspace-a");
     await service.getToday("manager-1", "2026-03-08", "workspace-a");
-    expect(issueService.getOverviewCounts).toHaveBeenCalledTimes(1);
+    expect(issueService.getTodaySnapshot).toHaveBeenCalledTimes(1);
 
     await service.executeCommand(
       "manager-1",
@@ -231,7 +206,7 @@ describe("TodayService", () => {
     );
     await service.getToday("manager-1", "2026-03-08", "workspace-a");
 
-    expect(issueService.getOverviewCounts).toHaveBeenCalledTimes(2);
+    expect(issueService.getTodaySnapshot).toHaveBeenCalledTimes(2);
   });
 
   it("adds sync attention without mutating source data", async () => {
@@ -243,6 +218,29 @@ describe("TodayService", () => {
       target: { type: "view", view: "settings" },
     });
     expect(response.syncStatus).toMatchObject({ status: "error", errorMessage: "Token expired" });
+  });
+
+  it("returns available sections when one Today source is unavailable", async () => {
+    const { service, issueService } = cachedTodayService();
+    issueService.getTodaySnapshot.mockRejectedValueOnce(new Error("issues unavailable"));
+
+    const response = await service.getToday("manager-1", "2026-03-08", "workspace-a");
+
+    expect(response.isPartial).toBe(true);
+    expect(response.sourceStatus).toMatchObject({
+      issues: "unavailable",
+      team: "ready",
+      desk: "ready",
+    });
+    expect(response.summary.some((item) => item.id === "work")).toBe(false);
+    expect(response.summary.some((item) => item.id === "team")).toBe(true);
+  });
+
+  it("does not create a Manager Desk day while reading Today", async () => {
+    await todayService().getToday("manager-without-desk", "2026-03-08");
+
+    const days = await db.select().from(managerDeskDays);
+    expect(days).toHaveLength(0);
   });
 
   it("uses set current instead of check-in when a developer has planned work but no current item", async () => {

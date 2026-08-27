@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import express from "express";
+import { eq } from "drizzle-orm";
 import { createAuthRouter } from "../src/routes/auth";
 import { notFoundHandler, errorHandler } from "../src/middleware/errorHandler";
 import { AuthService, SESSION_COOKIE_NAME } from "../src/services/auth.service";
-import { developers } from "../src/db/schema";
+import { appSessions, developers } from "../src/db/schema";
 import { db, resetDatabase } from "./helpers/db";
 import { invoke } from "./helpers/http";
 
@@ -95,6 +96,29 @@ describe("auth routes", () => {
     });
     expect(res.headers["set-cookie"]).toContain(`${SESSION_COOKIE_NAME}=`);
     expect(res.headers["set-cookie"]).toContain("HttpOnly");
+  });
+
+  it("touches an active session at most once every five minutes", async () => {
+    await authService.createUser({
+      username: "manager",
+      displayName: "Manager",
+      password: "secret123",
+      role: "manager",
+    });
+    const session = await authService.authenticate("manager", "secret123");
+    const sessionRow = (await db.select().from(appSessions))[0]!;
+    await db
+      .update(appSessions)
+      .set({ lastSeenAt: "2020-01-01T00:00:00.000Z" })
+      .where(eq(appSessions.id, sessionRow.id));
+
+    await authService.getUserForSession(session.sessionId);
+    const firstTouch = (await db.select().from(appSessions))[0]!.lastSeenAt;
+    await authService.getUserForSession(session.sessionId);
+    const secondTouch = (await db.select().from(appSessions))[0]!.lastSeenAt;
+
+    expect(firstTouch).not.toBe("2020-01-01T00:00:00.000Z");
+    expect(secondTouch).toBe(firstTouch);
   });
 
   it("POST /api/auth/login throttles repeated failed attempts by username and address", async () => {
