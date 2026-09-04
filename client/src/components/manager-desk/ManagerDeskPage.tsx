@@ -36,6 +36,7 @@ interface ManagerDeskPageProps {
   initialDate?: string;
   initialItemNonce?: number;
   onInitialItemHandled?: () => void;
+  onDateChange?: (date: string) => void;
 }
 
 export function ManagerDeskPage({
@@ -43,6 +44,7 @@ export function ManagerDeskPage({
   initialDate,
   initialItemNonce,
   onInitialItemHandled,
+  onDateChange,
 }: ManagerDeskPageProps = {}) {
   const { addToast } = useToast();
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
@@ -109,6 +111,10 @@ export function ManagerDeskPage({
       onInitialItemHandled?.();
     }
   }, [initialItemId, initialItemNonce, onInitialItemHandled, sourceItems]);
+
+  useEffect(() => {
+    onDateChange?.(date);
+  }, [date, onDateChange]);
 
   const goToday = useCallback(() => setDate(format(new Date(), 'yyyy-MM-dd')), []);
   const goPrev = useCallback(() => setDate((value) => format(subDays(parseISO(value), 1), 'yyyy-MM-dd')), []);

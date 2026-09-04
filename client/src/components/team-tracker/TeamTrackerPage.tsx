@@ -30,6 +30,7 @@ import {
 } from './trackerIssueContext';
 import type { AppView } from '@/App';
 import type {
+  TeamTrackerBoardQuery,
   TeamTrackerBoardResponse,
   TrackerAttentionActionItem,
   TrackerDeveloperDay,
@@ -42,6 +43,10 @@ interface TeamTrackerPageProps {
   initialDeveloperAccountId?: string;
   initialDeveloperNonce?: number;
   onInitialDeveloperHandled?: () => void;
+  initialBoardQuery?: TeamTrackerBoardQuery;
+  urlBoardQuery?: TeamTrackerBoardQuery;
+  urlBoardQueryNonce?: number;
+  onBoardQueryChange?: (query: TeamTrackerBoardQuery) => void;
 }
 
 function useTeamTrackerWorkflow({
@@ -267,13 +272,27 @@ export function TeamTrackerPage({
   initialDeveloperAccountId,
   initialDeveloperNonce,
   onInitialDeveloperHandled,
+  initialBoardQuery,
+  urlBoardQuery,
+  urlBoardQueryNonce,
+  onBoardQueryChange,
 }: TeamTrackerPageProps) {
   const { addToast } = useToast();
   const [date, setDate] = useState(getLocalIsoDate);
   const [activeLens, setActiveLens] = useState<TeamTrackerLens>('team');
 
   // Board query + saved views (extracted hook)
-  const qs = useBoardQueryState(addToast);
+  const qs = useBoardQueryState(addToast, initialBoardQuery);
+
+  useEffect(() => {
+    onBoardQueryChange?.(qs.boardQuery);
+  }, [onBoardQueryChange, qs.boardQuery]);
+
+  useEffect(() => {
+    if (urlBoardQueryNonce !== undefined && urlBoardQueryNonce > 0) {
+      qs.replaceQuery(urlBoardQuery ?? {});
+    }
+  }, [qs.replaceQuery, urlBoardQuery, urlBoardQueryNonce]);
 
   const {
     data: board,

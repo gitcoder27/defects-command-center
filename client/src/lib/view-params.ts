@@ -1,0 +1,138 @@
+import type { TeamTrackerBoardGroupBy, TeamTrackerBoardQuery, TeamTrackerBoardSort, TrackerBoardSummaryFilter } from '@/types';
+import { DEFAULT_DASHBOARD_FILTER_STATE, type DashboardFilterState } from '@/components/layout/dashboard-state';
+
+// URL serialization for view-scoped filter state. Params only appear when they
+// differ from the defaults, so bookmarkable URLs stay short and legible.
+
+const FILTER_TYPES: DashboardFilterState['activeFilter'][] = [
+  'all',
+  'new',
+  'recentlyAssigned',
+  'inProgress',
+  'reopened',
+  'unassigned',
+  'dueToday',
+  'dueThisWeek',
+  'noDueDate',
+  'overdue',
+  'blocked',
+  'stale',
+  'highPriority',
+  'outOfTeam',
+];
+
+const SUMMARY_FILTERS: TrackerBoardSummaryFilter[] = [
+  'all',
+  'stale',
+  'blocked',
+  'at_risk',
+  'waiting',
+  'overdue_linked',
+  'over_capacity',
+  'status_follow_up',
+  'no_current',
+  'done_for_today',
+];
+
+const SORTS: TeamTrackerBoardSort[] = ['name', 'attention', 'stale_age', 'load', 'blocked_first'];
+const GROUPS: TeamTrackerBoardGroupBy[] = ['none', 'status', 'attention_state'];
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidIsoDate(value: string): boolean {
+  if (!DATE_PATTERN.test(value)) {
+    return false;
+  }
+  const [year, month, day] = value.split('-').map(Number);
+  const parsed = new Date(year ?? 0, (month ?? 1) - 1, day ?? 1);
+  return (
+    parsed.getFullYear() === year && parsed.getMonth() === (month ?? 1) - 1 && parsed.getDate() === day
+  );
+}
+
+function firstParam(params: URLSearchParams, key: string): string | undefined {
+  const value = params.get(key);
+  return value !== null && value !== '' ? value : undefined;
+}
+
+function intParam(params: URLSearchParams, key: string): number | undefined {
+  const value = firstParam(params, key);
+  if (value === undefined || !/^\d+$/.test(value)) {
+    return undefined;
+  }
+  return parseInt(value, 10);
+}
+
+function dateParam(params: URLSearchParams, key: string): string | undefined {
+  const value = firstParam(params, key);
+  return value !== undefined && isValidIsoDate(value) ? value : undefined;
+}
+
+function buildSearch(entries: Record<string, string | undefined>): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(entries)) {
+    if (value !== undefined && value !== '') {
+      params.set(key, value);
+    }
+  }
+  const search = params.toString();
+  return search ? `?${search}` : '';
+}
+
+export function dashboardFilterStateToParams(state: DashboardFilterState): Record<string, string | undefined> {
+  return {
+    filter: state.activeFilter !== DEFAULT_DASHBOARD_FILTER_STATE.activeFilter ? state.activeFilter : undefined,
+    dev: state.activeDeveloper,
+    tag: state.selectedTagId !== undefined ? String(state.selectedTagId) : undefined,
+    noTags: state.noTagsFilter ? '1' : undefined,
+  };
+}
+
+export function dashboardFilterStateToSearch(state: DashboardFilterState): string {
+  return buildSearch(dashboardFilterStateToParams(state));
+}
+
+export function dashboardFilterStateFromParams(params: URLSearchParams): DashboardFilterState {
+  const filter = firstParam(params, 'filter');
+  return {
+    activeFilter: filter && (FILTER_TYPES as string[]).includes(filter) ? (filter as DashboardFilterState['activeFilter']) : DEFAULT_DASHBOARD_FILTER_STATE.activeFilter,
+    activeDeveloper: firstParam(params, 'dev'),
+    selectedTagId: intParam(params, 'tag'),
+    noTagsFilter: firstParam(params, 'noTags') === '1',
+  };
+}
+
+export function teamBoardQueryToParams(query: TeamTrackerBoardQuery): Record<string, string | undefined> {
+  return {
+    q: query.q || undefined,
+    filter: query.summaryFilter,
+    sort: query.sortBy !== 'attention' ? query.sortBy : undefined,
+    group: query.groupBy !== 'none' ? query.groupBy : undefined,
+    view: query.viewId !== undefined ? String(query.viewId) : undefined,
+  };
+}
+
+export function teamBoardQueryToSearch(query: TeamTrackerBoardQuery): string {
+  return buildSearch(teamBoardQueryToParams(query));
+}
+
+export function teamBoardQueryFromParams(params: URLSearchParams): TeamTrackerBoardQuery {
+  const filter = firstParam(params, 'filter');
+  const sort = firstParam(params, 'sort');
+  const group = firstParam(params, 'group');
+  return {
+    q: firstParam(params, 'q'),
+    summaryFilter: filter && (SUMMARY_FILTERS as string[]).includes(filter) ? (filter as TrackerBoardSummaryFilter) : undefined,
+    sortBy: sort && (SORTS as string[]).includes(sort) ? (sort as TeamTrackerBoardSort) : undefined,
+    groupBy: group && (GROUPS as string[]).includes(group) ? (group as TeamTrackerBoardGroupBy) : undefined,
+    viewId: intParam(params, 'view'),
+  };
+}
+
+export function deskDateFromParams(params: URLSearchParams): string | undefined {
+  return dateParam(params, 'date');
+}
+
+export function deskDateToSearch(date: string | undefined): string {
+  return buildSearch({ date });
+}

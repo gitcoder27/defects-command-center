@@ -7,8 +7,15 @@ import { useBootstrapState } from '@/hooks/useBootstrapState';
 import { useSyncRefreshCoordinator } from '@/hooks/useSyncRefreshCoordinator';
 import { TodayPage } from '@/components/today/TodayPage';
 import { DEFAULT_DASHBOARD_FILTER_STATE, type DashboardFilterState } from '@/components/layout/dashboard-state';
+import {
+  dashboardFilterStateFromParams,
+  dashboardFilterStateToParams,
+  deskDateFromParams,
+  teamBoardQueryFromParams,
+  teamBoardQueryToParams,
+} from '@/lib/view-params';
 import { Header } from '@/components/layout/Header';
-import type { TodayActionTarget } from '@/types';
+import type { TeamTrackerBoardQuery, TodayActionTarget } from '@/types';
 
 export type CanonicalAppView = 'today' | 'work' | 'team' | 'desk' | 'follow-ups' | 'meetings' | 'my-day' | 'settings';
 export type LegacyAppView = 'dashboard' | 'team-tracker' | 'manager-desk';
@@ -153,13 +160,40 @@ function AuthSessionBoundary({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-function navigateToView(view: AppView, replace = false) {
-  const target = viewToPath(view);
-  if (window.location.pathname === target) {
+type ViewParams = Record<string, string | undefined>;
+
+interface NavigateOptions {
+  replace?: boolean;
+  params?: ViewParams;
+}
+
+function buildSearchFromParams(params?: ViewParams): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params ?? {})) {
+    if (value !== undefined && value !== '') {
+      search.set(key, value);
+    }
+  }
+  const queryString = search.toString();
+  return queryString ? `?${queryString}` : '';
+}
+
+function buildViewTarget(view: AppView, params?: ViewParams): string {
+  return `${viewToPath(view)}${buildSearchFromParams(params)}`;
+}
+
+function sameLocation(target: string): boolean {
+  const [targetPath, targetSearch = ''] = target.split('?');
+  return window.location.pathname === targetPath && window.location.search === (targetSearch ? `?${targetSearch}` : '');
+}
+
+function navigateToView(view: AppView, options: NavigateOptions = {}) {
+  const target = buildViewTarget(view, options.params);
+  if (sameLocation(target)) {
     return;
   }
 
-  if (replace) {
+  if (options.replace) {
     window.history.replaceState(null, '', target);
   } else {
     window.history.pushState(null, '', target);
@@ -173,7 +207,7 @@ function replaceLegacyPathIfNeeded() {
   }
   const canonicalPath = viewToPath(currentView);
   if (window.location.pathname !== canonicalPath) {
-    window.history.replaceState(null, '', canonicalPath);
+    window.history.replaceState(null, '', `${canonicalPath}${window.location.search}`);
   }
 }
 
@@ -330,10 +364,32 @@ function AppContent() {
   const isBootstrapPending = !isAuthenticatedManager && (bootstrapQuery.isLoading || !bootstrapState);
 
   const [activeView, setActiveView] = useState<ResolvedAppView>(() => pathToView(window.location.pathname));
-  const [dashboardFilterState, setDashboardFilterState] = useState<DashboardFilterState>(DEFAULT_DASHBOARD_FILTER_STATE);
+  const [dashboardFilterState, setDashboardFilterState] = useState<DashboardFilterState>(() =>
+    pathToView(window.location.pathname) === 'work'
+      ? dashboardFilterStateFromParams(new URLSearchParams(window.location.search))
+      : DEFAULT_DASHBOARD_FILTER_STATE,
+  );
+  const [teamBoardQuery, setTeamBoardQuery] = useState<TeamTrackerBoardQuery | undefined>(() =>
+    pathToView(window.location.pathname) === 'team'
+      ? teamBoardQueryFromParams(new URLSearchParams(window.location.search))
+      : undefined,
+  );
+  const [teamBoardQueryNonce, setTeamBoardQueryNonce] = useState(0);
+  const [deskDateParam, setDeskDateParam] = useState<string | undefined>(() =>
+    pathToView(window.location.pathname) === 'desk'
+      ? deskDateFromParams(new URLSearchParams(window.location.search))
+      : undefined,
+  );
   const [todayWorkTarget, setTodayWorkTarget] = useState<{ issueKey?: string; nonce: number }>({ nonce: 0 });
   const [todayTeamTarget, setTodayTeamTarget] = useState<{ developerAccountId?: string; nonce: number }>({ nonce: 0 });
-  const [todayDeskTarget, setTodayDeskTarget] = useState<{ itemId?: number; date?: string; nonce: number }>({ nonce: 0 });
+  const [todayDeskTarget, setTodayDeskTarget] = useState<{ itemId?: number; date?: string; nonce: number }>(() => ({
+    itemId: undefined,
+    date:
+      pathToView(window.location.pathname) === 'desk'
+        ? deskDateFromParams(new URLSearchParams(window.location.search))
+        : undefined,
+    nonce: 0,
+  }));
 
   useSyncRefreshCoordinator({ enabled: isAuthenticatedManager && activeView !== 'today' });
 
@@ -346,38 +402,47 @@ function AppContent() {
   const handleViewChange = useCallback((view: AppView) => {
     const nextView = canonicalizeView(view);
     clearTodayTargets();
+    setDeskDateParam(undefined);
     preloadView(nextView);
     setActiveView(nextView);
-    navigateToView(nextView);
-  }, [clearTodayTargets]);
+    navigateToView(nextView, {
+      params:
+        nextView === 'work'
+          ? dashboardFilterStateToParams(dashboardFilterState)
+          : nextView === 'team'
+          ? teamBoardQuery
+            ? teamBoardQueryToParams(teamBoardQuery)
+            : undefined
+          : undefined,
+    });
+  }, [clearTodayTargets, dashboardFilterState, teamBoardQuery]);
 
   const handleTodayWorkFilter = useCallback((filter: DashboardFilterState['activeFilter']) => {
     clearTodayTargets();
-    setDashboardFilterState((prev) => ({
-      ...prev,
+    const nextFilterState: DashboardFilterState = {
+      ...DEFAULT_DASHBOARD_FILTER_STATE,
       activeFilter: filter,
-      activeDeveloper: undefined,
-      selectedTagId: undefined,
-      noTagsFilter: false,
-    }));
+    };
+    setDashboardFilterState(nextFilterState);
     preloadView('work');
     setActiveView('work');
-    navigateToView('work');
+    navigateToView('work', { params: dashboardFilterStateToParams(nextFilterState) });
   }, [clearTodayTargets]);
 
   const handleOpenTodayTarget = useCallback((target: TodayActionTarget) => {
     if (target.view === 'work') {
-      setDashboardFilterState((prev) => ({
-        ...prev,
-        activeFilter: target.filter ?? prev.activeFilter,
+      const nextFilterState: DashboardFilterState = {
+        ...dashboardFilterState,
+        activeFilter: target.filter ?? dashboardFilterState.activeFilter,
         activeDeveloper: undefined,
         selectedTagId: undefined,
         noTagsFilter: false,
-      }));
+      };
+      setDashboardFilterState(nextFilterState);
       setTodayWorkTarget((prev) => ({ issueKey: target.issueKey, nonce: prev.nonce + 1 }));
       preloadView('work');
       setActiveView('work');
-      navigateToView('work');
+      navigateToView('work', { params: dashboardFilterStateToParams(nextFilterState) });
       return;
     }
 
@@ -395,9 +460,10 @@ function AppContent() {
         date: target.date,
         nonce: prev.nonce + 1,
       }));
+      setDeskDateParam(target.date);
       preloadView('desk');
       setActiveView('desk');
-      navigateToView('desk');
+      navigateToView('desk', { params: target.date ? { date: target.date } : undefined });
       return;
     }
 
@@ -411,13 +477,13 @@ function AppContent() {
     const nextView = canonicalizeView(target.view as AppView);
     setActiveView(nextView);
     navigateToView(nextView);
-  }, []);
+  }, [dashboardFilterState]);
 
   const replaceView = useCallback((view: AppView) => {
     const nextView = canonicalizeView(view);
     preloadView(nextView);
     setActiveView(nextView);
-    navigateToView(nextView, true);
+    navigateToView(nextView, { replace: true });
   }, []);
 
   useEffect(() => {
@@ -425,12 +491,58 @@ function AppContent() {
 
     const onPopState = () => {
       const nextView = pathToView(window.location.pathname);
+      const params = new URLSearchParams(window.location.search);
       setActiveView(nextView);
+      if (nextView === 'work') {
+        setDashboardFilterState(dashboardFilterStateFromParams(params));
+      }
+      if (nextView === 'team') {
+        setTeamBoardQuery(teamBoardQueryFromParams(params));
+        setTeamBoardQueryNonce((nonce) => nonce + 1);
+      }
       replaceLegacyPathIfNeeded();
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
+
+  const handleTeamBoardQueryChange = useCallback((query: TeamTrackerBoardQuery) => {
+    setTeamBoardQuery(query);
+  }, []);
+
+  const handleDeskDateChange = useCallback((date: string) => {
+    setDeskDateParam(date);
+  }, []);
+
+  // Keep the URL in sync with the active view's filter state (replace, not
+  // push, so filter tweaks never pollute browser history).
+  useEffect(() => {
+    if (activeView !== 'work') {
+      return;
+    }
+    const target = `${window.location.pathname}${buildSearchFromParams(dashboardFilterStateToParams(dashboardFilterState))}`;
+    if (sameLocation(target)) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      window.history.replaceState(null, '', target);
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [activeView, dashboardFilterState]);
+
+  useEffect(() => {
+    if (activeView !== 'team' || !teamBoardQuery) {
+      return;
+    }
+    const target = `${window.location.pathname}${buildSearchFromParams(teamBoardQueryToParams(teamBoardQuery))}`;
+    if (sameLocation(target)) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      window.history.replaceState(null, '', target);
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [activeView, teamBoardQuery]);
 
   useEffect(() => {
     if (authLoading || isBootstrapPending) {
@@ -529,6 +641,7 @@ function AppContent() {
             initialDate={todayDeskTarget.date}
             initialItemNonce={todayDeskTarget.nonce}
             onInitialItemHandled={() => setTodayDeskTarget((prev) => ({ nonce: prev.nonce + 1 }))}
+            onDateChange={handleDeskDateChange}
           />
         </Suspense>
       </WorkspaceShell>
@@ -544,6 +657,10 @@ function AppContent() {
             initialDeveloperAccountId={todayTeamTarget.developerAccountId}
             initialDeveloperNonce={todayTeamTarget.nonce}
             onInitialDeveloperHandled={() => setTodayTeamTarget((prev) => ({ nonce: prev.nonce + 1 }))}
+            initialBoardQuery={teamBoardQuery}
+            urlBoardQuery={teamBoardQuery}
+            urlBoardQueryNonce={teamBoardQueryNonce}
+            onBoardQueryChange={handleTeamBoardQueryChange}
           />
         </Suspense>
       </WorkspaceShell>

@@ -27,6 +27,7 @@ export interface BoardQueryState {
   handleSaveNewView: (name: string) => void;
   handleUpdateView: (viewId: number, name: string) => void;
   handleDeleteView: (viewId: number) => void;
+  replaceQuery: (query: TeamTrackerBoardQuery) => void;
   savedViews: TeamTrackerSavedView[];
   isViewsLoading: boolean;
   isSaving: boolean;
@@ -37,8 +38,9 @@ type AddToastFn = (...args: any[]) => void;
 
 export function useBoardQueryState(
   addToast: AddToastFn,
+  initialQuery?: TeamTrackerBoardQuery,
 ): BoardQueryState {
-  const [boardQuery, setBoardQuery] = useState<TeamTrackerBoardQuery>({ sortBy: 'attention' });
+  const [boardQuery, setBoardQuery] = useState<TeamTrackerBoardQuery>(initialQuery ?? { sortBy: 'attention' });
   const activeViewSnapshot = useRef<TeamTrackerSavedView | undefined>();
 
   const { data: savedViews, isLoading: isViewsLoading } = useTeamTrackerViews();
@@ -138,6 +140,10 @@ export function useBoardQueryState(
     });
   }, [activeViewId, addToast, deleteView]);
 
+  const replaceQuery = useCallback((query: TeamTrackerBoardQuery) => {
+    setBoardQuery(query);
+  }, []);
+
   return {
     boardQuery,
     activeViewId,
@@ -151,6 +157,7 @@ export function useBoardQueryState(
     handleSaveNewView,
     handleUpdateView,
     handleDeleteView,
+    replaceQuery,
     savedViews: savedViews ?? [],
     isViewsLoading,
     isSaving: createView.isPending || updateView.isPending,
