@@ -20,8 +20,8 @@ export interface PaletteItem {
   view?: AppView;
   /** Navigation targets handed to the app's shared target handler. */
   target?: TodayActionTarget;
-  /** Non-navigation actions the palette host executes (capture, sync). */
-  actionId?: 'capture' | 'sync';
+  /** Non-navigation actions the palette host executes (capture, sync, quick add). */
+  actionId?: 'capture' | 'sync' | 'quick-add-desk';
 }
 
 export interface PaletteGroup {
@@ -34,9 +34,9 @@ const NAVIGATION_COMMANDS: Array<{ view: AppView; title: string; keywords?: stri
   { view: 'today', title: 'Go to Today', keywords: 'home daily start morning' },
   { view: 'work', title: 'Go to Work', keywords: 'defects jira issues triage dashboard', targetView: 'work' },
   { view: 'team', title: 'Go to Team', keywords: 'tracker developers day check-in', targetView: 'team' },
-  { view: 'desk', title: 'Go to Desk', keywords: 'manager capture planning notes', targetView: 'desk' },
+  { view: 'desk', title: 'Go to Desk', keywords: 'manager planning', targetView: 'desk' },
   { view: 'follow-ups', title: 'Go to Follow-ups', keywords: 'promises reminders', targetView: 'follow-ups' },
-  { view: 'meetings', title: 'Go to Meetings', keywords: 'notes actions minutes', targetView: 'meetings' },
+  { view: 'meetings', title: 'Go to Meetings', keywords: 'actions minutes', targetView: 'meetings' },
   { view: 'settings', title: 'Go to Settings', keywords: 'config jira users backups', targetView: 'settings' },
 ];
 
@@ -77,10 +77,56 @@ export function filterCommands(commands: PaletteItem[], query: string): PaletteI
   if (!normalized) {
     return commands;
   }
-  return commands.filter((command) => {
+  const tokens = normalized.split(/\s+/);
+
+  const scored: Array<{ command: PaletteItem; index: number; tier: number }> = [];
+  commands.forEach((command, index) => {
     const haystack = `${command.title} ${command.keywords ?? ''}`.toLowerCase();
-    return normalized.split(/\s+/).every((token) => haystack.includes(token));
+    if (!tokens.every((token) => haystack.includes(token))) {
+      return;
+    }
+    // Title matches outrank keyword-only matches so "capture" surfaces the
+    // capture action above destinations that merely mention capturing.
+    const titleLower = command.title.toLowerCase();
+    const tier = tokens.every((token) => titleLower.includes(token)) ? 0 : 1;
+    scored.push({ command, index, tier });
   });
+
+  return scored
+    .sort((left, right) => left.tier - right.tier || left.index - right.index)
+    .map((entry) => entry.command);
+}
+
+export const QUICK_ADD_MIN_QUERY_LENGTH = 3;
+
+/**
+ * Free-text quick add: a typed sentence becomes a desk item on today's inbox.
+ * Returns null for queries too short to look like content.
+ */
+export function buildQuickAddItem(query: string): PaletteItem | null {
+  const trimmed = query.trim();
+  if (trimmed.length < QUICK_ADD_MIN_QUERY_LENGTH) {
+    return null;
+  }
+  return {
+    id: 'quick-add-desk',
+    group: 'actions',
+    title: 'Add to Desk',
+    description: `"${trimmed}" · today's inbox`,
+    actionId: 'quick-add-desk',
+  };
+}
+
+/**
+ * Deterministic placement to avoid the duplicate-creation trap: when the
+ * quick-add row is the only row, Enter creates immediately; when anything
+ * else matches, it is pinned last so Enter opens the top result instead.
+ */
+export function placeQuickAddItem(rows: PaletteItem[], quickAdd: PaletteItem | null): PaletteItem[] {
+  if (!quickAdd) {
+    return rows;
+  }
+  return rows.length === 0 ? [quickAdd] : [...rows, quickAdd];
 }
 
 export function issueToPaletteItem(issue: GlobalSearchIssueItem, index: number): PaletteItem {

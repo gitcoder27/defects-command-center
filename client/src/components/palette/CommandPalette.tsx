@@ -19,10 +19,21 @@ import {
 } from 'lucide-react';
 import type { AppView } from '@/App';
 import type { TodayActionTarget } from '@/types';
+import { useToast } from '@/context/ToastContext';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
+import { useCreateManagerDeskItem } from '@/hooks/useManagerDesk';
+import { getLocalIsoDate } from '@/lib/utils';
 import { GLOBAL_SEARCH_MIN_LENGTH, useGlobalSearch } from '@/hooks/useGlobalSearch';
 import { useQuickActions } from '@/context/QuickActionsContext';
-import { buildNavigationCommands, buildQuickActions, buildResultGroups, filterCommands, type PaletteItem } from './paletteItems';
+import {
+  buildNavigationCommands,
+  buildQuickActions,
+  buildQuickAddItem,
+  buildResultGroups,
+  filterCommands,
+  placeQuickAddItem,
+  type PaletteItem,
+} from './paletteItems';
 
 interface CommandPaletteProps {
   onClose: () => void;
@@ -40,6 +51,7 @@ const ACTION_ICONS: Record<string, typeof Sunrise> = {
   'nav-settings': Settings,
   'action-capture': Plus,
   'action-sync': RefreshCw,
+  'quick-add-desk': Plus,
 };
 
 const RESULT_ICONS: Record<string, typeof Bug> = {
@@ -63,8 +75,13 @@ export function CommandPalette({ onClose, onOpenTarget, onViewChange }: CommandP
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const activeItemRef = useRef<HTMLButtonElement | null>(null);
+  const { addToast } = useToast();
   const { openCapture } = useQuickActions();
   const triggerSync = useTriggerSync();
+  // The palette remounts on open, so resolving today here keeps quick-add
+  // anchored to the day the manager is working in.
+  const today = useMemo(() => getLocalIsoDate(), []);
+  const createDeskItem = useCreateManagerDeskItem(today);
 
   const searchQuery = useGlobalSearch(query);
   const isSearching = searchQuery.isFetching;
@@ -75,16 +92,15 @@ export function CommandPalette({ onClose, onOpenTarget, onViewChange }: CommandP
 
   const items = useMemo<PaletteItem[]>(() => {
     const actions = filterCommands([...navigationCommands, ...quickActions], query);
-    if (!hasResults) {
-      return actions;
-    }
-    const groups = buildResultGroups({
-      issues: searchQuery.data?.issues ?? [],
-      deskItems: searchQuery.data?.deskItems ?? [],
-      checkIns: searchQuery.data?.checkIns ?? [],
-      developers: searchQuery.data?.developers ?? [],
-    });
-    return [...actions, ...groups.flatMap((group) => group.items)];
+    const resultRows = hasResults
+      ? buildResultGroups({
+          issues: searchQuery.data?.issues ?? [],
+          deskItems: searchQuery.data?.deskItems ?? [],
+          checkIns: searchQuery.data?.checkIns ?? [],
+          developers: searchQuery.data?.developers ?? [],
+        }).flatMap((group) => group.items)
+      : [];
+    return placeQuickAddItem([...actions, ...resultRows], buildQuickAddItem(query));
   }, [hasResults, navigationCommands, query, quickActions, searchQuery.data]);
 
   useEffect(() => {
@@ -133,6 +149,32 @@ export function CommandPalette({ onClose, onOpenTarget, onViewChange }: CommandP
         triggerSync.mutate();
         return;
       }
+      if (item.actionId === 'quick-add-desk') {
+        const title = query.trim();
+        if (!title || createDeskItem.isPending) {
+          return;
+        }
+        createDeskItem.mutate(
+          {
+            date: today,
+            title,
+            kind: 'action',
+            category: 'other',
+            status: 'inbox',
+            priority: 'medium',
+          },
+          {
+            onSuccess: () => {
+              onClose();
+              addToast('Added to Desk', 'success');
+            },
+            onError: (error) => {
+              addToast(error.message, 'error');
+            },
+          },
+        );
+        return;
+      }
       if (item.target) {
         onClose();
         onOpenTarget(item.target);
@@ -144,7 +186,7 @@ export function CommandPalette({ onClose, onOpenTarget, onViewChange }: CommandP
         return;
       }
     },
-    [onClose, onOpenTarget, onViewChange, openCapture, triggerSync],
+    [addToast, createDeskItem, onClose, onOpenTarget, onViewChange, openCapture, query, today, triggerSync],
   );
 
   const handleInputKeyDown = useCallback(
@@ -207,7 +249,7 @@ export function CommandPalette({ onClose, onOpenTarget, onViewChange }: CommandP
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={handleInputKeyDown}
-            placeholder="Search issues, follow-ups, check-ins, people…"
+            placeholder="Search, or type to add to Desk…"
             className="flex-1 bg-transparent text-[14px] outline-none placeholder:text-placeholder"
             style={{ color: 'var(--text-primary)' }}
             aria-label="Search"
@@ -222,7 +264,7 @@ export function CommandPalette({ onClose, onOpenTarget, onViewChange }: CommandP
           {items.length === 0 ? (
             <div className="px-4 py-8 text-center">
               <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
-                {hasResults ? 'No matches found.' : 'Type to search, or pick a destination.'}
+                {hasResults ? 'No matches found.' : 'Type to search, pick a destination, or start typing to add to Desk.'}
               </p>
             </div>
           ) : (

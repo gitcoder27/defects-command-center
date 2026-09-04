@@ -3,12 +3,15 @@ import type { GlobalSearchCheckInItem, GlobalSearchDeskItem, GlobalSearchDevelop
 import {
   buildNavigationCommands,
   buildQuickActions,
+  buildQuickAddItem,
   buildResultGroups,
   checkInToPaletteItem,
   deskItemToPaletteItem,
   developerToPaletteItem,
   filterCommands,
   issueToPaletteItem,
+  placeQuickAddItem,
+  QUICK_ADD_MIN_QUERY_LENGTH,
 } from '@/components/palette/paletteItems';
 
 const issue: GlobalSearchIssueItem = {
@@ -127,11 +130,83 @@ describe('palette commands', () => {
     const commands = [...buildNavigationCommands(), ...buildQuickActions()];
 
     expect(filterCommands(commands, 'jira').map((command) => command.id)).toEqual([
+      'action-sync',
       'nav-work',
       'nav-settings',
-      'action-sync',
     ]);
     expect(filterCommands(commands, 'follow ups')).toEqual([commands.find((command) => command.id === 'nav-follow-ups')]);
     expect(filterCommands(commands, 'zzz')).toEqual([]);
   });
+
+  it('ranks title matches above keyword-only matches', () => {
+    const commands = [...buildNavigationCommands(), ...buildQuickActions()];
+
+    expect(filterCommands(commands, 'note')[0].id).toBe('action-capture');
+    expect(filterCommands(commands, 'capture')[0].id).toBe('action-capture');
+  });
+
+  it('no longer lets Desk or Meetings hijack capture and note keywords', () => {
+    const commands = [...buildNavigationCommands(), ...buildQuickActions()];
+
+    expect(filterCommands(commands, 'note').map((command) => command.id)).toEqual(['action-capture']);
+    expect(filterCommands(commands, 'capture').map((command) => command.id)).toEqual(['action-capture']);
+  });
 });
+
+describe('quick-add to Desk', () => {
+  it('returns null for queries shorter than the minimum length', () => {
+    expect(buildQuickAddItem('')).toBeNull();
+    expect(buildQuickAddItem('   ')).toBeNull();
+    expect(buildQuickAddItem('ab')).toBeNull();
+    expect(buildQuickAddItem(' a ')).toBeNull();
+    expect(QUICK_ADD_MIN_QUERY_LENGTH).toBe(3);
+  });
+
+  it('builds an add row from the trimmed query', () => {
+    const item = buildQuickAddItem('  follow up with Priya about payment bug  ');
+
+    expect(item).toMatchObject({
+      id: 'quick-add-desk',
+      group: 'actions',
+      title: 'Add to Desk',
+      actionId: 'quick-add-desk',
+    });
+    expect(item?.description).toBe('"follow up with Priya about payment bug" · today\'s inbox');
+    expect(item?.target).toBeUndefined();
+  });
+
+  it('places the add row first when it is the only row', () => {
+    const quickAdd = buildQuickAddItem('follow up with Priya about pricing')!;
+
+    expect(placeQuickAddItem([], quickAdd)).toEqual([quickAdd]);
+  });
+
+  it('pins the add row last when other rows exist', () => {
+    const quickAdd = buildQuickAddItem('payment')!;
+    const results = [...buildNavigationCommands().slice(0, 2)];
+
+    const rows = placeQuickAddItem(results, quickAdd);
+
+    expect(rows).toHaveLength(3);
+    expect(rows[rows.length - 1]?.id).toBe('quick-add-desk');
+    expect(rows[0].id).toBe('nav-today');
+  });
+
+  it('leaves rows untouched when quick add is unavailable', () => {
+    const results = buildNavigationCommands().slice(0, 2);
+
+    expect(placeQuickAddItem(results, null)).toBe(results);
+  });
+
+  it('pins the add row last when command matches exist for the same query', () => {
+    const quickAdd = buildQuickAddItem('work items')!;
+    const commandRows = filterCommands([...buildNavigationCommands(), ...buildQuickActions()], 'work');
+
+    expect(commandRows.length).toBeGreaterThan(0);
+    const rows = placeQuickAddItem(commandRows, quickAdd);
+
+    expect(rows[rows.length - 1]?.id).toBe('quick-add-desk');
+    expect(rows.filter((row) => row.id === 'quick-add-desk')).toHaveLength(1);
+  });
+});
+
