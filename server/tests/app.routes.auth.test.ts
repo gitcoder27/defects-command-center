@@ -70,6 +70,7 @@ function createTestApp(authService: AuthService) {
     myDayService: {} as any,
     managerDeskService: {} as any,
     todayService: {} as any,
+    searchService: {} as any,
   });
 }
 

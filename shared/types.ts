@@ -960,6 +960,54 @@ export interface ManagerDeskDeveloperLookupItem {
   availability?: DeveloperAvailability;
 }
 
+export interface GlobalSearchIssueItem {
+  jiraKey: string;
+  summary: string;
+  statusName: string;
+  statusCategory: string;
+  priorityName: string;
+  assigneeName?: string;
+  dueDate?: string;
+  updatedAt: string;
+}
+
+export interface GlobalSearchDeskItem {
+  itemId: number;
+  date: string;
+  title: string;
+  kind: ManagerDeskItemKind;
+  category: ManagerDeskCategory;
+  status: ManagerDeskStatus;
+  followUpAt?: string;
+  completedAt?: string;
+  updatedAt: string;
+}
+
+export interface GlobalSearchCheckInItem {
+  checkInId: number;
+  date: string;
+  developerAccountId: string;
+  developerName: string;
+  summary: string;
+  status?: string;
+  createdAt: string;
+}
+
+export interface GlobalSearchDeveloperItem {
+  accountId: string;
+  displayName: string;
+  email?: string;
+  avatarUrl?: string;
+}
+
+export interface GlobalSearchResponse {
+  query: string;
+  issues: GlobalSearchIssueItem[];
+  deskItems: GlobalSearchDeskItem[];
+  checkIns: GlobalSearchCheckInItem[];
+  developers: GlobalSearchDeveloperItem[];
+}
+
 export interface ManagerDeskCreateItemPayload {
   date: string;
   title: string;

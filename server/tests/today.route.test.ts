@@ -35,6 +35,7 @@ function createTestApp() {
     myDayService: {} as any,
     managerDeskService,
     todayService,
+    searchService: {} as any,
   });
 }
 

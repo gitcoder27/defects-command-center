@@ -18,6 +18,7 @@ import { SettingsService } from "../src/services/settings.service";
 import { TagService } from "../src/services/tag.service";
 import { TeamTrackerService } from "../src/services/team-tracker.service";
 import { TodayService } from "../src/services/today.service";
+import { SearchService } from "../src/services/search.service";
 import { WorkloadService } from "../src/services/workload.service";
 import { db, resetDatabase } from "./helpers/db";
 import { invoke } from "./helpers/http";
@@ -50,6 +51,7 @@ function buildApp(authService: AuthService, trackerService: TeamTrackerService, 
     myDayService: new MyDayService(trackerService),
     managerDeskService,
     todayService: new TodayService(issueService, trackerService, managerDeskService, syncEngine),
+    searchService: new SearchService(),
   });
 }
 

@@ -18,6 +18,7 @@ import { createMyDayRouter } from "./routes/my-day";
 import { createManagerDeskRouter } from "./routes/manager-desk";
 import { createManagerActionsRouter } from "./routes/manager-actions";
 import { createTodayRouter } from "./routes/today";
+import { createSearchRouter } from "./routes/search";
 import { requireAdmin, requireManager } from "./middleware/auth";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { AlertService } from "./services/alert.service";
@@ -28,6 +29,7 @@ import { IssueService } from "./services/issue.service";
 import { ManagerDeskService } from "./services/manager-desk.service";
 import { MyDayService } from "./services/my-day.service";
 import { WorkloadService } from "./services/workload.service";
+import { SearchService } from "./services/search.service";
 import { TagService } from "./services/tag.service";
 import { TeamTrackerService } from "./services/team-tracker.service";
 import { TodayService } from "./services/today.service";
@@ -90,6 +92,7 @@ export interface AppServices {
   myDayService: MyDayService;
   managerDeskService: ManagerDeskService;
   todayService: TodayService;
+  searchService: SearchService;
 }
 
 export function createApp(services: AppServices) {
@@ -138,6 +141,7 @@ export function createApp(services: AppServices) {
     "/api/manager-desk",
     createManagerDeskRouter(services.managerDeskService, services.authService)
   );
+  app.use("/api/search", requireManager(services.authService), createSearchRouter(services.searchService));
 
   if (process.env.NODE_ENV === "production") {
     const clientDistPath = path.resolve(resolveWorkspaceRoot(), "client", "dist");
