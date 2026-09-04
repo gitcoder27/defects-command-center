@@ -1,14 +1,20 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Bookmark, Check, ChevronDown, Plus, X, Loader2 } from 'lucide-react';
-import type { TeamTrackerSavedView } from '@/types';
 import { SavedViewItem } from './SavedViewItem';
 
-export interface SavedViewsMenuProps {
-  views: TeamTrackerSavedView[];
+export interface SavedViewOption {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+export interface SavedViewsMenuProps<TView extends SavedViewOption = SavedViewOption> {
+  views: TView[];
+  describe?: (view: TView) => string | undefined;
   activeViewId: number | undefined;
   isDirty: boolean;
   isViewsLoading: boolean;
-  onApplyView: (view: TeamTrackerSavedView) => void;
+  onApplyView: (view: TView) => void;
   onClearView: () => void;
   onSaveNew: (name: string) => void;
   onUpdateView: (viewId: number, name: string) => void;
@@ -16,8 +22,9 @@ export interface SavedViewsMenuProps {
   isSaving: boolean;
 }
 
-export function SavedViewsMenu({
+export function SavedViewsMenu<TView extends SavedViewOption>({
   views,
+  describe,
   activeViewId,
   isDirty,
   isViewsLoading,
@@ -27,7 +34,7 @@ export function SavedViewsMenu({
   onUpdateView,
   onDeleteView,
   isSaving,
-}: SavedViewsMenuProps) {
+}: SavedViewsMenuProps<TView>) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<'list' | 'create' | 'rename'>('list');
   const [editName, setEditName] = useState('');
@@ -131,7 +138,7 @@ export function SavedViewsMenu({
               views.map((view) => (
                 <SavedViewItem
                   key={view.id}
-                  view={view}
+                  view={{ id: view.id, name: view.name, description: describe?.(view) }}
                   isActive={view.id === activeViewId}
                   isDeleting={confirmDeleteId === view.id}
                   onApply={() => { onApplyView(view); setOpen(false); resetMode(); }}

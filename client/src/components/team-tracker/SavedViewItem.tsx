@@ -1,5 +1,6 @@
 import { Pencil, Trash2 } from 'lucide-react';
 import type { TeamTrackerSavedView } from '@/types';
+import type { SavedViewOption } from './SavedViewsMenu';
 
 const sortLabels: Record<string, string> = {
   name: 'Name',
@@ -15,23 +16,27 @@ const groupLabels: Record<string, string> = {
   attention_state: 'Attention',
 };
 
-export function SavedViewDescription({ view }: { view: TeamTrackerSavedView }) {
+export function describeTeamTrackerView(view: TeamTrackerSavedView): string | undefined {
   const parts: string[] = [];
   if (view.q) parts.push(`"${view.q}"`);
   if (view.summaryFilter !== 'all') parts.push(view.summaryFilter.replace(/_/g, ' '));
   if (view.sortBy !== 'name') parts.push(`sort: ${sortLabels[view.sortBy] ?? view.sortBy}`);
   if (view.groupBy !== 'none') parts.push(`group: ${groupLabels[view.groupBy] ?? view.groupBy}`);
-  if (parts.length === 0) return null;
+  return parts.length > 0 ? parts.join(' · ') : undefined;
+}
+
+export function SavedViewItemDescription({ description }: { description?: string }) {
+  if (!description) return null;
 
   return (
     <div className="text-[11px] truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>
-      {parts.join(' · ')}
+      {description}
     </div>
   );
 }
 
 interface SavedViewItemProps {
-  view: TeamTrackerSavedView;
+  view: SavedViewOption;
   isActive: boolean;
   isDeleting: boolean;
   onApply: () => void;
@@ -99,7 +104,7 @@ export function SavedViewItem({
         >
           {view.name}
         </div>
-        <SavedViewDescription view={view} />
+        <SavedViewItemDescription description={view.description} />
       </div>
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <button

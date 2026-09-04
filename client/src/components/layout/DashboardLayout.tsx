@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Header } from './Header';
 import { ErrorBanner } from '@/components/alerts/ErrorBanner';
 import { FilterSidebar } from '@/components/filters/FilterSidebar';
@@ -6,8 +6,13 @@ import { DefectTable } from '@/components/table/DefectTable';
 import { TriagePanel } from '@/components/triage/TriagePanel';
 import { WorkloadBar } from '@/components/workload/WorkloadBar';
 import { WorkFocusStrip } from '@/components/work/WorkFocusStrip';
+import { describeWorkSavedView } from '@/components/work/workSavedViewDescription';
+import { SavedViewsMenu } from '@/components/team-tracker/SavedViewsMenu';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useWorkSavedViewState } from '@/hooks/useWorkSavedViewState';
+import { useToast } from '@/context/ToastContext';
+import { useWorkload } from '@/hooks/useWorkload';
 import type { Alert, FilterType, ManagerActionTarget } from '@/types';
 import type { AppView } from '@/App';
 import { DEFAULT_DASHBOARD_FILTER_STATE, type DashboardFilterState } from './dashboard-state';
@@ -207,6 +212,29 @@ export function DashboardLayout({
   }, [isControlled, onFilterStateChange, resolvedFilterState]);
 
   selectedIssueKeyRef.current = selectedIssueKey;
+
+  const { addToast } = useToast();
+  const { data: workload } = useWorkload();
+  const developerNames = useMemo(
+    () => new Map(workload?.map((developer) => [developer.developer.accountId, developer.developer.displayName])),
+    [workload],
+  );
+  const workViews = useWorkSavedViewState(addToast, resolvedFilterState, setFilterState);
+  const workViewsMenu = (
+    <SavedViewsMenu
+      views={workViews.savedViews}
+      describe={(view) => describeWorkSavedView(view, developerNames)}
+      activeViewId={workViews.activeViewId}
+      isDirty={workViews.isDirty}
+      isViewsLoading={workViews.isViewsLoading}
+      onApplyView={workViews.handleApplyView}
+      onClearView={workViews.handleClearView}
+      onSaveNew={workViews.handleSaveNewView}
+      onUpdateView={workViews.handleUpdateView}
+      onDeleteView={workViews.handleDeleteView}
+      isSaving={workViews.isSaving}
+    />
+  );
 
   useEffect(() => {
     if (!isCompact) {
@@ -476,6 +504,7 @@ export function DashboardLayout({
             onFilterChange={handleFilterChange}
             onOpenDesk={onViewChange ? () => onViewChange('desk') : undefined}
             onOpenTeam={onViewChange ? () => onViewChange('team') : undefined}
+            actions={workViewsMenu}
           />
 
           <ErrorBanner />

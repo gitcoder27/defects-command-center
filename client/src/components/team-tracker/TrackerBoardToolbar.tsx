@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
-import type { TeamTrackerBoardSort, TeamTrackerBoardGroupBy } from '@/types';
+import type { TeamTrackerBoardSort, TeamTrackerBoardGroupBy, TeamTrackerSavedView } from '@/types';
 import { SavedViewsMenu } from './SavedViewsMenu';
 import type { SavedViewsMenuProps } from './SavedViewsMenu';
 
-interface TrackerBoardToolbarProps extends SavedViewsMenuProps {
+interface TrackerBoardToolbarProps extends SavedViewsMenuProps<TeamTrackerSavedView> {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   sortBy: TeamTrackerBoardSort;

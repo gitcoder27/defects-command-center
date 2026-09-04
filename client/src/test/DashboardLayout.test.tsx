@@ -2,6 +2,7 @@ import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { TestWrapper } from './wrapper';
 
 const mockTriggerSync = {
   mutate: vi.fn(),
@@ -128,7 +129,7 @@ describe('DashboardLayout', () => {
   });
 
   it('keeps the active developer when a top work signal is clicked', () => {
-    render(<DashboardLayout />);
+    render(<DashboardLayout />, { wrapper: TestWrapper });
 
     fireEvent.click(screen.getByText('Select Developer'));
     fireEvent.click(screen.getByText('Work Signal'));
@@ -139,7 +140,7 @@ describe('DashboardLayout', () => {
   });
 
   it('renders the desktop sidebar collapsed by default', () => {
-    render(<DashboardLayout />);
+    render(<DashboardLayout />, { wrapper: TestWrapper });
 
     const lastCall = filterSidebarSpy.mock.calls.at(-1)?.[0] as { collapsed: boolean; open: boolean; isMobile: boolean };
     expect(lastCall.isMobile).toBe(false);
@@ -148,7 +149,7 @@ describe('DashboardLayout', () => {
   });
 
   it('syncs workload developer selection into the sidebar and defect table filters', () => {
-    render(<DashboardLayout />);
+    render(<DashboardLayout />, { wrapper: TestWrapper });
 
     fireEvent.click(screen.getByText('Select Developer'));
 
@@ -160,7 +161,7 @@ describe('DashboardLayout', () => {
   });
 
   it('keeps the active jira filter when a workload developer is selected', () => {
-    render(<DashboardLayout />);
+    render(<DashboardLayout />, { wrapper: TestWrapper });
 
     fireEvent.click(screen.getByText('Work Signal'));
     fireEvent.click(screen.getByText('Select Developer'));
@@ -177,7 +178,7 @@ describe('DashboardLayout', () => {
   it('opens the mobile drawer from the header toggle', () => {
     useMediaQueryMock.mockReturnValue(true);
 
-    render(<DashboardLayout />);
+    render(<DashboardLayout />, { wrapper: TestWrapper });
 
     fireEvent.click(screen.getByText('Header'));
 
@@ -188,7 +189,7 @@ describe('DashboardLayout', () => {
   });
 
   it('retains the last opened row highlight after triage closes', () => {
-    render(<DashboardLayout />);
+    render(<DashboardLayout />, { wrapper: TestWrapper });
 
     fireEvent.click(screen.getByText('Open PROJ-101'));
     expect(screen.getByTestId('selected-key')).toHaveTextContent('PROJ-101');
@@ -203,17 +204,17 @@ describe('DashboardLayout', () => {
   it('clears the retained highlight on the next interaction after triage closes', () => {
     vi.useFakeTimers();
 
-    render(<DashboardLayout />);
+    render(<DashboardLayout />, { wrapper: TestWrapper });
 
     fireEvent.click(screen.getByText('Open PROJ-101'));
     fireEvent.click(screen.getByText('Close Triage'));
 
     act(() => {
-      vi.runAllTimers();
+      vi.advanceTimersByTime(1500);
     });
     fireEvent.click(document.body);
     act(() => {
-      vi.runAllTimers();
+      vi.advanceTimersByTime(1500);
     });
 
     expect(screen.getByTestId('highlighted-key')).toHaveTextContent('none');
@@ -222,17 +223,17 @@ describe('DashboardLayout', () => {
   it('replaces the retained highlight when another defect is opened next', () => {
     vi.useFakeTimers();
 
-    render(<DashboardLayout />);
+    render(<DashboardLayout />, { wrapper: TestWrapper });
 
     fireEvent.click(screen.getByText('Open PROJ-101'));
     fireEvent.click(screen.getByText('Close Triage'));
 
     act(() => {
-      vi.runAllTimers();
+      vi.advanceTimersByTime(1500);
     });
     fireEvent.click(screen.getByText('Open PROJ-102'));
     act(() => {
-      vi.runAllTimers();
+      vi.advanceTimersByTime(1500);
     });
 
     expect(screen.getByTestId('selected-key')).toHaveTextContent('PROJ-102');
@@ -242,19 +243,19 @@ describe('DashboardLayout', () => {
   it('does not clear the retained highlight when the next click opens an inline table control', () => {
     vi.useFakeTimers();
 
-    render(<DashboardLayout />);
+    render(<DashboardLayout />, { wrapper: TestWrapper });
 
     fireEvent.click(screen.getByText('Open PROJ-101'));
     fireEvent.click(screen.getByText('Close Triage'));
 
     act(() => {
-      vi.runAllTimers();
+      vi.advanceTimersByTime(1500);
     });
 
     fireEvent.click(screen.getByText('Open Assignee Inline Edit'));
 
     act(() => {
-      vi.runAllTimers();
+      vi.advanceTimersByTime(1500);
     });
 
     expect(screen.getByTestId('inline-editor-state')).toHaveTextContent('open');
@@ -262,7 +263,7 @@ describe('DashboardLayout', () => {
   });
 
   it('clears active dashboard filters from the defect table toolbar action', () => {
-    render(<DashboardLayout />);
+    render(<DashboardLayout />, { wrapper: TestWrapper });
 
     fireEvent.click(screen.getByText('Work Signal'));
     fireEvent.click(screen.getByText('Select Developer'));
@@ -282,7 +283,7 @@ describe('DashboardLayout', () => {
   });
 
   it('clears only the primary filter back to all from the sidebar header action', () => {
-    render(<DashboardLayout />);
+    render(<DashboardLayout />, { wrapper: TestWrapper });
 
     fireEvent.click(screen.getByText('Sidebar Blocked'));
     fireEvent.click(screen.getByText('Sidebar Developer'));
@@ -313,7 +314,7 @@ describe('DashboardLayout', () => {
   });
 
   it('clears only the active developer from the sidebar header action', () => {
-    render(<DashboardLayout />);
+    render(<DashboardLayout />, { wrapper: TestWrapper });
 
     fireEvent.click(screen.getByText('Work Signal'));
     fireEvent.click(screen.getByText('Sidebar Developer'));
@@ -344,7 +345,7 @@ describe('DashboardLayout', () => {
   });
 
   it('opens the focused visible table row from keyboard navigation', () => {
-    render(<DashboardLayout />);
+    render(<DashboardLayout />, { wrapper: TestWrapper });
 
     fireEvent.keyDown(window, { key: 'ArrowDown' });
     fireEvent.keyDown(window, { key: 'Enter' });
@@ -353,7 +354,7 @@ describe('DashboardLayout', () => {
   });
 
   it('does not hijack browser shortcuts that use modifier keys', () => {
-    render(<DashboardLayout />);
+    render(<DashboardLayout />, { wrapper: TestWrapper });
 
     fireEvent.keyDown(window, { key: 'r', ctrlKey: true });
     fireEvent.keyDown(window, { key: 'r', metaKey: true });

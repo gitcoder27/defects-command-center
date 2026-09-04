@@ -22,6 +22,7 @@ import { TeamTrackerViewSwitcher, type TeamTrackerLens } from './TeamTrackerView
 import { DeveloperTrackerDrawer } from './DeveloperTrackerDrawer';
 import { AvailabilityDialog } from './AvailabilityDialog';
 import { TrackerTaskDetailDrawer } from './TrackerTaskDetailDrawer';
+import { describeTeamTrackerView } from './SavedViewItem';
 import { ManagerDeskCaptureDialog } from '@/components/manager-desk/ManagerDeskCaptureDialog';
 import {
   formatTrackerIssueContextNote,
@@ -465,6 +466,7 @@ export function TeamTrackerPage({
                 visibleCount={board.visibleSummary.total}
                 totalCount={board.summary.total}
                 views={qs.savedViews}
+                describe={describeTeamTrackerView}
                 activeViewId={qs.activeViewId}
                 isDirty={qs.isDirtyFrom(resolvedQuery)}
                 isViewsLoading={qs.isViewsLoading}

@@ -1,4 +1,5 @@
 import { AlertCircle, ArrowRight, Briefcase, CalendarClock, ClipboardList, Loader2, RadioTower, ShieldAlert, Sparkles } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useOverview } from '@/hooks/useOverview';
 import { useManagerAttention } from '@/hooks/useManagerAttention';
 import type { FilterType } from '@/types';
@@ -9,6 +10,7 @@ interface WorkFocusStripProps {
   onFilterChange: (filter: FilterType) => void;
   onOpenDesk?: () => void;
   onOpenTeam?: () => void;
+  actions?: ReactNode;
 }
 
 const severityColor: Record<ManagerAttentionSeverity, string> = {
@@ -18,7 +20,7 @@ const severityColor: Record<ManagerAttentionSeverity, string> = {
   neutral: 'var(--text-secondary)',
 };
 
-export function WorkFocusStrip({ activeFilter, onFilterChange, onOpenDesk, onOpenTeam }: WorkFocusStripProps) {
+export function WorkFocusStrip({ activeFilter, onFilterChange, onOpenDesk, onOpenTeam, actions }: WorkFocusStripProps) {
   const { data: overview, isLoading: overviewLoading } = useOverview();
   const { data: snapshot, isFetching } = useManagerAttention();
   const metrics = snapshot.workMetrics;
@@ -174,6 +176,10 @@ export function WorkFocusStrip({ activeFilter, onFilterChange, onOpenDesk, onOpe
             </button>
           ))}
         </div>
+
+        {actions && (
+          <div className="flex shrink-0 items-center gap-1.5 xl:self-start">{actions}</div>
+        )}
       </div>
     </section>
   );
