@@ -1,11 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { ToastProvider, useToast } from '@/context/ToastContext';
 import { AuthProvider, useAuth, useAuthScopeKey } from '@/context/AuthContext';
+import { QuickActionsProvider, type QuickActionsValue } from '@/context/QuickActionsContext';
 import { useBootstrapState } from '@/hooks/useBootstrapState';
 import { useSyncRefreshCoordinator } from '@/hooks/useSyncRefreshCoordinator';
 import { TodayPage } from '@/components/today/TodayPage';
+import { GlobalCaptureDialog, type GlobalCaptureContext } from '@/components/capture/GlobalCaptureDialog';
 import { DEFAULT_DASHBOARD_FILTER_STATE, type DashboardFilterState } from '@/components/layout/dashboard-state';
 import {
   dashboardFilterStateFromParams,
@@ -390,6 +392,9 @@ function AppContent() {
         : undefined,
     nonce: 0,
   }));
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [captureContext, setCaptureContext] = useState<GlobalCaptureContext>({});
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   useSyncRefreshCoordinator({ enabled: isAuthenticatedManager && activeView !== 'today' });
 
@@ -576,9 +581,23 @@ function AppContent() {
     user,
   ]);
 
-  if (authLoading || isBootstrapPending) {
-    return activeView === 'today' ? <TodayBootLoading /> : <FullPageLoading />;
-  }
+  const openCapture = useCallback((context?: GlobalCaptureContext) => {
+    setCaptureContext(context ?? {});
+    setCaptureOpen(true);
+  }, []);
+
+  const quickActions = useMemo<QuickActionsValue>(
+    () => ({
+      openCapture,
+      openCommandPalette: () => setPaletteOpen(true),
+    }),
+    [openCapture],
+  );
+
+  const renderActiveView = () => {
+    if (authLoading || isBootstrapPending) {
+      return activeView === 'today' ? <TodayBootLoading /> : <FullPageLoading />;
+    }
 
   if (bootstrapState?.bootstrapOpen) {
     return (
@@ -590,9 +609,7 @@ function AppContent() {
         />
       </Suspense>
     );
-  }
-
-  if (activeView === 'my-day') {
+  }  if (activeView === 'my-day') {
     if (!isAuthenticated) {
       return (
         <Suspense fallback={<FullPageLoading />}>
@@ -712,6 +729,23 @@ function AppContent() {
         onOpenActionTarget={handleOpenTodayTarget}
       />
     </Suspense>
+  );
+  };
+
+  const defaultCaptureTarget = activeView === 'team' ? 'team-tracker' : 'manager-desk';
+
+  return (
+    <QuickActionsProvider value={quickActions}>
+      {renderActiveView()}
+      {isAuthenticatedManager && captureOpen && (
+        <GlobalCaptureDialog
+          onClose={() => setCaptureOpen(false)}
+          onOpenManagerDesk={() => handleViewChange('desk')}
+          onOpenTeamTracker={() => handleViewChange('team')}
+          context={{ ...captureContext, defaultTarget: captureContext.defaultTarget ?? defaultCaptureTarget }}
+        />
+      )}
+    </QuickActionsProvider>
   );
 }
 

@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Header } from '@/components/layout/Header';
+import { QuickActionsProvider } from '@/context/QuickActionsContext';
 
 const useThemeMock = vi.fn();
 const useAuthMock = vi.fn();
@@ -131,11 +132,28 @@ describe('Header', () => {
   });
 
   it('opens the global capture dialog when clicking capture', () => {
-    render(<Header activeView="today" onViewChange={vi.fn()} />);
+    const openCapture = vi.fn();
+    render(
+      <QuickActionsProvider value={{ openCapture, openCommandPalette: vi.fn() }}>
+        <Header activeView="today" onViewChange={vi.fn()} />
+      </QuickActionsProvider>,
+    );
 
     expect(screen.queryByTestId('global-capture-dialog')).not.toBeInTheDocument();
     fireEvent.click(screen.getByText('Capture'));
-    expect(screen.getByTestId('global-capture-dialog')).toBeInTheDocument();
+    expect(openCapture).toHaveBeenCalledWith(expect.objectContaining({ defaultTarget: 'manager-desk' }));
+  });
+
+  it('opens the command palette from the search button', () => {
+    const openCommandPalette = vi.fn();
+    render(
+      <QuickActionsProvider value={{ openCapture: vi.fn(), openCommandPalette }}>
+        <Header activeView="today" onViewChange={vi.fn()} />
+      </QuickActionsProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open command palette' }));
+    expect(openCommandPalette).toHaveBeenCalledTimes(1);
   });
 
   it('hides the capture button for non-manager users', () => {

@@ -1,14 +1,15 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { RefreshCw, Moon, Sun, PanelLeftOpen, Settings, Plus } from 'lucide-react';
+import { RefreshCw, Moon, Sun, PanelLeftOpen, Search, Settings, Plus } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
+import { useQuickActions } from '@/context/QuickActionsContext';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useTriggerSync } from '@/hooks/useTriggerSync';
 import { formatRelativeTime } from '@/lib/utils';
 import type { ActiveAppView, AppView } from '@/App';
 import type { Alert, ManagerActionTarget } from '@/types';
-import { GlobalCaptureDialog, type GlobalCaptureContext } from '@/components/capture/GlobalCaptureDialog';
+import type { GlobalCaptureContext } from '@/components/capture/GlobalCaptureDialog';
 import { HeaderNav } from '@/components/layout/HeaderNav';
 import { ManagerActionInbox } from '@/components/actions/ManagerActionInbox';
 import { LeadOSMark } from '@/components/brand/LeadOSMark';
@@ -25,9 +26,9 @@ interface HeaderProps {
 export function Header({ onOpenMobileSidebar, activeView, onViewChange, onOpenActionTarget, captureContext }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const { openCapture, openCommandPalette } = useQuickActions();
   const { data: sync } = useSyncStatus({ enabled: activeView !== 'today' });
   const triggerSync = useTriggerSync();
-  const [captureOpen, setCaptureOpen] = useState(false);
   const headerRef = useRef<HTMLElement | null>(null);
 
   const isSyncing = sync?.status === 'syncing' || triggerSync.isPending;
@@ -175,7 +176,31 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onOpenAc
               {canQuickCapture && (
                 <button
                   type="button"
-                  onClick={() => setCaptureOpen(true)}
+                  onClick={() => openCommandPalette()}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-xl px-2.5 text-[12px] font-medium transition-all"
+                  style={{
+                    background: 'var(--bg-tertiary)',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border)',
+                  }}
+                  title="Search and jump anywhere (Ctrl/⌘+K)"
+                  aria-label="Open command palette"
+                >
+                  <Search size={13} />
+                  <span className="hidden sm:inline">Search</span>
+                  <kbd className="hidden lg:inline font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>⌘K</kbd>
+                </button>
+              )}
+
+              {canQuickCapture && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    openCapture({
+                      ...(captureContext ?? {}),
+                      defaultTarget: captureContext?.defaultTarget ?? defaultCaptureTarget,
+                    })
+                  }
                   className="inline-flex h-8 items-center gap-1.5 rounded-xl px-3 text-[12px] font-semibold transition-all"
                   style={{
                     background: 'linear-gradient(135deg, var(--md-accent-glow), rgba(217,169,78,0.06))',
@@ -242,18 +267,6 @@ export function Header({ onOpenMobileSidebar, activeView, onViewChange, onOpenAc
           </div>
         </div>
       </motion.header>
-
-      {captureOpen && (
-        <GlobalCaptureDialog
-          onClose={() => setCaptureOpen(false)}
-          onOpenManagerDesk={onViewChange ? () => onViewChange('desk') : undefined}
-          onOpenTeamTracker={onViewChange ? () => onViewChange('team') : undefined}
-          context={{
-            ...captureContext,
-            defaultTarget: captureContext?.defaultTarget ?? defaultCaptureTarget,
-          }}
-        />
-      )}
     </>
   );
 }
