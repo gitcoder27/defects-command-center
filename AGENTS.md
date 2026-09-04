@@ -42,6 +42,8 @@ Canonical routes:
 
 Legacy paths normalize in `App.tsx`: `/dashboard` -> `/work`, `/team-tracker` -> `/team`, `/manager-desk` -> `/desk`, `/today` -> `/`, `/followups` -> `/follow-ups`, `/meeting` -> `/meetings`.
 
+Work (`?filter/dev/tag/noTags`), Team (`?q/filter/sort/group/view`), and Desk (`?date`) keep their filter state in the URL (see `client/src/lib/view-params.ts`), so views are shareable; changes sync back with debounced `replaceState`. Ctrl/Cmd+K opens the global command palette (`client/src/components/palette/`), which searches issues, desk items, check-ins, and developers via `/api/search`, and can jump anywhere or run capture/sync.
+
 First-run setup opens the Setup Wizard for manager account creation, Jira connection, manager mapping, team selection, and developer access.
 
 ## Frontend Map
@@ -56,6 +58,7 @@ Feature folders under `client/src/components/`:
 - `manager-desk/`: Desk workspace, item drawer, rhythm lists, carry-forward, linked issue/developer workflows.
 - `manager-memory/`: Follow-ups and Meetings views.
 - `capture/`: global capture dialogs and capture forms.
+- `palette/`: Cmd+K command palette and global search results.
 - `settings/`, `setup/`: configuration, maintenance, users, bootstrap, onboarding.
 - `brand/`: LeadOS brand primitives.
 
@@ -69,7 +72,7 @@ Frontend conventions:
 
 ## Backend Map
 
-Routes live in `server/src/routes/`: `auth`, `config`, `issues`, `overview`, `team`, `team-tracker`, `my-day`, `manager-desk`, `alerts`, `suggestions`, `sync`, `tags`, `backups`.
+Routes live in `server/src/routes/`: `auth`, `config`, `issues`, `overview`, `team`, `team-tracker`, `my-day`, `manager-desk`, `manager-actions`, `search`, `work` (Work dashboard saved views), `alerts`, `suggestions`, `sync`, `tags`, `backups`.
 
 Services live in `server/src/services/` and cover issues, workload, alerts, automation suggestions, settings/config, tags, backups, auth, Team Tracker, My Day, Manager Desk, developer availability, workspace maintenance, and board query logic.
 
