@@ -8,6 +8,7 @@ import { useBootstrapState } from '@/hooks/useBootstrapState';
 import { useSyncRefreshCoordinator } from '@/hooks/useSyncRefreshCoordinator';
 import { TodayPage } from '@/components/today/TodayPage';
 import { GlobalCaptureDialog, type GlobalCaptureContext } from '@/components/capture/GlobalCaptureDialog';
+import { CommandPalette } from '@/components/palette/CommandPalette';
 import { DEFAULT_DASHBOARD_FILTER_STATE, type DashboardFilterState } from '@/components/layout/dashboard-state';
 import {
   dashboardFilterStateFromParams,
@@ -594,6 +595,20 @@ function AppContent() {
     [openCapture],
   );
 
+  useEffect(() => {
+    if (!isAuthenticatedManager) {
+      return;
+    }
+    const handler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isAuthenticatedManager]);
+
   const renderActiveView = () => {
     if (authLoading || isBootstrapPending) {
       return activeView === 'today' ? <TodayBootLoading /> : <FullPageLoading />;
@@ -743,6 +758,13 @@ function AppContent() {
           onOpenManagerDesk={() => handleViewChange('desk')}
           onOpenTeamTracker={() => handleViewChange('team')}
           context={{ ...captureContext, defaultTarget: captureContext.defaultTarget ?? defaultCaptureTarget }}
+        />
+      )}
+      {isAuthenticatedManager && paletteOpen && (
+        <CommandPalette
+          onClose={() => setPaletteOpen(false)}
+          onOpenTarget={handleOpenTodayTarget}
+          onViewChange={handleViewChange}
         />
       )}
     </QuickActionsProvider>
