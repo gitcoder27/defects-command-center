@@ -36,6 +36,7 @@ function createTestApp() {
     managerDeskService,
     todayService,
     searchService: {} as any,
+    workSavedViewsService: {} as any,
   });
 }
 

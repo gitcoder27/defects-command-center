@@ -1008,6 +1008,37 @@ export interface GlobalSearchResponse {
   developers: GlobalSearchDeveloperItem[];
 }
 
+export interface WorkSavedView {
+  id: number;
+  name: string;
+  filter: FilterType;
+  developerAccountId?: string | null;
+  tagId?: number | null;
+  noTagsFilter: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkSavedViewInput {
+  name: string;
+  filter?: FilterType;
+  developerAccountId?: string | null;
+  tagId?: number | null;
+  noTagsFilter?: boolean;
+}
+
+export interface WorkSavedViewUpdate {
+  name?: string;
+  filter?: FilterType;
+  developerAccountId?: string | null;
+  tagId?: number | null;
+  noTagsFilter?: boolean;
+}
+
+export interface WorkSavedViewsResponse {
+  views: WorkSavedView[];
+}
+
 export interface ManagerDeskCreateItemPayload {
   date: string;
   title: string;

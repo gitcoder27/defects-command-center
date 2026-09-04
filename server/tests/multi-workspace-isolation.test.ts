@@ -19,6 +19,7 @@ import { TagService } from "../src/services/tag.service";
 import { TeamTrackerService } from "../src/services/team-tracker.service";
 import { TodayService } from "../src/services/today.service";
 import { SearchService } from "../src/services/search.service";
+import { WorkSavedViewsService } from "../src/services/work-saved-views.service";
 import { WorkloadService } from "../src/services/workload.service";
 import { db, resetDatabase } from "./helpers/db";
 import { invoke } from "./helpers/http";
@@ -52,6 +53,7 @@ function buildApp(authService: AuthService, trackerService: TeamTrackerService, 
     managerDeskService,
     todayService: new TodayService(issueService, trackerService, managerDeskService, syncEngine),
     searchService: new SearchService(),
+    workSavedViewsService: new WorkSavedViewsService(),
   });
 }
 

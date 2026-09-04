@@ -219,6 +219,21 @@ export const teamTrackerSavedViews = sqliteTable("team_tracker_saved_views", {
   uniqueIndex("idx_tracker_saved_views_workspace_manager_name").on(table.workspaceId, table.managerAccountId, table.name),
 ]);
 
+export const workSavedViews = sqliteTable("work_saved_views", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: text("workspace_id").notNull().default("default"),
+  managerAccountId: text("manager_account_id").notNull(),
+  name: text("name").notNull(),
+  filter: text("filter").notNull().default("all"),
+  developerAccountId: text("developer_account_id"),
+  tagId: integer("tag_id"),
+  noTags: integer("no_tags").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [
+  uniqueIndex("idx_work_saved_views_workspace_manager_name").on(table.workspaceId, table.managerAccountId, table.name),
+]);
+
 // ── Manager Desk tables ────────────────────────────────
 
 export const managerDeskDays = sqliteTable("manager_desk_days", {

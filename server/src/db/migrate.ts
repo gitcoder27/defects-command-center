@@ -217,6 +217,19 @@ CREATE TABLE IF NOT EXISTS team_tracker_saved_views (
   updated_at         TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS work_saved_views (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id        TEXT NOT NULL DEFAULT 'default',
+  manager_account_id  TEXT NOT NULL,
+  name                TEXT NOT NULL,
+  filter              TEXT NOT NULL DEFAULT 'all',
+  developer_account_id TEXT,
+  tag_id              INTEGER,
+  no_tags             INTEGER NOT NULL DEFAULT 0,
+  created_at          TEXT NOT NULL,
+  updated_at          TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS manager_desk_days (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   workspace_id       TEXT NOT NULL DEFAULT 'default',
@@ -289,6 +302,8 @@ CREATE INDEX IF NOT EXISTS idx_tracker_items_workspace_day ON team_tracker_items
 CREATE INDEX IF NOT EXISTS idx_tracker_checkins_workspace_day ON team_tracker_checkins(workspace_id, day_id);
 CREATE INDEX IF NOT EXISTS idx_tracker_saved_views_workspace_manager ON team_tracker_saved_views(workspace_id, manager_account_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_tracker_saved_views_workspace_manager_name ON team_tracker_saved_views(workspace_id, manager_account_id, name);
+CREATE INDEX IF NOT EXISTS idx_work_saved_views_workspace_manager ON work_saved_views(workspace_id, manager_account_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_work_saved_views_workspace_manager_name ON work_saved_views(workspace_id, manager_account_id, name);
 CREATE INDEX IF NOT EXISTS idx_manager_desk_days_workspace_manager_date ON manager_desk_days(workspace_id, manager_account_id, date);
 CREATE INDEX IF NOT EXISTS idx_manager_desk_items_workspace_day ON manager_desk_items(workspace_id, day_id);
 CREATE INDEX IF NOT EXISTS idx_manager_desk_items_workspace_status ON manager_desk_items(workspace_id, status);
@@ -479,6 +494,7 @@ const workspaceOwnedTables = [
   "team_tracker_items",
   "team_tracker_checkins",
   "team_tracker_saved_views",
+  "work_saved_views",
   "manager_desk_days",
   "manager_desk_items",
   "manager_desk_links",
