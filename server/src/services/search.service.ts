@@ -15,6 +15,8 @@ import {
   teamTrackerCheckIns,
   teamTrackerDays,
 } from "../db/schema";
+import { isVisibleWorkIssue } from "./issue-rules";
+import { SettingsService } from "./settings.service";
 import { normalizeWorkspaceId } from "./workspace.service";
 
 const MIN_QUERY_LENGTH = 2;
@@ -34,6 +36,8 @@ function containsPattern(query: string): string {
 }
 
 export class SearchService {
+  constructor(private readonly settings = new SettingsService()) {}
+
   async search(rawQuery: string, workspaceId?: string, managerAccountId?: string): Promise<GlobalSearchResponse> {
     const query = sanitizeQuery(rawQuery);
     const emptyResponse: GlobalSearchResponse = {
@@ -68,41 +72,52 @@ export class SearchService {
   }
 
   private async searchIssues(workspaceId: string, pattern: string): Promise<GlobalSearchIssueItem[]> {
-    const rows = await db
-      .select({
-        jiraKey: issues.jiraKey,
-        summary: issues.summary,
-        statusName: issues.statusName,
-        statusCategory: issues.statusCategory,
-        priorityName: issues.priorityName,
-        assigneeName: issues.assigneeName,
-        dueDate: issues.dueDate,
-        updatedAt: issues.updatedAt,
-      })
-      .from(issues)
-      .where(
-        and(
-          eq(issues.workspaceId, workspaceId),
-          or(
-            like(issues.jiraKey, pattern),
-            like(issues.summary, pattern),
-            like(issues.assigneeName, pattern)
+    // Search follows the Work board's visibility rules (open, active, in-scope
+    // issues only) so the palette never surfaces closed defects the dashboard
+    // hides. Filtering happens after the LIKE match, so no SQL limit here.
+    const [rows, jiraSyncScopeMode] = await Promise.all([
+      db
+        .select({
+          jiraKey: issues.jiraKey,
+          summary: issues.summary,
+          statusName: issues.statusName,
+          statusCategory: issues.statusCategory,
+          priorityName: issues.priorityName,
+          assigneeName: issues.assigneeName,
+          dueDate: issues.dueDate,
+          updatedAt: issues.updatedAt,
+          excluded: issues.excluded,
+          teamScopeState: issues.teamScopeState,
+          syncScopeState: issues.syncScopeState,
+        })
+        .from(issues)
+        .where(
+          and(
+            eq(issues.workspaceId, workspaceId),
+            or(
+              like(issues.jiraKey, pattern),
+              like(issues.summary, pattern),
+              like(issues.assigneeName, pattern)
+            )
           )
         )
-      )
-      .orderBy(desc(issues.updatedAt))
-      .limit(ISSUE_LIMIT);
+        .orderBy(desc(issues.updatedAt)),
+      this.settings.getJiraSyncScopeMode(workspaceId),
+    ]);
 
-    return rows.map((row) => ({
-      jiraKey: row.jiraKey,
-      summary: row.summary,
-      statusName: row.statusName,
-      statusCategory: row.statusCategory,
-      priorityName: row.priorityName,
-      assigneeName: row.assigneeName ?? undefined,
-      dueDate: row.dueDate ?? undefined,
-      updatedAt: row.updatedAt,
-    }));
+    return rows
+      .filter((row) => isVisibleWorkIssue(row, jiraSyncScopeMode))
+      .slice(0, ISSUE_LIMIT)
+      .map((row) => ({
+        jiraKey: row.jiraKey,
+        summary: row.summary,
+        statusName: row.statusName,
+        statusCategory: row.statusCategory,
+        priorityName: row.priorityName,
+        assigneeName: row.assigneeName ?? undefined,
+        dueDate: row.dueDate ?? undefined,
+        updatedAt: row.updatedAt,
+      }));
   }
 
   private async searchDeskItems(

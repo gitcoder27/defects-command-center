@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { db, resetDatabase } from "./helpers/db";
 import {
+  configTable,
   developers,
   issues,
   managerDeskDays,
@@ -157,6 +158,30 @@ describe("SearchService.search", () => {
     const result = await searchService.search("payment");
 
     expect(result.issues.map((issue) => issue.jiraKey)).toEqual(["PROJ-2", "PROJ-1"]);
+  });
+
+  it("hides closed, excluded, and out-of-team issues to match the Work board", async () => {
+    await seedIssue({ jiraKey: "PROJ-OPEN", summary: "Payment provider timeouts", updatedAt: "2026-03-06T00:00:00.000Z" });
+    await seedIssue({ jiraKey: "PROJ-CLOSED", summary: "Payment closed long ago", statusName: "Closed", statusCategory: "done", updatedAt: "2026-03-08T00:00:00.000Z" });
+    await seedIssue({ jiraKey: "PROJ-EXCLUDED", summary: "Payment excluded issue", excluded: 1, updatedAt: "2026-03-07T00:00:00.000Z" });
+    await seedIssue({ jiraKey: "PROJ-OUT", summary: "Payment out of team", teamScopeState: "out_of_team", updatedAt: "2026-03-05T00:00:00.000Z" });
+
+    const result = await searchService.search("payment");
+
+    expect(result.issues.map((issue) => issue.jiraKey)).toEqual(["PROJ-OPEN"]);
+  });
+
+  it("includes out-of-team issues when the workspace syncs by base query", async () => {
+    await db.insert(configTable).values({
+      workspaceId: "default",
+      key: "jira_sync_scope_mode",
+      value: "base_query",
+    });
+    await seedIssue({ jiraKey: "PROJ-OUT", summary: "Payment out of team", teamScopeState: "out_of_team" });
+
+    const result = await searchService.search("payment");
+
+    expect(result.issues.map((issue) => issue.jiraKey)).toEqual(["PROJ-OUT"]);
   });
 
   it("limits issue results", async () => {
